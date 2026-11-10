@@ -15,8 +15,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS
 date_default_timezone_set('Asia/Karachi');
 
 $host = 'localhost';
-$db   = 'u245697138_forupdates';
-$user = 'u245697138_forupdates';
+$db   = 'u245697138_madrasa';
+$user = 'u245697138_madrasa';
 $pass = 'Suhailahmad123@';
 $charset = 'utf8mb4';
 
