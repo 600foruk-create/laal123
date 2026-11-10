@@ -1,0 +1,40 @@
+            <div class="left-sidebar">
+                <div class="sidebar-section">
+                    <div class="section-header">
+                        <i class="fas fa-plus-circle"></i>
+                        Record New
+                    </div>
+                    <div class="sidebar-items">
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Store/inward_gate_passes.html', 'fa-dolly', 'Inward Gate Passes', () => window.IGPModule && window.IGPModule.init(), 'Inward Gate Passes', true, true)"><i class="fas fa-dolly"></i> Inwards Gate Pass</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Purchases/purchase_invoice.html', 'fa-file-invoice-dollar', 'Purchase Invoice', () => window.PIModule.init(), 'Purchase Invoice', true, true)"><i class="fas fa-file-invoice-dollar"></i> Purchase Invoice</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Purchases/purchase_return.html', 'fa-undo', 'Purchase Return / Debit Note', () => window.PRModule.init(), 'Purchase Return', true, true)"><i class="fas fa-undo"></i> Purchase Return</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Sales/delivery_challans.html', 'fa-truck-loading', 'Delivery Challans', () => { if(window.DeliveryChallanModule) window.DeliveryChallanModule.init(); else alert('Module not ready.'); }, 'Delivery Challans', true, true)"><i class="fas fa-truck"></i> Delivery Challan</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Store/outward_gate_passes.html', 'fa-dolly', 'Outward Gate Passes', () => window.OGPModule && window.OGPModule.init(), 'Outward Gate Passes', true, true)"><i class="fas fa-dolly"></i> Outward Gate Pass</div>
+                        <div class="sidebar-item" onclick="openDefaultSaleInvoice()"><i class="fas fa-file-invoice-dollar"></i> Sale Invoice</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Purchases/cash_payments.html', 'fa-money-bill-wave', 'Cash Payments', () => window.initCashPaymentModule(), 'Cash Payments', true, true)"><i class="fas fa-money-bill-wave"></i> Cash Payment</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Purchases/bank_payments.html', 'fa-university', 'Bank Payments', () => window.initBankPaymentModule(), 'Bank Payments', true, true)"><i class="fas fa-university"></i> Bank Payment</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Sales/cash_receipts.html', 'fa-hand-holding-usd', 'Cash Receipts', () => window.initCashReceiptModule(), 'Cash Receipts', true, true)"><i class="fas fa-hand-holding-usd"></i> Cash Receipt</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Sales/bank_receipts.html', 'fa-university', 'Bank Receipts', () => window.initBankReceiptModule(), 'Bank Receipts', true, true)"><i class="fas fa-university"></i> Bank Receipt</div>
+                    </div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="section-header">
+                        <i class="fas fa-eye"></i>
+                        View
+                    </div>
+                    <div class="sidebar-items">
+                        <div class="sidebar-item" data-target="Navigation/Reports/purchase_summary.html" data-module="Purchase Summary"><i class="fas fa-chart-line"></i> Purchase Report</div>
+                        <div class="sidebar-item" data-target="Navigation/Reports/purchase_register.html" data-module="Purchase Register"><i class="fas fa-list-alt"></i> Purchase Register</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Reports/purchase_order_tracker.html', 'fa-file-invoice', 'Purchase Order Tracker', () => { if(window.PurchaseOrderTracker) window.PurchaseOrderTracker.init(); }, 'Purchase Order Tracking', true, true)"><i class="fas fa-file-invoice"></i> Purchase Order Tracker</div>
+                        <div class="sidebar-item" data-target="Navigation/Reports/vendor_balances.html" data-module="Vendor Balances"><i class="fas fa-users"></i> Vendors' Balances</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Reports/sale_report.html', 'fa-file-invoice-dollar', 'Sale Summary', () => { if(window.SaleReportModule) window.SaleReportModule.init(); }, 'Sale Summary', true, true)"><i class="fas fa-chart-bar"></i> Sale Summary</div>
+                        <div class="sidebar-item" data-target="Navigation/Reports/customer_balances.html" data-module="Customer Balances"><i class="fas fa-user-tie"></i> Customers' Balances</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Reports/price_list_management.html', 'fa-tags', 'Price List Management & Price Revision', () => { if(window.PriceListManagementModule) window.PriceListManagementModule.init(); }, 'Price List Management', true, true)"><i class="fas fa-tags"></i> Price List & Revision</div>
+                        <div class="sidebar-item" data-target="Navigation/Reports/view_inventory_ledgers.html" data-module="View Inventory Ledgers"><i class="fas fa-boxes"></i> Inventory Ledgers</div>
+                        <div class="sidebar-item" data-target="Navigation/Reports/inventory_balances.html" data-module="Inventory Balances"><i class="fas fa-cubes"></i> Inventory Balance</div>
+                        <div class="sidebar-item" onclick="openModularPopup('Navigation/Reports/view_account_ledger.html', 'fa-book', 'Accounts\' Ledgers', () => { if(window.AccountLedgerModule) window.AccountLedgerModule.init(); }, 'View Account Ledger', true, true)"><i class="fas fa-book"></i> Accounts' Ledgers</div>
+                        <div class="sidebar-item" data-target="Navigation/Reports/trial_balance.html" data-module="Trial Balance"><i class="fas fa-scale-balanced"></i> Trial Balance</div>
+                    </div>
+                </div>
+            </div>
+

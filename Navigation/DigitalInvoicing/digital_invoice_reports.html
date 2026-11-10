@@ -1,0 +1,1534 @@
+<style>
+    /* Modal Container Sizing and Zero-Margin Header Rule */
+    .modal-container:has(.modal-body[data-module="Digital Invoice Reports"]),
+    .modal-container.modal-digital-reports {
+        max-width: 1260px !important;
+        width: 98% !important;
+        height: 94vh !important;
+        max-height: 94vh !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        border-radius: 6px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        border: 2px solid var(--theme-primary, #1F4E79) !important;
+    }
+
+    .modal-container:has(.modal-body[data-module="Digital Invoice Reports"]) .modal-header,
+    .modal-container.modal-digital-reports .modal-header {
+        margin: 0 !important;
+        border-radius: 4px 4px 0 0 !important;
+        padding: 3px 12px !important;
+        height: 30px !important;
+        box-sizing: border-box !important;
+        background: var(--theme-primary, #1F4E79) !important;
+        border-bottom: 2px solid var(--theme-accent, #F5A623) !important;
+        flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        color: #ffffff !important;
+    }
+
+    .modal-body[data-module="Digital Invoice Reports"],
+    .modal-container.modal-digital-reports .modal-body {
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+        background: #ffffff;
+    }
+
+    /* Top Filter Bar */
+    .rpt-filter-bar {
+        background: var(--theme-toolbar, #214F77);
+        padding: 4px 8px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-shrink: 0;
+        overflow-x: auto;
+        border-bottom: 1px solid rgba(0,0,0,0.15);
+    }
+
+    .rpt-input {
+        height: 24px;
+        font-size: 11px;
+        padding: 1px 6px;
+        border: 1px solid #cbd5e1;
+        border-radius: 3px;
+        color: #1e293b;
+        background: #ffffff;
+        box-sizing: border-box;
+        outline: none;
+    }
+
+    .rpt-input:focus {
+        border-color: var(--theme-primary, #1F4E79);
+        box-shadow: 0 0 0 1px rgba(31, 78, 121, 0.25);
+    }
+
+    .rpt-btn {
+        height: 24px;
+        padding: 0 9px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 3px;
+        border: 1px solid rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.15);
+        color: #ffffff;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+        transition: all 0.15s;
+    }
+
+    .rpt-btn:hover {
+        background: rgba(255,255,255,0.28);
+        border-color: #ffffff;
+    }
+
+    .rpt-btn-blue {
+        background: #0284c7 !important;
+        border-color: #38bdf8 !important;
+        font-weight: 700;
+    }
+    .rpt-btn-blue:hover {
+        background: #0369a1 !important;
+    }
+
+    .rpt-btn-green {
+        background: #16a34a !important;
+        border-color: #86efac !important;
+        font-weight: 700;
+    }
+    .rpt-btn-green:hover {
+        background: #15803d !important;
+    }
+
+    /* Tab Navigation */
+    .rpt-nav-tabs {
+        display: flex;
+        background: #f1f5f9;
+        border-bottom: 2px solid #cbd5e1;
+        padding: 0 6px;
+        gap: 2px;
+        flex-shrink: 0;
+        overflow-x: auto;
+    }
+
+    .rpt-tab-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #475569;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        margin-bottom: -2px;
+        transition: all 0.15s;
+    }
+
+    .rpt-tab-btn:hover {
+        color: var(--theme-primary, #1F4E79);
+        background: #e2e8f0;
+    }
+
+    .rpt-tab-btn.active {
+        color: var(--theme-primary, #1F4E79);
+        border-bottom-color: var(--theme-accent, #F5A623);
+        background: #ffffff;
+        font-weight: 700;
+    }
+
+    /* KPI Cards Grid */
+    .rpt-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .rpt-kpi-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .rpt-kpi-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--theme-primary, #1F4E79);
+    }
+
+    .rpt-kpi-card.kpi-green::before { background: #16a34a; }
+    .rpt-kpi-card.kpi-amber::before { background: #d97706; }
+    .rpt-kpi-card.kpi-red::before { background: #dc2626; }
+    .rpt-kpi-card.kpi-blue::before { background: #0284c7; }
+    .rpt-kpi-card.kpi-purple::before { background: #7c3aed; }
+
+    /* Tables */
+    .rpt-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+    }
+
+    .rpt-table thead th {
+        background: var(--theme-primary, #1F4E79);
+        color: #ffffff;
+        font-weight: 700;
+        padding: 4px 6px;
+        font-size: 10px;
+        text-align: left;
+        border: 1px solid rgba(255,255,255,0.25);
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+    }
+
+    .rpt-table tbody td {
+        padding: 4px 6px;
+        border: 1px solid #cbd5e1;
+        vertical-align: middle;
+        background: #ffffff;
+    }
+
+    .rpt-table tbody tr:hover td {
+        background: #f8fafc;
+    }
+
+    .rpt-table tfoot td {
+        background: #f1f5f9;
+        font-weight: 700;
+        padding: 4px 6px;
+        border: 1px solid #cbd5e1;
+        position: sticky;
+        bottom: 0;
+        z-index: 4;
+    }
+
+    .fbr-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .pill-pending { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+    .pill-submitted { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .pill-cancelled { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .pill-failed { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+</style>
+
+<div id="digitalInvoiceReportsContainer" data-module="Digital Invoice Reports" style="width: 100%; height: 100%; display: flex; flex-direction: column; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; box-sizing: border-box; background: #ffffff; position: relative;">
+
+    <!-- 1. TOP FILTER BAR -->
+    <div class="rpt-filter-bar">
+        <div style="display: flex; align-items: center; gap: 4px; color: #ffffff; font-size: 11px; font-weight: 600;">
+            <span><i class="fas fa-calendar-alt"></i> Date:</span>
+            <input type="date" id="rpt_date_from" class="rpt-input" style="width: 120px;" title="From Date" onchange="window.DigitalInvoiceReportsModule.refreshActiveReport()">
+            <span>to</span>
+            <input type="date" id="rpt_date_to" class="rpt-input" style="width: 120px;" title="To Date" onchange="window.DigitalInvoiceReportsModule.refreshActiveReport()">
+        </div>
+
+        <select id="rpt_quick_date" class="rpt-input" style="width: 100px;" onchange="window.DigitalInvoiceReportsModule.onQuickDateChange(this.value)">
+            <option value="this_month">This Month</option>
+            <option value="today">Today</option>
+            <option value="this_week">This Week</option>
+            <option value="last_month">Last Month</option>
+            <option value="this_year">This Year</option>
+            <option value="all">All Dates</option>
+        </select>
+
+        <input type="text" id="rpt_filter_q" class="rpt-input" style="width: 160px;" placeholder="Search invoice, customer..." onkeyup="if(event.key==='Enter') window.DigitalInvoiceReportsModule.refreshActiveReport()">
+
+        <select id="rpt_filter_status" class="rpt-input" style="width: 110px;" onchange="window.DigitalInvoiceReportsModule.refreshActiveReport()">
+            <option value="">All Statuses</option>
+            <option value="Accepted">FBR Accepted</option>
+            <option value="Pending">Pending FBR</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Failed">Failed</option>
+            <option value="Cancelled">Cancelled</option>
+        </select>
+
+        <button type="button" class="rpt-btn rpt-btn-blue" onclick="window.DigitalInvoiceReportsModule.refreshActiveReport()">
+            <i class="fas fa-filter"></i> Apply Filter
+        </button>
+        <button type="button" class="rpt-btn" onclick="window.DigitalInvoiceReportsModule.clearFilters()">
+            <i class="fas fa-undo"></i> Reset
+        </button>
+
+        <div style="flex: 1;"></div>
+
+        <button type="button" class="rpt-btn rpt-btn-green" onclick="window.DigitalInvoiceReportsModule.exportExcel()">
+            <i class="fas fa-file-excel"></i> Export CSV / Excel
+        </button>
+        <button type="button" class="rpt-btn" onclick="window.DigitalInvoiceReportsModule.printActiveReport()" style="background: rgba(255,255,255,0.22); border-color: #ffffff;">
+            <i class="fas fa-print"></i> Print Report
+        </button>
+        <button type="button" class="rpt-btn" onclick="window.DigitalInvoiceReportsModule.refreshActiveReport()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+
+    <!-- 2. TAB NAVIGATION BAR -->
+    <div class="rpt-nav-tabs">
+        <button type="button" class="rpt-tab-btn active" onclick="window.DigitalInvoiceReportsModule.switchTab('dashboard', this)">
+            <i class="fas fa-chart-pie"></i> Dashboard Overview
+        </button>
+        <button type="button" class="rpt-tab-btn" onclick="window.DigitalInvoiceReportsModule.switchTab('register', this)">
+            <i class="fas fa-file-invoice"></i> Invoices Register
+        </button>
+        <button type="button" class="rpt-tab-btn" onclick="window.DigitalInvoiceReportsModule.switchTab('submission_status', this)">
+            <i class="fas fa-satellite-dish"></i> FBR Submission Status
+        </button>
+        <button type="button" class="rpt-tab-btn" onclick="window.DigitalInvoiceReportsModule.switchTab('credit_notes', this)">
+            <i class="fas fa-file-invoice-dollar"></i> Credit Notes Report
+        </button>
+        <button type="button" class="rpt-tab-btn" onclick="window.DigitalInvoiceReportsModule.switchTab('debit_notes', this)">
+            <i class="fas fa-file-invoice-dollar"></i> Debit Notes Report
+        </button>
+        <button type="button" class="rpt-tab-btn" onclick="window.DigitalInvoiceReportsModule.switchTab('cancellations', this)">
+            <i class="fas fa-ban"></i> Cancellations Report
+        </button>
+        <button type="button" class="rpt-tab-btn" onclick="window.DigitalInvoiceReportsModule.switchTab('tax_summary', this)">
+            <i class="fas fa-calculator"></i> Tax Summary Report
+        </button>
+        <button type="button" class="rpt-tab-btn" onclick="window.DigitalInvoiceReportsModule.switchTab('customer_summary', this)">
+            <i class="fas fa-users"></i> Customer Summary
+        </button>
+        <button type="button" class="rpt-tab-btn" onclick="window.DigitalInvoiceReportsModule.switchTab('monthly_summary', this)">
+            <i class="fas fa-calendar-alt"></i> Monthly Summary
+        </button>
+    </div>
+
+    <!-- 3. REPORT CONTENT DISPLAY CONTAINER -->
+    <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px 12px; background: #ffffff;" id="rpt_printable_content">
+
+        <!-- TAB 1: DASHBOARD OVERVIEW -->
+        <div id="tab_pane_dashboard" style="display: block;">
+            <!-- 8 KPI Cards -->
+            <div class="rpt-kpi-grid">
+                <div class="rpt-kpi-card kpi-blue">
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Total Digital Invoices</div>
+                        <div id="kpi_tot_inv_count" style="font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 1px;">0</div>
+                        <div id="kpi_tot_inv_amt" style="font-size: 10.5px; font-weight: 700; color: #0284c7;">PKR 0.00</div>
+                    </div>
+                    <div style="font-size: 24px; color: #94a3b8;"><i class="fas fa-file-invoice"></i></div>
+                </div>
+
+                <div class="rpt-kpi-card kpi-green">
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">FBR Accepted</div>
+                        <div id="kpi_fbr_acc_count" style="font-size: 18px; font-weight: 800; color: #15803d; margin-top: 1px;">0</div>
+                        <div id="kpi_fbr_acc_amt" style="font-size: 10.5px; font-weight: 700; color: #16a34a;">PKR 0.00</div>
+                    </div>
+                    <div style="font-size: 24px; color: #86efac;"><i class="fas fa-check-circle"></i></div>
+                </div>
+
+                <div class="rpt-kpi-card kpi-amber">
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Pending Submission</div>
+                        <div id="kpi_pending_count" style="font-size: 18px; font-weight: 800; color: #b45309; margin-top: 1px;">0</div>
+                        <div id="kpi_pending_amt" style="font-size: 10.5px; font-weight: 700; color: #d97706;">PKR 0.00</div>
+                    </div>
+                    <div style="font-size: 24px; color: #fde68a;"><i class="fas fa-clock"></i></div>
+                </div>
+
+                <div class="rpt-kpi-card kpi-red">
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Rejected / Failed</div>
+                        <div id="kpi_rejected_count" style="font-size: 18px; font-weight: 800; color: #b91c1c; margin-top: 1px;">0</div>
+                        <div id="kpi_rejected_amt" style="font-size: 10.5px; font-weight: 700; color: #dc2626;">PKR 0.00</div>
+                    </div>
+                    <div style="font-size: 24px; color: #fca5a5;"><i class="fas fa-times-circle"></i></div>
+                </div>
+
+                <div class="rpt-kpi-card kpi-blue">
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Credit Notes (Returns)</div>
+                        <div id="kpi_cn_count" style="font-size: 18px; font-weight: 800; color: #1e3a8a; margin-top: 1px;">0</div>
+                        <div id="kpi_cn_amt" style="font-size: 10.5px; font-weight: 700; color: #2563eb;">PKR 0.00</div>
+                    </div>
+                    <div style="font-size: 24px; color: #93c5fd;"><i class="fas fa-undo"></i></div>
+                </div>
+
+                <div class="rpt-kpi-card kpi-purple">
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Debit Notes (Escalations)</div>
+                        <div id="kpi_dn_count" style="font-size: 18px; font-weight: 800; color: #581c87; margin-top: 1px;">0</div>
+                        <div id="kpi_dn_amt" style="font-size: 10.5px; font-weight: 700; color: #7c3aed;">PKR 0.00</div>
+                    </div>
+                    <div style="font-size: 24px; color: #d8b4fe;"><i class="fas fa-plus-circle"></i></div>
+                </div>
+
+                <div class="rpt-kpi-card kpi-red">
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Cancelled Invoices</div>
+                        <div id="kpi_cancel_count" style="font-size: 18px; font-weight: 800; color: #b91c1c; margin-top: 1px;">0</div>
+                        <div id="kpi_cancel_amt" style="font-size: 10.5px; font-weight: 700; color: #dc2626;">PKR 0.00</div>
+                    </div>
+                    <div style="font-size: 24px; color: #fca5a5;"><i class="fas fa-ban"></i></div>
+                </div>
+
+                <div class="rpt-kpi-card kpi-green">
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Sales Tax Collected</div>
+                        <div id="kpi_sales_tax_tot" style="font-size: 18px; font-weight: 800; color: #15803d; margin-top: 1px;">0.00</div>
+                        <div style="font-size: 10.5px; font-weight: 600; color: #16a34a;">Output Tax Liability</div>
+                    </div>
+                    <div style="font-size: 24px; color: #86efac;"><i class="fas fa-coins"></i></div>
+                </div>
+            </div>
+
+            <!-- Monthly Activity Visual Trend & Quick Reconciliation -->
+            <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 8px;">
+                <!-- Left: Monthly Trend Chart -->
+                <div style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px; background: #ffffff;">
+                    <div style="font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fas fa-chart-line"></i> Last 6 Months Invoice & Tax Activity</span>
+                        <span style="font-size: 10px; color: #64748b;">Actual ERP Database Records</span>
+                    </div>
+                    <div id="rpt_monthly_chart_bars" style="display: flex; flex-direction: column; gap: 8px; min-height: 160px; justify-content: center;">
+                        <div style="text-align: center; color: #64748b; padding: 20px;">Loading activity trends...</div>
+                    </div>
+                </div>
+
+                <!-- Right: Quick Summary Reconciled Card -->
+                <div style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="font-size: 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px;">
+                            <i class="fas fa-balance-scale"></i> Quick Reconciliation
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #64748b;">Gross Invoiced Sales:</span>
+                                <b id="dash_reconcile_gross">PKR 0.00</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #b91c1c;">Less: Credit Notes:</span>
+                                <b id="dash_reconcile_credits" style="color: #b91c1c;">- PKR 0.00</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #15803d;">Add: Debit Notes:</span>
+                                <b id="dash_reconcile_debits" style="color: #15803d;">+ PKR 0.00</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; border-top: 1px dashed #cbd5e1; padding-top: 6px; font-size: 12px;">
+                                <span style="font-weight: 800; color: #0f172a;">Net Adjusted Turnover:</span>
+                                <b id="dash_reconcile_net" style="color: #1e3a8a; font-weight: 800;">PKR 0.00</b>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 10px; font-size: 10.5px; color: #475569; margin-top: 10px;">
+                        <i class="fas fa-shield-alt" style="color: #16a34a;"></i> <b>FBR Compliance Status:</b> All records are directly reconciled with PRAL digital invoicing payloads.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: INVOICES REGISTER -->
+        <div id="tab_pane_register" style="display: none;">
+            <div style="overflow-x: auto;">
+                <table class="rpt-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25px;">#</th>
+                            <th style="width: 100px;">Invoice #</th>
+                            <th style="width: 75px;">Date</th>
+                            <th style="width: 180px;">Customer Name</th>
+                            <th style="width: 85px;">NTN / CNIC</th>
+                            <th style="width: 80px;">Type</th>
+                            <th style="width: 85px; text-align: right;">Taxable Val</th>
+                            <th style="width: 75px; text-align: right;">Sales Tax</th>
+                            <th style="width: 95px; text-align: right;">Net Payable</th>
+                            <th style="width: 110px;">FBR Ref #</th>
+                            <th style="width: 80px; text-align: center;">FBR Status</th>
+                            <th style="width: 60px; text-align: center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpt_register_tbody">
+                        <tr><td colspan="12" style="text-align: center; padding: 20px; color: #64748b;">Loading invoices register...</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6" style="text-align: right; font-weight: 700;">Filtered Register Totals</td>
+                            <td id="reg_tot_taxable" style="text-align: right; font-weight: 700;">0.00</td>
+                            <td id="reg_tot_tax" style="text-align: right; font-weight: 700;">0.00</td>
+                            <td id="reg_tot_net" style="text-align: right; font-weight: 800; color: #1e3a8a;">0.00</td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 3: SUBMISSION STATUS REPORT -->
+        <div id="tab_pane_submission_status" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px;">
+                <!-- Status Breakdown Table -->
+                <div style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px; background: #ffffff;">
+                    <div style="font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">
+                        <i class="fas fa-list-ol"></i> Status-wise Invoices Breakdown
+                    </div>
+                    <table class="rpt-table">
+                        <thead>
+                            <tr>
+                                <th>Status Category</th>
+                                <th style="text-align: center; width: 60px;">Count</th>
+                                <th style="text-align: right; width: 85px;">Taxable</th>
+                                <th style="text-align: right; width: 75px;">Sales Tax</th>
+                                <th style="text-align: right; width: 95px;">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rpt_status_groups_tbody">
+                            <tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">Loading status groups...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Failed / Rejected Invoices with Error details -->
+                <div style="border: 1px solid #fecaca; border-radius: 4px; padding: 8px; background: #fffaf0;">
+                    <div style="font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px; display: flex; justify-content: space-between;">
+                        <span><i class="fas fa-exclamation-triangle"></i> Failed & Rejected Invoices (Requires Action)</span>
+                        <span style="font-size: 10px; color: #64748b;">Inspect error messages</span>
+                    </div>
+                    <div style="max-height: 380px; overflow-y: auto;">
+                        <table class="rpt-table">
+                            <thead>
+                                <tr style="background: #991b1b !important;">
+                                    <th>Invoice #</th>
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th style="text-align: right;">Amount</th>
+                                    <th>FBR Error Message</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rpt_failed_invoices_tbody">
+                                <tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">No failed invoices found.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: CREDIT NOTES REPORT -->
+        <div id="tab_pane_credit_notes" style="display: none;">
+            <div style="overflow-x: auto;">
+                <table class="rpt-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25px;">#</th>
+                            <th style="width: 100px;">Credit Note #</th>
+                            <th style="width: 75px;">Date</th>
+                            <th style="width: 100px;">Orig Invoice #</th>
+                            <th style="width: 180px;">Customer Name</th>
+                            <th style="width: 85px;">Customer NTN</th>
+                            <th style="width: 140px;">Adjustment Reason</th>
+                            <th style="width: 85px; text-align: right;">Taxable Reversal</th>
+                            <th style="width: 75px; text-align: right;">Tax Reversal</th>
+                            <th style="width: 95px; text-align: right;">Total Credit</th>
+                            <th style="width: 110px;">FBR Ref #</th>
+                            <th style="width: 75px; text-align: center;">FBR Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpt_credit_notes_tbody">
+                        <tr><td colspan="12" style="text-align: center; padding: 20px; color: #64748b;">Loading Credit Notes...</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="7" style="text-align: right; font-weight: 700;">Total Credit Adjustments</td>
+                            <td id="cn_tot_taxable_cell" style="text-align: right; font-weight: 700;">0.00</td>
+                            <td id="cn_tot_tax_cell" style="text-align: right; font-weight: 700;">0.00</td>
+                            <td id="cn_tot_net_cell" style="text-align: right; font-weight: 800; color: #1e3a8a;">0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 5: DEBIT NOTES REPORT -->
+        <div id="tab_pane_debit_notes" style="display: none;">
+            <div style="overflow-x: auto;">
+                <table class="rpt-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25px;">#</th>
+                            <th style="width: 100px;">Debit Note #</th>
+                            <th style="width: 75px;">Date</th>
+                            <th style="width: 100px;">Orig Invoice #</th>
+                            <th style="width: 180px;">Customer Name</th>
+                            <th style="width: 85px;">Customer NTN</th>
+                            <th style="width: 140px;">Escalation Reason</th>
+                            <th style="width: 85px; text-align: right;">Add'l Taxable</th>
+                            <th style="width: 75px; text-align: right;">Add'l Tax</th>
+                            <th style="width: 95px; text-align: right;">Total Debit</th>
+                            <th style="width: 110px;">FBR Ref #</th>
+                            <th style="width: 75px; text-align: center;">FBR Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpt_debit_notes_tbody">
+                        <tr><td colspan="12" style="text-align: center; padding: 20px; color: #64748b;">Loading Debit Notes...</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="7" style="text-align: right; font-weight: 700;">Total Debit Adjustments</td>
+                            <td id="dn_tot_taxable_cell" style="text-align: right; font-weight: 700;">0.00</td>
+                            <td id="dn_tot_tax_cell" style="text-align: right; font-weight: 700;">0.00</td>
+                            <td id="dn_tot_net_cell" style="text-align: right; font-weight: 800; color: #1e3a8a;">0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 6: CANCELLATIONS REPORT -->
+        <div id="tab_pane_cancellations" style="display: none;">
+            <div style="overflow-x: auto;">
+                <table class="rpt-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25px;">#</th>
+                            <th style="width: 105px;">Request #</th>
+                            <th style="width: 75px;">Req. Date</th>
+                            <th style="width: 105px;">Voided Invoice #</th>
+                            <th style="width: 180px;">Customer Name</th>
+                            <th style="width: 90px; text-align: right;">Invoice Amount</th>
+                            <th style="width: 80px; text-align: right;">Tax Reversal</th>
+                            <th style="width: 110px; text-align: center;">Route</th>
+                            <th style="width: 160px;">Cancellation Reason</th>
+                            <th style="width: 90px; text-align: center;">ERP Status</th>
+                            <th style="width: 90px; text-align: center;">FBR Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpt_cancellations_tbody">
+                        <tr><td colspan="11" style="text-align: center; padding: 20px; color: #64748b;">Loading cancellations...</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5" style="text-align: right; font-weight: 700;">Total Cancelled Value</td>
+                            <td id="can_tot_net_cell" style="text-align: right; font-weight: 800; color: #b91c1c;">0.00</td>
+                            <td id="can_tot_tax_cell" style="text-align: right; font-weight: 700;">0.00</td>
+                            <td colspan="4"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 7: TAX SUMMARY REPORT -->
+        <div id="tab_pane_tax_summary" style="display: none;">
+            <div style="max-width: 900px; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 4px; padding: 14px; background: #ffffff;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 6px; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-size: 15px; font-weight: 800; color: var(--theme-primary, #1F4E79);">FBR SALES TAX RETURN & FISCAL RECONCILIATION</div>
+                        <div style="font-size: 10.5px; color: #64748b;">Under Sales Tax Act 1990 & PRAL Digital Invoicing Rules</div>
+                    </div>
+                    <div style="text-align: right; font-size: 10.5px; color: #475569;">
+                        Period: <span id="tax_rpt_period_label" style="font-weight: 700; color: #0f172a;">Active Filter</span>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 14px;">
+                    <thead>
+                        <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+                            <th style="padding: 6px; text-align: left;">Section / Description</th>
+                            <th style="padding: 6px; text-align: center; width: 60px;">Count</th>
+                            <th style="padding: 6px; text-align: right; width: 130px;">Taxable Value</th>
+                            <th style="padding: 6px; text-align: right; width: 120px;">Sales Tax (18%)</th>
+                            <th style="padding: 6px; text-align: right; width: 110px;">Further Tax</th>
+                            <th style="padding: 6px; text-align: right; width: 130px;">Total Bill Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 1. Gross Invoices -->
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 6px; font-weight: 700; color: #0f172a;">1. Standard Rated Sales Invoices (Gross)</td>
+                            <td id="tax_inv_count" style="padding: 6px; text-align: center;">0</td>
+                            <td id="tax_inv_taxable" style="padding: 6px; text-align: right; font-weight: 600;">0.00</td>
+                            <td id="tax_inv_st" style="padding: 6px; text-align: right;">0.00</td>
+                            <td id="tax_inv_ft" style="padding: 6px; text-align: right;">0.00</td>
+                            <td id="tax_inv_tot" style="padding: 6px; text-align: right; font-weight: 700;">0.00</td>
+                        </tr>
+
+                        <!-- 2. Less Credit Notes -->
+                        <tr style="border-bottom: 1px solid #e2e8f0; color: #b91c1c;">
+                            <td style="padding: 6px; font-weight: 700;">2. Less: Sales Returns / Credit Notes</td>
+                            <td id="tax_cn_count" style="padding: 6px; text-align: center;">0</td>
+                            <td id="tax_cn_taxable" style="padding: 6px; text-align: right; font-weight: 600;">(0.00)</td>
+                            <td id="tax_cn_st" style="padding: 6px; text-align: right;">(0.00)</td>
+                            <td id="tax_cn_ft" style="padding: 6px; text-align: right;">(0.00)</td>
+                            <td id="tax_cn_tot" style="padding: 6px; text-align: right; font-weight: 700;">(0.00)</td>
+                        </tr>
+
+                        <!-- 3. Add Debit Notes -->
+                        <tr style="border-bottom: 1px solid #e2e8f0; color: #15803d;">
+                            <td style="padding: 6px; font-weight: 700;">3. Add: Price Adjustments / Debit Notes</td>
+                            <td id="tax_dn_count" style="padding: 6px; text-align: center;">0</td>
+                            <td id="tax_dn_taxable" style="padding: 6px; text-align: right; font-weight: 600;">+0.00</td>
+                            <td id="tax_dn_st" style="padding: 6px; text-align: right;">+0.00</td>
+                            <td id="tax_dn_ft" style="padding: 6px; text-align: right;">+0.00</td>
+                            <td id="tax_dn_tot" style="padding: 6px; text-align: right; font-weight: 700;">+0.00</td>
+                        </tr>
+
+                        <!-- Reconciled Net Totals -->
+                        <tr style="background: #eff6ff; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; font-size: 12.5px;">
+                            <td style="padding: 8px 6px; font-weight: 800; color: var(--theme-primary, #1F4E79);">NET FISCAL RECONCILIATION</td>
+                            <td></td>
+                            <td id="tax_net_taxable" style="padding: 8px 6px; text-align: right; font-weight: 800; color: #0f172a;">0.00</td>
+                            <td id="tax_net_st" style="padding: 8px 6px; text-align: right; font-weight: 800; color: #15803d;">0.00</td>
+                            <td id="tax_net_ft" style="padding: 8px 6px; text-align: right; font-weight: 800; color: #0284c7;">0.00</td>
+                            <td id="tax_net_tot" style="padding: 8px 6px; text-align: right; font-weight: 900; color: #1e3a8a;">0.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px 12px; font-size: 11px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <b>Total Net Sales Tax Payable (Output Tax):</b> <span id="tax_net_payable_bold" style="font-size: 13px; font-weight: 800; color: #15803d; margin-left: 6px;">PKR 0.00</span>
+                    </div>
+                    <button type="button" class="rpt-btn rpt-btn-blue" onclick="window.DigitalInvoiceReportsModule.printActiveReport()">
+                        <i class="fas fa-print"></i> Print Tax Certificate
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 8: CUSTOMER SUMMARY -->
+        <div id="tab_pane_customer_summary" style="display: none;">
+            <div style="overflow-x: auto;">
+                <table class="rpt-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">#</th>
+                            <th style="width: 100px;">Customer Code</th>
+                            <th>Customer / Business Title</th>
+                            <th style="width: 100px;">NTN / CNIC</th>
+                            <th style="width: 110px;">Customer Type</th>
+                            <th style="width: 80px; text-align: center;">Invoices Count</th>
+                            <th style="width: 100px; text-align: right;">Total Taxable</th>
+                            <th style="width: 90px; text-align: right;">Total Sales Tax</th>
+                            <th style="width: 110px; text-align: right;">Net Invoiced</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpt_customer_summary_tbody">
+                        <tr><td colspan="9" style="text-align: center; padding: 20px; color: #64748b;">Loading customer summary...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 9: MONTHLY SUMMARY -->
+        <div id="tab_pane_monthly_summary" style="display: none;">
+            <div style="overflow-x: auto;">
+                <table class="rpt-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">Year - Month</th>
+                            <th>Month Title</th>
+                            <th style="width: 90px; text-align: center;">Active Invoices</th>
+                            <th style="width: 110px; text-align: right;">Taxable Amount</th>
+                            <th style="width: 100px; text-align: right;">Sales Tax</th>
+                            <th style="width: 120px; text-align: right;">Total Invoiced</th>
+                            <th style="width: 100px; text-align: center;">FBR Accepted</th>
+                            <th style="width: 90px; text-align: center;">Cancelled</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpt_monthly_summary_tbody">
+                        <tr><td colspan="8" style="text-align: center; padding: 20px; color: #64748b;">Loading monthly summary...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 4. BOTTOM ACTION & STATUS BAR -->
+    <div style="background: #ffffff; border-top: 2px solid var(--theme-accent, #F5A623); padding: 4px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; box-shadow: 0 -1px 4px rgba(0,0,0,0.05); font-size: 11px;">
+        <div style="display: flex; align-items: center; gap: 8px; color: #64748b;">
+            <span><i class="fas fa-database"></i> Source: <b>Live ERP Database</b></span>
+            <span>&bull;</span>
+            <span id="rpt_bottom_status">Showing Real-time Reports</span>
+        </div>
+
+        <button type="button" class="rpt-btn" style="background: #64748b; border-color: #64748b;" onclick="window.DigitalInvoiceReportsModule.closeModal()">
+            <i class="fas fa-times"></i> Close Reports
+        </button>
+    </div>
+
+    <!-- 5. RAW LOG MODAL -->
+    <div id="rpt_log_modal" style="display: none; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 2200; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+        <div style="background: #ffffff; width: 85%; max-width: 720px; height: 75%; max-height: 75vh; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden; border: 2px solid var(--theme-primary, #1F4E79);">
+            <div style="background: var(--theme-primary, #1F4E79); color: #ffffff; padding: 6px 14px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; border-bottom: 2px solid var(--theme-accent, #F5A623);">
+                <span style="font-size: 12px; font-weight: 700;"><i class="fas fa-terminal"></i> FBR PRAL Response & Error Log</span>
+                <button type="button" onclick="document.getElementById('rpt_log_modal').style.display='none'" style="background: transparent; border: none; color: #ffffff; font-size: 18px; cursor: pointer;">&times;</button>
+            </div>
+            <div style="flex: 1; overflow-y: auto; padding: 12px; background: #0f172a; color: #38bdf8; font-family: monospace; font-size: 11px;" id="rpt_log_content">
+                Loading log...
+            </div>
+            <div style="padding: 6px 12px; background: #f8fafc; border-top: 1px solid #cbd5e1; display: flex; justify-content: flex-end;">
+                <button type="button" class="rpt-btn" style="background: #64748b; color: #fff;" onclick="document.getElementById('rpt_log_modal').style.display='none'">Close</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    const DigitalInvoiceReportsModule = {
+        data: {
+            companyId: 1,
+            company: {},
+            settings: {},
+            activeTab: 'dashboard'
+        },
+
+        init: function () {
+            const container = document.getElementById('digitalInvoiceReportsContainer');
+            if (!container) return;
+
+            // 1. Set default date range to This Month
+            this.setThisMonthDates();
+
+            // 2. Load Meta & Dashboard
+            this.loadMeta(() => {
+                this.loadDashboard();
+            });
+
+            // 3. Fallback: If loadMeta is delayed or pending, kick off loadDashboard after 300ms
+            setTimeout(() => {
+                const chartEl = document.getElementById('rpt_monthly_chart_bars');
+                if (chartEl && chartEl.innerText.includes('Loading activity trends...')) {
+                    this.loadDashboard();
+                }
+            }, 300);
+
+            // 4. Dynamic Theme Sync
+            if (window.applyERPThemeToElement && window.getCurrentERPTheme) {
+                const curTheme = window.getCurrentERPTheme();
+                const modalContainer = container.closest('.modal-container');
+                if (modalContainer) {
+                    window.applyERPThemeToElement(modalContainer, curTheme);
+                } else {
+                    window.applyERPThemeToElement(container, curTheme);
+                }
+            }
+        },
+
+        loadMeta: function (callback) {
+            fetch(`api/digital_invoice_reports.php?action=get_meta&company_id=${this.data.companyId}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success') {
+                        this.data.company = res.company || {};
+                        this.data.settings = res.settings || {};
+                    }
+                })
+                .catch(err => {
+                    console.error('Error loading reports meta:', err);
+                })
+                .finally(() => {
+                    if (typeof callback === 'function') callback();
+                });
+        },
+
+        setThisMonthDates: function () {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+
+            const firstDay = `${y}-${m}-01`;
+            const today = `${y}-${m}-${d}`;
+
+            this.setVal('rpt_date_from', firstDay);
+            this.setVal('rpt_date_to', today);
+            this.setVal('rpt_quick_date', 'this_month');
+        },
+
+        onQuickDateChange: function (val) {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const today = `${y}-${m}-${d}`;
+
+            if (val === 'today') {
+                this.setVal('rpt_date_from', today);
+                this.setVal('rpt_date_to', today);
+            } else if (val === 'this_week') {
+                const cur = new Date();
+                const first = cur.getDate() - cur.getDay() + 1;
+                const mon = new Date(cur.setDate(first));
+                this.setVal('rpt_date_from', mon.toISOString().split('T')[0]);
+                this.setVal('rpt_date_to', today);
+            } else if (val === 'this_month') {
+                this.setVal('rpt_date_from', `${y}-${m}-01`);
+                this.setVal('rpt_date_to', today);
+            } else if (val === 'last_month') {
+                const lastM = new Date(y, now.getMonth() - 1, 1);
+                const lastMEnd = new Date(y, now.getMonth(), 0);
+                this.setVal('rpt_date_from', lastM.toISOString().split('T')[0]);
+                this.setVal('rpt_date_to', lastMEnd.toISOString().split('T')[0]);
+            } else if (val === 'this_year') {
+                this.setVal('rpt_date_from', `${y}-01-01`);
+                this.setVal('rpt_date_to', today);
+            } else if (val === 'all') {
+                this.setVal('rpt_date_from', '');
+                this.setVal('rpt_date_to', '');
+            }
+
+            this.refreshActiveReport();
+        },
+
+        clearFilters: function () {
+            this.setVal('rpt_filter_q', '');
+            this.setVal('rpt_filter_status', '');
+            this.setThisMonthDates();
+            this.refreshActiveReport();
+        },
+
+        refreshActiveReport: function () {
+            const tab = this.data.activeTab;
+            if (tab === 'dashboard') this.loadDashboard();
+            else if (tab === 'register') this.loadRegister();
+            else if (tab === 'submission_status') this.loadSubmissionStatus();
+            else if (tab === 'credit_notes') this.loadCreditNotes();
+            else if (tab === 'debit_notes') this.loadDebitNotes();
+            else if (tab === 'cancellations') this.loadCancellations();
+            else if (tab === 'tax_summary') this.loadTaxSummary();
+            else if (tab === 'customer_summary') this.loadCustomerSummary();
+            else if (tab === 'monthly_summary') this.loadMonthlySummary();
+        },
+
+        switchTab: function (tabName, btnEl) {
+            this.data.activeTab = tabName;
+
+            const container = document.getElementById('digitalInvoiceReportsContainer');
+            const root = container || document;
+
+            // 1. Highlight tab button
+            const tabs = root.querySelectorAll('.rpt-tab-btn');
+            tabs.forEach(t => t.classList.remove('active'));
+            if (btnEl) {
+                btnEl.classList.add('active');
+            } else {
+                const matchBtn = Array.from(tabs).find(b => b.getAttribute('onclick')?.includes(`'${tabName}'`));
+                if (matchBtn) matchBtn.classList.add('active');
+            }
+
+            // 2. Hide all panes, show active
+            const panes = [
+                'dashboard', 'register', 'submission_status', 'credit_notes',
+                'debit_notes', 'cancellations', 'tax_summary', 'customer_summary', 'monthly_summary'
+            ];
+            panes.forEach(p => {
+                const el = root.querySelector(`#tab_pane_${p}`);
+                if (el) el.style.display = (p === tabName) ? 'block' : 'none';
+            });
+
+            // 3. Load active report data
+            this.refreshActiveReport();
+        },
+
+        // TAB 1: Dashboard Overview
+        loadDashboard: function () {
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+
+            const chartContainer = document.getElementById('rpt_monthly_chart_bars');
+            if (chartContainer) {
+                chartContainer.innerHTML = '<div style="text-align: center; color: #64748b; padding: 25px;"><i class="fas fa-spinner fa-spin"></i> Loading activity trends...</div>';
+            }
+
+            fetch(`api/digital_invoice_reports.php?action=get_dashboard_summary&company_id=${this.data.companyId}&date_from=${dFrom}&date_to=${dTo}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success') {
+                        const s = res.summary || {};
+
+                        this.setText('kpi_tot_inv_count', s.total_invoices || 0);
+                        this.setText('kpi_tot_inv_amt', 'PKR ' + parseFloat(s.total_invoice_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('kpi_fbr_acc_count', s.fbr_accepted_count || 0);
+                        this.setText('kpi_fbr_acc_amt', 'PKR ' + parseFloat(s.fbr_accepted_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('kpi_pending_count', s.pending_fbr_count || 0);
+                        this.setText('kpi_pending_amt', 'PKR ' + parseFloat(s.pending_fbr_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('kpi_rejected_count', s.fbr_rejected_count || 0);
+                        this.setText('kpi_rejected_amt', 'PKR ' + parseFloat(s.fbr_rejected_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('kpi_cn_count', s.credit_notes_count || 0);
+                        this.setText('kpi_cn_amt', 'PKR ' + parseFloat(s.total_credit_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('kpi_dn_count', s.debit_notes_count || 0);
+                        this.setText('kpi_dn_amt', 'PKR ' + parseFloat(s.total_debit_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('kpi_cancel_count', s.cancelled_count || 0);
+                        this.setText('kpi_cancel_amt', 'PKR ' + parseFloat(s.cancelled_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('kpi_sales_tax_tot', 'PKR ' + parseFloat(s.total_sales_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        // Quick Reconcile
+                        const gross = parseFloat(s.total_invoice_amount || 0);
+                        const credits = parseFloat(s.total_credit_amount || 0);
+                        const debits = parseFloat(s.total_debit_amount || 0);
+                        const net = gross - credits + debits;
+
+                        this.setText('dash_reconcile_gross', 'PKR ' + gross.toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('dash_reconcile_credits', '- PKR ' + credits.toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('dash_reconcile_debits', '+ PKR ' + debits.toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('dash_reconcile_net', 'PKR ' + net.toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.renderMonthlyTrends(res.monthly_trends || []);
+                    } else {
+                        this.renderMonthlyTrends([]);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error loading dashboard summary:', err);
+                    this.renderMonthlyTrends([]);
+                });
+        },
+
+        renderMonthlyTrends: function (trends) {
+            const container = document.getElementById('rpt_monthly_chart_bars');
+            if (!container) return;
+
+            if (!trends || trends.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 25px; font-size: 11px;"><i class="fas fa-info-circle"></i> No invoice transactions recorded in the past 6 months.</div>`;
+                return;
+            }
+
+            const maxAmt = Math.max(...trends.map(t => parseFloat(t.inv_total || 0)), 1);
+
+            container.innerHTML = trends.map(t => {
+                const total = parseFloat(t.inv_total || 0);
+                const tax = parseFloat(t.tax_total || 0);
+                const count = parseInt(t.inv_count || 0);
+                const subCount = parseInt(t.submitted_count || 0);
+                const pct = Math.min(100, Math.max(5, (total / maxAmt) * 100));
+
+                return `
+                    <div style="font-size: 11px; margin-bottom: 6px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                            <span style="font-weight: 700; color: #0f172a;">${t.month_label} (${count} Invoices, ${subCount} FBR Accepted)</span>
+                            <span style="font-weight: 700; color: #1e3a8a;">PKR ${total.toLocaleString(undefined, {minimumFractionDigits: 2})} <span style="font-weight: normal; color: #15803d;">(Tax: PKR ${tax.toLocaleString(undefined, {minimumFractionDigits: 2})})</span></span>
+                        </div>
+                        <div style="height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden; display: flex;">
+                            <div style="width: ${pct}%; background: linear-gradient(90deg, #1F4E79, #0284c7); border-radius: 6px;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        },
+
+        // TAB 2: Invoices Register
+        loadRegister: function () {
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+            const q = this.getVal('rpt_filter_q');
+            const status = this.getVal('rpt_filter_status');
+
+            const tbody = document.getElementById('rpt_register_tbody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Loading invoices register...</td></tr>`;
+            }
+
+            fetch(`api/digital_invoice_reports.php?action=get_invoice_register&company_id=${this.data.companyId}&date_from=${dFrom}&date_to=${dTo}&q=${encodeURIComponent(q)}&fbr_status=${status}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success' && tbody) {
+                        const list = res.invoices || [];
+                        if (list.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 20px; color: #64748b;">No matching invoices found.</td></tr>`;
+                            return;
+                        }
+
+                        tbody.innerHTML = list.map((inv, idx) => {
+                            const isCancelled = parseInt(inv.is_cancelled || 0, 10) === 1 || inv.workflow_status === 'Cancelled';
+                            const isFbrSub = (inv.fbr_status === 'Submitted');
+
+                            let pillCls = 'pill-pending';
+                            if (isCancelled) pillCls = 'pill-cancelled';
+                            else if (isFbrSub) pillCls = 'pill-submitted';
+                            else if (inv.fbr_status === 'Failed' || inv.fbr_status === 'Rejected') pillCls = 'pill-failed';
+
+                            return `
+                                <tr style="border-bottom: 1px solid #e2e8f0; ${isCancelled ? 'opacity: 0.55;' : ''}">
+                                    <td style="text-align: center; color: #64748b;">${idx + 1}</td>
+                                    <td style="font-weight: 700; color: #1e3a8a;">${inv.invoice_no}</td>
+                                    <td style="text-align: center;">${inv.invoice_date}</td>
+                                    <td>
+                                        <div style="font-weight: 600; color: #0f172a;">${inv.customer_name}</div>
+                                        <div style="font-size: 9.5px; color: #64748b;">${inv.customer_code || ''}</div>
+                                    </td>
+                                    <td>${inv.customer_ntn || inv.customer_cnic || 'N/A'}</td>
+                                    <td>${inv.invoice_type || 'Tax Invoice'}</td>
+                                    <td style="text-align: right;">${parseFloat(inv.taxable_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                    <td style="text-align: right; color: #15803d;">${parseFloat(inv.total_sales_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                    <td style="text-align: right; font-weight: 700; color: #0f172a;">${parseFloat(inv.net_payable || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                    <td style="font-family: monospace; font-size: 10px;">${inv.fbr_invoice_no || '-'}</td>
+                                    <td style="text-align: center;">
+                                        <span class="fbr-status-pill ${pillCls}">${isCancelled ? 'Cancelled' : (inv.fbr_status || 'Draft')}</span>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <button type="button" class="rpt-btn rpt-btn-blue" style="height: 20px; padding: 0 5px; font-size: 9.5px;" title="View FBR Log" onclick="window.DigitalInvoiceReportsModule.viewLog('${inv.invoice_no}', '${inv.fbr_response_code || ''}', '${encodeURIComponent(inv.fbr_response_msg || 'No details')}')">
+                                            <i class="fas fa-terminal"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+
+                        const tot = res.totals || {};
+                        this.setText('reg_tot_taxable', parseFloat(tot.total_taxable || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('reg_tot_tax', parseFloat(tot.total_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('reg_tot_net', parseFloat(tot.total_net || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                    }
+                })
+                .catch(() => {
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 20px; color: #dc2626;">Error loading register.</td></tr>`;
+                });
+        },
+
+        // TAB 3: Submission Status Report
+        loadSubmissionStatus: function () {
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+
+            const grpTbody = document.getElementById('rpt_status_groups_tbody');
+            const failTbody = document.getElementById('rpt_failed_invoices_tbody');
+
+            if (grpTbody) grpTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Loading status groups...</td></tr>`;
+
+            fetch(`api/digital_invoice_reports.php?action=get_submission_status_report&company_id=${this.data.companyId}&date_from=${dFrom}&date_to=${dTo}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success') {
+                        if (grpTbody) {
+                            const groups = res.status_groups || [];
+                            if (groups.length === 0) {
+                                grpTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">No records found.</td></tr>`;
+                            } else {
+                                grpTbody.innerHTML = groups.map(g => `
+                                    <tr>
+                                        <td style="font-weight: 700; color: #1e3a8a;">${g.status_group}</td>
+                                        <td style="text-align: center; font-weight: 700;">${g.count}</td>
+                                        <td style="text-align: right;">${parseFloat(g.total_taxable || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                        <td style="text-align: right;">${parseFloat(g.total_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                        <td style="text-align: right; font-weight: 700;">${parseFloat(g.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                    </tr>
+                                `).join('');
+                            }
+                        }
+
+                        if (failTbody) {
+                            const errs = res.failed_rejected_invoices || [];
+                            if (errs.length === 0) {
+                                failTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: #16a34a; font-weight: 600;">No failed or rejected invoices! All submitted invoices are accepted.</td></tr>`;
+                            } else {
+                                failTbody.innerHTML = errs.map(e => `
+                                    <tr>
+                                        <td style="font-weight: 700; color: #b91c1c;">${e.invoice_no}</td>
+                                        <td style="text-align: center;">${e.invoice_date}</td>
+                                        <td>${e.customer_name}</td>
+                                        <td style="text-align: right; font-weight: 700;">${parseFloat(e.net_payable || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                        <td style="color: #b91c1c; font-size: 10px;"><b>${e.fbr_response_code || 'ERR'}:</b> ${e.fbr_response_msg || 'Unknown failure'}</td>
+                                    </tr>
+                                `).join('');
+                            }
+                        }
+                    }
+                });
+        },
+
+        // TAB 4: Credit Notes Report
+        loadCreditNotes: function () {
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+            const q = this.getVal('rpt_filter_q');
+            const tbody = document.getElementById('rpt_credit_notes_tbody');
+
+            if (tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Loading Credit Notes...</td></tr>`;
+
+            fetch(`api/digital_invoice_reports.php?action=get_credit_notes_report&company_id=${this.data.companyId}&date_from=${dFrom}&date_to=${dTo}&q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success' && tbody) {
+                        const list = res.credit_notes || [];
+                        if (list.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 20px; color: #64748b;">No Credit Notes found.</td></tr>`;
+                            return;
+                        }
+
+                        tbody.innerHTML = list.map((cn, idx) => `
+                            <tr>
+                                <td style="text-align: center; color: #64748b;">${idx + 1}</td>
+                                <td style="font-weight: 700; color: #0284c7;">${cn.credit_note_no}</td>
+                                <td style="text-align: center;">${cn.credit_note_date}</td>
+                                <td style="font-weight: 600;">${cn.original_invoice_no}</td>
+                                <td>${cn.customer_name}</td>
+                                <td>${cn.customer_ntn || 'N/A'}</td>
+                                <td>${cn.reason_text}</td>
+                                <td style="text-align: right;">${parseFloat(cn.taxable_credit_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right; color: #b91c1c;">${parseFloat(cn.sales_tax_adjustment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right; font-weight: 700; color: #1e3a8a;">${parseFloat(cn.total_credit_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="font-family: monospace; font-size: 10px;">${cn.fbr_credit_note_no || '-'}</td>
+                                <td style="text-align: center;">
+                                    <span class="fbr-status-pill ${cn.fbr_status === 'Submitted' ? 'pill-submitted' : 'pill-pending'}">${cn.fbr_status}</span>
+                                </td>
+                            </tr>
+                        `).join('');
+
+                        const tot = res.totals || {};
+                        this.setText('cn_tot_taxable_cell', parseFloat(tot.total_taxable || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('cn_tot_tax_cell', parseFloat(tot.total_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('cn_tot_net_cell', parseFloat(tot.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                    }
+                });
+        },
+
+        // TAB 5: Debit Notes Report
+        loadDebitNotes: function () {
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+            const q = this.getVal('rpt_filter_q');
+            const tbody = document.getElementById('rpt_debit_notes_tbody');
+
+            if (tbody) tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Loading Debit Notes...</td></tr>`;
+
+            fetch(`api/digital_invoice_reports.php?action=get_debit_notes_report&company_id=${this.data.companyId}&date_from=${dFrom}&date_to=${dTo}&q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success' && tbody) {
+                        const list = res.debit_notes || [];
+                        if (list.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 20px; color: #64748b;">No Debit Notes found.</td></tr>`;
+                            return;
+                        }
+
+                        tbody.innerHTML = list.map((dn, idx) => `
+                            <tr>
+                                <td style="text-align: center; color: #64748b;">${idx + 1}</td>
+                                <td style="font-weight: 700; color: #7c3aed;">${dn.debit_note_no}</td>
+                                <td style="text-align: center;">${dn.debit_note_date}</td>
+                                <td style="font-weight: 600;">${dn.original_invoice_no}</td>
+                                <td>${dn.customer_name}</td>
+                                <td>${dn.customer_ntn || 'N/A'}</td>
+                                <td>${dn.reason_text}</td>
+                                <td style="text-align: right;">${parseFloat(dn.taxable_debit_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right; color: #15803d;">${parseFloat(dn.sales_tax_adjustment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right; font-weight: 700; color: #1e3a8a;">${parseFloat(dn.total_debit_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="font-family: monospace; font-size: 10px;">${dn.fbr_debit_note_no || '-'}</td>
+                                <td style="text-align: center;">
+                                    <span class="fbr-status-pill ${dn.fbr_status === 'Submitted' ? 'pill-submitted' : 'pill-pending'}">${dn.fbr_status}</span>
+                                </td>
+                            </tr>
+                        `).join('');
+
+                        const tot = res.totals || {};
+                        this.setText('dn_tot_taxable_cell', parseFloat(tot.total_taxable || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('dn_tot_tax_cell', parseFloat(tot.total_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('dn_tot_net_cell', parseFloat(tot.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                    }
+                });
+        },
+
+        // TAB 6: Cancellations Report
+        loadCancellations: function () {
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+            const q = this.getVal('rpt_filter_q');
+            const tbody = document.getElementById('rpt_cancellations_tbody');
+
+            if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Loading cancellations...</td></tr>`;
+
+            fetch(`api/digital_invoice_reports.php?action=get_cancellations_report&company_id=${this.data.companyId}&date_from=${dFrom}&date_to=${dTo}&q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success' && tbody) {
+                        const list = res.cancellations || [];
+                        if (list.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 20px; color: #64748b;">No cancelled invoices found.</td></tr>`;
+                            return;
+                        }
+
+                        tbody.innerHTML = list.map((cr, idx) => `
+                            <tr>
+                                <td style="text-align: center; color: #64748b;">${idx + 1}</td>
+                                <td style="font-weight: 700; color: #dc2626;">${cr.request_no}</td>
+                                <td style="text-align: center;">${cr.request_date}</td>
+                                <td style="font-weight: 700; color: #1e3a8a;">${cr.invoice_no}</td>
+                                <td>${cr.customer_name}</td>
+                                <td style="text-align: right; font-weight: 700; color: #dc2626;">${parseFloat(cr.invoice_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right;">${parseFloat(cr.total_sales_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: center; font-size: 10px;">${cr.cancellation_route}</td>
+                                <td>${cr.reason_text}</td>
+                                <td style="text-align: center;">
+                                    <span class="fbr-status-pill ${cr.request_status === 'Cancellation Confirmed' ? 'pill-cancelled' : 'pill-pending'}">${cr.request_status}</span>
+                                </td>
+                                <td style="text-align: center;">${cr.fbr_cancellation_status}</td>
+                            </tr>
+                        `).join('');
+
+                        const tot = res.totals || {};
+                        this.setText('can_tot_net_cell', parseFloat(tot.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('can_tot_tax_cell', parseFloat(tot.total_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                    }
+                });
+        },
+
+        // TAB 7: Tax Summary Report
+        loadTaxSummary: function () {
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+
+            this.setText('tax_rpt_period_label', (dFrom && dTo) ? `${dFrom} to ${dTo}` : 'All Records to Date');
+
+            fetch(`api/digital_invoice_reports.php?action=get_tax_summary&company_id=${this.data.companyId}&date_from=${dFrom}&date_to=${dTo}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success') {
+                        const t = res.tax_summary || {};
+                        const inv = t.invoices || {};
+                        const cn = t.credit_notes || {};
+                        const dn = t.debit_notes || {};
+                        const net = t.reconciled_net || {};
+
+                        this.setText('tax_inv_count', inv.count || 0);
+                        this.setText('tax_inv_taxable', parseFloat(inv.taxable_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('tax_inv_st', parseFloat(inv.sales_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('tax_inv_ft', parseFloat(inv.further_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('tax_inv_tot', parseFloat(inv.gross_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('tax_cn_count', cn.count || 0);
+                        this.setText('tax_cn_taxable', '(' + parseFloat(cn.taxable_reversal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) + ')');
+                        this.setText('tax_cn_st', '(' + parseFloat(cn.sales_tax_reversal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) + ')');
+                        this.setText('tax_cn_ft', '(' + parseFloat(cn.further_tax_reversal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) + ')');
+                        this.setText('tax_cn_tot', '(' + parseFloat(cn.total_credit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) + ')');
+
+                        this.setText('tax_dn_count', dn.count || 0);
+                        this.setText('tax_dn_taxable', '+' + parseFloat(dn.taxable_addition || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('tax_dn_st', '+' + parseFloat(dn.sales_tax_addition || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('tax_dn_ft', '+' + parseFloat(dn.further_tax_addition || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('tax_dn_tot', '+' + parseFloat(dn.total_debit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('tax_net_taxable', parseFloat(net.net_taxable_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('tax_net_st', parseFloat(net.net_sales_tax_liability || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('tax_net_ft', parseFloat(net.net_further_tax_liability || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                        this.setText('tax_net_tot', parseFloat(net.net_total_sales_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+
+                        this.setText('tax_net_payable_bold', 'PKR ' + parseFloat(net.net_sales_tax_liability || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+                    }
+                });
+        },
+
+        // TAB 8: Customer Summary
+        loadCustomerSummary: function () {
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+            const tbody = document.getElementById('rpt_customer_summary_tbody');
+
+            if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Loading customer summary...</td></tr>`;
+
+            fetch(`api/digital_invoice_reports.php?action=get_customer_summary&company_id=${this.data.companyId}&date_from=${dFrom}&date_to=${dTo}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success' && tbody) {
+                        const list = res.customer_summary || [];
+                        if (list.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px; color: #64748b;">No customer data found.</td></tr>`;
+                            return;
+                        }
+                        tbody.innerHTML = list.map((c, idx) => `
+                            <tr>
+                                <td style="text-align: center; color: #64748b;">${idx + 1}</td>
+                                <td style="font-weight: 700;">${c.customer_code || '-'}</td>
+                                <td style="font-weight: 600; color: #0f172a;">${c.customer_name}</td>
+                                <td>${c.customer_ntn || 'N/A'}</td>
+                                <td>${c.customer_type || 'Registered'}</td>
+                                <td style="text-align: center; font-weight: 700;">${c.invoice_count}</td>
+                                <td style="text-align: right;">${parseFloat(c.total_taxable || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right; color: #15803d;">${parseFloat(c.total_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right; font-weight: 700; color: #1e3a8a;">${parseFloat(c.total_invoiced || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                        `).join('');
+                    }
+                });
+        },
+
+        // TAB 9: Monthly Summary
+        loadMonthlySummary: function () {
+            const tbody = document.getElementById('rpt_monthly_summary_tbody');
+
+            if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Loading monthly summary...</td></tr>`;
+
+            fetch(`api/digital_invoice_reports.php?action=get_monthly_summary&company_id=${this.data.companyId}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.status === 'success' && tbody) {
+                        const list = res.monthly_summary || [];
+                        if (list.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px; color: #64748b;">No monthly data found.</td></tr>`;
+                            return;
+                        }
+                        tbody.innerHTML = list.map(m => `
+                            <tr>
+                                <td style="font-weight: 700; color: #1e3a8a;">${m.year_month}</td>
+                                <td style="font-weight: 600;">${m.month_title}</td>
+                                <td style="text-align: center; font-weight: 700;">${m.active_invoices}</td>
+                                <td style="text-align: right;">${parseFloat(m.taxable_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right; color: #15803d;">${parseFloat(m.sales_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: right; font-weight: 700;">${parseFloat(m.total_invoiced || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="text-align: center; color: #15803d; font-weight: 700;">${m.fbr_submitted_count}</td>
+                                <td style="text-align: center; color: #b91c1c;">${m.cancelled_count}</td>
+                            </tr>
+                        `).join('');
+                    }
+                });
+        },
+
+        // Helpers, Log Modal, Export & Print
+        viewLog: function (invNo, code, msg) {
+            const modal = document.getElementById('rpt_log_modal');
+            const content = document.getElementById('rpt_log_content');
+            if (modal && content) {
+                content.innerText = `Invoice Number: ${invNo}\nFBR Response Code: ${code || 'N/A'}\nStatus Message: ${decodeURIComponent(msg)}\nTimestamp: ${new Date().toLocaleString()}`;
+                modal.style.display = 'flex';
+            }
+        },
+
+        exportExcel: function () {
+            let reportType = 'register';
+            const tab = this.data.activeTab;
+            if (tab === 'credit_notes') reportType = 'credit_notes';
+            else if (tab === 'debit_notes') reportType = 'debit_notes';
+            else if (tab === 'cancellations') reportType = 'cancellations';
+
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+
+            const url = `api/digital_invoice_reports.php?action=export_csv&company_id=${this.data.companyId}&report_type=${reportType}&date_from=${dFrom}&date_to=${dTo}`;
+            window.open(url, '_blank');
+        },
+
+        printActiveReport: function () {
+            const pane = document.getElementById(`tab_pane_${this.data.activeTab}`);
+            if (!pane) return;
+
+            const comp = this.data.company || {};
+            const dFrom = this.getVal('rpt_date_from');
+            const dTo = this.getVal('rpt_date_to');
+
+            const w = window.open('', '_blank', 'width=1000,height=750');
+            w.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${comp.company_name || 'ERP'} - Digital Invoice Report</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 25px; font-size: 11px; color: #1e293b; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 5px; }
+                        th { background: #f1f5f9; text-align: left; }
+                        .rpt-btn, button { display: none !important; }
+                        @media print { .rpt-btn, button { display: none !important; } }
+                    </style>
+                </head>
+                <body>
+                    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between;">
+                        <div>
+                            <div style="font-size: 16px; font-weight: 800; color: #1F4E79;">${comp.company_name || 'SOFTIFYX FINANCIAL ERP'}</div>
+                            <div style="font-size: 10.5px; color: #475569;">${comp.address || ''}</div>
+                            <div style="font-size: 10.5px; color: #334155;">NTN: <b>${comp.ntn || 'N/A'}</b> &bull; STRN: <b>${comp.strn || 'N/A'}</b></div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 14px; font-weight: 800; color: #0284c7; text-transform: uppercase;">${this.data.activeTab.replace('_', ' ')}</div>
+                            <div style="font-size: 10.5px; color: #475569;">Period: ${dFrom || 'Start'} to ${dTo || 'Today'}</div>
+                            <div style="font-size: 10px; color: #64748b;">Printed on: ${new Date().toLocaleString()}</div>
+                        </div>
+                    </div>
+                    ${pane.innerHTML}
+                    <script>window.onload = function() { window.print(); };<\/script>
+                </body>
+                </html>
+            `);
+            w.document.close();
+        },
+
+        closeModal: function () {
+            const container = document.getElementById('digitalInvoiceReportsContainer');
+            if (!container) return;
+            const modalContainer = container.closest('.modal-container');
+            if (modalContainer) {
+                const closeBtn = modalContainer.querySelector('.modal-controls .btn-close, .modal-header .btn-close, [onclick*="close"]');
+                if (closeBtn) {
+                    closeBtn.click();
+                    return;
+                }
+                modalContainer.remove();
+            }
+        },
+
+        getVal: function (id) {
+            const container = document.getElementById('digitalInvoiceReportsContainer');
+            const el = container ? (container.querySelector('#' + id) || document.getElementById(id)) : document.getElementById(id);
+            return el ? el.value : '';
+        },
+
+        setVal: function (id, val) {
+            const container = document.getElementById('digitalInvoiceReportsContainer');
+            const el = container ? (container.querySelector('#' + id) || document.getElementById(id)) : document.getElementById(id);
+            if (el) el.value = (val !== null && val !== undefined) ? val : '';
+        },
+
+        setText: function (id, val) {
+            const container = document.getElementById('digitalInvoiceReportsContainer');
+            const el = container ? (container.querySelector('#' + id) || document.getElementById(id)) : document.getElementById(id);
+            if (el) el.innerText = (val !== null && val !== undefined) ? val : '';
+        }
+    };
+
+    window.DigitalInvoiceReportsModule = DigitalInvoiceReportsModule;
+
+    // Auto-init immediately when injected into modal
+    setTimeout(function () {
+        if (window.DigitalInvoiceReportsModule && typeof window.DigitalInvoiceReportsModule.init === 'function') {
+            window.DigitalInvoiceReportsModule.init();
+        }
+    }, 40);
+})();
+</script>

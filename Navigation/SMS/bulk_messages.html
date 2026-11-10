@@ -1,0 +1,169 @@
+<div id="bulkSMSContainer" data-module="Bulk Messages" style="min-height: 590px; display: flex; flex-direction: column; gap: 8px; background: white; padding: 12px; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 4px; width: 930px; position: relative;">
+    
+    <!-- Top Filter Row -->
+    <div style="display: flex; gap: 15px; border: 1px solid #e2e8f0; padding: 12px; border-radius: 4px; background: #f8fafc; align-items: flex-end;">
+        <div style="display: flex; flex-direction: column; gap: 4px; width: 140px;">
+            <label class="sms-label">Target Group</label>
+            <select id="bmGroupType" class="sms-input" onchange="window.BulkMessagesModule.handleFiltersChange()">
+                <option value="customer">All Customers</option>
+                <option value="vendor">All Vendors</option>
+            </select>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px; width: 180px;" id="bmRegionFilterContainer">
+            <label class="sms-label">Filter by Region</label>
+            <select id="bmRegionSelect" class="sms-input" onchange="window.BulkMessagesModule.handleFiltersChange()">
+                <option value="ALL">-- All Regions --</option>
+            </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 5px;">
+            <input type="checkbox" id="bmOnlyDebt" onchange="window.BulkMessagesModule.handleFiltersChange()" style="width: 15px; height: 15px;">
+            <label for="bmOnlyDebt" class="sms-label" style="cursor: pointer;">Outstanding Balance > 0 Only</label>
+        </div>
+
+        <div style="margin-left: auto;">
+            <button class="sms-btn sms-save" onclick="window.BulkMessagesModule.loadRecipientsList()" style="height: 28px; width: 120px; font-weight: 700;">
+                <i class="fas fa-sync"></i> Refresh List
+            </button>
+        </div>
+    </div>
+
+    <!-- Middle Grid Section -->
+    <div style="display: flex; gap: 15px; flex: 1; min-height: 220px;">
+        <!-- Left Side: Table of matched parties with checkboxes -->
+        <div style="flex: 1.3; border: 1px solid #cbd5e0; border-radius: 4px; padding: 8px; background: white; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 3px; text-transform: uppercase;">
+                <span>Recipient Selection (<span id="bmMatchedCount">0</span> selected)</span>
+                <div>
+                    <button class="sms-btn" onclick="window.BulkMessagesModule.toggleSelectAll(true)" style="height: 20px; min-width: 50px; font-size: 9px; padding: 0 4px;">Select All</button>
+                    <button class="sms-btn" onclick="window.BulkMessagesModule.toggleSelectAll(false)" style="height: 20px; min-width: 50px; font-size: 9px; padding: 0 4px;">Clear All</button>
+                </div>
+            </div>
+            
+            <div style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; background: #fff;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+                    <thead style="position: sticky; top: 0; background: #1F4E79; color: white;">
+                        <tr>
+                            <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e0; width: 30px;">Send</th>
+                            <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0; width: 70px;">Code</th>
+                            <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0;">Name</th>
+                            <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0; width: 100px;">Mobile</th>
+                            <th style="padding: 4px; text-align: right; border: 1px solid #cbd5e0; width: 90px;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bmRecipientsBody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right Side: Template & Bulk Composer -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; border-radius: 4px; padding: 12px; background: white; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 12px; font-weight: 700; color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 3px; text-transform: uppercase;">
+                Bulk Composer
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="sms-label">Choose SMS Template</label>
+                <select id="bmTemplateSelect" class="sms-input" onchange="window.BulkMessagesModule.applyTemplate()">
+                    <option value="">-- Custom Message (No Template) --</option>
+                </select>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <label class="sms-label" style="margin: 0;">Message Template</label>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="bmAttachPDF" onchange="window.BulkMessagesModule.togglePDFAttachment()" style="width: 13px; height: 13px; cursor: pointer;">
+                        <label for="bmAttachPDF" style="font-size: 11px; cursor: pointer; color: #1e293b; font-weight: 600; margin: 0;">Attach PDF Ledger Link</label>
+                    </div>
+                </div>
+                <textarea id="bmMessageText" class="sms-input" style="flex: 1; min-height: 100px; resize: none; padding: 6px; font-family: monospace; font-size: 12px;" placeholder="Select template or write custom message. Placeholders like {customer_name} and {net_balance} will be auto-injected for each recipient."></textarea>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; margin-top: 2px;">
+                    <span id="bmCharCounter">0 characters / 0 SMS Parts</span>
+                    <button class="sms-btn sms-save" onclick="window.BulkMessagesModule.sendBulkSMS()" style="height: 28px; width: 130px; color: white; background: #1F4E79; border: none; font-weight: 700;">
+                        <i class="fas fa-paper-plane"></i> Send Bulk SMS
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Row: Recent SMS Logs -->
+    <div style="height: 140px; display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px; background: #f8fafc; margin-top: 5px;">
+        <div style="font-size: 11px; font-weight: 700; color: #1F4E79; margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid #1F4E79; padding-bottom: 2px;">
+            Recent Send Logs (Bulk Messages)
+        </div>
+        <div style="flex: 1; background: white; border: 1px solid #cbd5e0; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                <thead style="position: sticky; top: 0; background: #1F4E79; color: white;">
+                    <tr>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0; width: 130px;">Sent Time</th>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0; width: 120px;">Recipient</th>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0; width: 100px;">Mobile No</th>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0;">Message Details</th>
+                        <th style="padding: 3px 6px; text-align: center; border: 1px solid #cbd5e0; width: 70px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="bmLogsBody">
+                    <!-- Logs list -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Simulated Bulk Sending Progress Modal -->
+    <div id="simulatedBulkModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; border-radius: 4px;">
+        <div style="width: 380px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #cbd5e0; display: flex; flex-direction: column; gap: 15px; text-align: center;">
+            <div style="font-size: 14px; font-weight: 700; color: #1e3a8a;" id="bmProgressTitle">Sending Bulk Messages...</div>
+            
+            <div style="width: 100%; background: #e2e8f0; height: 15px; border-radius: 10px; overflow: hidden; position: relative;">
+                <div id="bmProgressBar" style="width: 0%; background: #16a34a; height: 100%; transition: width 0.1s ease;"></div>
+            </div>
+            
+            <div style="font-size: 12px; color: #475569;" id="bmProgressText">Processed: 0 of 0 messages</div>
+            
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 10px; display: none;" id="bmProgressCloseBtn">
+                <button onclick="document.getElementById('simulatedBulkModal').style.display='none'" style="border: none; background: #16a34a; color: white; border-radius: 4px; padding: 6px 20px; font-size: 11px; font-weight: bold; cursor: pointer;">Done</button>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .sms-btn {
+            height: 28px;
+            min-width: 70px;
+            padding: 0 12px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #cbd5e0;
+            background: white;
+            transition: all 0.2s;
+        }
+        .sms-btn:hover { background: #f8fafc; }
+        .sms-label { font-size: 11px; font-weight: 600; color: #334155; }
+        .sms-input {
+            height: 24px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            padding: 0 6px;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+        .sms-input:focus { border-color: #1e3a8a; }
+        
+        #bmRecipientsBody tr { border-bottom: 1px solid #f1f5f9; }
+        #bmRecipientsBody tr:hover { background: #f8fafc; }
+        #bmRecipientsBody td { padding: 4px; border: 1px solid #cbd5e0; }
+        
+        #bmLogsBody tr { border-bottom: 1px solid #f1f5f9; }
+        #bmLogsBody tr:hover { background: #f8fafc; }
+        #bmLogsBody td { padding: 4px 6px; border: 1px solid #e2e8f0; }
+    </style>
+</div>

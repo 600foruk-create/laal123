@@ -1,0 +1,178 @@
+<!-- User Activity Logs UI Template -->
+<div style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+    <div class="component-header" style="flex-shrink: 0; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <h2 style="margin: 0; color: #1F4E79; font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-history" style="color: #F5A623;"></i> User Activity History
+                </h2>
+                <p style="color: #666; font-size: 13px; margin: 5px 0 0 0;">Comprehensive audit trails, delta comparisons, and data modification logs.</p>
+            </div>
+            
+            <!-- Quick Stats Banner -->
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div id="activity-card-total" style="background: rgba(31, 78, 121, 0.08); border: 1px solid rgba(31, 78, 121, 0.15); border-radius: 8px; padding: 8px 16px; min-width: 110px; text-align: center; cursor: pointer; transition: all 0.2s;" onclick="window.ActivityLogModule.filterByAction('ALL')">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #666; font-weight: 600;">Total Logs</div>
+                    <div id="activity-stats-total" style="font-size: 18px; font-weight: bold; color: #1F4E79; margin-top: 2px;">0</div>
+                </div>
+                <div id="activity-card-insert" style="background: rgba(40, 167, 69, 0.08); border: 1px solid rgba(40, 167, 69, 0.15); border-radius: 8px; padding: 8px 16px; min-width: 110px; text-align: center; cursor: pointer; transition: all 0.2s;" onclick="window.ActivityLogModule.filterByAction('INSERT')">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #666; font-weight: 600;">Created</div>
+                    <div id="activity-stats-insert" style="font-size: 18px; font-weight: bold; color: #28a745; margin-top: 2px;">0</div>
+                </div>
+                <div id="activity-card-update" style="background: rgba(245, 166, 35, 0.08); border: 1px solid rgba(245, 166, 35, 0.15); border-radius: 8px; padding: 8px 16px; min-width: 110px; text-align: center; cursor: pointer; transition: all 0.2s;" onclick="window.ActivityLogModule.filterByAction('UPDATE')">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #666; font-weight: 600;">Modified</div>
+                    <div id="activity-stats-update" style="font-size: 18px; font-weight: bold; color: #e0a800; margin-top: 2px;">0</div>
+                </div>
+                <div id="activity-card-delete" style="background: rgba(220, 53, 69, 0.08); border: 1px solid rgba(220, 53, 69, 0.15); border-radius: 8px; padding: 8px 16px; min-width: 110px; text-align: center; cursor: pointer; transition: all 0.2s;" onclick="window.ActivityLogModule.filterByAction('DELETE')">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #666; font-weight: 600;">Deleted</div>
+                    <div id="activity-stats-delete" style="font-size: 18px; font-weight: bold; color: #dc3545; margin-top: 2px;">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Search and Filters Toolbar -->
+    <div class="filters-toolbar" style="flex-shrink: 0; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(31, 78, 121, 0.12); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 15px;">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px;">
+            <!-- Quick Filters Pill Selection -->
+            <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                <span style="font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 2px;">Time Scope:</span>
+                <div style="display: flex; background: rgba(0, 0, 0, 0.05); padding: 3px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.05);">
+                    <button id="quick-filter-all" class="btn-filter-pill active" style="border: none; background: #1F4E79; color: white; padding: 4px 12px; border-radius: 16px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;" onclick="window.ActivityLogModule.setQuickFilter('all')">All History</button>
+                    <button id="quick-filter-today" class="btn-filter-pill" style="border: none; background: transparent; color: #444; padding: 4px 12px; border-radius: 16px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onclick="window.ActivityLogModule.setQuickFilter('today')">Today</button>
+                    <button id="quick-filter-range" class="btn-filter-pill" style="border: none; background: transparent; color: #444; padding: 4px 12px; border-radius: 16px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onclick="window.ActivityLogModule.setQuickFilter('date_range')">Date Range</button>
+                </div>
+
+                <!-- Module filter select -->
+                <div style="display: flex; align-items: center; gap: 4px; margin-left: 5px;">
+                    <span style="font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase;">Module:</span>
+                    <select id="activity-log-module-select" style="border: 1px solid #ccc; border-radius: 6px; padding: 4px 6px; font-size: 11px; outline: none; width: 140px; background: white;" onchange="window.ActivityLogModule.handleModuleChange()">
+                        <option value="">-- All Modules --</option>
+                        <option value="Purchase Order">Purchase Order</option>
+                        <option value="Purchase Invoice">Purchase Invoice</option>
+                        <option value="Purchase Return / Debit Note">Purchase Return / Debit Note</option>
+                        <option value="Cash Payments">Cash Payments</option>
+                        <option value="Bank Payments">Bank Payments</option>
+                        <option value="Customer Follow-Up">Customer Follow-Up</option>
+                        <option value="Quotations">Quotations</option>
+                        <option value="Sale Orders">Sale Orders</option>
+                        <option value="Delivery Challans">Delivery Challans</option>
+                        <option value="Sale Invoice">Sale Invoice</option>
+                        <option value="Sale Return/Credit Notes">Sale Return/Credit Notes</option>
+                        <option value="Cash Receipts">Cash Receipts</option>
+                        <option value="Bank Receipts">Bank Receipts</option>
+                        <option value="General Journal Voucher">General Journal Voucher</option>
+                    </select>
+                </div>
+
+                <!-- Serial Smart Select -->
+                <div style="display: flex; align-items: center; gap: 4px; margin-left: 5px;">
+                    <span style="font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase;">Serial:</span>
+                    <select id="activity-log-serial-select" style="border: 1px solid #ccc; border-radius: 6px; padding: 4px 6px; font-size: 11px; outline: none; width: 155px; background: white;" onchange="window.ActivityLogModule.loadLogs()">
+                        <option value="">-- Select Module First --</option>
+                    </select>
+                </div>
+
+                <!-- Search/View Button -->
+                <button class="btn btn-primary" style="border: none; color: white; background: #28a745; padding: 4px 12px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer; font-weight: bold; transition: all 0.2s; margin-left: 5px; box-shadow: 0 2px 4px rgba(40,167,69,0.2);" onclick="window.ActivityLogModule.loadLogs()">
+                    <i class="fas fa-search"></i> View History
+                </button>
+            </div>
+
+            <!-- Inline Form filters -->
+            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <!-- Custom Datepicker range (starts hidden/disabled unless range active) -->
+                <div id="custom-date-range-container" style="display: flex; align-items: center; gap: 8px; opacity: 0.5; pointer-events: none; transition: all 0.3s; background: rgba(0,0,0,0.02); padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.06);">
+                    <i class="far fa-calendar-alt" style="color: #666; font-size: 13px;"></i>
+                    <input type="date" id="activity-log-start-date" style="border: 1px solid #ccc; border-radius: 5px; padding: 5px 8px; font-size: 12px; outline: none; background: white;" onchange="window.ActivityLogModule.handleDateChange()">
+                    <span style="font-size: 12px; color: #777; font-weight: bold;">to</span>
+                    <input type="date" id="activity-log-end-date" style="border: 1px solid #ccc; border-radius: 5px; padding: 5px 8px; font-size: 12px; outline: none; background: white;" onchange="window.ActivityLogModule.handleDateChange()">
+                </div>
+
+                <!-- User filter select -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; font-weight: 600; color: #555; text-transform: uppercase;">User:</span>
+                    <select id="activity-log-user-select" style="border: 1px solid #ccc; border-radius: 6px; padding: 6px 10px; font-size: 12px; outline: none; min-width: 150px; background: white;" onchange="window.ActivityLogModule.loadLogs()">
+                        <option value="">-- All Users --</option>
+                    </select>
+                </div>
+
+                <!-- Refresh Button -->
+                <button class="btn btn-outline" style="border: 1px solid #1F4E79; color: #1F4E79; background: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;" onclick="window.ActivityLogModule.loadLogs()">
+                    <i class="fas fa-sync-alt" id="activity-refresh-icon"></i> Refresh
+                </button>
+
+                <!-- Clear History Button -->
+                <button class="btn btn-danger" style="border: none; background: #dc3545; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;" onclick="window.ActivityLogModule.clearHistory()">
+                    <i class="fas fa-trash-alt"></i> Clear History
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Listing Section -->
+    <div class="table-container" style="flex: 1; display: flex; flex-direction: column; min-height: 0; background: white; border: 1px solid rgba(31, 78, 121, 0.12); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); overflow: hidden; position: relative;">
+        <div id="activity-log-scroll-area" tabindex="0" style="flex: 1; overflow-x: auto; overflow-y: auto; outline: none;">
+            <table class="table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+            <thead>
+                <tr style="background: #e9eff5; color: #1F4E79; border-bottom: 2px solid rgba(31, 78, 121, 0.12); position: sticky; top: 0; z-index: 10;">
+                    <th style="padding: 6px 8px; font-size: 12px; font-weight: 600;">Timestamp</th>
+                    <th style="padding: 6px 8px; font-size: 12px; font-weight: 600;">User</th>
+                    <th style="padding: 6px 8px; font-size: 12px; font-weight: 600;">Category / Module</th>
+                    <th style="padding: 6px 8px; font-size: 12px; font-weight: 600; text-align: center;">Action</th>
+                    <th style="padding: 6px 8px; font-size: 12px; font-weight: 600;">Document Identity</th>
+                    <th style="padding: 6px 8px; font-size: 12px; font-weight: 600; text-align: center;">Audit & Trace</th>
+                </tr>
+            </thead>
+            <tbody id="activity-logs-tbody">
+                <tr>
+                    <td colspan="6" style="padding: 40px; text-align: center; color: #888;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #1F4E79; margin-bottom: 10px; display: block;"></i>
+                        Retrieving secure activity logs...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+
+<style>
+    /* Custom Scrollbar for Activity Logs Table */
+    #activity-log-scroll-area::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+    }
+    #activity-log-scroll-area::-webkit-scrollbar-track {
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 1px solid #eaeaea;
+    }
+    #activity-log-scroll-area::-webkit-scrollbar-thumb {
+        background: #c0c5cb;
+        border-radius: 6px;
+        border: 2px solid #f8f9fa;
+    }
+    #activity-log-scroll-area::-webkit-scrollbar-thumb:hover {
+        background: #a0a6ad;
+    }
+
+    /* Styling overrides for premium feel */
+    .btn-filter-pill:hover {
+        background: rgba(0, 0, 0, 0.08);
+    }
+    .btn-filter-pill.active {
+        box-shadow: 0 2px 6px rgba(31, 78, 121, 0.3);
+    }
+    .activity-log-row {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        transition: background 0.15s;
+    }
+    .activity-log-row:hover {
+        background: rgba(31, 78, 121, 0.02) !important;
+    }
+    .activity-log-row.row-selected {
+        background: rgba(0, 0, 0, 0.06) !important;
+        border-left: 3px solid black;
+    }
+</style>

@@ -1,0 +1,519 @@
+<!-- Purchase Invoice Module -->
+<div id="purchaseInvoiceContainer" data-module="Purchase Invoice" style="width: 100%; height: 100%; min-width: 950px; min-height: 520px; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; border: 1px solid #cbd5e0; border-radius: 4px; position: relative; box-sizing: border-box;">
+    
+    <div id="pi_cancelled_stamp" class="cancelled-stamp" style="display: none;">CANCELLED</div>
+    <!-- Top Toolbar -->
+    <div style="background: #e2e8f0; padding: 2px; display: flex; gap: 2px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: auto;">
+        <button class="po-tool-btn po-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/vendors.html', 'fa-user-tie', 'Vendors/Suppliers', window.initVendorsView, 'Vendors', true)">New Vendor</button>
+        <button class="po-tool-btn po-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/chart_of_inventory.html', 'fa-boxes', 'Chart Of Inventory', window.initChartOfInventoryView, 'Chart of Inventory', true)">New Item</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="po-tool-btn po-btn-add" onclick="window.PIModule.resetForm(true)">Add</button>
+        <button class="po-tool-btn po-btn-save" onclick="window.PIModule.saveInvoice()">Save (Ctrl+S)</button>
+        <button class="po-tool-btn po-btn-cancel" onclick="window.PIModule.resetForm()">Cancel</button>
+        <button class="po-tool-btn po-btn-delete" onclick="window.PIModule.deleteInvoice()">Delete</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button id="pi_post_btn" class="po-tool-btn po-btn-info">Post</button>
+        <button class="po-tool-btn po-btn-info" onclick="window.PIModule.openFindModal()">Find</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="po-tool-btn po-btn-info" onclick="window.PIModule.navigate('last')">Retrieve Last Saved</button>
+        <div style="display: flex; gap: 4px;">
+            <button class="po-tool-btn po-btn-save" style="width: 70px; padding: 2px 0;" onclick="window.PIModule.printInvoice('print')">Print</button>
+            <button class="po-tool-btn po-btn-info" style="width: 70px; padding: 2px 0;" onclick="window.PIModule.printInvoice('excel')">Excel</button>
+            <button class="po-tool-btn po-btn-info" style="width: 70px; padding: 2px 0;" onclick="window.PIModule.printInvoice('voucher')">Voucher</button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 6px; background: white; overflow: hidden;">
+        
+        <!-- Header Info Rows -->
+        <div style="display: flex; gap: 10px; align-items: stretch; position: relative; z-index: 50;">
+            <!-- Left Side: Invoice Details -->
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <!-- Top Group -->
+                <div style="display: grid; grid-template-columns: 90px 30px 1fr; gap: 2px; align-items: center;">
+                    <label class="po-label">Serial No</label>
+                    <button class="po-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.PIModule.navigate('prev')">&lt;&lt;</button>
+                    <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+                        <input type="text" id="pi_sn" class="po-input" style="width: 120px; text-align: center; color: blue; font-weight: 800; font-size: 16px;">
+                        <button class="po-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.PIModule.navigate('next')">&gt;&gt;</button>
+                        <label style="display:flex;align-items:center;gap:2px;margin-left:5px;font-weight:bold;color:#c00;">
+                            <input type="checkbox" id="pi_is_cancelled"> Cancel
+                        </label>
+                        <label style="display:flex;align-items:center;gap:2px;margin-left:5px;font-weight:bold;color:#004085;">
+                            <input type="checkbox" id="pi_is_tax" onchange="window.PIModule.toggleTaxMode()"> Tax Invoice
+                        </label>
+                        <div id="pi_posted_stamp" style="display: none; position: absolute; left: 160px; top: 25px; color: #dc3545; font-size: 16px; font-weight: bold; border: 2px solid #dc3545; padding: 2px 6px; border-radius: 4px; letter-spacing: 2px; text-transform: uppercase; background: rgba(255,255,255,0.8); z-index: 10; opacity: 0.75;">POSTED</div>
+                    </div>
+
+                    <label class="po-label">Date</label>
+                    <div></div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="date" id="pi_date" class="po-input" style="width: 120px;">
+                    </div>
+
+                    <label class="po-label">Invoice Type</label>
+                    <div></div>
+                    <select id="pi_type" class="po-input" style="width: 125px; font-size: 11px;">
+                        <option value="Purchase Invoice">Purchase Invoice</option>
+                        <option value="Service Invoice">Service Invoice</option>
+                    </select>
+                </div>
+
+                <!-- Middle Group -->
+                <div style="display: grid; grid-template-columns: 90px 30px 1fr; gap: 2px; align-items: center; margin-top: 2px;">
+                    <label class="po-label">Vend. Inv. No.</label>
+                    <div></div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <input type="text" id="pi_v_invoice_no" class="po-input" style="width: 120px;">
+                        <label class="po-label" style="margin-left: 10px;">Dated</label>
+                        <input type="date" id="pi_v_invoice_date" class="po-input" style="width: 120px;">
+                    </div>
+
+                    <label class="po-label">Purchase Order No.</label>
+                    <div></div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <input type="text" id="pi_po_no" class="po-input" style="width: 120px;">
+                        <label class="po-label" style="margin-left: 10px;">Dated</label>
+                        <input type="date" id="pi_po_date" class="po-input" style="width: 120px;">
+                    </div>
+                </div>
+
+                <!-- Bottom Group -->
+                <div style="display: grid; grid-template-columns: 90px 30px 1fr; gap: 2px; align-items: center; margin-top: 2px;">
+                    <label class="po-label">Terms of Payment</label>
+                    <div></div>
+                    <input type="text" id="pi_payment_terms" class="po-input">
+
+                    <label class="po-label">Expense Account</label>
+                    <div></div>
+                    <div style="display: flex; gap: 3px; position: relative;">
+                        <input type="text" id="expense_code" class="po-input" style="width: 80px;" placeholder="Code" value="50001002" readonly>
+                        <input type="text" id="expense_name" class="po-input" style="flex: 1;" placeholder="Search expense..." value="Purchases">
+                        <div id="expense_suggest" class="po-suggest"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Vendor Info -->
+            <fieldset style="width: 420px; border: 1px solid #94a3b8; padding: 6px 12px 10px 12px; margin: 0; border-radius: 4px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: start; height: 100%;">
+                <legend style="font-size: 11px; font-weight: 700; color: #000000; padding: 0 4px; font-style: italic;">Vendor</legend>
+                <div style="display: grid; grid-template-columns: 75px 1fr; gap: 4px 6px; align-items: center;">
+                    <label class="po-label">Code</label>
+                    <div style="display: flex; gap: 3px; align-items: center; position: relative;">
+                        <input type="text" id="pi_vendor_code" class="po-input" placeholder="Search vendor..." autocomplete="off" onclick="this.select()" onfocus="this.select()" style="flex: 1; font-weight: bold;">
+                        <label class="po-label" style="min-width: 45px; text-align: center;">Balance</label>
+                        <input type="text" id="pi_vendor_balance" class="po-input" style="flex: 1; text-align: right; font-weight: bold;" readonly>
+                        <div id="pi_vendor_suggest" class="po-suggest" style="width: 100%;"></div>
+                    </div>
+
+                    <label class="po-label">Name</label>
+                    <input type="text" id="pi_vendor_name" class="po-input" autocomplete="off">
+
+                    <label class="po-label">Address</label>
+                    <textarea id="pi_vendor_address" class="po-input" style="height: 24px; resize: none;"></textarea>
+
+                    <label class="po-label">Telephone</label>
+                    <input type="text" id="pi_vendor_tel" class="po-input">
+
+                    <label class="po-label pi-tax-field" style="display: none;">GST Reg.</label>
+                    <div class="pi-tax-field" style="display: none;">
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                            <input type="text" id="pi_vendor_gst" class="po-input" style="flex: 1;">
+                            <label class="po-label" style="min-width: 45px; text-align: center;">NTN</label>
+                            <input type="text" id="pi_vendor_ntn" class="po-input" style="flex: 1;">
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #cbd5e0; margin: 2px 0;">
+
+        <!-- Grid Section -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; display: flex; flex-direction: column; background: #fff; min-height: 200px;">
+            <div style="flex: 1; overflow-y: auto;">
+                <table id="piGrid" style="width: 100%; border-collapse: collapse; background: white; table-layout: fixed;">
+                    <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 10;">
+                        <tr>
+                            <th style="width: 25px; border: 1px solid #cbd5e0; background: #e2e8f0; font-size: 9px; text-align: center; vertical-align: middle;">#</th>
+                            <th style="width: 80px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Item Code</th>
+                            <th style="width: 180px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Description</th>
+                            <th style="width: 50px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Pieces</th>
+                            <th style="width: 60px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Quantity</th>
+                            <th style="width: 45px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Unit</th>
+                            <th style="width: 70px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Rate</th>
+                            
+                            <th class="pi-tax-col" style="display: none; width: 80px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Value Excl. Tax</th>
+                            <th class="pi-tax-col" style="display: none; width: 45px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Sales Tax Rate</th>
+                            <th class="pi-tax-col" style="display: none; width: 75px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Sales Tax Amount</th>
+                            <th class="pi-tax-col" style="display: none; width: 45px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Further Tax Rate</th>
+                            <th class="pi-tax-col" style="display: none; width: 75px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Further Tax Amount</th>
+                            <th class="pi-tax-col" style="display: none; width: 85px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Value Incl. Tax</th>
+                            
+                            <th class="pi-nontax-col" style="width: 80px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Gross Amt</th>
+                            <th class="pi-nontax-col" style="width: 50px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Disc %</th>
+                            <th class="pi-nontax-col" style="width: 75px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Discount</th>
+                            <th class="pi-nontax-col" style="width: 85px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Net Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="piGridBody"></tbody>
+                    <tfoot style="position: sticky; bottom: 0; background: #e2e8f0; z-index: 10;">
+                        <tr>
+                            <td colspan="3" style="text-align: right; padding-right: 12px; font-weight: 700; font-size: 10px; color: #475569; border: 1px solid #cbd5e0;">Totals</td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="pi_tot_pieces" class="po-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="pi_tot_qty" class="po-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td class="pi-tax-col" style="display:none; border: 1px solid #cbd5e0;"><input type="text" id="pi_tot_excl" class="po-total-input" value="0.00" readonly></td>
+                            <td class="pi-tax-col" style="display:none; border: 1px solid #cbd5e0;"></td>
+                            <td class="pi-tax-col" style="display:none; border: 1px solid #cbd5e0;"><input type="text" id="pi_tot_stax" class="po-total-input" value="0.00" readonly></td>
+                            <td class="pi-tax-col" style="display:none; border: 1px solid #cbd5e0;"></td>
+                            <td class="pi-tax-col" style="display:none; border: 1px solid #cbd5e0;"><input type="text" id="pi_tot_ftax" class="po-total-input" value="0.00" readonly></td>
+                            <td class="pi-tax-col" style="display:none; border: 1px solid #cbd5e0;"><input type="text" id="pi_tot_incl" class="po-total-input" value="0.00" readonly></td>
+                            <td class="pi-nontax-col" style="border: 1px solid #cbd5e0;"><input type="text" id="pi_tot_gross" class="po-total-input" value="0.00" readonly></td>
+                            <td class="pi-nontax-col" style="border: 1px solid #cbd5e0;"></td>
+                            <td class="pi-nontax-col" style="border: 1px solid #cbd5e0;"><input type="text" id="pi_tot_disc" class="po-total-input" value="0.00" readonly></td>
+                            <td class="pi-nontax-col" style="border: 1px solid #cbd5e0;"><input type="text" id="pi_tot_net" class="po-total-input" value="0.00" readonly></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer Section -->
+        <div style="display: flex; gap: 10px; background: white; padding: 6px 0 0 0; margin-top: 2px;">
+            <div style="flex: 1; display: grid; grid-template-columns: 100px 1fr; gap: 4px; align-content: start;">
+                <label class="po-label">Inventory Location</label>
+                <div id="pi_location_wrapper" style="position: relative; width: 100%; z-index: 30;">
+                    <div id="pi_location_display" class="po-input" tabindex="0" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;" onclick="const d = document.getElementById('pi_location_dropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; window.PIModule.suggestIndex = -1;">
+                        <span id="pi_location_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Location</span>
+                        <span style="font-size: 10px; color: #666;">▼</span>
+                    </div>
+                    <input type="hidden" id="pi_location">
+                    <div id="pi_location_dropdown" class="custom-select-dropdown"></div>
+                </div>
+                <label class="po-label">Job No & Description</label>
+                <div id="pi_job_wrapper" style="position: relative; width: 100%; z-index: 29;">
+                    <div id="pi_job_display" class="po-input" tabindex="0" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;" onclick="const d = document.getElementById('pi_job_dropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; window.PIModule.suggestIndex = -1;">
+                        <span id="pi_job_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Job</span>
+                        <span style="font-size: 10px; color: #666;">▼</span>
+                    </div>
+                    <input type="hidden" id="pi_job_desc">
+                    <div id="pi_job_dropdown" class="custom-select-dropdown"></div>
+                </div>
+                <label class="po-label">Employee Reference</label>
+                <div id="pi_emp_wrapper" style="position: relative; width: 100%; z-index: 28;">
+                    <div id="pi_emp_display" class="po-input" tabindex="0" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;" onclick="const d = document.getElementById('pi_emp_dropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; window.PIModule.suggestIndex = -1;">
+                        <span id="pi_emp_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Employee</span>
+                        <span style="font-size: 10px; color: #666;">▼</span>
+                    </div>
+                    <input type="hidden" id="pi_emp_ref">
+                    <div id="pi_emp_dropdown" class="custom-select-dropdown"></div>
+                </div>
+                <label class="po-label">Remarks</label>
+                <textarea id="pi_remarks" class="po-input" style="height: 36px; resize: none;"></textarea>
+                <label class="po-label" style="min-width: 75px;">Amount in Words:</label>
+                <span id="pi_amt_words" style="font-size: 11px; font-weight: 700; color: #1e3a8a;">Rupees zero only.</span>
+            </div>
+            <div id="piTotalsBox" style="width: 280px; background: #f8fafc; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; display: grid; grid-template-columns: 100px 1fr; gap: 4px; align-content: start;">
+                <label class="po-label pi-nontax-col" style="text-align: right; font-weight: bold; font-size: 13px;">Additional Discount</label>
+                <input type="text" id="pi_add_disc" class="po-input num pi-nontax-col" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" oninput="window.PIModule.calculateTotals()" onclick="this.select()" onfocus="this.select()">
+                
+                <label class="po-label pi-nontax-col" style="text-align: right; font-weight: bold; font-size: 13px;">Gross Total</label>
+                <input type="text" id="pi_gross_tot" class="po-input num pi-nontax-col" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" readonly>
+                
+                <label class="po-label" style="text-align: right; font-weight: bold; font-size: 13px;">Carriage & Freight</label>
+                <input type="text" id="pi_freight" class="po-input num" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" oninput="window.PIModule.calculateTotals()" onclick="this.select()" onfocus="this.select()">
+                
+                <label class="po-label" style="text-align: right; color: blue; font-weight: bold; font-size: 14px;">Net Total</label>
+                <input type="text" id="pi_net_tot" class="po-input num" style="text-align: right; font-weight: 900; font-size: 14px; height: 24px; color: blue;" value="0.00" readonly>
+                
+                <label class="po-label" style="text-align: right; font-weight: bold; font-size: 13px;">Amount Paid</label>
+                <input type="text" id="pi_paid" class="po-input num" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" oninput="window.PIModule.calculateTotals()" onclick="this.select()" onfocus="this.select()">
+                
+                <label class="po-label" style="text-align: right; font-weight: bold; font-size: 13px;">Balance</label>
+                <input type="text" id="pi_balance" class="po-input num" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" readonly>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .po-tool-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            flex: 1;
+            height: 38px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .po-tool-btn:hover {
+            background: #f1f5f9;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .po-btn-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .po-btn-add:hover { background: #3b6998 !important; }
+
+        .po-btn-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .po-btn-save:hover { background: #3b6998 !important; }
+
+        .po-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .po-btn-cancel:hover { background: #3b6998 !important; }
+
+        .po-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .po-btn-delete:hover { background: #c82333 !important; }
+
+        .po-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto; }
+        .po-btn-info:hover { background: #3b6998 !important; }
+
+        .po-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; display: flex; align-items: center; justify-content: flex-start; text-align: left; white-space: nowrap; }
+
+        .po-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            font-weight: normal;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border 0.2s;
+        }
+
+        .po-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .po-input:disabled { background: #ffffff; color: #000000; border-color: #000000; }
+
+        select.po-input option {
+            padding: 4px;
+            font-size: 11px;
+            color: #000000;
+        }
+        select.po-input option:checked, select.po-input option:hover {
+            background-color: #1F4E79;
+            color: white;
+        }
+
+        .po-nav-btn {
+            height: 22px;
+            padding: 0 6px;
+            background: white;
+            border: 1px solid #000000;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 900;
+            color: #000000;
+            border-radius: 2px;
+        }
+        .po-nav-btn:hover { background: #f1f5f9; }
+
+        .po-total-input {
+            width: 100%;
+            height: 22px;
+            background: #fff;
+            border: 1px solid #000000;
+            text-align: right;
+            font-weight: bold;
+            font-size: 12px;
+            color: #1e3a8a;
+            padding: 0 4px;
+            box-sizing: border-box;
+        }
+        .grid-input { border: none; width: 100%; height: 100%; padding: 0 4px; font-size: 12px; outline: none; background: transparent; display: block; color: #000000; font-weight: bold; }
+        .grid-input:focus { background: #eff6ff; }
+        .grid-input.num { text-align: right; }
+        
+        #piGrid th {
+            background: #e2e8f0;
+            border: 1px solid #94a3b8;
+            font-size: 9px;
+            font-weight: 700;
+            color: #334155;
+            padding: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            height: 22px;
+        }
+        #piGrid td { border: 1px solid #94a3b8; padding: 0; height: 22px; position: relative; }
+
+        .po-suggest { position: absolute; top: 100%; left: 0; width: 450px; background: white; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; z-index: 10000; display: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .po-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .po-suggest div:hover, .po-suggest div.active { background: #1F4E79; color: white; }
+        
+        .grid-suggest { position: absolute; top: 100%; left: 0; width: 450px; background: white; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; z-index: 9999; display: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .grid-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .grid-suggest div:hover, .grid-suggest div.active { background: #1F4E79; color: white; }
+
+        .cancelled-stamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 35px;
+            font-weight: bold;
+            color: rgba(220, 53, 69, 0.1);
+            border: 4px solid rgba(220, 53, 69, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        /* Custom Dropdown styling */
+        .custom-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border: 1px solid #94a3b8;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        .custom-select-dropdown div { padding: 2px 4px; cursor: pointer; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .custom-select-dropdown div:hover, .custom-select-dropdown div.active { background: #1F4E79; color: white; }
+
+        #piGrid td {
+            border: 1px solid #cbd5e0;
+            padding: 0;
+            height: 20px;
+            position: relative;
+            overflow: visible; /* Important for suggestion boxes */
+        }
+        
+        #piGrid tr.selected-row td:not(.row-selector) {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        #piGrid tr.selected-row td:not(.row-selector) input {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        
+        .row-selector {
+            cursor: pointer;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border-top: 1px solid #ffffff !important;
+            border-left: 1px solid #ffffff !important;
+            border-bottom: 1px solid #808080 !important;
+            border-right: 1px solid #808080 !important;
+            text-align: center;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            width: 20px;
+        }
+    </style>
+
+    <!-- Modernized Find Invoice Modal -->
+    <div id="pi_find_modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; width: 900px; border-radius: 4px; display: flex; flex-direction: column; font-family: Arial, sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            
+            <!-- Window Title -->
+            <div style="background: #1F4E79; color: white; padding: 3px 5px; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-radius: 4px 4px 0 0;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span id="pi_find_window_title">Find Purchases (Sales Tax)</span>
+                </div>
+                <button onclick="window.PIModule.closeFindModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; font-weight: bold; padding: 0 4px; line-height: 14px;">&times;</button>
+            </div>
+            
+            <!-- Toolbar Area -->
+            <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e0; display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Find</label>
+                    <select id="pi_find_field" style="font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px;">
+                        <option value="serial_no">Serial No.</option>
+                        <option value="invoice_date">Date</option>
+                        <option value="payment_terms">Terms of Payment</option>
+                        <option value="vendor_invoice_no">Vendor Invoice No.</option>
+                        <option value="vendor_invoice_date">Vendor Invoice Date</option>
+                        <option value="purchase_order_no">Purchase Order No.</option>
+                        <option value="purchase_order_date">Purchase Order Date</option>
+                        <option value="vendor_name">Vendor Name</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Value</label>
+                    <input type="text" id="pi_find_search" oninput="window.PIModule.filterFindTable()" style="width: 200px; font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px; outline: none;">
+                </div>
+
+                <div style="display: flex; gap: 5px; margin-left: auto;">
+                    <button onclick="window.PIModule.filterFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Find</button>
+                    <button onclick="window.PIModule.renderFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Table Header Hint -->
+            <div style="padding: 5px 15px; font-size: 11px; font-style: italic; color: #555; background: #f8f9fa;">
+                Double-click a row to load the invoice.
+            </div>
+            
+            <!-- Modal Table -->
+            <div style="height: 350px; overflow-y: auto; overflow-x: auto; background: white; margin: 0; border-top: 1px solid #cbd5e0; border-bottom: 1px solid #cbd5e0;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; white-space: nowrap;">
+                    <thead style="position: sticky; top: 0; background: #e2e8f0; z-index: 1;">
+                        <tr>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; width: 15px; text-align: center;"></th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Serial No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Type</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Vendor Invoice No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Invoice Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Purchase Order No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Purchase Order Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Vendor Name</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Terms of Payment</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Amount</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: center;">Posted</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pi_find_table_body">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Area -->
+            <div style="padding: 8px 15px; background: #f1f5f9; display: flex; align-items: center; gap: 10px; font-size: 11px; border-radius: 0 0 4px 4px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-weight: 500; color: #334155;">Added By User</span>
+                    <input type="text" id="pi_find_added_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="pi_find_added_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                    <span style="font-weight: 500; color: #334155;">Edited By User</span>
+                    <input type="text" id="pi_find_edited_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="pi_find_edited_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

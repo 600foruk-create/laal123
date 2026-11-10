@@ -1,0 +1,338 @@
+<div id="posReportsApp" class="pos-reports-wrapper" data-module="POS Reports" style="width: 100%; height: 100%; padding: 16px; background: #f4f6f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #2d3748; box-sizing: border-box; overflow-y: auto; display: flex; flex-direction: column;">
+
+    <!-- Custom Scoped Styles -->
+    <style>
+        .pos-reports-wrapper * { box-sizing: border-box; }
+        .pos-rep-container { display: flex; gap: 16px; align-items: stretch; width: 100%; flex: 1; min-height: 0; }
+        
+        /* Left Sidebar Nav */
+        .pos-rep-sidebar { width: 250px; background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 14px 0; display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+        .pos-rep-sidebar-header { padding: 0 16px 12px 16px; border-bottom: 2px solid #1F4E79; font-size: 15px; font-weight: 700; color: #1a202c; display: flex; align-items: center; gap: 8px; }
+        .pos-rep-sidebar-header i { color: #1F4E79; font-size: 18px; }
+        .pos-rep-nav { list-style: none; padding: 0; margin: 10px 0 0 0; display: flex; flex-direction: column; gap: 2px; }
+        .pos-rep-nav-item { padding: 10px 16px; font-size: 12px; font-weight: 600; color: #4a5568; cursor: pointer; display: flex; align-items: center; gap: 10px; border-left: 3px solid transparent; transition: all 0.15s ease-in-out; }
+        .pos-rep-nav-item:hover { background: #f8fafc; color: #1F4E79; border-left-color: #cbd5e0; }
+        .pos-rep-nav-item.active { background: #ebf8ff; color: #1F4E79; border-left-color: #1F4E79; font-weight: 700; }
+        .pos-rep-nav-item i { width: 16px; text-align: center; font-size: 14px; }
+        
+        /* Right Content Body */
+        .pos-rep-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+        
+        /* Top Action Header */
+        .pos-rep-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .pos-rep-title { margin: 0; font-size: 18px; font-weight: 700; color: #1a202c; display: flex; align-items: center; gap: 8px; }
+        .pos-rep-subtitle { font-size: 12px; color: #718096; margin-top: 2px; }
+        .pos-rep-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        
+        /* Quick Date Pills */
+        .quick-date-group { display: flex; background: #edf2f7; border-radius: 6px; padding: 2px; gap: 2px; }
+        .quick-date-btn { padding: 4px 8px; font-size: 11px; font-weight: 600; border: none; background: transparent; cursor: pointer; border-radius: 4px; color: #4a5568; transition: all 0.15s; }
+        .quick-date-btn:hover { background: #e2e8f0; color: #1a202c; }
+        .quick-date-btn.active { background: #1F4E79; color: #ffffff; }
+
+        /* Filter Box */
+        .pos-filter-card { background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e0; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+        .pos-filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; align-items: flex-end; }
+        .pos-filter-group { display: flex; flex-direction: column; gap: 3px; }
+        .pos-filter-group label { font-size: 11px; font-weight: 600; color: #4a5568; margin: 0; }
+        .pos-filter-input, .pos-filter-select { height: 30px; padding: 2px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; color: #2d3748; background-color: #fff; width: 100%; }
+        .pos-filter-input:focus, .pos-filter-select:focus { border-color: #1F4E79; outline: none; }
+
+        /* Summary Cards */
+        .pos-rep-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+        .pos-rep-card { background: #ffffff; border-radius: 8px; padding: 12px 14px; border: 1px solid #cbd5e0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between; position: relative; overflow: hidden; }
+        .pos-rep-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+        .card-blue::before { background: #3182ce; }
+        .card-green::before { background: #16a34a; }
+        .card-amber::before { background: #d97706; }
+        .card-teal::before { background: #0d9488; }
+        .card-indigo::before { background: #4f46e5; }
+        .pos-card-info h4 { margin: 0 0 3px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #718096; font-weight: 600; }
+        .pos-card-info .pos-card-val { font-size: 17px; font-weight: 800; color: #1a202c; line-height: 1.2; }
+        .pos-card-info .pos-card-sub { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+        .pos-card-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .card-blue .pos-card-icon { background: #ebf8ff; color: #3182ce; }
+        .card-green .pos-card-icon { background: #f0fdf4; color: #16a34a; }
+        .card-amber .pos-card-icon { background: #fffbeb; color: #d97706; }
+        .card-teal .pos-card-icon { background: #f0fdfa; color: #0d9488; }
+        .card-indigo .pos-card-icon { background: #eef2ff; color: #4f46e5; }
+
+        /* Table Card */
+        .pos-table-card { background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; }
+        .pos-table-responsive { width: 100%; overflow-x: auto; max-height: calc(100vh - 380px); min-height: 250px; }
+        .pos-rep-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+        .pos-rep-table thead th { background: #f8fafc; color: #4a5568; font-weight: 700; padding: 8px 10px; border-bottom: 2px solid #cbd5e0; white-space: nowrap; position: sticky; top: 0; z-index: 10; user-select: none; }
+        .pos-rep-table tbody td { padding: 7px 10px; border-bottom: 1px solid #edf2f7; vertical-align: middle; white-space: nowrap; color: #2d3748; }
+        .pos-rep-table tbody tr:hover { background-color: #f7fafc; }
+        .pos-rep-table tfoot td { background: #f8fafc; font-weight: 700; border-top: 2px solid #cbd5e0; padding: 8px 10px; position: sticky; bottom: 0; z-index: 10; }
+
+        /* Badges */
+        .pos-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .badge-sub { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+        .badge-pend { background: #fffaf0; color: #c05621; border: 1px solid #fbd38d; }
+        .badge-fail { background: #fff5f5; color: #9b2c2c; border: 1px solid #feb2b2; }
+        .badge-onhold { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+        .badge-recalled { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+        .badge-completed { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+        /* Pagination */
+        .pos-pagination-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: #ffffff; border-top: 1px solid #edf2f7; font-size: 12px; color: #718096; flex-wrap: wrap; gap: 8px; }
+        .pos-pag-controls { display: flex; align-items: center; gap: 4px; }
+        .pos-pag-btn { padding: 2px 8px; border: 1px solid #cbd5e0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .pos-pag-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .pos-pag-btn.active { background: #1F4E79; color: #fff; border-color: #1F4E79; font-weight: bold; }
+
+        /* Printable Sheet */
+        @media print {
+            body * { visibility: hidden; }
+            #printableReportSheet, #printableReportSheet * { visibility: visible; }
+            #printableReportSheet { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 15px; }
+        }
+    </style>
+
+    <!-- Main Container -->
+    <div class="pos-rep-container">
+        
+        <!-- Left Sidebar: Report Switcher -->
+        <div class="pos-rep-sidebar">
+            <div class="pos-rep-sidebar-header">
+                <i class="fas fa-chart-line"></i>
+                <span>POS Reports Hub</span>
+            </div>
+            <ul class="pos-rep-nav" id="posReportsNavList">
+                <li class="pos-rep-nav-item active" data-report="sales" onclick="window.posReportClick('sales')">
+                    <i class="fas fa-file-invoice-dollar" style="color: #3182ce;"></i>
+                    <span>Sales Report</span>
+                </li>
+                <li class="pos-rep-nav-item" data-report="payments" onclick="window.posReportClick('payments')">
+                    <i class="fas fa-credit-card" style="color: #805ad5;"></i>
+                    <span>Payment Report</span>
+                </li>
+                <li class="pos-rep-nav-item" data-report="closing" onclick="window.posReportClick('closing')">
+                    <i class="fas fa-door-closed" style="color: #16a34a;"></i>
+                    <span>Day Closing Report</span>
+                </li>
+                <li class="pos-rep-nav-item" data-report="items" onclick="window.posReportClick('items')">
+                    <i class="fas fa-boxes" style="color: #d97706;"></i>
+                    <span>Product Sales Report</span>
+                </li>
+                <li class="pos-rep-nav-item" data-report="returns" onclick="window.posReportClick('returns')">
+                    <i class="fas fa-undo" style="color: #e53e3e;"></i>
+                    <span>Sales Return Report</span>
+                </li>
+                <li class="pos-rep-nav-item" data-report="fbr" onclick="window.posReportClick('fbr')">
+                    <i class="fas fa-cloud-upload-alt" style="color: #2b6cb0;"></i>
+                    <span>FBR Digital Invoices</span>
+                </li>
+                <li class="pos-rep-nav-item" data-report="holds" onclick="window.posReportClick('holds')">
+                    <i class="fas fa-pause-circle" style="color: #b45309;"></i>
+                    <span>Hold / Recall Report</span>
+                </li>
+                <li class="pos-rep-nav-item" data-report="cashier" onclick="window.posReportClick('cashier')">
+                    <i class="fas fa-chart-pie" style="color: #0d9488;"></i>
+                    <span>Cashier / Branch Report</span>
+                </li>
+            </ul>
+
+            <div style="margin-top: auto; padding: 12px 16px; border-top: 1px solid #edf2f7; font-size: 11px; color: #718096; background: #f8fafc; border-radius: 0 0 8px 8px;">
+                <i class="fas fa-shield-alt" style="color: #38a169;"></i>
+                <span>Strictly read-only reporting. Real-time ERP database tracking.</span>
+            </div>
+        </div>
+
+        <!-- Right Main Report Body -->
+        <div class="pos-rep-content">
+            
+            <!-- Report Title & Actions -->
+            <div class="pos-rep-header">
+                <div>
+                    <h2 class="pos-rep-title" id="posReportTitle">
+                        <i class="fas fa-file-invoice-dollar" style="color: #1F4E79;"></i> POS Sales Report
+                    </h2>
+                    <div class="pos-rep-subtitle" id="posReportSubtitle">
+                        Detailed invoice-wise sales, taxes, discounts and payment statuses.
+                    </div>
+                </div>
+
+                <div class="pos-rep-actions">
+                    <!-- Quick Date Pills -->
+                    <div class="quick-date-group">
+                        <button type="button" class="quick-date-btn active" data-preset="today" onclick="window.posReportQuickDate('today')">Today</button>
+                        <button type="button" class="quick-date-btn" data-preset="yesterday" onclick="window.posReportQuickDate('yesterday')">Yesterday</button>
+                        <button type="button" class="quick-date-btn" data-preset="this_week" onclick="window.posReportQuickDate('this_week')">This Week</button>
+                        <button type="button" class="quick-date-btn" data-preset="this_month" onclick="window.posReportQuickDate('this_month')">This Month</button>
+                        <button type="button" class="quick-date-btn" data-preset="all" onclick="window.posReportQuickDate('all')">All</button>
+                    </div>
+
+                    <button type="button" class="btn btn-primary btn-sm" onclick="window.posReportAction('loadReport')" style="background: #1F4E79; border-color: #1F4E79; font-weight: 600; padding: 5px 12px;">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-dark btn-sm" onclick="window.posReportAction('printReport')" style="background: #fff; font-weight: 600; padding: 5px 10px;">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.posReportAction('exportCSV')" style="background: #fff; font-weight: 600; padding: 5px 10px;">
+                        <i class="fas fa-file-excel" style="color: #27ae60;"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Filter Bar -->
+            <div class="pos-filter-card">
+                <div class="pos-filter-grid">
+                    <div class="pos-filter-group">
+                        <label><i class="fas fa-calendar-alt"></i> Date From</label>
+                        <input type="date" id="rep_filter_from" class="pos-filter-input" onchange="window.posReportAction('loadReport')">
+                    </div>
+
+                    <div class="pos-filter-group">
+                        <label><i class="fas fa-calendar-alt"></i> Date To</label>
+                        <input type="date" id="rep_filter_to" class="pos-filter-input" onchange="window.posReportAction('loadReport')">
+                    </div>
+
+                    <div class="pos-filter-group">
+                        <label><i class="fas fa-building"></i> Branch / Outlet</label>
+                        <select id="rep_filter_branch" class="pos-filter-select" onchange="window.posReportAction('loadReport')">
+                            <option value="">All Branches</option>
+                        </select>
+                    </div>
+
+                    <!-- Dynamic Filter 1 (Category / Payment Method / Status) -->
+                    <div class="pos-filter-group" id="group_dynamic_filter">
+                        <label id="lbl_dynamic_filter">Status</label>
+                        <select id="rep_dynamic_filter" class="pos-filter-select" onchange="window.posReportAction('loadReport')">
+                            <option value="all">All</option>
+                        </select>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="pos-filter-group">
+                        <label><i class="fas fa-search"></i> Search Keyword</label>
+                        <input type="text" id="rep_filter_search" class="pos-filter-input" placeholder="Invoice #, customer, code..." onkeyup="if(event.key==='Enter') window.posReportAction('loadReport')">
+                    </div>
+
+                    <div class="pos-filter-group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.posReportAction('resetFilters')" style="height: 30px; border: 1px solid #cbd5e0; background: #fff; font-size: 11px;">
+                            <i class="fas fa-undo"></i> Reset Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary KPI Cards -->
+            <div class="pos-rep-summary-grid" id="posRepSummaryContainer">
+                <!-- Dynamically populated KPI cards -->
+            </div>
+
+            <!-- Data Table Card -->
+            <div class="pos-table-card">
+                <div class="pos-table-responsive">
+                    <table class="pos-rep-table" id="posMainReportTable">
+                        <thead id="posRepThead">
+                            <!-- Columns rendered dynamically based on active report -->
+                        </thead>
+                        <tbody id="posRepTbody">
+                            <tr>
+                                <td colspan="12" style="text-align: center; padding: 40px; color: #a0aec0;">
+                                    <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                                    <div style="margin-top: 8px;">Loading report data...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot id="posRepTfoot">
+                            <!-- Totals footer -->
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="pos-pagination-bar">
+                    <div>
+                        Showing <strong id="rep_pag_start">0</strong> to <strong id="rep_pag_end">0</strong> of <strong id="rep_pag_total">0</strong> records
+                    </div>
+                    <div class="pos-pag-controls" id="posRepPaginationControls">
+                        <!-- Pagination controls -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Hidden Printable Report Sheet for Browser Print -->
+    <div id="printableReportSheet" style="display: none;"></div>
+
+</div>
+
+<script>
+    window.posReportClick = function(key) {
+        if (window.POSReportsModule) {
+            window.POSReportsModule.setReport(key);
+        } else {
+            var t = setInterval(function() {
+                if (window.POSReportsModule) {
+                    clearInterval(t);
+                    window.POSReportsModule.setReport(key);
+                }
+            }, 50);
+        }
+    };
+
+    window.posReportAction = function(fn, arg) {
+        if (window.POSReportsModule && typeof window.POSReportsModule[fn] === 'function') {
+            window.POSReportsModule[fn](arg);
+        } else {
+            var t = setInterval(function() {
+                if (window.POSReportsModule && typeof window.POSReportsModule[fn] === 'function') {
+                    clearInterval(t);
+                    window.POSReportsModule[fn](arg);
+                }
+            }, 50);
+        }
+    };
+
+    window.posReportQuickDate = function(preset) {
+        if (window.POSReportsModule) {
+            window.POSReportsModule.applyQuickDate(preset);
+        } else {
+            var t = setInterval(function() {
+                if (window.POSReportsModule) {
+                    clearInterval(t);
+                    window.POSReportsModule.applyQuickDate(preset);
+                }
+            }, 50);
+        }
+    };
+</script>
+
+<!-- Ensure module gets initialized and script dynamically loaded if not already cached -->
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+    (function() {
+        window.posReportClick = window.posReportClick || function(k){ if(window.POSReportsModule) window.POSReportsModule.setReport(k); };
+        window.posReportAction = window.posReportAction || function(fn,a){ if(window.POSReportsModule && window.POSReportsModule[fn]) window.POSReportsModule[fn](a); };
+        window.posReportQuickDate = window.posReportQuickDate || function(p){ if(window.POSReportsModule) window.POSReportsModule.applyQuickDate(p); };
+
+        function triggerInit() {
+            var checkDOM = setInterval(function() {
+                if (document.getElementById('posMainReportTable') && window.POSReportsModule) {
+                    clearInterval(checkDOM);
+                    window.POSReportsModule.init();
+                }
+            }, 30);
+        }
+
+        if (!window.POSReportsModule) {
+            var s = document.createElement('script');
+            s.src = 'assets/js/pos_reports.js?v=' + Date.now();
+            s.onload = function() {
+                triggerInit();
+            };
+            s.onerror = function() {
+                console.error('Failed to load assets/js/pos_reports.js');
+            };
+            document.head.appendChild(s);
+        } else {
+            triggerInit();
+        }
+    })();
+">

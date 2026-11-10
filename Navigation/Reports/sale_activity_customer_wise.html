@@ -1,0 +1,222 @@
+<div style="display: flex; flex-direction: column; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff;">
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+            width: 75px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .gj-btn-info:hover { background: #3b6998 !important; }
+    </style>
+    
+    <!-- Filter Section -->
+    <div style="padding: 10px; background-color: #EBEBEB; border-bottom: 2px solid #999; display: flex; gap: 20px; font-size: 11px;">
+        <table style="border-spacing: 5px; border-collapse: separate; flex: 1;">
+            <tr>
+                <td style="width: 20px;"><input type="checkbox" id="sacw_use_cust_type"></td>
+                <td style="width: 100px; font-weight: bold; font-style: italic;">Customer Type</td>
+                <td colspan="2">
+                    <select id="sacw_cust_type" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Customer Type...</option>
+                    </select>
+                </td>
+                <td rowspan="4" style="vertical-align: top; text-align: right;">
+                    <div style="display: flex; gap: 5px; justify-content: flex-end; flex-direction: row;">
+                        <button type="button" id="sacw_display_btn" class="gj-tool-btn gj-btn-info" onclick="window.SaleActivityCustomerWise.fetchReport()">Display</button>
+                        <button type="button" id="sacw_print_btn" class="gj-tool-btn gj-btn-info" onclick="window.SaleActivityCustomerWise.printReport()">Print</button>
+                        <button type="button" id="sacw_excel_btn" class="gj-tool-btn gj-btn-info" onclick="window.SaleActivityCustomerWise.exportExcel()">Excel</button>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="sacw_use_customer"></td>
+                <td style="font-weight: bold; font-style: italic;">Customer</td>
+                <td colspan="2" style="position: relative;">
+                    <div style="display: flex;">
+                        <input type="text" id="sacw_customer_code" style="width: 120px; border: 1px solid #999; padding: 1px; border-right: none;" disabled placeholder="Code">
+                        <input type="text" id="sacw_customer_name" style="flex: 1; border: 1px solid #999; padding: 1px;" disabled placeholder="Customer Name">
+                    </div>
+                    <input type="hidden" id="sacw_customer_id">
+                    <div id="sacw_customer_suggest" class="sr-suggest-box"></div>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="sacw_use_emp"></td>
+                <td style="font-weight: bold; font-style: italic;">Employee</td>
+                <td colspan="2">
+                    <select id="sacw_emp" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Employee...</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="sacw_use_date"></td>
+                <td style="font-weight: bold; font-style: italic;">Period From</td>
+                <td style="width: 100px;">
+                    <input type="date" id="sacw_date_from" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                </td>
+                <td style="font-weight: bold; font-style: italic;">
+                    <span style="margin: 0 5px;">To</span>
+                    <input type="date" id="sacw_date_to" style="width: 100px; border: 1px solid #999; padding: 1px;" disabled>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Main Data Grid -->
+    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <!-- Header (Fixed) -->
+        <div style="background: #EAEAEA; font-size: 11px; font-weight: bold; border-bottom: 1px solid #999; flex-shrink: 0; overflow-y: scroll;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <colgroup>
+                    <col style="width: 20px;">
+                    <col>
+                    <col style="width: 100px;">
+                    <col style="width: 80px;">
+                    <col style="width: 80px;">
+                    <col style="width: 75px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                    <col style="width: 65px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                    <col style="width: 85px;">
+                    <col style="width: 90px;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th style="border-right: 1px solid #999; border-left: 1px solid #999; padding: 2px; text-align: center;"></th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: left;">Customer</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: left;">Employee</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: right;">Total Sales</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: right;">Amt. Received</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: right;">Sale Return</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: right;">W.H. Tax</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: right;">Flood Tax</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: right;">Sales Tax</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: right;">Adv. Adj.</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: right;">Discount</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: right;">Total Realized</th>
+                        <th style="padding: 2px; text-align: right;">Balance</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Body (Scrollable) -->
+        <div style="flex: 1; overflow-y: scroll; font-size: 11px;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;" id="sacw_table_v2">
+                <colgroup>
+                    <col style="width: 20px;">
+                    <col>
+                    <col style="width: 100px;">
+                    <col style="width: 80px;">
+                    <col style="width: 80px;">
+                    <col style="width: 75px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                    <col style="width: 65px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                    <col style="width: 85px;">
+                    <col style="width: 90px;">
+                </colgroup>
+                <tbody id="sacw_tbody">
+                    <!-- Data populated via JS -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Footer (Fixed) -->
+        <div style="background: #c0c0c0; font-size: 11px; font-weight: bold; flex-shrink: 0; overflow-y: scroll; border-top: 1px solid #999;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <colgroup>
+                    <col style="width: 20px;">
+                    <col>
+                    <col style="width: 100px;">
+                    <col style="width: 80px;">
+                    <col style="width: 80px;">
+                    <col style="width: 75px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                    <col style="width: 65px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                    <col style="width: 85px;">
+                    <col style="width: 90px;">
+                </colgroup>
+                <tfoot>
+                    <tr>
+                        <td style="border-right: 1px solid #999; border-left: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-style: italic; border-bottom: 1px solid #999; background: transparent;">Totals Rs.</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_inv">0.00</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_rec">0.00</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_ret">0.00</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_wht">0.00</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_fld">0.00</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_stx">0.00</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_adv">0.00</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_dsc">0.00</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_realized">0.00</td>
+                        <td style="padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sacw_tot_bal">0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <style>
+        #sacw_tbody tr { border-bottom: 1px solid #eee; cursor: pointer; }
+        #sacw_tbody tr.selected td { background-color: #1F4E79 !important; color: white; }
+        #sacw_tbody td { padding: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-right: 1px solid #e0e0e0; }
+        #sacw_tbody td:last-child { border-right: none; }
+        #sacw_tbody td:first-child { border-left: 1px solid #e0e0e0; }
+
+        .sr-suggest-box {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ccc;
+            z-index: 1000;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            font-size: 11px;
+        }
+        .sr-suggest-box div { padding: 4px; cursor: pointer; }
+        .sr-suggest-box div:hover, .sr-suggest-box div.active { background-color: #1F4E79; color: white; }
+        
+        .sr-row-pointer {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            border-left: 6px solid transparent;
+            margin-left: 2px;
+        }
+        
+        #sacw_tbody tr.selected .sr-row-pointer {
+            border-left-color: white;
+        }
+    </style>
+</div>

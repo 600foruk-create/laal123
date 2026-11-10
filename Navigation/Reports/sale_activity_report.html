@@ -1,0 +1,261 @@
+<div style="display: flex; flex-direction: column; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff;">
+    
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+            width: 75px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .gj-btn-info:hover { background: #3b6998 !important; }
+    </style>
+
+    <!-- Filter Section -->
+    <div style="padding: 10px; background-color: #EBEBEB; border-bottom: 2px solid #999; display: flex; gap: 20px; font-size: 11px;">
+        <table style="border-spacing: 5px; border-collapse: separate; flex: 1;">
+            <tr>
+                <td style="width: 20px;"><input type="checkbox" id="sar_use_cust_type"></td>
+                <td style="width: 100px; font-weight: bold; font-style: italic;">Customer Type</td>
+                <td colspan="2">
+                    <select id="sar_cust_type" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Customer Type...</option>
+                    </select>
+                </td>
+                <td rowspan="4" style="vertical-align: top; text-align: right;">
+                    <div style="display: flex; gap: 5px; justify-content: flex-end; flex-direction: row;">
+                        <button class="gj-tool-btn gj-btn-info" onclick="window.SaleActivityReport.fetchReport()">Display</button>
+                        <button class="gj-tool-btn gj-btn-info" onclick="window.SaleActivityReport.printReport()">Print</button>
+                        <button class="gj-tool-btn gj-btn-info" onclick="window.SaleActivityReport.exportExcel()">Excel</button>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="sar_use_customer"></td>
+                <td style="font-weight: bold; font-style: italic;">Customer</td>
+                <td colspan="2" style="position: relative;">
+                    <div style="display: flex;">
+                        <input type="text" id="sar_customer_code" style="width: 120px; border: 1px solid #999; padding: 1px; border-right: none;" disabled placeholder="Code">
+                        <input type="text" id="sar_customer_name" style="flex: 1; border: 1px solid #999; padding: 1px;" disabled placeholder="Customer Name">
+                    </div>
+                    <input type="hidden" id="sar_customer_id">
+                    <div id="sar_customer_suggest" class="sr-suggest-box"></div>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="sar_use_emp"></td>
+                <td style="font-weight: bold; font-style: italic;">Employee</td>
+                <td colspan="2">
+                    <select id="sar_emp" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Employee...</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="sar_use_date"></td>
+                <td style="font-weight: bold; font-style: italic;">Period From</td>
+                <td colspan="2">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="date" id="sar_date_from" style="width: 110px; border: 1px solid #999; padding: 1px; text-align: center; font-family: 'Segoe UI';" disabled onclick="this.select()">
+                        <span style="font-weight: bold;">To</span>
+                        <input type="date" id="sar_date_to" style="width: 110px; border: 1px solid #999; padding: 1px; text-align: center; font-family: 'Segoe UI';" disabled onclick="this.select()">
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Main Data Grid -->
+    <div id="sar_table_container" style="flex: 1; min-height: 150px; border: 1px solid #999; border-bottom: none; background: #fff; overflow: hidden; display: flex; flex-direction: column;">
+        <!-- Header (Fixed) -->
+        <div style="background: #EAEAEA; font-size: 11px; font-weight: bold; border-bottom: 1px solid #999; flex-shrink: 0; overflow-y: scroll;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <thead>
+                    <tr>
+                        <th style="width: 20px; border-right: 1px solid #999; padding: 2px; text-align: center;"></th>
+                        <th style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: center;">Invoice No.</th>
+                        <th style="width: 75px; border-right: 1px solid #999; padding: 2px; text-align: center;">Invoice Date</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: left;">Customer</th>
+                        <th style="width: 90px; border-right: 1px solid #999; padding: 2px; text-align: right;">Invoice Amount</th>
+                        <th style="width: 85px; border-right: 1px solid #999; padding: 2px; text-align: right;">Amt. Received</th>
+                        <th style="width: 75px; border-right: 1px solid #999; padding: 2px; text-align: right;">Sale Returns</th>
+                        <th style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right;">W.H. Tax</th>
+                        <th style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: right;">Flood Tax</th>
+                        <th style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right;">Sales Tax</th>
+                        <th style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right;">Adv. Adj.</th>
+                        <th style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: right;">Discount</th>
+                        <th style="width: 90px; padding: 2px; text-align: right;">Balance Amt.</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Body (Scrollable) -->
+        <div style="flex: 1; overflow-y: scroll; font-size: 11px;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;" id="sar_tbody_table">
+                <colgroup>
+                    <col style="width: 20px;">
+                    <col style="width: 70px;">
+                    <col style="width: 75px;">
+                    <col>
+                    <col style="width: 90px;">
+                    <col style="width: 85px;">
+                    <col style="width: 75px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                    <col style="width: 65px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                    <col style="width: 90px;">
+                </colgroup>
+                <tbody id="sar_tbody">
+                    <!-- Data populated via JS -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Footer (Fixed) -->
+        <div style="background: #c0c0c0; font-size: 11px; font-weight: bold; flex-shrink: 0; overflow-y: scroll; border-top: 1px solid #999;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <tfoot>
+                    <tr>
+                        <td style="width: 20px; border-right: 1px solid #999; border-left: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="width: 75px; border-right: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-style: italic; border-bottom: 1px solid #999; background: transparent;">Totals Rs.</td>
+                        <td style="width: 90px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_tot_inv">0.00</td>
+                        <td style="width: 85px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_tot_rec">0.00</td>
+                        <td style="width: 75px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_tot_ret">0.00</td>
+                        <td style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_tot_wht">0.00</td>
+                        <td style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_tot_fld">0.00</td>
+                        <td style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_tot_stx">0.00</td>
+                        <td style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_tot_adv">0.00</td>
+                        <td style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_tot_dsc">0.00</td>
+                        <td style="width: 90px; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_tot_bal">0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Detail Data Grid (Bottom) -->
+    <div style="background: #7F987D; color: white; font-weight: bold; font-style: italic; text-align: center; font-size: 12px; padding: 2px; border-left: 1px solid #999; border-right: 1px solid #999;">Detail</div>
+    <div id="sar_detail_table_container" style="height: 150px; border: 1px solid #999; background: #fff; overflow: hidden; display: flex; flex-direction: column;">
+        <!-- Header (Fixed) -->
+        <div style="background: #EAEAEA; font-size: 11px; font-weight: bold; border-bottom: 1px solid #999; flex-shrink: 0; overflow-y: scroll;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <thead>
+                    <tr>
+                        <th style="width: 20px; border-right: 1px solid #999; padding: 2px; text-align: center;"></th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: left;">Transaction Type</th>
+                        <th style="width: 80px; border-right: 1px solid #999; padding: 2px; text-align: center;">Voucher No.</th>
+                        <th style="width: 75px; border-right: 1px solid #999; padding: 2px; text-align: center;">Date</th>
+                        <th style="width: 90px; border-right: 1px solid #999; padding: 2px; text-align: right;">Invoice Amount</th>
+                        <th style="width: 85px; border-right: 1px solid #999; padding: 2px; text-align: right;">Amt. Received</th>
+                        <th style="width: 75px; border-right: 1px solid #999; padding: 2px; text-align: right;">Sale Returns</th>
+                        <th style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right;">W.H. Tax</th>
+                        <th style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: right;">Flood Tax</th>
+                        <th style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right;">Sales Tax</th>
+                        <th style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right;">Adv. Adj.</th>
+                        <th style="width: 60px; padding: 2px; text-align: right;">Discount</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Body (Scrollable) -->
+        <div style="flex: 1; overflow-y: scroll; font-size: 11px;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;" id="sar_detail_tbody_table">
+                <colgroup>
+                    <col style="width: 20px;">
+                    <col>
+                    <col style="width: 80px;">
+                    <col style="width: 75px;">
+                    <col style="width: 90px;">
+                    <col style="width: 85px;">
+                    <col style="width: 75px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                    <col style="width: 65px;">
+                    <col style="width: 65px;">
+                    <col style="width: 60px;">
+                </colgroup>
+                <tbody id="sar_detail_tbody">
+                    <!-- Data populated via JS -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Footer (Fixed) -->
+        <div style="background: #c0c0c0; font-size: 11px; font-weight: bold; flex-shrink: 0; overflow-y: scroll; border-top: 1px solid #999;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <tfoot>
+                    <tr>
+                        <td style="width: 20px; border-right: 1px solid #999; border-left: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="width: 80px; border-right: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="width: 75px; border-right: 1px solid #999; padding: 2px; text-align: right; font-style: italic; border-bottom: 1px solid #999; background: transparent;">Totals Rs.</td>
+                        <td style="width: 90px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_dt_inv">0.00</td>
+                        <td style="width: 85px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_dt_rec">0.00</td>
+                        <td style="width: 75px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_dt_ret">0.00</td>
+                        <td style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_dt_wht">0.00</td>
+                        <td style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_dt_fld">0.00</td>
+                        <td style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_dt_stx">0.00</td>
+                        <td style="width: 65px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_dt_adv">0.00</td>
+                        <td style="width: 60px; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="sar_dt_dsc">0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <style>
+        #sar_tbody tr, #sar_detail_tbody tr { border-bottom: 1px solid #eee; cursor: pointer; }
+        #sar_tbody tr.selected td, #sar_detail_tbody tr.selected td { background-color: #1F4E79 !important; color: white; }
+        #sar_tbody td, #sar_detail_tbody td { padding: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-right: 1px solid #e0e0e0; }
+        #sar_tbody td:last-child, #sar_detail_tbody td:last-child { border-right: none; }
+
+        .sr-suggest-box {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ccc;
+            z-index: 1000;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            font-size: 11px;
+        }
+        .sr-suggest-box div { padding: 4px; cursor: pointer; }
+        .sr-suggest-box div:hover, .sr-suggest-box div.active { background-color: #1F4E79; color: white; }
+        
+        .sr-row-pointer {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            border-left: 6px solid transparent;
+            margin-left: 2px;
+        }
+        
+        #sar_tbody tr.selected .sr-row-pointer, #sar_detail_tbody tr.selected .sr-row-pointer {
+            border-left-color: white;
+        }
+    </style>
+</div>

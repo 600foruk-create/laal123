@@ -1,0 +1,652 @@
+<div id="digitalSaleRegisterApp" class="dsr-wrapper" data-module="Digital Invoice Sales Register" style="display: flex; flex-direction: column; width: 100%; height: 100%; padding: 10px 14px; background: #f8fafc; box-sizing: border-box; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+    
+    <!-- Scoped CSS for Digital Sales Register -->
+    <style>
+        /* Exact Width & Height of Digital Invoice Form */
+        .modal-container:has(.modal-body[data-module="Digital Invoice Sales Register"]),
+        .modal-container:has(.modal-body[data-module="Digital Sales Register"]),
+        .modal-container.modal-fbr-register {
+            max-width: 1260px !important;
+            width: 98% !important;
+            height: 94vh !important;
+            max-height: 94vh !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            border-radius: 6px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            border: 2px solid var(--theme-primary, #1F4E79) !important;
+        }
+
+        .modal-container:has(.modal-body[data-module="Digital Invoice Sales Register"]) .modal-header,
+        .modal-container:has(.modal-body[data-module="Digital Sales Register"]) .modal-header,
+        .modal-container.modal-fbr-register .modal-header {
+            margin: 0 !important;
+            border-radius: 4px 4px 0 0 !important;
+            padding: 3px 12px !important;
+            height: 30px !important;
+            box-sizing: border-box !important;
+            background: var(--theme-primary, #1F4E79) !important;
+            border-bottom: 2px solid var(--theme-accent, #F5A623) !important;
+            color: #ffffff !important;
+            flex-shrink: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+        }
+
+        .modal-body[data-module="Digital Invoice Sales Register"],
+        .modal-body[data-module="Digital Sales Register"] {
+            overflow: hidden !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 0 !important;
+        }
+
+        .dsr-wrapper * { box-sizing: border-box; }
+        .dsr-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; flex-shrink: 0; }
+        .dsr-title { font-size: 18px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px; margin: 0; }
+        .dsr-title i { color: #1e3a8a; font-size: 20px; }
+        .dsr-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        
+        /* Summary Metric Cards */
+        .dsr-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px; flex-shrink: 0; }
+        .dsr-summary-card { background: #ffffff; border-radius: 6px; padding: 10px 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; align-items: center; justify-content: space-between; position: relative; overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; }
+        .dsr-summary-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.06); }
+        .dsr-summary-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+        .dsr-card-blue::before { background: #0284c7; }
+        .dsr-card-emerald::before { background: #059669; }
+        .dsr-card-purple::before { background: #7c3aed; }
+        .dsr-card-teal::before { background: #0d9488; }
+        .dsr-card-amber::before { background: #d97706; }
+        .dsr-card-rose::before { background: #e11d48; }
+
+        .dsr-sum-info h4 { margin: 0 0 2px 0; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 600; }
+        .dsr-sum-info .dsr-sum-value { font-size: 18px; font-weight: 800; color: #0f172a; line-height: 1.2; font-family: monospace, sans-serif; }
+        .dsr-sum-info .dsr-sum-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+        .dsr-sum-icon { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+        .dsr-card-blue .dsr-sum-icon { background: #e0f2fe; color: #0284c7; }
+        .dsr-card-emerald .dsr-sum-icon { background: #dcfce7; color: #059669; }
+        .dsr-card-purple .dsr-sum-icon { background: #f3e8ff; color: #7c3aed; }
+        .dsr-card-teal .dsr-sum-icon { background: #ccfbf1; color: #0d9488; }
+        .dsr-card-amber .dsr-sum-icon { background: #fef3c7; color: #d97706; }
+        .dsr-card-rose .dsr-sum-icon { background: #ffe4e6; color: #e11d48; }
+
+        /* Filter Section */
+        .dsr-filter-card { background: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0; padding: 10px 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); flex-shrink: 0; }
+        .dsr-filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; align-items: flex-end; }
+        .dsr-filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .dsr-filter-group label { font-size: 11px; font-weight: 700; color: #475569; margin: 0; }
+        .dsr-filter-input, .dsr-filter-select { height: 30px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11.5px; color: #1e293b; background-color: #fff; width: 100%; }
+        .dsr-filter-input:focus, .dsr-filter-select:focus { border-color: #0284c7; outline: none; box-shadow: 0 0 0 2px rgba(2,132,199,0.18); }
+        .dsr-filter-buttons { display: flex; gap: 6px; }
+
+        /* Table Card */
+        .dsr-table-card { background: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.03); overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .dsr-table-responsive { width: 100%; overflow-x: auto; overflow-y: auto; flex: 1; min-height: 0; }
+        .dsr-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 11.5px; }
+        .dsr-table thead th { background: #f8fafc; color: #334155; font-weight: 700; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; white-space: nowrap; position: sticky; top: 0; z-index: 10; cursor: pointer; user-select: none; }
+        .dsr-table thead th:hover { background: #f1f5f9; color: #0f172a; }
+        .dsr-table tbody td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; white-space: nowrap; color: #1e293b; }
+        .dsr-table tbody tr:hover { background-color: #f8fafc; }
+        .dsr-table tbody tr.row-cancelled { background-color: #fef2f2; color: #94a3b8; }
+        .dsr-table tbody tr.row-cancelled td { text-decoration: line-through; }
+        .dsr-table tbody tr.row-cancelled td.no-strike { text-decoration: none; }
+
+        /* Status Badges */
+        .dsr-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 12px; font-size: 10.5px; font-weight: 700; line-height: 1.35; border: 1px solid transparent; }
+        .dsr-badge-submitted { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+        .dsr-badge-pending { background: #fef3c7; color: #b45309; border-color: #fde68a; }
+        .dsr-badge-rejected { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+        .dsr-badge-cancelled { background: #fee2e2; color: #991b1b; border-color: #fca5a5; font-weight: 700; }
+
+        /* Action Buttons */
+        .dsr-btn-group { display: inline-flex; align-items: center; gap: 3px; }
+        .dsr-act-btn { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 3px; padding: 3px 6px; font-size: 10.5px; color: #334155; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 3px; }
+        .dsr-act-btn:hover { background: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
+        .dsr-btn-view:hover { background: #e0f2fe; border-color: #0284c7; color: #0284c7; }
+        .dsr-btn-edit:hover { background: #f0fdf4; border-color: #16a34a; color: #16a34a; }
+        .dsr-btn-submit:hover { background: #f0fdf4; border-color: #15803d; color: #15803d; }
+        .dsr-btn-status:hover { background: #f3e8ff; border-color: #7c3aed; color: #7c3aed; }
+        .dsr-btn-print:hover { background: #f0f9ff; border-color: #0284c7; color: #0284c7; }
+        .dsr-btn-cancel { color: #dc2626; }
+        .dsr-btn-cancel:hover { background: #fee2e2; border-color: #dc2626; color: #dc2626; }
+        .dsr-btn-delete:hover { background: #fee2e2; border-color: #dc2626; color: #dc2626; }
+        .dsr-btn-disabled { opacity: 0.45; cursor: not-allowed !important; pointer-events: none; }
+
+        /* Dropdown Action Menu */
+        .dsr-dropdown { position: relative; display: inline-block; }
+        .dsr-dropdown-content { display: none; position: absolute; right: 0; top: 100%; background: #ffffff; min-width: 190px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); border: 1px solid #cbd5e1; border-radius: 4px; z-index: 50; padding: 4px 0; }
+        .dsr-dropdown.open .dsr-dropdown-content { display: block; }
+        .dsr-dropdown-item { padding: 6px 12px; font-size: 11px; color: #334155; display: flex; align-items: center; gap: 8px; cursor: pointer; text-decoration: none; width: 100%; border: none; background: transparent; text-align: left; }
+        .dsr-dropdown-item:hover { background: #f1f5f9; color: #0f172a; }
+        .dsr-dropdown-divider { height: 1px; background: #e2e8f0; margin: 4px 0; }
+
+        /* Pagination */
+        .dsr-pagination-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: #ffffff; border-top: 1px solid #e2e8f0; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #64748b; }
+        .dsr-pag-controls { display: flex; align-items: center; gap: 4px; }
+        .dsr-pag-btn { padding: 2px 7px; border: 1px solid #cbd5e1; background: #fff; border-radius: 3px; cursor: pointer; font-size: 11px; }
+        .dsr-pag-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .dsr-pag-btn.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; font-weight: bold; }
+
+        /* Modals */
+        .dsr-modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.65); z-index: 1060; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .dsr-modal-backdrop.show { display: flex; }
+        .dsr-modal-dialog { background: #fff; border-radius: 6px; box-shadow: 0 12px 30px rgba(0,0,0,0.22); width: 92%; max-width: 820px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+        .dsr-modal-view-dialog { max-width: 900px !important; width: 95% !important; height: 92vh !important; max-height: 92vh !important; }
+        .dsr-modal-header { padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+        .dsr-modal-header h3 { margin: 0; font-size: 14px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 7px; }
+        .dsr-modal-close { background: none; border: none; font-size: 18px; color: #64748b; cursor: pointer; line-height: 1; }
+        .dsr-modal-close:hover { color: #dc2626; }
+        .dsr-modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; font-size: 12px; }
+        .dsr-modal-footer { padding: 10px 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; background: #f8fafc; }
+    </style>
+
+    <!-- 1. Header Toolbar -->
+    <div class="dsr-header">
+        <div>
+            <h2 class="dsr-title">
+                <i class="fas fa-file-invoice"></i> Digital Invoice Sales Register
+            </h2>
+            <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+                Review all FBR digital invoices, monitor submission status, validate data, and submit directly to FBR.
+            </div>
+        </div>
+        <div class="dsr-actions">
+            <button class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.openIrisManualModal()" style="font-weight: 700; padding: 5px 12px; background: #fff; color: #b91c1c; border: 1.5px solid #fca5a5; border-radius: 3px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Link IRIS Invoice Number or Reset Stuck Invoice">
+                <i class="fas fa-link" style="color: #dc2626;"></i> Manual IRIS Link
+            </button>
+            <button class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.openNewInvoice()" style="font-weight: 700; padding: 5px 12px; background: #16a34a; border-color: #16a34a; color: #fff; border-radius: 3px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-plus-circle"></i> New Digital Invoice
+            </button>
+            <button class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.loadInvoices()" style="font-weight: 700; padding: 5px 12px; background: #1e3a8a; border-color: #1e3a8a; color: #fff; border-radius: 3px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <button class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.exportCSV()" style="font-weight: 600; padding: 5px 12px; background: #fff; color: #334155; border: 1px solid #cbd5e1; border-radius: 3px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-file-csv" style="color: #16a34a;"></i> Export CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. Summary Cards -->
+    <div class="dsr-summary-grid">
+        <div class="dsr-summary-card dsr-card-blue">
+            <div class="dsr-sum-info">
+                <h4>Total Invoices</h4>
+                <div class="dsr-sum-value" id="dsr_sum_total_invoices">0</div>
+                <div class="dsr-sum-sub" id="dsr_sum_sub_inv">Matching filters</div>
+            </div>
+            <div class="dsr-sum-icon">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+        </div>
+
+        <div class="dsr-summary-card dsr-card-emerald">
+            <div class="dsr-sum-info">
+                <h4>Taxable Value</h4>
+                <div class="dsr-sum-value" id="dsr_sum_taxable">PKR 0.00</div>
+                <div class="dsr-sum-sub">Sales value excl. tax</div>
+            </div>
+            <div class="dsr-sum-icon">
+                <i class="fas fa-coins"></i>
+            </div>
+        </div>
+
+        <div class="dsr-summary-card dsr-card-purple">
+            <div class="dsr-sum-info">
+                <h4>Sales Tax + Fur. Tax</h4>
+                <div class="dsr-sum-value" id="dsr_sum_tax">PKR 0.00</div>
+                <div class="dsr-sum-sub">Total tax collected</div>
+            </div>
+            <div class="dsr-sum-icon">
+                <i class="fas fa-receipt"></i>
+            </div>
+        </div>
+
+        <div class="dsr-summary-card dsr-card-teal">
+            <div class="dsr-sum-info">
+                <h4>FBR Submitted</h4>
+                <div class="dsr-sum-value" id="dsr_sum_submitted">0</div>
+                <div class="dsr-sum-sub">Officially verified by FBR</div>
+            </div>
+            <div class="dsr-sum-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+        </div>
+
+        <div class="dsr-summary-card dsr-card-amber">
+            <div class="dsr-sum-info">
+                <h4>FBR Pending / Draft</h4>
+                <div class="dsr-sum-value" id="dsr_sum_pending">0</div>
+                <div class="dsr-sum-sub">Drafts awaiting submission</div>
+            </div>
+            <div class="dsr-sum-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+        </div>
+
+        <div class="dsr-summary-card dsr-card-rose">
+            <div class="dsr-sum-info">
+                <h4>FBR Rejected / Error</h4>
+                <div class="dsr-sum-value" id="dsr_sum_rejected">0</div>
+                <div class="dsr-sum-sub">Requires correction & retry</div>
+            </div>
+            <div class="dsr-sum-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Search and Filters Card -->
+    <div class="dsr-filter-card">
+        <div class="dsr-filter-grid">
+            <div class="dsr-filter-group" style="grid-column: span 2;">
+                <label><i class="fas fa-search"></i> Search (Invoice #, FBR Ref, Customer, NTN, CNIC)</label>
+                <input type="text" id="dsr_filter_search" class="dsr-filter-input" placeholder="Type Invoice No, Customer, NTN, CNIC or FBR Ref..." onkeyup="if(event.key==='Enter') window.DigitalSaleRegisterModule.applyFilters()">
+            </div>
+
+            <div class="dsr-filter-group">
+                <label><i class="fas fa-user-tag"></i> Customer Type / Buyer</label>
+                <select id="dsr_filter_buyer_type" class="dsr-filter-select" onchange="window.DigitalSaleRegisterModule.applyFilters()">
+                    <option value="">All Buyer Types</option>
+                    <option value="Registered">Registered (Filer)</option>
+                    <option value="Unregistered">Unregistered (Non-Filer)</option>
+                    <option value="Consumer">End Consumer</option>
+                    <option value="Exempt">Exempt / Zero-Rated</option>
+                </select>
+            </div>
+
+            <div class="dsr-filter-group">
+                <label><i class="fas fa-cloud-upload-alt"></i> FBR Status</label>
+                <select id="dsr_filter_fbr_status" class="dsr-filter-select" onchange="window.DigitalSaleRegisterModule.applyFilters()">
+                    <option value="">All Statuses</option>
+                    <option value="Submitted">Submitted / Valid (Accepted)</option>
+                    <option value="Pending">Pending FBR / Draft</option>
+                    <option value="Rejected">Rejected / Failed</option>
+                    <option value="Cancelled">Cancelled</option>
+                </select>
+            </div>
+
+            <div class="dsr-filter-group">
+                <label><i class="fas fa-calendar-alt"></i> From Date</label>
+                <input type="date" id="dsr_filter_from_date" class="dsr-filter-input" onchange="window.DigitalSaleRegisterModule.applyFilters()">
+            </div>
+
+            <div class="dsr-filter-group">
+                <label><i class="fas fa-calendar-alt"></i> To Date</label>
+                <input type="date" id="dsr_filter_to_date" class="dsr-filter-input" onchange="window.DigitalSaleRegisterModule.applyFilters()">
+            </div>
+
+            <div class="dsr-filter-group">
+                <label>&nbsp;</label>
+                <div class="dsr-filter-buttons">
+                    <button class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.applyFilters()" style="flex: 1; height: 31px; background: #1e3a8a; border-color: #1e3a8a; color: #fff; font-weight: 700; border-radius: 3px; cursor: pointer;">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <button class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.clearFilters()" style="height: 31px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;" title="Reset Filters">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Register Invoices Grid Table -->
+    <div class="dsr-table-card">
+        <div class="dsr-table-responsive">
+            <table class="dsr-table" id="dsr_table">
+                <thead>
+                    <tr>
+                        <th style="width: 45px; text-align: center;">#</th>
+                        <th onclick="window.DigitalSaleRegisterModule.sortBy('serial_no')">Invoice # <i class="fas fa-sort"></i></th>
+                        <th onclick="window.DigitalSaleRegisterModule.sortBy('invoice_date')">Date <i class="fas fa-sort"></i></th>
+                        <th>Customer / Buyer</th>
+                        <th>Buyer Type</th>
+                        <th style="text-align: right; font-weight: 800;">Net Total (PKR)</th>
+                        <th style="text-align: center;">FBR Status</th>
+                        <th>FBR Invoice #</th>
+                        <th style="text-align: center; width: 140px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="dsr_table_body">
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 30px; color: #64748b;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 18px; color: #0284c7;"></i> Loading digital invoices...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 5. Pagination Bar -->
+        <div class="dsr-pagination-bar">
+            <div id="dsr_pag_info">Showing 0 to 0 of 0 digital invoices</div>
+            <div class="dsr-pag-controls">
+                <span style="margin-right: 6px;">Rows per page:</span>
+                <select id="dsr_page_limit" onchange="window.DigitalSaleRegisterModule.onLimitChange()" style="padding: 2px 5px; border-radius: 3px; border: 1px solid #cbd5e1; font-size: 11px; margin-right: 10px;">
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <button class="dsr-pag-btn" id="dsr_btn_first" onclick="window.DigitalSaleRegisterModule.goToPage(1)"><i class="fas fa-angle-double-left"></i></button>
+                <button class="dsr-pag-btn" id="dsr_btn_prev" onclick="window.DigitalSaleRegisterModule.goToPage('prev')"><i class="fas fa-angle-left"></i></button>
+                <span id="dsr_page_numbers" style="display: inline-flex; gap: 3px; margin: 0 4px;"></span>
+                <button class="dsr-pag-btn" id="dsr_btn_next" onclick="window.DigitalSaleRegisterModule.goToPage('next')"><i class="fas fa-angle-right"></i></button>
+                <button class="dsr-pag-btn" id="dsr_btn_last" onclick="window.DigitalSaleRegisterModule.goToPage('last')"><i class="fas fa-angle-double-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 1: VIEW INVOICE MODAL -->
+    <!-- ========================================================================= -->
+    <div id="dsr_modal_view" class="dsr-modal-backdrop">
+        <div class="dsr-modal-dialog dsr-modal-view-dialog" style="max-width: 900px; width: 95%; height: 92vh; max-height: 92vh; display: flex; flex-direction: column;">
+            <div class="dsr-modal-header" style="background: #0f172a; color: #ffffff; padding: 10px 18px; border-bottom: 2px solid #0284c7; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap;">
+                    <h3 style="color: #ffffff; font-size: 14.5px; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+                        <i class="fas fa-file-invoice" style="color: #38bdf8; font-size: 16px;"></i>
+                        <span id="dsr_view_modal_title">Official FBR Digital Tax Invoice Preview</span>
+                    </h3>
+                    <span id="dsr_view_modal_badge"></span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.printFromViewModal()" style="background: #0284c7; color: #ffffff; border: none; font-weight: 700; padding: 5px 14px; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 12px;" title="Print Digital Tax Invoice">
+                        <i class="fas fa-print"></i> Print Invoice
+                    </button>
+                    <button type="button" class="dsr-modal-close" style="color: #94a3b8; font-size: 22px; cursor: pointer; line-height: 1; padding: 0 4px;" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_view')" title="Close">&times;</button>
+                </div>
+            </div>
+            <div class="dsr-modal-body" style="background: #f1f5f9; padding: 20px 16px; overflow-y: auto; flex: 1; display: flex; justify-content: center; align-items: flex-start;">
+                <div id="dsr_view_modal_content" style="width: 100%; max-width: 820px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08); border-radius: 4px; background: #ffffff; border: 1px solid #cbd5e1;">
+                    <!-- Populated dynamically by JS -->
+                </div>
+            </div>
+            <div class="dsr-modal-footer" style="padding: 10px 18px; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                <div style="font-size: 11.5px; color: #64748b; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-shield-alt text-primary"></i>
+                    <span>Official FBR Digital Invoicing Standard Compliant &bull; Ready to print on A4 paper or save as PDF</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.printFromViewModal()" style="background: #1e3a8a; color: #fff; font-weight: 700; padding: 6px 18px; border-radius: 4px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 12px;">
+                        <i class="fas fa-print"></i> Print Invoice
+                    </button>
+                    <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_view')" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 6px 18px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 12px;">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 2: VIEW FBR RESPONSE & LOGS MODAL -->
+    <!-- ========================================================================= -->
+    <div id="dsr_modal_response" class="dsr-modal-backdrop">
+        <div class="dsr-modal-dialog" style="max-width: 680px;">
+            <div class="dsr-modal-header">
+                <h3><i class="fas fa-code text-purple"></i> FBR Gateway Response & Verification Details</h3>
+                <button type="button" class="dsr-modal-close" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_response')">&times;</button>
+            </div>
+            <div class="dsr-modal-body" style="padding: 16px; background: #f8fafc;">
+                <div style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11.5px;">
+                    <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                        <span style="color: #64748b; font-size: 10.5px; text-transform: uppercase;">Invoice Reference:</span><br>
+                        <strong id="dsr_resp_inv_no" style="font-size: 13px; color: #0f172a;">-</strong>
+                    </div>
+                    <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                        <span style="color: #64748b; font-size: 10.5px; text-transform: uppercase;">FBR Invoice Number:</span><br>
+                        <strong id="dsr_resp_fbr_no" style="font-size: 13px; color: #16a34a; font-family: monospace;">-</strong>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; font-size: 11.5px;">
+                    <span style="color: #64748b; font-size: 10.5px; text-transform: uppercase;">Status & Message:</span><br>
+                    <div id="dsr_resp_msg_box" style="margin-top: 4px; padding: 8px 10px; border-radius: 4px; font-weight: 600;">-</div>
+                </div>
+
+                <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">Raw JSON Transmission Payload & Response:</div>
+                <pre id="dsr_resp_raw_pre" style="background: #0f172a; color: #38bdf8; padding: 12px; border-radius: 4px; font-family: monospace; font-size: 11px; max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0;"></pre>
+            </div>
+            <div class="dsr-modal-footer">
+                <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_response')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 5px 14px; border-radius: 3px; cursor: pointer;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 3: VALIDATE FBR DATA MODAL -->
+    <!-- ========================================================================= -->
+    <div id="dsr_modal_validate" class="dsr-modal-backdrop">
+        <div class="dsr-modal-dialog" style="max-width: 620px;">
+            <div class="dsr-modal-header">
+                <h3><i class="fas fa-shield-alt text-warning"></i> FBR Data Validation Results</h3>
+                <button type="button" class="dsr-modal-close" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_validate')">&times;</button>
+            </div>
+            <div class="dsr-modal-body" id="dsr_val_modal_body" style="padding: 16px;">
+                <!-- Populated dynamically by JS -->
+            </div>
+            <div class="dsr-modal-footer">
+                <button type="button" id="dsr_val_btn_submit_now" class="btn btn-sm" style="display: none; background: #16a34a; color: #fff; font-weight: 700; padding: 5px 14px; border-radius: 3px; border: none; cursor: pointer;">
+                    <i class="fas fa-paper-plane"></i> Proceed to Submit to FBR
+                </button>
+                <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_validate')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 5px 14px; border-radius: 3px; cursor: pointer;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 4: CONFIRM & SUBMIT DIALOG -->
+    <!-- ========================================================================= -->
+    <div id="dsr_modal_confirm" class="dsr-modal-backdrop">
+        <div class="dsr-modal-dialog" style="max-width: 520px;">
+            <div class="dsr-modal-header" style="background: #eff6ff;">
+                <h3 style="color: #1e3a8a;"><i class="fas fa-paper-plane"></i> Confirm FBR Digital Transmission</h3>
+                <button type="button" class="dsr-modal-close" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_confirm')">&times;</button>
+            </div>
+            <div class="dsr-modal-body" style="padding: 18px 20px;">
+                <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">
+                    Submit Digital Invoice <span id="dsr_conf_inv_no" style="color: #0284c7;">-</span> to FBR?
+                </div>
+                <div style="font-size: 11.5px; color: #64748b; line-height: 1.5; margin-bottom: 14px;">
+                    This will digitally sign and transmit this sales invoice to the Federal Board of Revenue (FBR) gateway. Once accepted, an official FBR Invoice Number and QR Code will be issued.
+                </div>
+
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 12px; font-size: 11.5px; display: flex; flex-direction: column; gap: 5px;">
+                    <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">Buyer Title:</span><strong id="dsr_conf_buyer">-</strong></div>
+                    <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">Buyer NTN / CNIC:</span><strong id="dsr_conf_ntn">-</strong></div>
+                    <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">Invoice Net Total:</span><strong id="dsr_conf_net" style="color: #1e3a8a;">PKR 0.00</strong></div>
+                </div>
+            </div>
+            <div class="dsr-modal-footer">
+                <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_confirm')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 3px; cursor: pointer;">
+                    Cancel
+                </button>
+                <button type="button" id="dsr_btn_execute_submit" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.executeSubmit()" style="background: #16a34a; color: #fff; font-weight: 700; padding: 6px 16px; border-radius: 3px; border: none; cursor: pointer;">
+                    <i class="fas fa-paper-plane"></i> Confirm & Submit Now
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 5: MANUAL IRIS LINKING & SUBMISSION ATTEMPT RESET (HIGH ALERT) -->
+    <!-- ========================================================================= -->
+    <div id="dsr_modal_iris_manual" class="dsr-modal-backdrop">
+        <div class="dsr-modal-dialog" style="max-width: 650px;">
+            <div class="dsr-modal-header" style="background: #fff1f2; border-bottom: 2px solid #f43f5e;">
+                <h3 style="color: #be123c; font-weight: 800;">
+                    <i class="fas fa-exclamation-triangle"></i> High Alert & IRIS Manual Link / Reset
+                </h3>
+                <button type="button" class="dsr-modal-close" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_iris_manual')">&times;</button>
+            </div>
+            <div class="dsr-modal-body" style="padding: 18px 20px; font-size: 12px;">
+                <!-- High Alert Warning Box Matching User's System -->
+                <div style="background: #fff5f5; border: 1.5px solid #fca5a5; border-radius: 6px; padding: 12px 14px; margin-bottom: 16px;">
+                    <div style="color: #dc2626; font-weight: 800; font-size: 13px; margin-bottom: 6px;">
+                        High Alert !!! If you are on this page, there can be 3 reasons:
+                    </div>
+                    <ol style="margin: 0; padding-left: 18px; color: #991b1b; font-size: 11px; line-height: 1.55; font-weight: 600;">
+                        <li>Invoice Posted on IRIS Portal but Number not updated in ERP.</li>
+                        <li>Invoice was attempted but not posted on IRIS Portal and you want to Reset the Attempt.</li>
+                        <li>Invoice Deleted from IRIS Portal and you want to Reset the Invoice to Remove it.</li>
+                    </ol>
+                    <div style="margin-top: 8px; font-size: 11px; color: #b91c1c; font-weight: 700; border-top: 1px dashed #fca5a5; padding-top: 6px;">
+                        • For Case 1: You have to Copy Invoice Number From IRIS Portal and Put in the Box.<br>
+                        • For Case 2 &amp; 3: Just Update without any Invoice Number. It will Reset the attempt so you can either retry or delete.
+                    </div>
+                </div>
+
+                <!-- Form Fields -->
+                <input type="hidden" id="dsr_manual_inv_id" value="" />
+                
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 190px 1fr; align-items: center; gap: 10px;">
+                        <label style="font-weight: 700; color: #334155; font-size: 12px;">Internal Invoice No:</label>
+                        <div>
+                            <input type="text" id="dsr_manual_internal_inv" class="dsr-filter-input" style="font-weight: 700; background: #f8fafc; color: #0f172a; border: 1.5px solid #cbd5e1;" readonly />
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 190px 1fr; align-items: center; gap: 10px;">
+                        <label style="font-weight: 700; color: #334155; font-size: 12px;">Customer / Buyer:</label>
+                        <div id="dsr_manual_buyer_display" style="font-weight: 600; color: #475569; padding: 4px 0;">-</div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 190px 1fr; align-items: flex-start; gap: 10px;">
+                        <label style="font-weight: 700; color: #b91c1c; font-size: 11.5px; line-height: 1.35;">
+                            Copy and Enter FBR Invoice No From Portal <br>
+                            <span style="font-size: 10px; color: #64748b; font-weight: normal;">(OR Leave Blank For Reset):</span>
+                        </label>
+                        <div>
+                            <input type="text" id="dsr_manual_fbr_no" class="dsr-filter-input" placeholder="e.g. A522103DIKLUZBT013060 (Leave blank to reset)" style="font-family: monospace; font-size: 13px; font-weight: 800; color: #0b2e59; height: 34px; border: 1.5px solid #dc2626;" autocomplete="off" />
+                            <div style="font-size: 10px; color: #64748b; margin-top: 3px;">
+                                Paste the exact alphanumeric FBR Reference No from IRIS. If left blank, invoice will reset to Draft.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="dsr-modal-footer">
+                <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_iris_manual')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 6px 16px; border-radius: 3px; cursor: pointer; font-weight: 600;">
+                    Back
+                </button>
+                <button type="button" id="dsr_btn_save_iris_manual" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.saveManualIrisLink()" style="background: #0284c7; color: #fff; font-weight: 700; padding: 6px 20px; border-radius: 3px; border: none; cursor: pointer;">
+                    <i class="fas fa-check"></i> Update
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 6: CANCELLATION MODAL WITH CAPTCHA (Matching POS Register) -->
+    <!-- ========================================================================= -->
+    <div id="dsr_modal_cancel" class="dsr-modal-backdrop">
+        <div class="dsr-modal-dialog" style="max-width: 480px;">
+            <div class="dsr-modal-header" style="background: #fff5f5; border-bottom: 2px solid #fca5a5;">
+                <h3 style="color: #c53030; font-weight: 800;">
+                    <i class="fas fa-exclamation-triangle"></i> Cancel Digital Invoice
+                </h3>
+                <button type="button" class="dsr-modal-close" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_cancel')">&times;</button>
+            </div>
+            <div class="dsr-modal-body" style="padding: 16px 20px;">
+                <p style="font-size: 13px; color: #334155; margin-bottom: 8px;">
+                    You are cancelling Digital Invoice: <b id="dsr_cancel_inv_no" style="color: #c53030;"></b>
+                </p>
+
+                <div id="dsr_cancel_fbr_warning" style="display: none; background: #fffaf0; border: 1px solid #fbd38d; padding: 10px; border-radius: 6px; font-size: 11.5px; color: #9c4221; margin-bottom: 12px; line-height: 1.45;">
+                    <i class="fas fa-info-circle"></i> <b>FBR Notice:</b> This invoice was submitted to FBR (<span id="dsr_cancel_fbr_ref" style="font-family: monospace; font-weight: 700;"></span>). Cancelling it locally will update your internal ERP books. To reverse the FBR tax liability, a corresponding Digital Credit Note must be generated.
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">
+                        Cancellation Reason <span style="color: #e53e3e;">*</span>
+                    </label>
+                    <textarea id="dsr_cancel_reason_input" class="dsr-filter-input" rows="2" style="width: 100%; border: 1.5px solid #cbd5e1; border-radius: 4px; padding: 8px; font-size: 12px; height: auto;" placeholder="Please specify why this digital invoice is being cancelled..."></textarea>
+                </div>
+
+                <!-- CAPTCHA Verification Box -->
+                <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-top: 14px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <span><i class="fas fa-shield-alt" style="color: #c53030;"></i> Verify CAPTCHA <span style="color: #e53e3e;">*</span></span>
+                        <button type="button" onclick="window.DigitalSaleRegisterModule.refreshCancelCaptcha()" style="background: none; border: none; color: #2563eb; cursor: pointer; font-size: 11px; font-weight: 600;" title="Get a different question">
+                            <i class="fas fa-sync-alt"></i> Change Question
+                        </button>
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div id="dsr_cancel_captcha_question" style="background: #edf2f7; border: 1px dashed #718096; padding: 6px 14px; border-radius: 6px; font-size: 18px; font-weight: 800; letter-spacing: 2px; color: #1a202c; font-family: monospace; min-width: 110px; text-align: center; user-select: none;">
+                            ? + ?
+                        </div>
+                        <span style="font-size: 18px; font-weight: bold; color: #4a5568;">=</span>
+                        <input type="number" id="dsr_cancel_captcha_input" class="dsr-filter-input" style="width: 110px; font-size: 16px; font-weight: 700; text-align: center; padding: 6px 8px; border: 2px solid #cbd5e1; border-radius: 6px; height: 38px;" placeholder="Answer" autocomplete="off" onkeydown="if(event.key==='Enter') window.DigitalSaleRegisterModule.submitCancelInvoice()">
+                    </div>
+                    <div id="dsr_cancel_captcha_error" style="display: none; color: #e53e3e; font-size: 11px; font-weight: 600; margin-top: 6px;"></div>
+                </div>
+            </div>
+            <div class="dsr-modal-footer">
+                <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_cancel')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 3px; cursor: pointer; font-weight: 600;">
+                    Close
+                </button>
+                <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.submitCancelInvoice()" style="background: #e53e3e; border: 1px solid #e53e3e; color: #fff; font-weight: 700; padding: 6px 16px; border-radius: 3px; cursor: pointer;">
+                    <i class="fas fa-ban"></i> Verify & Confirm Cancellation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 7: DELETE CONFIRMATION MODAL WITH CAPTCHA (Matching POS Register) -->
+    <!-- ========================================================================= -->
+    <div id="dsr_modal_delete" class="dsr-modal-backdrop">
+        <div class="dsr-modal-dialog" style="max-width: 480px;">
+            <div class="dsr-modal-header" style="background: #fff5f5; border-bottom: 2px solid #fca5a5;">
+                <h3 style="color: #c53030; font-weight: 800;">
+                    <i class="fas fa-trash-alt"></i> Delete Digital Invoice (Permanent)
+                </h3>
+                <button type="button" class="dsr-modal-close" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_delete')">&times;</button>
+            </div>
+            <div class="dsr-modal-body" style="padding: 16px 20px;">
+                <p style="font-size: 13px; color: #334155; margin-bottom: 8px;">
+                    Are you sure you want to permanently delete digital invoice: <b id="dsr_delete_inv_no" style="color: #c53030;"></b>?
+                </p>
+                <div style="background: #fff5f5; border: 1px solid #fed7d7; padding: 10px; border-radius: 6px; font-size: 11.5px; color: #9b2c2c; margin-bottom: 12px; line-height: 1.45;">
+                    <i class="fas fa-exclamation-circle"></i> <b>Warning:</b> This will completely remove this digital invoice and its line items from the database. This action cannot be reversed.
+                </div>
+
+                <!-- CAPTCHA Verification Box -->
+                <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <span><i class="fas fa-shield-alt" style="color: #c53030;"></i> Verify CAPTCHA <span style="color: #e53e3e;">*</span></span>
+                        <button type="button" onclick="window.DigitalSaleRegisterModule.refreshDeleteCaptcha()" style="background: none; border: none; color: #2563eb; cursor: pointer; font-size: 11px; font-weight: 600;" title="Get a different question">
+                            <i class="fas fa-sync-alt"></i> Change Question
+                        </button>
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div id="dsr_delete_captcha_question" style="background: #edf2f7; border: 1px dashed #718096; padding: 6px 14px; border-radius: 6px; font-size: 18px; font-weight: 800; letter-spacing: 2px; color: #1a202c; font-family: monospace; min-width: 110px; text-align: center; user-select: none;">
+                            ? + ?
+                        </div>
+                        <span style="font-size: 18px; font-weight: bold; color: #4a5568;">=</span>
+                        <input type="number" id="dsr_delete_captcha_input" class="dsr-filter-input" style="width: 110px; font-size: 16px; font-weight: 700; text-align: center; padding: 6px 8px; border: 2px solid #cbd5e1; border-radius: 6px; height: 38px;" placeholder="Answer" autocomplete="off" onkeydown="if(event.key==='Enter') window.DigitalSaleRegisterModule.confirmDeleteInvoice()">
+                    </div>
+                    <div id="dsr_delete_captcha_error" style="display: none; color: #e53e3e; font-size: 11px; font-weight: 600; margin-top: 6px;"></div>
+                </div>
+            </div>
+            <div class="dsr-modal-footer">
+                <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.closeModal('dsr_modal_delete')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 3px; cursor: pointer; font-weight: 600;">
+                    Close
+                </button>
+                <button type="button" class="btn btn-sm" onclick="window.DigitalSaleRegisterModule.confirmDeleteInvoice()" style="background: #e53e3e; border: 1px solid #e53e3e; color: #fff; font-weight: 700; padding: 6px 16px; border-radius: 3px; cursor: pointer;">
+                    <i class="fas fa-trash-alt"></i> Verify & Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>

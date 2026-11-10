@@ -1,0 +1,134 @@
+<div id="chartOfServicesContainer" data-module="Chart of Services" style="height: 100%; min-height: 600px; display: flex; flex-direction: column; gap: 2px; background: white; padding: 0px 6px 6px 6px; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; border-radius: 4px;">
+    <style>
+        #chartOfServicesContainer select option { padding: 0px 6px !important; margin: 0 !important; min-height: 16px !important; height: 16px !important; line-height: 16px !important; display: flex; align-items: center; }
+        #chartOfServicesContainer select { padding: 2px 0; }
+        #chartOfServicesContainer select option:checked {
+            background-color: var(--theme-primary, #1F4E79) !important;
+            color: white !important;
+            box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important; -webkit-box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+        }
+    </style>
+    <!-- Section 1: Service Categories -->
+    <div style="flex: none; display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px;">1. Service Categories</div>
+        <div style="display: flex; gap: 12px; flex: 1; align-items: stretch;">
+            <!-- Left: List -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <select id="servCatList" size="8" style="width: 100%; height: 115px; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;" onchange="window.ChartOfServices.selectCategory(this.value)"></select>
+            </div>
+            
+            <!-- Right: Fields & All Buttons in One Line -->
+            <div style="flex: 1.2; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; padding-left: 128px; gap: 4px;">
+                    <button class="coa-btn coa-chart" style="margin-right: auto;" onclick="window.ChartOfServices.printRateList('category')">Rate List</button>
+                    <button class="coa-btn coa-add" onclick="window.ChartOfServices.addCategory()">Add</button>
+                    <button class="coa-btn coa-save" onclick="window.ChartOfServices.saveCategory()">Save</button>
+                    <button class="coa-btn coa-cancel" onclick="window.ChartOfServices.resetCatForm()">Cancel</button>
+                    <button class="coa-btn coa-delete" onclick="window.ChartOfServices.deleteCategory()">Delete</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 120px 1fr; gap: 4px 8px; align-content: start; margin-top: 4px; flex: 1;">
+                    <label class="coa-label">Category Code</label>
+                    <input type="text" id="servCatCode" class="coa-input" style="width: 150px;">
+                    
+                    <label class="coa-label">Category Name</label>
+                    <input type="text" id="servCatName" class="coa-input" style="width: 100%;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: List of Services -->
+    <div style="display: flex; flex-direction: column; flex: 1; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px;">2. List of Services</div>
+        <div style="display: flex; gap: 12px; align-items: stretch; flex: 1;">
+            <!-- Left: List -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <select id="servItemList" size="14" style="width: 100%; height: 100%; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;" onchange="window.ChartOfServices.selectService(this.value)"></select>
+            </div>
+            
+            <!-- Right: Fields & All Buttons in One Line -->
+            <div style="flex: 1.2; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; padding-left: 128px; gap: 4px;">
+                    <button class="coa-btn coa-chart" style="margin-right: auto;" onclick="window.ChartOfServices.printRateList('list')">Rate List</button>
+                    <button class="coa-btn coa-add" onclick="window.ChartOfServices.addService()">Add</button>
+                    <button class="coa-btn coa-save" onclick="window.ChartOfServices.saveService()">Save</button>
+                    <button class="coa-btn coa-cancel" onclick="window.ChartOfServices.resetItemForm()">Cancel</button>
+                    <button class="coa-btn coa-delete" onclick="window.ChartOfServices.deleteService()">Delete</button>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 120px 100px 1fr; gap: 4px 8px; align-content: start; margin-top: 4px;">
+                    <label class="coa-label" style="grid-column: 1;">Service Code</label>
+                    <input type="text" id="servItemCode" class="coa-input" style="grid-column: 2 / span 2; width: 150px;">
+                    
+                    <label class="coa-label" style="grid-column: 1;">Service Name</label>
+                    <input type="text" id="servItemName" class="coa-input" style="grid-column: 2 / span 2; width: 100%;">
+                    
+                    <label class="coa-label" style="grid-column: 1;">Description</label>
+                    <textarea id="servItemDesc" class="coa-input" style="grid-column: 2 / span 2; width: 100%; height: 44px; resize: none; font-family: inherit; font-size: 11px; font-weight: 500;"></textarea>
+
+                    <label class="coa-label" style="grid-column: 1; align-self: center;">Selling Price</label>
+                    <input type="number" id="servItemPrice" class="coa-input" style="grid-column: 2; text-align: right;" value="0">
+
+                    <label class="coa-label" style="grid-column: 1; align-self: center;">Tax Rate / Type</label>
+                    <div style="grid-column: 2; display: flex; gap: 2px;">
+                        <input type="number" id="servItemTax" class="coa-input" style="width: 100%; text-align: right;" value="0">
+                    </div>
+                    <div style="grid-column: 3; display: flex; align-items: center; gap: 10px; margin-left: 5px;">
+                        <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; cursor: pointer; color: #334155;"><input type="radio" name="servTaxType" value="Percent" checked> %</label>
+                        <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; cursor: pointer; color: #334155;"><input type="radio" name="servTaxType" value="Amount"> Amount</label>
+                    </div>
+
+                    <label class="coa-label" style="grid-column: 1; align-self: center;">Unit</label>
+                    <input type="text" id="servItemUnit" class="coa-input" style="grid-column: 2;">
+
+                    <label class="coa-label" style="grid-column: 1; align-self: center;">Inactive Service</label>
+                    <input type="checkbox" id="servItemInactive" style="grid-column: 2; width: 14px; height: 14px; cursor: pointer;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .coa-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 5px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .coa-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .coa-btn:active { transform: translateY(1px); }
+        
+        .coa-chart { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto !important; padding: 0 10px; }
+        .coa-chart:hover { background: #3b6998 !important; }
+
+        .coa-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-add:hover { background: #3b6998 !important; }
+
+        .coa-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-save:hover { background: #3b6998 !important; }
+
+        .coa-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-cancel:hover { background: #3b6998 !important; }
+
+        .coa-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .coa-delete:hover { background: #c82333 !important; }
+        
+        .coa-label { font-size: 11px; font-style: italic; font-weight: 500; color: #000000; display: flex; align-items: center; justify-content: flex-start; text-align: left; margin: 0; }
+        .coa-input { height: 22px; border: 1px solid #000000; border-radius: 2px; padding: 0 4px; font-size: 13px; color: #000000; outline: none; width: 100%; transition: border 0.2s; box-sizing: border-box; }
+        .coa-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+
+        #servCatCode, #servCatName, #servItemCode, #servItemName {
+            font-weight: bold;
+        }
+    </style>
+</div>

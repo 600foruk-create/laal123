@@ -1,0 +1,915 @@
+<!-- Sale Invoice Module -->
+<div id="saleInvoiceContainer" data-module="Sale Invoice" style="width: 100%; height: 100%; min-width: 950px; min-height: 520px; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: auto; border: 1px solid #cbd5e0; border-radius: 4px; position: relative; box-sizing: border-box;">
+    
+    <div id="si_cancelled_stamp" class="cancelled-stamp" style="display: none;">CANCELLED</div>
+    <!-- Top Toolbar -->
+    <div style="background: #e2e8f0; padding: 2px; display: flex; gap: 2px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: auto;">
+        <button class="si-tool-btn si-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/customers.html', 'fa-user-tie', 'Customers', window.initCustomersView, 'Customers', true)">New Customer</button>
+        <button class="si-tool-btn si-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/chart_of_inventory.html', 'fa-boxes', 'Chart Of Inventory', window.initChartOfInventoryView, 'Chart of Inventory', true)">New Item</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="si-tool-btn si-btn-add" onclick="window.SIModule.resetForm(true)">Add</button>
+        <button class="si-tool-btn si-btn-save" onclick="window.SIModule.saveInvoice()">Save (Ctrl+S)</button>
+        <button class="si-tool-btn si-btn-cancel" onclick="window.SIModule.resetForm()">Cancel</button>
+        <button class="si-tool-btn si-btn-delete" onclick="window.SIModule.deleteInvoice()">Delete</button>
+        <button class="si-tool-btn si-btn-fbr" onclick="window.SIModule.convertToFBR()" title="Convert to FBR Digital Invoice">
+            <span class="si-fbr-text">Convert</span>
+            <img src="assets/images/fbr_logo.png" alt="FBR" class="si-fbr-img">
+        </button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="si-tool-btn si-btn-info" onclick="window.SIModule.convertDC()">Convert D.C.</button>
+        <button class="si-tool-btn si-btn-info" onclick="window.SIModule.convertOGP()">Convert O.G.P.</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button id="si_post_btn" class="si-tool-btn si-btn-info">Post</button>
+        <button class="si-tool-btn si-btn-info" onclick="window.SIModule.openFindModal()">Find</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="si-tool-btn si-btn-info" onclick="window.SIModule.retrieveLastSaved()">Retrieve Last Saved</button>
+        <button class="si-tool-btn si-btn-info" onclick="window.SIModule.openPrintSettings()">Print Setting</button>
+        <div style="display: flex; gap: 4px;">
+            <button class="si-tool-btn si-btn-save" style="width: 55px; padding: 2px 0;" onclick="window.SIModule.printInvoice('print')">Print</button>
+            <button class="si-tool-btn si-btn-info" style="width: 55px; padding: 2px 0;" onclick="window.SIModule.printInvoice('voucher')">Voucher</button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 6px; background: white; overflow: auto;">
+        
+        <!-- Header Info Rows -->
+        <div style="display: flex; gap: 10px; align-items: stretch; position: relative; z-index: 50;">
+            <!-- Left Side: Invoice Details -->
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <!-- Top Group -->
+                <div style="display: grid; grid-template-columns: 125px 30px 1fr; gap: 2px; align-items: center;">
+                    <label class="si-label">Serial No</label>
+                    <button class="si-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.SIModule.navigate('prev')">&lt;&lt;</button>
+                    <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+                        <input type="text" id="si_sn" class="si-input" style="width: 120px; text-align: center; color: blue; font-weight: 800; font-size: 16px;">
+                        <button class="si-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.SIModule.navigate('next')">&gt;&gt;</button>
+                        <div style="display:flex; flex-direction:column; margin-left:5px;">
+                            <label style="display:flex;align-items:center;gap:2px;font-weight:bold;color:#c00;margin-bottom:0;">
+                                <input type="checkbox" id="si_is_cancelled"> Cancel
+                            </label>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:2px;margin-left:5px;font-weight:bold;color:#004085;">
+                            <input type="checkbox" id="si_is_tax" onchange="window.SIModule.toggleTaxMode()"> Tax Invoice
+                        </label>
+
+                    </div>
+
+                    <label class="si-label">Date</label>
+                    <div></div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="date" id="si_date" class="si-input" style="width: 120px;">
+                        <div id="si_converted_text_container" style="color: #dc3545; font-size: 10px; font-weight: bold; font-style: italic; white-space: nowrap; pointer-events: none;">
+                            <div id="si_converted_dc_text" style="display: none;">Converted To D.C. No. <span id="si_converted_dc_no"></span></div>
+                            <div id="si_converted_ogp_text" style="display: none;">Converted To O.G.P. No. <span id="si_converted_ogp_no"></span></div>
+                        </div>
+                        <div id="si_posted_stamp" style="display: none; color: #dc3545; font-size: 13px; font-weight: bold; border: 2px solid #dc3545; padding: 1px 5px; border-radius: 4px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85; white-space: nowrap;">POSTED</div>
+                    </div>
+
+                    <label class="si-label">Invoice Type</label>
+                    <div></div>
+                    <select id="si_type" class="si-input" style="width: 120px; font-size: 11px;">
+                        <option value="Sale Invoice">Sale Invoice</option>
+                        <option value="Service Invoice">Service Invoice</option>
+                    </select>
+                </div>
+
+                <!-- Middle Group -->
+                <div style="display: grid; grid-template-columns: 125px 30px 1fr; gap: 2px; align-items: center; margin-top: 2px;">
+                    <label class="si-label">Delivery Challan No.</label>
+                    <div></div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <input type="text" id="si_dc_no" class="si-input" style="width: 120px;">
+                        <label class="si-label" style="margin-left: 10px;">Dated</label>
+                        <input type="date" id="si_dc_date" class="si-input" style="width: 120px;">
+                    </div>
+
+                    <label class="si-label">Purchase Order No.</label>
+                    <div></div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <input type="text" id="si_po_no" class="si-input" style="width: 120px;">
+                        <label class="si-label" style="margin-left: 10px;">Dated</label>
+                        <input type="date" id="si_po_date" class="si-input" style="width: 120px;">
+                    </div>
+                </div>
+
+                <!-- Bottom Group -->
+                <div style="display: grid; grid-template-columns: 125px 30px 1fr; gap: 2px; align-items: center; margin-top: 2px;">
+                    <label class="si-label">Terms of Payment</label>
+                    <div></div>
+                    <input type="text" id="si_payment_terms" class="si-input">
+
+                    <label class="si-label">Income Account</label>
+                    <div></div>
+                    <div style="display: flex; gap: 3px; position: relative;">
+                        <input type="text" id="income_code" class="si-input" style="width: 80px;" placeholder="Code" value="40001001" readonly>
+                        <input type="text" id="income_name" class="si-input" style="flex: 1;" placeholder="Search expense..." value="Sales">
+                        <div id="income_suggest" class="si-suggest"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Customer Info -->
+            <fieldset style="width: 420px; border: 1px solid #94a3b8; padding: 6px 12px 10px 12px; margin: 0; border-radius: 4px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: start; height: 100%;">
+                <legend style="font-size: 11px; font-weight: 700; color: #000000; padding: 0 4px; font-style: italic;">Customer</legend>
+                <div style="display: grid; grid-template-columns: 75px 1fr; gap: 4px 6px; align-items: center;">
+                    <label class="si-label">Code</label>
+                    <div style="display: flex; gap: 3px; align-items: center; position: relative;">
+                        <input type="text" id="si_cust_code" class="si-input" placeholder="Search customer..." autocomplete="off" onclick="this.select()" onfocus="this.select()" style="flex: 1; font-weight: bold;">
+                        <label class="si-label" style="min-width: 45px; text-align: center;">Balance</label>
+                        <input type="text" id="si_cust_balance" class="si-input" style="flex: 1; text-align: right; font-weight: bold;" readonly>
+                        <div id="si_cust_suggest" class="si-suggest" style="width: 100%;"></div>
+                    </div>
+
+                    <label class="si-label">Name</label>
+                    <input type="text" id="si_cust_name" class="si-input" autocomplete="off">
+
+                    <label class="si-label">Address</label>
+                    <textarea id="si_cust_address" class="si-input" style="height: 24px; resize: none;"></textarea>
+
+                    <label class="si-label">Telephone</label>
+                    <input type="text" id="si_cust_phone" class="si-input">
+
+                    <label class="si-label pi-tax-field" style="display: none;">GST Reg.</label>
+                    <div class="pi-tax-field" style="display: none;">
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                            <input type="text" id="si_cust_gst" class="si-input" style="flex: 1;">
+                            <label class="si-label" style="min-width: 45px; text-align: center;">NTN</label>
+                            <input type="text" id="si_cust_ntn" class="si-input" style="flex: 1;">
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #cbd5e0; margin: 2px 0;">
+
+        <!-- Grid Section -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; display: flex; flex-direction: column; background: #fff; min-height: 200px;">
+            <div style="flex: 1; overflow-y: auto;">
+                <table id="siGrid" style="width: 100%; border-collapse: collapse; background: white; table-layout: fixed;">
+                    <thead style="position: sticky; top: 0; background: #002060; z-index: 10;">
+                        <tr style="background: #002060; color: #ffffff;">
+                            <th class="si-col-num" style="width: 28px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; text-align: center; vertical-align: middle;">#</th>
+                            <th class="si-col-code" style="width: 85px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Item Code</th>
+                            <th class="si-col-hs" style="width: 75px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">HS Code</th>
+                            <th class="si-col-desc" style="width: 210px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Description</th>
+                            <th class="si-col-unit" style="width: 55px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Unit</th>
+                            
+                            <!-- QUANTITY Main Header spanning 3 sub-columns with yellow frame -->
+                            <th colspan="3" class="si-qty-header si-col-qty-main" style="width: 195px; border: 2px solid #eab308; background: #002060; color: #ffffff; font-size: 10px; font-weight: 900; text-transform: uppercase; text-align: center; vertical-align: middle; padding: 2px;">QUANTITY</th>
+                            
+                            <th class="si-col-rate" style="width: 60px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Rate</th>
+                            <th class="si-col-gross" style="width: 80px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Gross Amount</th>
+                            <th class="si-col-disc-pct" style="width: 45px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Disc %</th>
+                            <th class="si-col-disc-amt" style="width: 65px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Disc Amount</th>
+                            
+                            <th class="pi-tax-col si-col-stax si-col-stax-pct" style="display: none; width: 55px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Sales Tax %</th>
+                            <th class="pi-tax-col si-col-stax si-col-stax-amt" style="display: none; width: 75px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Sales Tax Amount</th>
+                            <th class="pi-tax-col si-col-ftax si-col-ftax-pct" style="display: none; width: 55px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Further Tax %</th>
+                            <th class="pi-tax-col si-col-ftax si-col-ftax-amt" style="display: none; width: 75px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Further Tax Amount</th>
+                            <th class="pi-tax-col si-col-val-incl" style="display: none; width: 90px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Value Incl. Tax</th>
+                            
+                            <th class="pi-nontax-col si-col-net" style="width: 90px; border: 1px solid #1e3a8a; background: #002060; color: #fff; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; vertical-align: middle;">Net Amount</th>
+                            
+                        </tr>
+                    </thead>
+                    <tbody id="siGridBody"></tbody>
+                    <tfoot id="siGridFoot" style="position: sticky; bottom: 0; background: #002060; color: #ffffff; z-index: 10;">
+                        <tr class="si-grand-total-row" style="background: #002060; color: #ffffff; font-weight: bold; font-size: 11px;">
+                            <td class="si-lead-cell" colspan="5" style="padding: 4px 8px; text-align: left; border: 1px solid #1e3a8a;">Total (All Categories)</td>
+                            <td class="si-col-qty1" id="si_grand_qty1" style="text-align: right; padding: 2px 4px; border: 1px solid #1e3a8a; font-weight: bold;">0</td>
+                            <td class="si-col-qty2" id="si_grand_qty2" style="text-align: right; padding: 2px 4px; border: 1px solid #1e3a8a; font-weight: bold;">0.00</td>
+                            <td class="si-col-qty3" id="si_grand_qty3" style="text-align: right; padding: 2px 4px; border: 1px solid #1e3a8a; font-weight: bold;">0.000</td>
+                            <td class="si-col-rate" style="border: 1px solid #1e3a8a;"></td>
+                            <td class="si-col-gross" id="si_grand_gross" style="text-align: right; padding: 2px 4px; border: 1px solid #1e3a8a; font-weight: bold;">0.00</td>
+                            <td class="si-col-disc-pct" style="border: 1px solid #1e3a8a;"></td>
+                            <td class="si-col-disc-amt" id="si_grand_disc" style="text-align: right; padding: 2px 4px; border: 1px solid #1e3a8a; font-weight: bold;">0.00</td>
+                            
+                            <td class="pi-tax-col si-col-stax si-col-stax-pct" style="display: none; border: 1px solid #1e3a8a;"></td>
+                            <td class="pi-tax-col si-col-stax si-col-stax-amt" id="si_grand_stax" style="display: none; text-align: right; padding: 2px 4px; border: 1px solid #1e3a8a; font-weight: bold;">0.00</td>
+                            <td class="pi-tax-col si-col-ftax si-col-ftax-pct" style="display: none; border: 1px solid #1e3a8a;"></td>
+                            <td class="pi-tax-col si-col-ftax si-col-ftax-amt" id="si_grand_ftax" style="display: none; text-align: right; padding: 2px 4px; border: 1px solid #1e3a8a; font-weight: bold;">0.00</td>
+                            <td class="pi-tax-col si-col-val-incl" id="si_grand_incl" style="display: none; text-align: right; padding: 2px 4px; border: 1px solid #1e3a8a; font-weight: bold;">0.00</td>
+                            
+                            <td class="pi-nontax-col si-col-net" id="si_grand_net" style="text-align: right; padding: 2px 4px; border: 1px solid #1e3a8a; font-weight: bold;">0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <!-- Hidden inputs for backward compatibility -->
+                <div style="display:none;">
+                    <input type="text" id="si_tot_pieces" value="0.00">
+                    <input type="text" id="si_tot_qty" value="0.00">
+                    <input type="text" id="si_tot_excl" value="0.00">
+                    <input type="text" id="si_tot_stax" value="0.00">
+                    <input type="text" id="si_tot_ftax" value="0.00">
+                    <input type="text" id="si_tot_incl" value="0.00">
+                    <input type="text" id="si_tot_gross" value="0.00">
+                    <input type="text" id="si_tot_disc" value="0.00">
+                    <input type="text" id="si_tot_net" value="0.00">
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Section -->
+        <div style="display: flex; gap: 10px; background: white; padding: 6px 0 0 0; margin-top: 2px;">
+            <div style="flex: 1; display: grid; grid-template-columns: 100px 1fr; gap: 4px; align-content: start;">
+                <label class="si-label">Inventory Location</label>
+                <div id="si_location_wrapper" style="position: relative; width: 100%; z-index: 30;">
+                    <div id="si_location_display" class="si-input" tabindex="0" style="background: #ffffff !important; color: #000000 !important; border: 1px solid #000000 !important; display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;" onclick="const d = document.getElementById('si_location_dropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; window.SIModule.suggestIndex = -1;">
+                        <span id="si_location_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Location</span>
+                        <span style="font-size: 10px; color: #666;">▼</span>
+                    </div>
+                    <input type="hidden" id="si_location">
+                    <div id="si_location_dropdown" class="custom-select-dropdown"></div>
+                </div>
+                <label class="si-label">Job No & Description</label>
+                <div id="si_job_wrapper" style="position: relative; width: 100%; z-index: 29;">
+                    <div id="si_job_display" class="si-input" tabindex="0" style="background: #ffffff !important; color: #000000 !important; border: 1px solid #000000 !important; display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;" onclick="const d = document.getElementById('si_job_dropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; window.SIModule.suggestIndex = -1;">
+                        <span id="si_job_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Job</span>
+                        <span style="font-size: 10px; color: #666;">▼</span>
+                    </div>
+                    <input type="hidden" id="si_job_desc">
+                    <div id="si_job_dropdown" class="custom-select-dropdown"></div>
+                </div>
+                <label class="si-label">Employee Reference</label>
+                <div id="si_emp_wrapper" style="position: relative; width: 100%; z-index: 28;">
+                    <div id="si_emp_display" class="si-input" tabindex="0" style="background: #ffffff !important; color: #000000 !important; border: 1px solid #000000 !important; display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;" onclick="const d = document.getElementById('si_emp_dropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; window.SIModule.suggestIndex = -1;">
+                        <span id="si_emp_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Employee</span>
+                        <span style="font-size: 10px; color: #666;">▼</span>
+                    </div>
+                    <input type="hidden" id="si_emp_ref">
+                    <div id="si_emp_dropdown" class="custom-select-dropdown"></div>
+                </div>
+                <label class="si-label">Remarks</label>
+                <textarea id="si_remarks" class="si-input" style="height: 36px; resize: none;"></textarea>
+                <label class="si-label" style="min-width: 75px;">Amount in Words:</label>
+                <span id="si_amt_words" style="font-size: 11px; font-weight: 700; color: #1e3a8a;">Rupees zero only.</span>
+            </div>
+            <div id="siTotalsBox" style="width: 300px; background: #f8fafc; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; display: grid; grid-template-columns: 120px 1fr; gap: 4px; align-content: start;">
+                <label class="si-label pi-nontax-col" style="text-align: right; font-weight: bold; font-size: 12px; white-space: nowrap;">Additional Discount</label>
+                <input type="text" id="si_add_disc" class="si-input num pi-nontax-col" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" oninput="window.SIModule.calculateTotals()" onclick="this.select()" onfocus="this.select()">
+                
+                <label class="si-label pi-nontax-col" style="text-align: right; font-weight: bold; font-size: 12px;">Gross Total</label>
+                <input type="text" id="si_gross_tot" class="si-input num pi-nontax-col" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" readonly>
+                
+                <label class="si-label" style="text-align: right; font-weight: bold; font-size: 12px;">Carriage & Freight</label>
+                <input type="text" id="si_freight" class="si-input num" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" oninput="window.SIModule.calculateTotals()" onclick="this.select()" onfocus="this.select()">
+                
+                <input type="hidden" id="si_cust_tax_pct" value="0">
+                <input type="hidden" id="si_cust_tax_wht" value="">
+                <label class="si-label pi-tax-col" style="text-align: right; font-weight: bold; font-size: 10.5px; white-space: nowrap;" id="si_cust_tax_lbl">WHT-236G/236H</label>
+                <input type="text" id="si_cust_tax_amt" class="si-input num pi-tax-col" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px; color: #dc2626;" value="0.00" readonly>
+
+                <label class="si-label" style="text-align: right; color: blue; font-weight: bold; font-size: 12px;">Net Total</label>
+                <input type="text" id="si_net_tot" class="si-input num" style="text-align: right; font-weight: 900; font-size: 14px; height: 24px; color: blue;" value="0.00" readonly>
+                
+                <label class="si-label" style="text-align: right; font-weight: bold; font-size: 12px;">Amount Received</label>
+                <input type="text" id="si_paid" class="si-input num" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" oninput="window.SIModule.calculateTotals()" onclick="this.select()" onfocus="this.select()">
+                
+                <label class="si-label" style="text-align: right; font-weight: bold; font-size: 12px;">Balance</label>
+                <input type="text" id="si_balance" class="si-input num" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" readonly>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .si-tool-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            flex: 1;
+            height: 38px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .si-tool-btn:hover {
+            background: #f1f5f9;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .si-btn-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .si-btn-add:hover { background: #3b6998 !important; }
+
+        .si-btn-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .si-btn-save:hover { background: #3b6998 !important; }
+
+        .si-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .si-btn-cancel:hover { background: #3b6998 !important; }
+
+        .si-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .si-btn-delete:hover { background: #c82333 !important; }
+
+        .si-btn-fbr { 
+            background: #0284c7 !important; 
+            color: white !important; 
+            border-color: #0369a1 !important; 
+            font-weight: 700 !important; 
+            width: auto; 
+            min-width: 56px;
+            height: 38px !important;
+            max-height: 38px !important;
+            padding: 2px 4px !important;
+            display: inline-flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 1px !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            line-height: 1 !important;
+        }
+        .si-btn-fbr:hover { 
+            background: #0369a1 !important; 
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+        }
+        .si-fbr-text {
+            font-size: 8.5px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.5px !important;
+            text-transform: uppercase !important;
+            line-height: 9px !important;
+            color: #ffffff !important;
+            display: block !important;
+            pointer-events: none;
+        }
+        .si-fbr-img {
+            height: 18px !important;
+            max-width: 48px !important;
+            object-fit: contain !important;
+            background: #ffffff !important;
+            border-radius: 2px !important;
+            padding: 1px 3px !important;
+            display: block !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.12) !important;
+            pointer-events: none;
+        }
+
+        .si-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto; }
+        .si-btn-info:hover { background: #3b6998 !important; }
+
+        .si-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; display: flex; align-items: center; justify-content: flex-start; text-align: left; white-space: nowrap; }
+
+        .si-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            font-weight: normal;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border 0.2s;
+        }
+
+        .si-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .si-input:disabled { background: #ffffff; color: #000000; border-color: #000000; }
+
+        select.si-input option {
+            padding: 4px;
+            font-size: 11px;
+            color: #000000;
+        }
+        select.si-input option:checked, select.si-input option:hover {
+            background-color: #1F4E79;
+            color: white;
+        }
+
+        .si-nav-btn {
+            height: 22px;
+            padding: 0 6px;
+            background: white;
+            border: 1px solid #000000;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 900;
+            color: #000000;
+            border-radius: 2px;
+        }
+        .si-nav-btn:hover { background: #f1f5f9; }
+
+        .si-total-input {
+            width: 100%;
+            height: 22px;
+            background: #fff;
+            border: 1px solid #000000;
+            text-align: right;
+            font-weight: bold;
+            font-size: 12px;
+            color: #1e3a8a;
+            padding: 0 4px;
+            box-sizing: border-box;
+        }
+        .grid-input { border: none; width: 100%; height: 100%; padding: 0 4px; font-size: 12px; outline: none; background: transparent; display: block; color: #000000; font-weight: bold; }
+        .grid-input:focus { background: #eff6ff; }
+        .grid-input.num { text-align: right; }
+        
+        #siGrid th {
+            background: #e2e8f0;
+            border: 1px solid #94a3b8;
+            font-size: 9px;
+            font-weight: 700;
+            color: #334155;
+            padding: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            height: 22px;
+        }
+        #siGrid td { border: 1px solid #94a3b8; padding: 0; height: 22px; position: relative; }
+
+        .si-suggest { position: absolute !important; top: 100% !important; left: 0 !important; width: 100%; min-width: 420px; background: #ffffff !important; border: 1px solid #1F4E79 !important; max-height: 250px; overflow-y: auto !important; z-index: 999999 !important; display: none; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); border-radius: 4px; }
+        .si-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .si-suggest div:hover, .si-suggest div.active { background: #1F4E79; color: white; }
+        
+        .grid-suggest { position: fixed !important; width: 450px; background: #ffffff !important; border: 1px solid #1F4E79 !important; max-height: 250px; overflow-y: auto !important; z-index: 999999999 !important; display: none; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); border-radius: 4px; }
+        .grid-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .grid-suggest div:hover, .grid-suggest div.active { background: #1F4E79; color: white; }
+
+        .cancelled-stamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 35px;
+            font-weight: bold;
+            color: rgba(220, 53, 69, 0.1);
+            border: 4px solid rgba(220, 53, 69, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        /* Custom Dropdown styling */
+        .custom-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border: 1px solid #94a3b8;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        .custom-select-dropdown div { padding: 2px 4px; cursor: pointer; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .custom-select-dropdown div:hover, .custom-select-dropdown div.active { background: #1F4E79; color: white; }
+
+        #siGrid td {
+            border: 1px solid #cbd5e0;
+            padding: 0;
+            height: 20px;
+            position: relative;
+            overflow: visible; /* Important for suggestion boxes */
+        }
+        
+        #siGrid tr.selected-row td:not(.row-selector) {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        #siGrid tr.selected-row td:not(.row-selector) input {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        
+        .row-selector {
+            cursor: pointer;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border-top: 1px solid #ffffff !important;
+            border-left: 1px solid #ffffff !important;
+            border-bottom: 1px solid #808080 !important;
+            border-right: 1px solid #808080 !important;
+            text-align: center;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            width: 20px;
+        }
+    
+        /* Category Header & Subtotal styles */
+        .si-cat-header-row td {
+            background: #002060 !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            font-size: 10.5px !important;
+            padding: 3px 6px !important;
+            border: 1px solid #1e3a8a !important;
+            height: 24px !important;
+        }
+        .si-cat-subtotal-row td {
+            background: #fef08a !important;
+            color: #000000 !important;
+            font-weight: 700 !important;
+            font-size: 11px !important;
+            padding: 3px 4px !important;
+            border: 1px solid #eab308 !important;
+            height: 24px !important;
+        }
+        .si-item-row td {
+            border: 1px solid #cbd5e0;
+            padding: 0;
+            height: 24px;
+            position: relative;
+            background: #ffffff;
+        }
+        .si-item-row:hover td {
+            background: #f8fafc;
+        }
+        .si-unit-select {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            font-size: 11px;
+            font-weight: bold;
+            color: #000;
+            outline: none;
+            cursor: pointer;
+            padding: 0 2px;
+        }
+        .si-unit-select:focus {
+            background: #eff6ff;
+        }
+        .si-add-item-row td {
+            border: 1px dashed #94a3b8;
+            background: #f8fafc;
+            height: 24px;
+            padding: 0;
+        }
+        .btn-del-row {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            padding: 0;
+        }
+        .btn-del-row:hover {
+            color: #b91c1c;
+            background: #fee2e2;
+        }
+    
+    
+        /* Force white footer inputs */
+        #si_location_display,
+        #si_job_display,
+        #si_emp_display {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border: 1px solid #000000 !important;
+        }
+        #si_location_display *,
+        #si_job_display *,
+        #si_emp_display * {
+            color: #000000 !important;
+        }
+
+        /* Row Selection Highlight */
+        #siGridBody tr.si-item-row.selected-row td {
+            background: #dbeafe !important;
+            border-color: #3b82f6 !important;
+        }
+        #siGridBody tr.si-item-row.selected-row .row-num {
+            background: #2563eb !important;
+            color: #ffffff !important;
+            font-weight: bold !important;
+        }
+
+    </style>
+
+    <!-- Modernized Find Invoice Modal -->
+    <div id="si_find_modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; width: 100%; height: 100%; border-radius: 0; display: flex; flex-direction: column; font-family: Arial, sans-serif; box-shadow: none;">
+            
+            <!-- Window Title -->
+            <div style="background: #1F4E79; color: white; padding: 3px 5px; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-radius: 0;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span id="si_find_window_title">Find Sales (Sales Tax)</span>
+                </div>
+                <button onclick="window.SIModule.closeFindModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; font-weight: bold; padding: 0 4px; line-height: 14px;">&times;</button>
+            </div>
+            
+            <!-- Toolbar Area -->
+            <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e0; display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Find</label>
+                    <select id="si_find_field" style="font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px;">
+                        <option value="serial_no">Serial No.</option>
+                        <option value="invoice_date">Date</option>
+                        <option value="payment_terms">Terms of Payment</option>
+                        <option value="delivery_challan_no">D.C. No.</option>
+                        <option value="delivery_challan_date">D.C. Date</option>
+                        <option value="purchase_order_no">PO No.</option>
+                        <option value="purchase_order_date">Purchase Order Date</option>
+                        <option value="cust_name">Customer Name</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Value</label>
+                    <input type="text" id="si_find_search" oninput="window.SIModule.filterFindTable()" style="width: 200px; font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px; outline: none;">
+                </div>
+
+                <div style="display: flex; gap: 5px; margin-left: auto;">
+                    <button onclick="window.SIModule.filterFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Find</button>
+                    <button onclick="window.SIModule.renderFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Table Header Hint -->
+            <div style="padding: 5px 15px; font-size: 11px; font-style: italic; color: #555; background: #f8f9fa;">
+                Double-click a row to load the invoice.
+            </div>
+            
+            <!-- Modal Table -->
+            <div style="flex: 1; overflow-y: auto; overflow-x: auto; background: white; margin: 0; border-top: 1px solid #cbd5e0; border-bottom: 1px solid #cbd5e0;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; white-space: nowrap;">
+                    <thead style="position: sticky; top: 0; background: #e2e8f0; z-index: 1;">
+                        <tr>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; width: 15px; text-align: center;"></th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('serial_no')">Serial No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('invoice_date')">Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('is_tax_invoice')">Type</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('delivery_challan_no')">D.C. No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('invoice_date')">Invoice Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('customer_order_no')">PO No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('customer_order_date')">Purchase Order Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('cust_name')">Customer Name</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('payment_terms')">Terms of Payment</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right; cursor: pointer;" onclick="window.SIModule.sortFindGrid('net_total')">Amount</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: center; cursor: pointer;" onclick="window.SIModule.sortFindGrid('is_posted')">Posted</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SIModule.sortFindGrid('is_cancelled')">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="si_find_table_body">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Area -->
+            <div style="padding: 8px 15px; background: #f1f5f9; display: flex; align-items: center; gap: 10px; font-size: 11px; border-radius: 0 0 4px 4px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-weight: 500; color: #334155;">Added By User</span>
+                    <input type="text" id="si_find_added_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="si_find_added_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                    <span style="font-weight: 500; color: #334155;">Edited By User</span>
+                    <input type="text" id="si_find_edited_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="si_find_edited_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Print Settings Modal (Print Options) -->
+    <div id="siPrintSettingsModal" style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: #f1f5f9; border: 2px solid #fff; border-bottom-color: #64748b; border-right-color: #64748b; width: 680px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.35); font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 12px; border-radius: 4px; overflow: hidden;">
+            <div style="background: #1e3e6b; color: #fff; padding: 6px 12px; display: flex; align-items: center; font-weight: bold; margin: 0; user-select: none;">
+                <span style="margin-right: 8px; font-size: 13px;">&#9881;</span>
+                <span style="flex: 1; font-size: 13px; letter-spacing: 0.5px;">Print Options</span>
+                <button type="button" onclick="document.getElementById('siPrintSettingsModal').style.display='none'" style="background: #cbd5e1; border: 1px solid #fff; border-bottom-color: #64748b; border-right-color: #64748b; font-weight: bold; cursor: pointer; padding: 0 6px; font-size: 14px; line-height: 16px;">&times;</button>
+            </div>
+            
+            <div style="padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; background: #f8fafc; overflow-y: auto; max-height: calc(90vh - 100px);">
+                
+                <!-- Printed Format -->
+                <fieldset style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 14px; background: #fff; margin: 0;">
+                    <legend style="padding: 0 6px; font-weight: bold; color: #1e3e6b; font-size: 11px; text-transform: uppercase;">Printed Format</legend>
+                    <div style="display: flex; gap: 20px; align-items: center; margin-top: 4px; flex-wrap: wrap;">
+                        <label style="color: #334155; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="radio" name="si_print_paper" id="si_sett_paper_a4" value="A4" checked>
+                            CLASSIC PRINT (A4)
+                        </label>
+                        <label style="color: #334155; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="radio" name="si_print_paper" id="si_sett_paper_pos" value="POS">
+                            COMPACT PRINT (80mm POS)
+                        </label>
+                        <label style="color: #334155; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="radio" name="si_print_paper" id="si_sett_paper_a5l" value="A5L">
+                            A5 LANDSCAPE
+                        </label>
+                        <label style="color: #334155; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="radio" name="si_print_paper" id="si_sett_paper_a5p" value="A5P">
+                            A5 PORTRAIT
+                        </label>
+                    </div>
+                    <div style="font-size: 10px; color: #64748b; font-style: italic; margin-top: 5px;">The choice is the suite default. A document that is already open reprints in the format you pick here.</div>
+                </fieldset>
+
+                <!-- Seller Information -->
+                <fieldset style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 14px; background: #fff; margin: 0;">
+                    <legend style="padding: 0 6px; font-weight: bold; color: #1e3e6b; font-size: 11px; text-transform: uppercase;">Seller Information</legend>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 20px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_seller_name" checked> Print Business Name
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_seller_address" checked> Print Business Address
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_seller_strn" checked> Print Sales Tax Reg. No.
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_seller_ntn" checked> Print NTN No.
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_seller_phone" checked> Print Telephone No.
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_seller_web" checked> Print Email &amp; Website
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_seller_logo" checked> Print Company Logo
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #dc2626; font-weight: 600;">
+                            <input type="checkbox" id="si_sett_no_headers"> Do Not Print Seller Header (Own Letterhead)
+                        </label>
+                    </div>
+                </fieldset>
+
+                <!-- Buyer Information -->
+                <fieldset style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 14px; background: #fff; margin: 0;">
+                    <legend style="padding: 0 6px; font-weight: bold; color: #1e3e6b; font-size: 11px; text-transform: uppercase;">Buyer Information</legend>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 20px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_buyer_name" checked> Print Buyer Name
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_buyer_address" checked> Print Buyer Address
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_buyer_strn" checked> Print S. Tax Reg. No.
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_buyer_ntn" checked> Print NTN No.
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_buyer_cnic" checked> Print CNIC No.
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_buyer_phone" checked> Print Cell No.
+                        </label>
+                    </div>
+                </fieldset>
+
+                <!-- Category Reporting -->
+                <fieldset style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 14px; background: #fff; margin: 0;">
+                    <legend style="padding: 0 6px; font-weight: bold; color: #1e3e6b; font-size: 11px; text-transform: uppercase;">Category Reporting</legend>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 20px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #0b3b60; font-weight: 600;">
+                            <input type="checkbox" id="si_sett_cat_grouping" checked> Print Category Grouping
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_cat_subtotals" checked> Print Category Sub-total Rows
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_cat_subtotal_qty" checked> Print Quantities in Category Sub-total
+                        </label>
+                    </div>
+                </fieldset>
+
+                <!-- Quantity Columns -->
+                <fieldset style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 14px; background: #fff; margin: 0;">
+                    <legend style="padding: 0 6px; font-weight: bold; color: #1e3e6b; font-size: 11px; text-transform: uppercase;">Quantity Columns</legend>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 20px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_qty_pcs" checked> Print Quantity (PCS)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_qty_ctn" checked> Print Quantity (CTN)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_qty_length" checked> Print Quantity (LENGTH / MTR)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_qty_weight" checked> Print Quantity (WEIGHT / KG)
+                        </label>
+                    </div>
+                </fieldset>
+
+                <!-- Invoice Grid Columns -->
+                <fieldset style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 14px; background: #fff; margin: 0;">
+                    <legend style="padding: 0 6px; font-weight: bold; color: #1e3e6b; font-size: 11px; text-transform: uppercase;">Invoice Grid Columns</legend>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 20px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_col_code" checked> Print Item Code
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_col_hs"> Print HS Code
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_col_desc" checked> Print Description
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_col_unit" checked> Print Unit
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_col_rate" checked> Print Rate
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_col_gross" checked> Print Gross Total
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_col_disc" checked> Print Discount Columns (Disc % &amp; Disc Amt)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_col_tax" checked> Print Sales Tax Columns (STax &amp; Further Tax)
+                        </label>
+                    </div>
+                </fieldset>
+
+                <!-- Summary & Totals -->
+                <fieldset style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 14px; background: #fff; margin: 0;">
+                    <legend style="padding: 0 6px; font-weight: bold; color: #1e3e6b; font-size: 11px; text-transform: uppercase;">Summary &amp; Totals</legend>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 20px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_tot_add_disc" checked> Print Additional Discount
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_tot_gross" checked> Print Gross Total in Summary
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_tot_freight" checked> Print Carriage &amp; Freight
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_tot_words" checked> Print Amount in Words
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_tot_paid_bal" checked> Print Amount Received &amp; Invoice Balance
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155; font-weight: 600;">
+                            <input type="checkbox" id="si_sett_tot_prev_bal" checked> Print Previous Balance
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155; font-weight: 600;">
+                            <input type="checkbox" id="si_sett_tot_curr_bal" checked> Print Current Balance
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_tot_remarks" checked> Print Remarks
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #334155;">
+                            <input type="checkbox" id="si_sett_tot_prepared_by" checked> Print Prepared By Signature
+                        </label>
+                    </div>
+                </fieldset>
+
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 18px; background: #e2e8f0; border-top: 1px solid #cbd5e1;">
+                <div style="font-size: 11px; color: #475569; font-style: italic;">
+                    <i class="fas fa-check-circle" style="color: #16a34a;"></i> Har check / uncheck foran apply aur save ho jata hai.
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" onclick="window.SIModule.printInvoiceFromModal()" style="padding: 0 14px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; background: #1d4ed8; color: white; border: 1px solid #1e40af; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">
+                        <i class="fas fa-print"></i>
+                        <span>Print Now</span>
+                    </button>
+                    <button type="button" onclick="window.SIModule.savePrintSettings()" style="padding: 0 14px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; background: #16a34a; color: white; border: 1px solid #15803d; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">
+                        <span>&#10004;</span>
+                        <span>Save</span>
+                    </button>
+                    <button type="button" onclick="document.getElementById('siPrintSettingsModal').style.display='none'" style="padding: 0 12px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; background: #fff; color: #334155; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">
+                        <span style="color: red;">&#10006;</span>
+                        <span>Cancel</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+

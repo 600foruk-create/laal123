@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Customer Balances</title>
+    <style>
+        .cub-container {
+            padding: 10px;
+            background: #f0f0f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .cub-top-bar {
+            background: #EFEFEF;
+            border: 1px solid #777;
+            padding: 5px 10px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            margin-bottom: 5px;
+            gap: 15px;
+        }
+
+        .cub-filters {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .cub-filter-row {
+            display: flex;
+            align-items: center;
+        }
+
+        .cub-filter-row label {
+            width: 120px;
+            font-weight: normal;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .cub-filter-row select, .cub-filter-row input[type="date"] {
+            flex: 1;
+            border: 1px solid #000;
+            border-radius: 0;
+            padding: 0 5px;
+            height: 22px;
+            font-size: 13px;
+            box-sizing: border-box;
+            background: #fff;
+        }
+
+        .cub-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 2px;
+        }
+
+        .cub-btn {
+            background: #4a789c;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #ffffff;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1.1;
+            text-align: center;
+            width: 75px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        
+        .cub-btn:hover { background: #3b6998; border-color: #3b6998; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        .cub-table-container {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #999;
+            overflow: auto;
+            position: relative;
+        }
+
+        .cub-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .cub-table th {
+            background: #F0F0F0;
+            border: 1px solid #ccc;
+            padding: 4px 6px;
+            font-weight: bold;
+            font-style: italic;
+            color: #333;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .cub-table td {
+            border: 1px solid #ccc;
+            padding: 2px 4px;
+            white-space: nowrap;
+        }
+        
+        .cub-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .cub-table tbody tr:focus {
+            outline: none;
+        }
+        
+        .cub-table tbody tr.selected {
+            background-color: #1F4E79 !important;
+            color: #ffffff !important;
+            outline: none;
+        }
+        .cub-table tbody tr.selected td {
+            color: #ffffff !important;
+        }
+        
+        .text-right { text-align: right !important; }
+        .text-center { text-align: center !important; }
+
+        .cub-bottom-bar {
+            background: #EFEFEF;
+            border: 1px solid #777;
+            padding: 5px;
+            margin-top: 5px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-weight: bold;
+            padding: 4px 0; border: none; border-top: 1px solid #000; background: #E0E0E0; font-size: 11px; gap: 0;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="cub-container">
+        
+        <div class="cub-top-bar" style="justify-content: flex-start; align-items: flex-start; position: relative;">
+            <div class="cub-filters">
+                <div class="cub-filter-row">
+                    <label><input type="checkbox" id="cub_chk_cust_type"> Customer Type</label>
+                    <select id="cub_sel_cust_type" disabled></select>
+                </div>
+                <div class="cub-filter-row">
+                    <label><input type="checkbox" id="cub_chk_main_region"> Main Region</label>
+                    <select id="cub_sel_main_region" disabled></select>
+                </div>
+                <div class="cub-filter-row">
+                    <label><input type="checkbox" id="cub_chk_sub_region"> Sub Region</label>
+                    <select id="cub_sel_sub_region" disabled></select>
+                </div>
+                <div class="cub-filter-row">
+                    <label><input type="checkbox" id="cub_chk_sector"> Business Sector</label>
+                    <select id="cub_sel_sector" disabled></select>
+                </div>
+                <div class="cub-filter-row">
+                    <label><input type="checkbox" id="cub_chk_department"> Department</label>
+                    <select id="cub_sel_department" disabled></select>
+                </div>
+                <div class="cub-filter-row">
+                    <label><input type="checkbox" id="cub_chk_employee"> Employee</label>
+                    <select id="cub_sel_employee" disabled></select>
+                </div>
+                <div class="cub-filter-row" style="margin-top: 3px;">
+                    <label style="justify-content: flex-end; padding-right: 5px;">For Period From</label>
+                    <div style="display: flex; flex: 1; align-items: center; gap: 5px;">
+                        <input type="date" id="cub_from_date" style="flex: 1;">
+                        <span style="font-weight: normal; color: #333;">To</span>
+                        <input type="date" id="cub_to_date" style="flex: 1;">
+                    </div>
+                </div>
+
+            </div>
+            
+            <div style="position: absolute; right: 15px; top: 15px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                <div class="cub-controls" style="display: flex; flex-direction: row; gap: 5px; margin: 0;">
+                    <button class="cub-btn" id="cub_btn_display">Display</button>
+                    <button class="cub-btn" id="cub_btn_print">Print</button>
+                    <button class="cub-btn" id="cub_btn_excel">Excel</button>
+                </div>
+                <label style="font-size: 11px; cursor: pointer; color: #333;"><input type="checkbox" id="cub_chk_zero_balance" checked> Show 0 Balance Accounts</label>
+            </div>
+        </div>
+
+        <div class="cub-table-container" id="cub_table_container" tabindex="0">
+            <table class="cub-table" id="cub_table">
+                <thead>
+                    <tr>
+                        <th style="width: 25px;"></th>
+                        <th style="width: 100px;">Account Code</th>
+                        <th>Account Name</th>
+                        <th class="text-right" style="width: 120px;">Opening Balance</th>
+                        <th class="text-center" style="width: 70px;">Status</th>
+                        <th class="text-right" style="width: 120px;">Debit</th>
+                        <th class="text-right" style="width: 120px;">Credit</th>
+                        <th class="text-right" style="width: 120px;">Closing Balance</th>
+                        <th class="text-center" style="width: 70px;">Status</th>
+                        <th style="width: 15px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="cub_tbody">
+                    <!-- Rows rendered here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="cub-bottom-bar" style="justify-content: flex-start; padding: 4px 0; border: none; border-top: 1px solid #000; background: #E0E0E0; font-size: 11px; gap: 0;">
+            <div id="cub_tot_label" style="text-align: right; padding-right: 5px; box-sizing: border-box;">Totals Rs.</div>
+            <div id="cub_tot_ob_wrap" style="box-sizing: border-box; text-align: right; padding: 0 1px;"><div id="cub_tot_ob" style="background: #fff; border: 1px solid #999; padding: 2px 4px; display: inline-block; width: 100%; box-sizing: border-box;">0.00</div></div>
+            <div id="cub_tot_obs_wrap" style="box-sizing: border-box; padding: 0 1px;"></div>
+            <div id="cub_tot_dr_wrap" style="box-sizing: border-box; text-align: right; padding: 0 1px;"><div id="cub_tot_dr" style="background: #fff; border: 1px solid #999; padding: 2px 4px; display: inline-block; width: 100%; box-sizing: border-box;">0.00</div></div>
+            <div id="cub_tot_cr_wrap" style="box-sizing: border-box; text-align: right; padding: 0 1px;"><div id="cub_tot_cr" style="background: #fff; border: 1px solid #999; padding: 2px 4px; display: inline-block; width: 100%; box-sizing: border-box;">0.00</div></div>
+            <div id="cub_tot_cb_wrap" style="box-sizing: border-box; text-align: right; padding: 0 1px;"><div id="cub_tot_cb" style="background: #fff; border: 1px solid #999; padding: 2px 4px; display: inline-block; width: 100%; box-sizing: border-box;">0.00</div></div>
+            <div id="cub_tot_cbs_wrap" style="box-sizing: border-box; padding: 0 1px;"></div>
+            <div id="cub_tot_end_wrap" style="box-sizing: border-box;"></div>
+        </div>
+
+    </div>
+
+    <!-- Ensure module gets initialized -->
+    <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+        if(!window.CustomerBalancesModule) {
+            let s = document.createElement('script');
+            s.src = 'assets/js/customer_balances.js?v=' + Date.now();
+            s.onload = () => {
+                const checkDOM = setInterval(() => {
+                    if (document.getElementById('cub_btn_display')) {
+                        clearInterval(checkDOM);
+                        window.CustomerBalancesModule.init();
+                    }
+                }, 50);
+            };
+            document.body.appendChild(s);
+        } else {
+            window.CustomerBalancesModule.init();
+        }
+    ">
+</body>
+</html>

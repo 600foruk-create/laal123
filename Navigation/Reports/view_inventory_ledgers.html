@@ -1,0 +1,220 @@
+<div style="display: flex; flex-direction: column; height: 100%; background: #ffffff; padding: 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px;">
+    
+    <!-- Filter Section -->
+    <div style="background: #F9F9F9; padding: 10px; border: 1px solid #999; margin-bottom: 5px; position: relative;">
+        <div style="display: flex; gap: 20px; align-items: flex-start; justify-content: center;">
+            <div style="display: flex; flex-direction: column; gap: 5px; align-items: flex-start;">
+                <!-- Row 1 -->
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div style="width: 130px; display: flex; justify-content: flex-end; align-items: center;">
+                        <span style="font-weight: bold; font-style: italic; color: #444;">Select Item</span>
+                    </div>
+                    <div style="position: relative; display: flex; gap: 5px; width: 430px;">
+                        <input type="text" id="vil_item_code" style="width: 140px; border: 1px solid #888; padding: 2px; outline: none; height: 22px; box-sizing: border-box;" autocomplete="off" placeholder="" onfocus="this.select()">
+                        <input type="text" id="vil_item_name" style="width: 285px; border: 1px solid #888; padding: 2px; background: #fff; outline: none; height: 22px; box-sizing: border-box;" disabled>
+                        <div id="vil_item_suggest_code" class="vil-suggest-box" style="width: 100%;"></div>
+                    </div>
+                    <div id="vil_item_suggest_name" style="display:none;"></div>
+                </div>
+
+                <!-- Inventory Location -->
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div style="width: 130px;"></div>
+                    <div style="display: flex; gap: 5px; width: 430px;">
+                        <div style="width: 140px; display: flex; justify-content: flex-start; align-items: center;">
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-weight: bold; font-style: italic; color: #444; margin: 0; white-space: nowrap; font-size: 11px;">
+                                <input type="checkbox" id="vil_use_location" style="margin: 0;">
+                                <span>Inventory Location</span>
+                            </label>
+                        </div>
+                        <select id="vil_location_id" style="width: 285px; border: 1px solid #888; padding: 0 2px; outline: none; height: 22px; box-sizing: border-box;" disabled>
+                            <option value="">Select Location...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Period Filter -->
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div style="width: 130px;"></div>
+                    <div style="display: flex; gap: 5px; width: 430px;">
+                        <div style="width: 140px; display: flex; justify-content: flex-start; align-items: center;">
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-weight: bold; font-style: italic; color: #444; margin: 0; white-space: nowrap; font-size: 11px;">
+                                <input type="checkbox" id="vil_use_period" style="margin: 0;">
+                                <span>Period From</span>
+                            </label>
+                        </div>
+                        <div style="width: 285px; display: flex; justify-content: space-between; align-items: center;">
+                            <input type="date" id="vil_from_date" style="width: 125px; border: 1px solid #888; outline: none; height: 22px; box-sizing: border-box; text-align: center;" disabled>
+                            <span style="font-weight: bold; font-style: italic; color: #444;">To</span>
+                            <input type="date" id="vil_to_date" style="width: 125px; border: 1px solid #888; outline: none; height: 22px; box-sizing: border-box; text-align: center;" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 5px; margin-left: auto; margin-top: 2px; align-items: center;">
+                <button id="vil_btn_display" class="gj-tool-btn gj-btn-info">Display</button>
+                <button id="vil_btn_print" class="gj-tool-btn gj-btn-info">Print</button>
+                <button id="vil_btn_excel" class="gj-tool-btn gj-btn-info">Excel</button>
+                <button id="vil_btn_print_multiple" class="gj-tool-btn gj-btn-info" style="font-size: 10px; line-height: 1.1;">Print Multiple<br>Ledgers</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Grid -->
+    <div id="vil_table_container" style="flex: 1; border: 1px solid #999; background: #fff; overflow: hidden; display: flex; flex-direction: column;">
+        <!-- Header (Fixed) -->
+        <div style="background: #EAEAEA; font-size: 11px; font-weight: bold; border-bottom: 1px solid #999; flex-shrink: 0; overflow-y: scroll;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;" id="vil_table">
+                <thead>
+                    <tr>
+                        <th style="width: 20px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;"></th>
+                        <th style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Date</th>
+                        <th style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Tran. No.</th>
+                        <th style="width: 120px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Party Name</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Description</th>
+                        <th style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Qty In</th>
+                        <th style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Qty Out</th>
+                        <th style="width: 40px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Unit</th>
+                        <th style="width: 50px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Rate</th>
+                        <th style="width: 50px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Discount</th>
+                        <th style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Sales Tax</th>
+                        <th style="width: 50px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Fur. Tax</th>
+                        <th style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Amt. Incl. Tax</th>
+                        <th style="width: 70px; padding: 2px; text-align: center; white-space: nowrap; overflow: hidden;">Balance Qty</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Body (Scrollable) -->
+        <div style="flex: 1; overflow-y: scroll; font-size: 11px;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;" id="vil_tbody_table">
+                <tbody id="vil_tbody">
+                    <!-- Data populated via JS -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Footer (Fixed) -->
+        <div style="background: #c0c0c0; font-size: 11px; font-weight: bold; flex-shrink: 0; overflow-y: scroll; border-top: 1px solid #999;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <tfoot>
+                    <tr>
+                        <td style="width: 20px; border-right: 1px solid #999; border-left: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 60px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 120px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: right; background: #fff;" id="vil_tot_qty_in">0.00</td>
+                        <td style="width: 60px; border-right: 1px solid #999; padding: 2px; text-align: right; background: #fff;" id="vil_tot_qty_out">0.00</td>
+                        <td style="width: 40px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 50px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 50px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 60px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 50px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: right; font-style: italic; background: transparent;">Balance</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: right; background: #fff;" id="vil_tot_bal">0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .gj-btn-info:hover { background: #3b6998 !important; }
+        
+        #vil_tbody tr {
+            border-bottom: 1px solid #e0e0e0;
+            cursor: default;
+        }
+        #vil_tbody tr:focus { outline: none; }
+        #vil_tbody tr:hover {
+            background-color: #FFFFCC;
+        }
+        #vil_tbody tr.selected {
+            background-color: #1F4E79 !important;
+            color: white !important;
+        }
+        #vil_tbody td {
+            border-right: 1px solid #e0e0e0;
+            padding: 2px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .vil-suggest-box {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 450px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #000;
+            z-index: 10000;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            font-size: 11px;
+            margin-top: 1px;
+        }
+        .vil-suggest-box div { 
+            padding: 3px 6px; 
+            cursor: pointer; 
+            color: #000; 
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .vil-suggest-box div:hover, .vil-suggest-box div.active { 
+            background-color: #1F4E79; 
+            color: white; 
+        }
+        
+        .vil-row-pointer {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            border-left: 6px solid transparent;
+            margin-left: 2px;
+        }
+        
+        #vil_tbody tr.selected .vil-row-pointer {
+            border-left-color: white;
+        }
+    </style>
+    
+    <!-- HACK TO BYPASS CACHED INDEX.HTML: Force load the JS if it's missing -->
+    <img src="x" style="display:none;" onerror="
+        if(!window.ViewInventoryLedgersModule) {
+            let s = document.createElement('script');
+            s.src = 'assets/js/view_inventory_ledgers.js?v=' + Date.now();
+            s.onload = () => { if(window.ViewInventoryLedgersModule) window.ViewInventoryLedgersModule.init(); };
+            document.head.appendChild(s);
+        } else {
+            if(window.ViewInventoryLedgersModule.init) {
+                window.ViewInventoryLedgersModule.isInitialized = false; 
+                window.ViewInventoryLedgersModule.init();
+            }
+        }
+    ">
+</div>

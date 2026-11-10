@@ -1,0 +1,176 @@
+<div style="display: flex; flex-direction: column; height: 100%; background: #ffffff; padding: 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px;">
+    
+    <!-- Top Bar with Print Button -->
+    <div style="background: #F9F9F9; padding: 10px; border: 1px solid #999; margin-bottom: 5px; display: flex; justify-content: flex-end; align-items: center; position: relative;">
+        <button id="pil_btn_print" style="background: #2D5881; color: #fff; border: 1px solid #1A3C5C; padding: 6px 20px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2); border-radius: 2px;">
+            Print
+        </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="flex: 1;">
+        <!-- Inset Border Box -->
+        <div style="background: #F9F9F9; border: 1px solid #999; padding: 20px 30px; position: relative; height: 100%; box-sizing: border-box;">
+            
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                
+                <!-- All Inventory Items -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="radio" name="pil_type" id="pil_type_all" value="all" checked style="margin: 0;">
+                    <label for="pil_type_all" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer;">All Inventory Items</label>
+                </div>
+                
+                <!-- Inventory Category -->
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <input type="radio" name="pil_type" id="pil_type_cat" value="category" style="margin: 0; margin-top: 4px;">
+                    <label for="pil_type_cat" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer; width: 130px; margin-top: 2px;">Inventory Category</label>
+                    <div style="display: flex; flex-direction: column; gap: 5px; flex: 1; max-width: 400px;">
+                        <div style="position: relative; width: 100%;">
+                            <input type="hidden" id="pil_main_cat_val">
+                            <input type="text" id="pil_main_cat" style="width: 100%; border: 1px solid #999; padding: 2px; background: #fff; cursor: pointer; box-sizing: border-box;" placeholder="Select Main Category..." readonly disabled>
+                            <div id="pil_main_cat_suggest" class="pil-suggest" style="width: 100%;"></div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="pil_use_subcat" style="margin: 0;" disabled>
+                            <label for="pil_use_subcat" style="font-style: italic; color: #888; cursor: pointer; width: 110px;">Sub Category</label>
+                            <div style="position: relative; flex: 1;">
+                                <input type="hidden" id="pil_sub_cat_val">
+                                <input type="text" id="pil_sub_cat" style="width: 100%; border: 1px solid #999; padding: 2px; background: #fff; cursor: pointer; box-sizing: border-box;" placeholder="Select Sub Category..." readonly disabled>
+                                <div id="pil_sub_cat_suggest" class="pil-suggest" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Range -->
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <input type="radio" name="pil_type" id="pil_type_range" value="range" style="margin: 0; margin-top: 4px;">
+                    <label for="pil_type_range" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer; width: 60px; margin-top: 2px;">Range</label>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 5px; flex: 1; max-width: 500px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-weight: bold; font-style: italic; color: #555; width: 35px; text-align: right;">From</span>
+                            <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                                <input type="text" id="pil_from_code" style="width: 120px; border: 1px solid #999; padding: 2px;" autocomplete="off" disabled>
+                                <input type="text" id="pil_from_name" style="flex: 1; border: 1px solid #ccc; padding: 2px; background: #f9f9f9;" disabled>
+                                <div id="pil_from_suggest" class="pil-suggest" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-weight: bold; font-style: italic; color: #555; width: 35px; text-align: right;">To</span>
+                            <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                                <input type="text" id="pil_to_code" style="width: 120px; border: 1px solid #999; padding: 2px;" autocomplete="off" disabled>
+                                <input type="text" id="pil_to_name" style="flex: 1; border: 1px solid #ccc; padding: 2px; background: #f9f9f9;" disabled>
+                                <div id="pil_to_suggest" class="pil-suggest" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Space before bottom checkboxes -->
+                <div style="height: 10px;"></div>
+                
+                <!-- Period From -->
+                <div style="display: flex; align-items: center; gap: 10px; margin-left: 170px;">
+                    <input type="checkbox" id="pil_use_period" style="margin: 0;">
+                    <label for="pil_use_period" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer; width: 90px;">For Period From</label>
+                    <input type="date" id="pil_from_date" style="width: 110px; border: 1px solid #999; padding: 2px; background: #fff;" disabled>
+                    <span style="font-weight: bold; font-style: italic; color: #555;">To</span>
+                    <input type="date" id="pil_to_date" style="width: 110px; border: 1px solid #999; padding: 2px; background: #fff;" disabled>
+                </div>
+                
+                <div style="height: 10px;"></div>
+
+                <!-- New Page -->
+                <div style="display: flex; align-items: center; gap: 10px; margin-left: 170px;">
+                    <input type="checkbox" id="pil_new_page" style="margin: 0;">
+                    <label for="pil_new_page" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer;">Start Printing of Every Ledger on New Page</label>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <style>
+        .pil-suggest {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #000;
+            z-index: 10000;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            font-size: 11px;
+            margin-top: 1px;
+        }
+        .pil-suggest div { 
+            padding: 3px 6px; 
+            cursor: pointer; 
+            color: #000; 
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pil-suggest div:hover, .pil-suggest div.active { 
+            background-color: #1F4E79; 
+            color: white; 
+        }
+    </style>
+    
+    <!-- Force load script reliably -->
+    <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+        if(!window.PrintInventoryLedgersModule) {
+            let s = document.createElement('script');
+            s.src = 'assets/js/print_inventory_ledgers.js?v=' + Date.now();
+            s.onload = () => { 
+                setTimeout(() => {
+                    if(window.PrintInventoryLedgersModule) window.PrintInventoryLedgersModule.init(); 
+                }, 50);
+            };
+            document.head.appendChild(s);
+        } else {
+            setTimeout(() => {
+                if(window.PrintInventoryLedgersModule.init) {
+                    window.PrintInventoryLedgersModule.init();
+                }
+            }, 50);
+        }
+    ">
+</div>
+<!-- Robust Auto-Loader for detached modal injection -->
+<img src="x_pil_loader" style="display:none;" onerror="
+    (function() {
+        if (!window.PrintInventoryLedgersModule) {
+            let s = document.createElement('script');
+            s.src = 'assets/js/print_inventory_ledgers.js?v=' + Date.now();
+            s.onload = () => {
+                const checkDOM = setInterval(() => {
+                    if (document.getElementById('pil_main_cat')) {
+                        clearInterval(checkDOM);
+                        if (window.PrintInventoryLedgersModule) {
+                            window.PrintInventoryLedgersModule.isInitialized = false;
+                            window.PrintInventoryLedgersModule.init();
+                        }
+                    }
+                }, 50);
+            };
+            document.head.appendChild(s);
+        } else {
+            const checkDOM = setInterval(() => {
+                if (document.getElementById('pil_main_cat')) {
+                    clearInterval(checkDOM);
+                    if (window.PrintInventoryLedgersModule) {
+                        window.PrintInventoryLedgersModule.isInitialized = false;
+                        window.PrintInventoryLedgersModule.init();
+                    }
+                }
+            }, 50);
+        }
+    })();
+">

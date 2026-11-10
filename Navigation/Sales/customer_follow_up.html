@@ -1,0 +1,204 @@
+<!-- 
+    Customer Follow-Up Module 
+    Size: Width 950px, Height 550px 
+-->
+<div id="cfuContainer" data-module="Customer Follow-Up" style="width: 950px; height: 615px; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; border: 1px solid #cbd5e0; border-radius: 4px; position: relative; padding-bottom: 0;">
+    
+    <!-- Top Toolbar -->
+    <div style="background: #e2e8f0; padding: 2px; display: flex; gap: 2px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: hidden; width: 100%; box-sizing: border-box;">
+        <button class="cfu-tool-btn cfu-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/customers.html', 'fa-users', 'Customers', window.initCustomersView, 'Customers', true)">New Customer</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="cfu-tool-btn cfu-btn-add" onclick="window.CFUModule.resetForm(true)">Add</button>
+        <button class="cfu-tool-btn cfu-btn-save" onclick="window.CFUModule.saveCFU()">Save (Ctrl+S)</button>
+        <button class="cfu-tool-btn cfu-btn-cancel" onclick="window.CFUModule.resetForm()">Cancel</button>
+        <button class="cfu-tool-btn cfu-btn-delete" onclick="window.CFUModule.deleteCFU()">Delete</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="cfu-tool-btn cfu-btn-info" onclick="window.CFUModule.showFindModal()">Find</button>
+        <button class="cfu-tool-btn cfu-btn-info" onclick="window.CFUModule.navigate('last')">Retrieve Last Saved</button>
+    </div>
+
+        <!-- Main Content Area -->
+    <div style="flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 10px; background: #f8fafc; overflow: hidden;">
+        
+        <div style="display: flex; gap: 20px;">
+            <!-- Left Side: Follow-up Details -->
+            <div style="flex: 1; display: grid; grid-template-columns: 90px 30px 1fr; gap: 5px 2px; align-content: start; align-items: center;">
+                <label class="cfu-label" style="justify-content: flex-end; padding-right: 8px;">Serial No</label>
+                <button class="cfu-nav-btn" onclick="window.CFUModule.navigate('prev')"><<</button>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="text" id="cfu_sn" class="cfu-input" style="width: 130px; text-align: center; color: blue; font-weight: 800; font-size: 14px;">
+                    <button class="cfu-nav-btn" onclick="window.CFUModule.navigate('next')">>></button>
+                </div>
+
+                <label class="cfu-label" style="justify-content: flex-end; padding-right: 8px;">Date</label>
+                <div></div>
+                <input type="date" id="cfu_date" class="cfu-input" style="width: 130px;">
+                
+                <div style="grid-column: 1 / span 3; height: 10px;"></div>
+
+                <label class="cfu-label" style="justify-content: flex-end; padding-right: 8px;">Event Type</label>
+                <div></div>
+                    <select id="cfu_event_type" class="cfu-input" style="width: 250px;">
+                        <option value="">Select Event Type</option>
+                        <option value="Call">Call</option>
+                        <option value="Meeting">Meeting</option>
+                        <option value="Email">Email</option>
+                        <option value="Visit">Visit</option>
+                        <option value="Quotation">Quotation</option>
+                        <option value="Follow-up">Follow-up</option>
+                    </select>
+
+                <label class="cfu-label" style="justify-content: flex-end; padding-right: 8px;">Acc. Manager</label>
+                <div></div>
+                    <select id="cfu_acc_manager" class="cfu-input" style="width: 250px;">
+                        <option value="">Select Manager</option>
+                    </select>
+
+                <label class="cfu-label" style="justify-content: flex-end; padding-right: 8px;">Job No</label>
+                <div></div>
+                    <select id="cfu_job_no" class="cfu-input" style="width: 250px;">
+                        <option value="">Select Job</option>
+                    </select>
+            </div>
+
+            <!-- Right Side: Customer Info -->
+            <fieldset style="flex: 1; border: 1px solid #000000; border-radius: 4px; padding: 12px; margin: 0; background: white;">
+                <legend style="font-size: 11px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; padding: 0 6px; margin-left: 10px;">Customer</legend>
+                <div style="display: grid; grid-template-columns: 80px 1fr; gap: 8px 4px; align-items: center; margin-top: 5px;">
+                    <label class="cfu-label" style="justify-content: flex-end; padding-right: 8px;">Code</label>
+                    <div style="position: relative;">
+                        <input type="text" id="cfu_customer_code" class="cfu-input" style="width: 150px;" placeholder="Search...">
+                        <div id="cfu_customer_suggest" class="cfu-suggest"></div>
+                    </div>
+
+                    <label class="cfu-label" style="justify-content: flex-end; padding-right: 8px;">Name</label>
+                    <input type="text" id="cfu_customer_name" class="cfu-input" style="width: 100%;" readonly>
+
+                    <label class="cfu-label" style="justify-content: flex-end; padding-right: 8px; align-self: start; padding-top: 5px;">Address</label>
+                    <textarea id="cfu_customer_address" class="cfu-input" style="height: 45px; resize: none; width: 100%;" readonly></textarea>
+
+                    <label class="cfu-label" style="justify-content: flex-end; padding-right: 8px;">Telephone</label>
+                    <input type="text" id="cfu_customer_tel" class="cfu-input" style="width: 100%;" readonly>
+                </div>
+            </fieldset>
+        </div>
+
+        <!-- Large Details Section -->
+        <div style="flex: 1; display: flex; flex-direction: row; gap: 10px; margin-top: 10px; padding-top: 2px;">
+            <div style="width: 110px; display: flex; flex-direction: column; flex-shrink: 0; align-items: flex-end; padding-right: 8px; padding-top: 5px;">
+                <label class="cfu-label" style="justify-content: flex-end; text-align: right; line-height: 1.2;">Details /<br>Remarks</label>
+                <span style="font-size: 9px; color: #dc3545; font-style: italic; text-align: right; margin-top: 10px; line-height: 1.2;">(Paste text/images here.<br>Click image to Zoom,<br>Double-click to Delete)</span>
+            </div>
+            <div id="cfu_details" contenteditable="true" style="flex: 1; border: 1px solid #000000; border-radius: 4px; padding: 10px; overflow-y: auto; background: white; font-size: 13px; line-height: 1.4; outline: none; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
+            </div>
+        </div>
+    </div>
+
+    <style>
+                .cfu-tool-btn {
+            background: #4a789c;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 90px;
+            height: 38px;
+            border-radius: 4px;
+            color: white;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1.1;
+            text-align: center;
+        }
+        .cfu-tool-btn:hover { background: #3b6998; border-color: #3b6998; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+        
+        .cfu-btn-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .cfu-btn-add:hover { background: #3b6998 !important; }
+        
+        .cfu-btn-save { background: #1F4E79 !important; color: white !important; border-color: #1F4E79 !important; }
+        .cfu-btn-save:hover { background: #153a5b !important; }
+        
+        .cfu-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .cfu-btn-cancel:hover { background: #3b6998 !important; }
+        
+        .cfu-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .cfu-btn-delete:hover { background: #c82333 !important; }
+        
+        .cfu-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .cfu-btn-info:hover { background: #3b6998 !important; }
+        
+        .cfu-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; display: flex; align-items: center; white-space: nowrap; text-transform: none; }
+        
+        .cfu-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            font-weight: normal;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border 0.2s;
+        }
+        .cfu-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .cfu-input:disabled { background: #ffffff; color: #000000; border-color: #000000; }
+
+        select.cfu-input option {
+            padding: 4px;
+            font-size: 11px;
+            color: #000000;
+        }
+        select.cfu-input option:checked, select.cfu-input option:hover {
+            background-color: #1F4E79;
+            color: white;
+        }
+        
+        .cfu-nav-btn {
+            height: 22px;
+            padding: 0 6px;
+            background: white;
+            border: 1px solid #000000;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 900;
+            color: #000000;
+            border-radius: 2px;
+        }
+        .cfu-nav-btn:hover { background: #f1f5f9; }
+        
+        .cfu-suggest {
+            position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #1F4E79;
+            max-height: 200px; overflow-y: auto; z-index: 10000; display: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .cfu-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cfu-suggest div:hover, .cfu-suggest div.active { background: #1F4E79; color: white; }
+        
+        #cfu_details img {
+            max-width: 150px;
+            max-height: 150px;
+            display: inline-block;
+            margin: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            vertical-align: top;
+        }
+        #cfu_details img:hover {
+            border-color: #3182ce;
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+    </style>
+</div>

@@ -1,0 +1,123 @@
+<div id="sectorsContainer" data-module="Business Sectors" style="width: 750px; height: 300px; display: flex; flex-direction: column; gap: 4px; background: white; padding: 8px; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 4px; overflow: hidden;">
+
+    <!-- Section: Business Sectors -->
+    <div style="flex: 1; display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 6px; border-radius: 4px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 4px;">Business Sectors</div>
+        
+        <div style="display: flex; gap: 15px; flex: 1; align-items: stretch;">
+            <!-- Left: List -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <select id="sectorList" size="2" style="width: 100%; flex: 1; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;" onchange="onSectorSelect(this.value)"></select>
+            </div>
+            
+            <!-- Right: Fields & Buttons -->
+            <div style="flex: 1.2; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: flex-end; gap: 4px;">
+                    <button class="coa-btn coa-add" onclick="resetSectorForm(true)">Add</button>
+                    <button class="coa-btn coa-save" onclick="saveSector()">Save</button>
+                    <button class="coa-btn coa-cancel" onclick="resetSectorForm()">Cancel</button>
+                    <button class="coa-btn coa-delete" onclick="deleteSector()">Delete</button>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 90px 1fr; gap: 4px 8px; align-content: start; margin-top: 4px;">
+                    <label class="coa-label">Sector Name</label>
+                    <input type="text" id="sectorName" class="coa-input" placeholder="Enter Sector Name" style="font-weight: bold;" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <img src="x" onerror="
+        setTimeout(async () => {
+            try {
+                const res = await fetch('api/maintain.php?action=get_sectors&t=' + Date.now());
+                const sectors = await res.json();
+                window.currentSectors = sectors;
+                const list = document.getElementById('sectorList');
+                if(list && list.options.length === 0) {
+                    list.innerHTML = sectors.map(s => `<option value='${s.id}'>${s.name}</option>`).join('');
+                    if(list.options.length > 0) {
+                        list.selectedIndex = 0;
+                        if(window.onSectorSelect) window.onSectorSelect(list.options[0].value);
+                    }
+                }
+            } catch(e){}
+        }, 300);
+    " style="display:none;">
+
+    <style>
+        #sectorsContainer .coa-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 5px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        #sectorsContainer .coa-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        #sectorsContainer .coa-btn:active { transform: translateY(1px); }
+
+        #sectorsContainer .coa-add    { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        #sectorsContainer .coa-add:hover    { background: #3b6998 !important; }
+        #sectorsContainer .coa-save   { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        #sectorsContainer .coa-save:hover   { background: #3b6998 !important; }
+        #sectorsContainer .coa-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        #sectorsContainer .coa-cancel:hover { background: #3b6998 !important; }
+        #sectorsContainer .coa-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        #sectorsContainer .coa-delete:hover { background: #c82333 !important; }
+
+        #sectorsContainer .coa-label {
+            font-size: 11px;
+            font-style: italic;
+            font-weight: 500;
+            color: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            text-align: left;
+        }
+        #sectorsContainer .coa-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            transition: border 0.2s;
+        }
+        #sectorsContainer .coa-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+
+        #sectorsContainer select option:checked {
+            background-color: var(--theme-primary, #1F4E79) !important;
+            color: white !important;
+            box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important; -webkit-box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+        }
+        #sectorsContainer select option {
+            padding: 0px 4px !important;
+            margin: 0 !important;
+            min-height: 16px !important;
+            height: 16px !important;
+            line-height: 16px !important;
+        }
+        #sectorsContainer select { padding: 2px 0; }
+
+        #sectorsContainer input:disabled,
+        #sectorsContainer select:disabled {
+            background-color: #f8fafc;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+    </style>
+</div>

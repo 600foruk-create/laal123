@@ -1,0 +1,346 @@
+<div id="inwardGatePassContainer" data-module="Inward Gate Passes" style="width: 940px; height: 620px; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; border: 1px solid #cbd5e0; border-radius: 4px; position: relative; box-sizing: border-box;">
+    
+    <!-- Cancellation Stamp -->
+    <div id="igp_cancelled_stamp" style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 60px; color: rgba(220, 53, 69, 0.2); font-weight: 900; border: 8px double rgba(220, 53, 69, 0.2); padding: 8px 25px; pointer-events: none; z-index: 999; display: none; text-transform: uppercase; letter-spacing: 6px; border-radius: 12px; white-space: nowrap;">
+        Cancelled
+    </div>
+
+    <!-- Top Toolbar -->
+    <div style="background: #e2e8f0; padding: 4px; display: flex; gap: 2px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: auto;">
+        <button class="so-tool-btn so-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/vendors.html', 'fa-users', 'Vendors/Suppliers', window.initVendorsView, 'Vendors', true)">New Vendor</button>
+        <button class="so-tool-btn so-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/chart_of_inventory.html', 'fa-boxes', 'Inventory Items', window.initChartOfInventoryView, 'Chart of Inventory', true)">New Item</button>
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 4px;"></div>
+        <button class="so-tool-btn so-btn-add" onclick="window.IGPModule.resetForm(true)">Add</button>
+        <button class="so-tool-btn so-btn-save" onclick="window.IGPModule.saveIGP()">Save (Ctrl+S)</button>
+        <button class="so-tool-btn so-btn-cancel" onclick="window.IGPModule.resetForm()">Cancel</button>
+        <button class="so-tool-btn so-btn-delete" onclick="window.IGPModule.deleteIGP()">Delete</button>
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 4px;"></div>
+        <button class="so-tool-btn so-btn-info" onclick="window.IGPModule.convertPurchaseOrder(true)">Convert Purchase (Tax)</button>
+        <button class="so-tool-btn so-btn-info" onclick="window.IGPModule.convertPurchaseOrder(false)">Convert Purchase</button>
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 4px;"></div>
+        <button class="so-tool-btn so-btn-info" onclick="window.IGPModule.openFindModal()">Find</button>
+        <button class="so-tool-btn so-btn-info" onclick="window.IGPModule.navigate('last')">Retrieve Last Saved</button>
+        <button class="so-tool-btn so-btn-save" onclick="window.IGPModule.printIGP()">Print</button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto;">
+        
+        <div style="display: flex; gap: 20px;">
+            <!-- Left Section: Basic Info -->
+            <div style="flex: 1.2; display: grid; grid-template-columns: 125px 1fr 45px 150px; gap: 4px 8px; align-content: start; align-items: center;">
+                
+                <!-- Row 1: Serial No + Cancel & Converted text (Absolute positioned) -->
+                <label class="so-label">Serial No</label>
+                <div style="position: relative; width: 100%; display: flex; align-items: center;">
+                    <button class="so-nav-btn" onclick="window.IGPModule.navigate('prev')" style="font-weight: 900; width: 30px; height: 24px; position: absolute; left: -34px;">&lt;&lt;</button>
+                    <input type="text" id="igp_sn" class="so-input" style="width: 100%; text-align: center; color: blue; font-weight: 800; font-size: 14px; box-sizing: border-box;" onkeydown="if(event.key==='Enter') { event.preventDefault(); window.IGPModule.navigate(); }">
+                    <button class="so-nav-btn" onclick="window.IGPModule.navigate('next')" style="font-weight: 900; width: 30px; height: 24px; position: absolute; right: -34px;">&gt;&gt;</button>
+                    
+                    <div style="display: flex; flex-direction: column; position: absolute; left: 100%; top: 0; z-index: 10; margin-left: 55px;">
+                        <label id="igp_cancel_label" style="font-size: 16px; font-weight: 800; color: #dc3545; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            Cancel <input type="checkbox" id="igp_is_cancelled" onchange="window.IGPModule.updateCancellationUI()" style="transform: scale(1.5); margin: 0 4px; cursor: pointer;">
+                        </label>
+                        <div id="igp_converted_text_container" style="color: #dc3545; font-size: 10px; font-weight: bold; font-style: italic; white-space: nowrap; pointer-events: none; line-height: 1.4; margin-top: 2px;">
+                            <div id="igp_converted_pitax_text" style="display: none;">Converted To P.I.(Tax) No. <span id="igp_converted_pitax_no"></span></div>
+                            <div id="igp_converted_pinontax_text" style="display: none;">Converted To P.I. No. <span id="igp_converted_pinontax_no"></span></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="grid-column: span 2;"></div>
+
+                <!-- Row 2: Date -->
+                <label class="so-label">Date</label>
+                <input type="date" id="igp_date" class="so-input" style="width: 100%; box-sizing: border-box;">
+                <div style="grid-column: span 2;"></div>
+
+                <div style="grid-column: span 4; height: 2px;"></div>
+
+                <!-- Row 3: Purchase Order No -->
+                <label class="so-label">Purchase Order No.</label>
+                <input type="text" id="igp_po_no" class="so-input" style="width: 100%; box-sizing: border-box;" placeholder="Type / Enter PO SN...">
+                <label class="so-label" style="text-align: center; text-transform: none;">Dated</label>
+                <input type="date" id="igp_po_date" class="so-input" style="width: 100%; box-sizing: border-box;">
+
+                <!-- Row 4: Delivery Challan No -->
+                <label class="so-label">Delivery Challan No.</label>
+                <input type="text" id="igp_dc_no" class="so-input" style="width: 100%; box-sizing: border-box;">
+                <label class="so-label" style="text-align: center; text-transform: none;">Dated</label>
+                <input type="date" id="igp_dc_date" class="so-input" style="width: 100%; box-sizing: border-box;">
+
+                <!-- Row 5: Job No -->
+                <label class="so-label">Job No & Description</label>
+                <select id="igp_job_id" class="so-input" style="width: 100%; box-sizing: border-box; grid-column: span 3;">
+                    <option value="">Select Option</option>
+                </select>
+            </div>
+
+            <!-- Right Side: Vendor Info --><!-- Right Side: Vendor Info -->
+            <fieldset style="width: 420px; border: 1px solid #94a3b8; padding: 6px 12px 10px 12px; margin: 0; border-radius: 4px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: start; height: 100%;">
+                <legend style="font-size: 11px; font-weight: 700; color: #000000; padding: 0 4px; font-style: italic;">Vendor</legend>
+                <div style="display: grid; grid-template-columns: 75px 1fr; gap: 4px 6px; align-items: center;">
+                    <label class="so-label">Code</label>
+                    <div style="display: flex; gap: 3px; align-items: center; position: relative;">
+                        <input type="text" id="igp_vendor_code" class="so-input" placeholder="Search vendor..." autocomplete="off" onclick="this.select()" onfocus="this.select()" style="flex: none; width: 50%; font-weight: bold;">
+                        
+                        <div id="igp_vendor_results" class="so-suggest-box" style="width: 100%;"></div>
+                    </div>
+
+                    <label class="so-label">Name</label>
+                    <input type="text" id="igp_vendor_name" class="so-input" tabindex="-1">
+
+                    <label class="so-label">Address</label>
+                    <textarea id="igp_vendor_address" class="so-input" style="height: 24px; resize: none;" tabindex="-1"></textarea>
+
+                    <label class="so-label">Telephone</label>
+                    <input type="text" id="igp_vendor_phone" class="so-input" tabindex="-1">
+                </div>
+            </fieldset>
+        </div>
+
+        <!-- Grid Table -->
+        <div style="border: 1px solid #cbd5e0; border-radius: 4px; flex: 1; min-height: 220px; background: #fff; overflow: auto; position: relative;">
+            <table id="igp_grid" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 10;">
+                    <tr id="igpGridHeader">
+                        <th style="width: 30px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">#</th>
+                        <th style="width: 120px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Item Code</th>
+                        <th style="width: 80px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">HS Code</th>
+                        <th style="border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Description</th>
+                        <th style="width: 70px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Pieces</th>
+                        <th style="width: 70px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Quantity</th>
+                        <th style="width: 60px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Unit</th>
+                        <th style="width: 180px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Packing Detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows injected by JS -->
+                </tbody>
+                <tfoot style="position: sticky; bottom: 0; background: #f1f5f9; z-index: 10;">
+                    <tr style="height: 24px;">
+                        <td colspan="4" style="text-align: right; padding-right: 10px; font-size: 11px; font-weight: bold; color: #1e3a8a; border: 1px solid #cbd5e0; border-top: 2px solid #cbd5e0; background: #f1f5f9; box-sizing: border-box;">TOTALS</td>
+                        <td style="padding: 0; border: 1px solid #cbd5e0; border-top: 2px solid #cbd5e0; background: #f1f5f9; box-sizing: border-box;">
+                            <input type="text" id="igp_total_pieces" class="igp-grid-input num" style="font-weight: bold; color: #1e3a8a; background: transparent; border: none;" tabindex="-1">
+                        </td>
+                        <td style="padding: 0; border: 1px solid #cbd5e0; border-top: 2px solid #cbd5e0; background: #f1f5f9; box-sizing: border-box;">
+                            <input type="text" id="igp_total_qty" class="igp-grid-input num" style="font-weight: bold; color: #1e3a8a; background: transparent; border: none;" tabindex="-1">
+                        </td>
+                        <td colspan="2" style="border: 1px solid #cbd5e0; border-top: 2px solid #cbd5e0; background: #f1f5f9; box-sizing: border-box;"></td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div id="igp_item_results" class="grid-suggest so-suggest-box" style="display: none; position: fixed; z-index: 999999999;"></div>
+        </div>
+
+        <!-- Footer Section -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; flex-shrink: 0;">
+            <div style="display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <label class="so-label" style="width: 110px;">Inventory Location</label>
+                    <select id="igp_location_id" class="so-input" style="flex: 1;">
+                        <option value="">Select Option</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <label class="so-label" style="width: 110px;">Vehicle Description</label>
+                    <input type="text" id="igp_vehicle_desc" class="so-input" style="flex: 1;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <label class="so-label" style="width: 110px;">Remarks</label>
+                    <input type="text" id="igp_remarks" class="so-input" style="flex: 1;">
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <label class="so-label" style="width: 110px;">Time of Supply</label>
+                    <input type="text" id="igp_time_of_supply" class="so-input" style="flex: 1;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <label class="so-label" style="width: 110px;">Driver Name</label>
+                    <input type="text" id="igp_driver_name" class="so-input" style="flex: 1;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Find IGP Modal -->
+    <div id="igp_find_modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #e2e8f0; width: 950px; border: 2px solid #4a789c; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; flex-direction: column; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <!-- Header -->
+            <div style="background: linear-gradient(to bottom, #1e3a5f, #0f1c2e); color: white; padding: 4px 8px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #c2c2c2;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-search" style="color: #60a5fa;"></i>
+                    <span id="igp_find_window_title">Find Inward Gate Passes</span>
+                </div>
+                <button onclick="window.IGPModule.closeFindModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; font-weight: bold; padding: 0 4px; line-height: 14px;">&times;</button>
+            </div>
+            
+            <!-- Toolbar -->
+            <div style="background: #f1f5f9; padding: 6px 10px; border-bottom: 1px solid #cbd5e0; display: flex; gap: 10px; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Find</label>
+                    <select id="igp_find_field" style="font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px;">
+                        <option value="serial_no">Serial No.</option>
+                        <option value="date">Date</option>
+                        <option value="vendor_name">Vendor Name</option>
+                        <option value="purchase_order_no">P.O. No.</option>
+                        <option value="delivery_challan_no">D.C. No.</option>
+                        <option value="time_of_supply">Time of Supply</option>
+                        <option value="is_cancelled">Status</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Matching</label>
+                    <input type="text" id="igp_find_search" oninput="window.IGPModule.filterFindTable()" style="width: 200px; font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px; outline: none;">
+                </div>
+                <div style="display: flex; gap: 4px; margin-left: auto;">
+                    <button onclick="window.IGPModule.filterFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Find</button>
+                    <button onclick="window.IGPModule.renderFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Grid Container -->
+            <div style="background: white; margin: 6px; border: 1px solid #cbd5e0; height: 450px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif;">
+                    <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                        <tr style="text-align: left; color: #1e293b; background: #e2e8f0;">
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.IGPModule.sortFindGrid('serial_no')">Serial No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.IGPModule.sortFindGrid('date')">Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.IGPModule.sortFindGrid('vendor_name')">Vendor Name</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.IGPModule.sortFindGrid('purchase_order_no')">P.O. No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.IGPModule.sortFindGrid('delivery_challan_no')">D.C. No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.IGPModule.sortFindGrid('time_of_supply')">Time of Supply</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.IGPModule.sortFindGrid('is_cancelled')">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="igp_find_table_body">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer (Audit Info) -->
+            <div style="background: #f1f5f9; padding: 6px 10px; border-top: 1px solid #cbd5e0; display: flex; justify-content: flex-end; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <label style="font-size: 11px; color: #64748b; font-weight: bold;">Added By</label>
+                    <input type="text" id="igp_find_added_by" value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-size: 11px; color: #64748b;">on</span>
+                    <input type="text" id="igp_find_added_on" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <label style="font-size: 11px; color: #64748b; font-weight: bold;">Edited By</label>
+                    <input type="text" id="igp_find_edited_by" value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-size: 11px; color: #64748b;">on</span>
+                    <input type="text" id="igp_find_edited_on" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <style>
+        .so-tool-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+            flex: 1;
+        }
+        .so-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .so-btn-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .so-btn-add:hover { background: #3b6998 !important; }
+        .so-btn-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .so-btn-save:hover { background: #3b6998 !important; }
+        .so-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .so-btn-cancel:hover { background: #3b6998 !important; }
+        .so-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .so-btn-delete:hover { background: #c82333 !important; }
+        .so-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto; }
+        .so-btn-info:hover { background: #3b6998 !important; }
+        
+        .so-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; text-transform: none; display: block; }
+        .so-input { height: 22px; border: 1px solid #000000; border-radius: 2px; padding: 0 4px; font-size: 13px; font-weight: normal; color: #000000; outline: none; width: 100%; transition: border-color 0.2s; box-sizing: border-box; }
+        .so-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .so-input:disabled, .so-input[readonly] { background: #ffffff; color: #000000; border-color: #000000; }
+        
+        .so-nav-btn { height: 22px; padding: 0 6px; background: white; border: 1px solid #000000; cursor: pointer; font-size: 11px; font-weight: 900; color: #000000; border-radius: 2px; }
+        .so-nav-btn:hover { background: #f1f5f9; }
+        
+        .so-suggest-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #fff;
+            border: 1px solid #1F4E79;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-height: 250px;
+            overflow-y: auto;
+            width: 100%;
+            display: none;
+            border-radius: 0 0 4px 4px;
+        }
+        
+        .so-suggest-item {
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .so-suggest-item:hover, .so-suggest-item.active { background: #1F4E79; color: #fff; }
+        .so-suggest-item .code { font-weight: 800; color: black; }
+        .so-suggest-item:hover .code, .so-suggest-item.active .code { color: #fff; }
+        
+        #igpGridHeader th { background: #e2e8f0; border: 1px solid #94a3b8; font-size: 9px; font-weight: 700; color: #334155; padding: 2px; text-transform: uppercase; text-align: center; height: 22px; }
+        .igp-grid-cell { border: 1px solid #94a3b8; padding: 0; position: relative; height: 22px; }
+        .igp-grid-input { width: 100%; height: 100%; border: none; padding: 0 4px; font-size: 12px; outline: none; background: transparent; display: block; box-sizing: border-box; color: #000000; font-weight: bold; }
+        .igp-grid-input:focus { background: #eff6ff; }
+        .igp-grid-input.num { text-align: right; }
+        
+        /* Navigation Arrows indicator */
+        .igp-grid-input.focused { border: 1px solid #3b82f6 !important; }
+        
+        #igp_grid tr.selected-row td:not(.row-selector) {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        #igp_grid tr.selected-row td:not(.row-selector) input {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        
+        .row-selector {
+            cursor: pointer;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border-top: 1px solid #ffffff !important;
+            border-left: 1px solid #ffffff !important;
+            border-bottom: 1px solid #808080 !important;
+            border-right: 1px solid #808080 !important;
+            text-align: center;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            width: 20px;
+        }
+    
+        .igp-row-selected { background-color: black !important; color: white !important; }
+        .igp-row-selected input { background-color: transparent !important; color: white !important; font-weight: bold; }
+        .igp-row-selector { cursor: pointer; user-select: none; }
+        .igp-row-selector:hover { background-color: #e2e8f0; color: black; }
+</style>
+</div>

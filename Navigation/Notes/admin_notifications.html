@@ -1,0 +1,53 @@
+<div id="adminNotificationsContainer" data-module="Notifications from Admin" style="min-height: 590px; display: flex; flex-direction: column; gap: 15px; background: white; padding: 15px; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 4px; width: 950px; position: relative;">
+    
+    <!-- Top Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1F4E79; padding-bottom: 8px;">
+        <div style="font-size: 16px; font-weight: bold; color: #1F4E79;">
+            <i class="fas fa-bell" style="margin-right: 6px;"></i> Notifications from Admin
+        </div>
+    </div>
+
+    <!-- Main Content Area (Full-Width List) -->
+    <div style="border: 1px solid #cbd5e0; border-radius: 6px; padding: 15px; background: #fff; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-height: 520px; flex: 1;">
+        
+        <!-- Filter Bar -->
+        <div style="background: #f1f5f9; padding: 10px; border-radius: 4px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+                <label style="font-size: 10px; font-weight: 600; color: #475569;">From Date</label>
+                <input type="date" id="anFromDate" style="padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 3px; font-size: 11px; outline: none;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+                <label style="font-size: 10px; font-weight: 600; color: #475569;">To Date</label>
+                <input type="date" id="anToDate" style="padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 3px; font-size: 11px; outline: none;">
+            </div>
+            <button onclick="window.AdminNotificationsModule.loadNotifications()" style="height: 27px; padding: 0 15px; background: #1F4E79; color: white; border: none; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer;">
+                <i class="fas fa-search"></i> Search
+            </button>
+            <button id="btnTodayNotifications" onclick="window.AdminNotificationsModule.loadToday()" style="height: 27px; padding: 0 15px; background: #f59e0b; color: white; border: none; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer;">
+                <i class="fas fa-calendar-day"></i> Today's Notifications
+            </button>
+            <span id="anNotificationsCount" style="font-size: 11px; color: #64748b; align-self: center; margin-left: auto; font-weight: 600;"></span>
+        </div>
+
+        <!-- Notifications List -->
+        <div id="anNotificationsList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; max-height: 460px; padding-right: 4px;">
+            <div style="text-align: center; color: #94a3b8; font-size: 13px; padding: 40px 0;">
+                <i class="fas fa-bell-slash" style="font-size: 28px; display: block; margin-bottom: 8px;"></i>
+                Click "Today's Notifications" or use the date filter above
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    #anNotificationsList::-webkit-scrollbar { width: 5px; }
+    #anNotificationsList::-webkit-scrollbar-track { background: #f1f5f9; }
+    #anNotificationsList::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; }
+    #btnTodayNotifications:hover { background: #d97706 !important; }
+    .an-note-item { border: 1px solid #cbd5e0; border-radius: 6px; overflow: hidden; transition: box-shadow 0.15s; background: #fff; }
+    .an-note-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .an-note-header { padding: 12px 15px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .an-note-body { padding: 15px; font-size: 13px; color: #334155; line-height: 1.6; white-space: pre-wrap; display: none; background: #fff; border-top: 1px solid #f1f5f9; }
+    .an-badge-all { background: #ef4444; color: white; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold; text-transform: uppercase; }
+    .an-badge-user { background: #f59e0b; color: white; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold; text-transform: uppercase; }
+</style>

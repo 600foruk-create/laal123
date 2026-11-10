@@ -1,0 +1,175 @@
+<div style="padding: 10px; background-color: white; height: 100%; display: flex; flex-direction: column; font-family: 'Segoe UI', Tahoma, sans-serif; box-sizing: border-box; overflow: hidden;">
+
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+            min-width: 60px;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info   { background: #1F4E79 !important; color: white !important; border-color: #1F4E79 !important; }
+        .gj-btn-info:hover   { background: #163c5e !important; }
+
+        .pot-table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        .pot-table th { background: #1F4E79 !important; border: 1px solid #0f2d4a !important; font-size: 10px !important; font-weight: 700 !important; color: #ffffff !important; padding: 4px !important; text-transform: uppercase; text-align: center; height: 26px; }
+        .pot-table tbody td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 2px 5px;
+            border: 1px solid #cbd5e1;
+            font-size: 11.5px;
+        }
+        .pot-table tfoot td {
+            padding: 5px 8px;
+            border: 1px solid #94a3b8;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-shortage {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #f87171;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 10px;
+            display: inline-block;
+        }
+        .badge-instock {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #4ade80;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 10px;
+            display: inline-block;
+        }
+    </style>
+
+    <!-- Top Filter Area -->
+    <div style="background-color: #f8f9fa; border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px 15px; margin-bottom: 8px; position: relative;">
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+            
+            <!-- Filters -->
+            <div style="display: flex; flex-direction: column; gap: 5px; flex: 1; max-width: 800px;">
+                
+                <!-- Order No / Date -->
+                <div style="display: flex; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; width: 220px; font-size: 13px; font-style: italic; color: #1e293b; font-weight: 600;">
+                        <input type="checkbox" id="chk_sot_order" onchange="window.SaleOrderTracker.toggleFilters()" checked>
+                        Sale Order No. & Date
+                    </label>
+                    <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                        <select id="sot_order_no" style="flex: 1; padding: 2px 8px; border: 1px solid #64748b; border-radius: 2px; font-size: 13px; background-color: #fff; height: 26px; font-weight: 600; color: #0b3b60;" onchange="window.SaleOrderTracker.search()" onkeypress="if(event.key === 'Enter') window.SaleOrderTracker.search()">
+                            <option value="ALL">ALL (All Orders / Items)</option>
+                        </select>
+                        <input type="hidden" id="sot_from_date" value="">
+                        <input type="hidden" id="sot_to_date" value="">
+                    </div>
+                </div>
+
+                <!-- Customer -->
+                <div style="display: flex; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; width: 220px; font-size: 13px; font-style: italic; color: #1e293b; font-weight: 600;">
+                        <input type="checkbox" id="chk_sot_customer" onchange="window.SaleOrderTracker.toggleFilters()">
+                        Customer:
+                    </label>
+                    <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                        <input type="hidden" id="sot_customer_id">
+                        <input type="text" id="sot_customer_code" placeholder="Code" style="width: 80px; padding: 2px 6px; border: 1px solid #999; font-size: 13px; height: 24px;" disabled autocomplete="off">
+                        <input type="text" id="sot_customer_name" placeholder="Customer Name" style="flex: 1; padding: 2px 6px; border: 1px solid #999; font-size: 13px; height: 24px;" disabled autocomplete="off">
+                        <div id="sot_customer_suggest" class="row-suggest" style="width: 100%; top: 26px; position: absolute; z-index: 9999; display: none; background: #fff; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);"></div>
+                    </div>
+                </div>
+
+                <!-- Inventory Item -->
+                <div style="display: flex; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; width: 220px; font-size: 13px; font-style: italic; color: #1e293b; font-weight: 600;">
+                        <input type="checkbox" id="chk_sot_item" onchange="window.SaleOrderTracker.toggleFilters()">
+                        Inventory Item:
+                    </label>
+                    <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                        <input type="hidden" id="sot_item_id">
+                        <input type="text" id="sot_item_code" placeholder="Code" style="width: 80px; padding: 2px 6px; border: 1px solid #999; font-size: 13px; height: 24px;" disabled autocomplete="off">
+                        <input type="text" id="sot_item_name" placeholder="Item Name" style="flex: 1; padding: 2px 6px; border: 1px solid #999; font-size: 13px; height: 24px;" disabled autocomplete="off">
+                        <div id="sot_item_suggest" class="row-suggest" style="width: 100%; top: 26px; position: absolute; z-index: 9999; display: none; background: #fff; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons & Badges -->
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="window.SaleOrderTracker.search()" class="gj-tool-btn gj-btn-info" style="min-width: 80px;">
+                        <i class="fas fa-search" style="margin-right: 5px;"></i> Display
+                    </button>
+                    <button onclick="window.SaleOrderTracker.printReport()" class="gj-tool-btn gj-btn-info" style="min-width: 80px;">
+                        <i class="fas fa-print" style="margin-right: 5px;"></i> Print
+                    </button>
+                </div>
+                <div id="sot_summary_badges" style="display: flex; gap: 6px; font-size: 11px;">
+                    <!-- Live counters will be injected here -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Stock Tracking Grid (Takes full available height) -->
+    <div style="flex: 1; border: 1px solid #cbd5e1; background: #fff; overflow-y: auto; position: relative; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <table id="sot_master_table" class="pot-table">
+            <thead style="position: sticky; top: 0; background-color: #1F4E79; z-index: 10;">
+                <tr>
+                    <th style="width: 30px; text-align: center;">#</th>
+                    <th style="width: 55px; text-align: center;">Order No.</th>
+                    <th style="width: 75px; text-align: center;">Date</th>
+                    <th style="width: 115px; text-align: left;">Party</th>
+                    <th style="width: 75px; text-align: center;">Item Code</th>
+                    <th style="text-align: left;">Item Name</th>
+                    <th style="width: 45px; text-align: center;">Unit</th>
+                    <th style="width: 75px; text-align: right; background: #0369a1 !important;">Total Stock</th>
+                    <th style="width: 70px; text-align: right; background: #d97706 !important;">In Order</th>
+                    <th style="width: 75px; text-align: right; background: #0f172a !important;">Result</th>
+                </tr>
+            </thead>
+            <tbody id="sot_master_tbody">
+                <!-- Data will be loaded here -->
+            </tbody>
+            <tfoot id="sot_master_tfoot" style="position: sticky; bottom: 0; background: #f8fafc; font-weight: bold; border-top: 2px solid #94a3b8; z-index: 10;">
+                <!-- Summary totals -->
+            </tfoot>
+        </table>
+        <div id="sot_master_loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 16px; color: #1F4E79; font-weight: bold;">
+            <i class="fas fa-spinner fa-spin" style="margin-right: 6px;"></i> Loading tracking data...
+        </div>
+    </div>
+    
+</div>
+<script>
+    if (window.SaleOrderTracker) {
+        window.SaleOrderTracker.init();
+    }
+</script>
+<style>
+    .cp-suggest { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; z-index: 10000; display: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    .cp-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333; }
+    .cp-suggest div:hover, .cp-suggest div.active { background: #1F4E79; color: white; }
+    .cp-suggest div b { color: inherit; }
+</style>

@@ -1,0 +1,522 @@
+<!-- Cash Payments Module -->
+<div id="bankPaymentContainer" data-module="Bank Payments"
+    style="width: 100%; height: 100%; min-height: 520px; box-sizing: border-box; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden !important; border: 1px solid #cbd5e0; border-radius: 4px; position: relative;">
+
+    <!-- Top Toolbar -->
+    <div
+        style="background: #e2e8f0; padding: 2px; display: flex; gap: 2px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: auto; white-space: nowrap;">
+        <button class="po-tool-btn po-btn-info" onclick="window.BPModule.openCOA()">
+            New Account</button>
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        <button class="po-tool-btn po-btn-add" onclick="window.BPModule.resetForm(true)">Add</button>
+        <button class="po-tool-btn po-btn-save" onclick="window.BPModule.save()">Save (Ctrl+S)</button>
+        <button class="po-tool-btn po-btn-cancel" onclick="window.BPModule.resetForm()">Cancel</button>
+        <button class="po-tool-btn po-btn-delete" onclick="window.BPModule.delete()">Delete</button>
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        <button class="po-tool-btn po-btn-info" id="bp_post_btn" onclick="window.BPModule.togglePost()">Post</button>
+        <button class="po-tool-btn po-btn-info" onclick="window.BPModule.openFindModal()">Find</button>
+        <button class="po-tool-btn po-btn-info" onclick="window.BPModule.navigate('next')">Retrieve Last Saved</button>
+        <button class="po-tool-btn po-btn-save" onclick="window.BPModule.print()">Print</button>
+        <button class="po-tool-btn po-btn-info" onclick="window.BPModule.print('voucher')">Voucher</button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div
+        style="flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 4px; background: #f1f5f9; overflow: hidden !important;">
+
+        <!-- Header Info Row -->
+        <div
+            style="display: flex; gap: 8px; background: white; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px;">
+            <div style="flex: 1; display: grid; grid-template-columns: 115px 30px 1fr; gap: 2px; align-items: center;">
+                <label class="po-label">Serial No</label>
+                <button class="po-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.BPModule.navigate('prev')"><<</button>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="text" id="bp_sn" class="po-input" style="width: 110px; text-align: center; color: blue; font-weight: 800; font-size: 16px;">
+                    <button class="po-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.BPModule.navigate('next')">>></button>
+                    <label style="font-size: 16px; font-weight: 800; color: #dc3545; display: flex; align-items: center; gap: 4px; margin-left: 5px;">
+                        <input type="checkbox" id="bp_is_cancelled" style="transform: scale(1.5);"> Cancel
+                    </label>
+                    <div id="bp_cancelled_stamp" style="font-size: 14px; font-weight: bold; color: #dc3545; border: 2px solid #dc3545; padding: 2px 8px; border-radius: 4px; display: none; margin-left: 10px;">CANCELLED</div>
+                    <div id="bp_posted_stamp" style="font-size: 14px; font-weight: bold; color: #dc3545; border: 2px solid #dc3545; padding: 2px 8px; border-radius: 4px; display: none; margin-left: 10px;">POSTED</div>
+                    <div id="bp_unposted_stamp" style="font-size: 14px; font-weight: bold; color: #eab308; border: 2px solid #eab308; padding: 2px 8px; border-radius: 4px; display: none; margin-left: 10px;">UNPOSTED</div>
+                </div>
+
+                <label class="po-label">Date</label>
+                <div></div>
+                <input type="date" id="bp_date" class="po-input" style="width: 110px;">
+
+                <label class="po-label">Job No & Description</label>
+                <div></div>
+                <select id="bp_job_id" class="po-input" style="width: 250px;"></select>
+
+                <label class="po-label">Employee Reference</label>
+                <div></div>
+                <select id="bp_employee_id" class="po-input" style="width: 250px;"></select>
+            </div>
+
+            <div
+                style="width: 190px; display: flex; flex-direction: column; gap: 6px; justify-content: center; padding: 6px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
+                <label
+                    style="display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 600; cursor: pointer; color: #1e3a8a;">
+                    <input type="radio" name="bp_type" value="Vendor" checked
+                        onclick="window.BPModule.updatePaidToLabel('Vendor')"> Payment To Vendor
+                </label>
+                <label
+                    style="display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 600; cursor: pointer; color: #1e3a8a;">
+                    <input type="radio" name="bp_type" value="Petty"
+                        onclick="window.BPModule.updatePaidToLabel('Petty')"> Petty Payment
+                </label>
+            </div>
+        </div>
+
+        <!-- Accounts Row -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; flex-direction: column; gap: 4px; background: #f8fafc; padding: 6px; border: 1px solid #cbd5e0; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);">
+                <div style="display: grid; grid-template-columns: 115px 30px 1fr; gap: 2px; align-items: center;">
+                    <label class="po-label">Bank Account</label>
+                    <div></div>
+                    <div style="display: flex; gap: 8px; align-items: center; position: relative;">
+                        <input type="text" id="bp_cash_code" class="po-input" style="width: 110px;" placeholder="Code">
+                        <input type="text" id="bp_cash_name" class="po-input" style="flex: 1;" placeholder="Search Bank Account...">
+                        <div id="bp_cash_suggest" class="po-suggest"></div>
+                        <label class="po-label" style="text-align: right; width: 50px;">Balance</label>
+                        <input type="text" id="bp_cash_balance" class="po-input" style="width: 110px; text-align: right;" readonly>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 115px 30px 1fr; gap: 2px; align-items: center;">
+                    <label class="po-label">Cheque No.</label>
+                    <div></div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="bp_cheque_no" class="po-input" style="width: 110px;">
+                        <label class="po-label" style="text-align: right; width: 80px;">Cheque Date</label>
+                        <input type="date" id="bp_cheque_date" class="po-input" style="width: 120px;">
+                    </div>
+                </div>
+            </div>
+
+            <div id="bpVendorPaidToContainer" style="display: grid; grid-template-columns: 115px 30px 1fr; gap: 2px; align-items: center; background: #f8fafc; padding: 6px; border: 1px solid #cbd5e0; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);">
+                <label class="po-label" id="bp_lbl_paid_to">Paid To</label>
+                <div></div>
+                <div id="vendorPaidToRow" style="display: flex; gap: 8px; align-items: center; position: relative;">
+                    <input type="text" id="bp_paid_to_code" class="po-input" style="width: 110px;" placeholder="Code">
+                    <input type="text" id="bp_paid_to_name" class="po-input" style="flex: 1;" placeholder="Search Vendor/Customer...">
+                    <div id="bp_paid_to_suggest" class="po-suggest"></div>
+                    <label class="po-label" style="text-align: right; width: 50px;">Balance</label>
+                    <input type="text" id="bp_paid_to_balance" class="po-input" style="width: 110px; text-align: right;" readonly>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Section -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; border-radius: 4px; display: flex; flex-direction: column; background: #fff; min-height: 200px; margin-top: 4px;">
+            <div id="bpGridTitle" style="background: #1e3a8a; color: white; padding: 3px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between;">
+                <span>Detail of Purchase Invoices Against Which Amount has been Paid</span>
+                <span id="bp_f4_hint" style="color: #ffcccc; font-style: italic; display: none;">Press F4 to view pending invoices.</span>
+            </div>
+            <div style="flex: 1; overflow-y: auto; border-bottom: 1px solid #cbd5e0;">
+                <table id="bpGrid" style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e0; table-layout: fixed;">
+                    <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                        <tr id="bpVendorHeader" class="po-grid-header">
+                            <th style="width: 30px;">#</th>
+                            <th style="width: 90px;">Invoice No.</th>
+                            <th style="width: 95px;">Invoice Date</th>
+                            <th style="width: 85px; white-space: normal; line-height: 1.1;">Cheque Paid for Amount</th>
+                            <th style="width: 60px; white-space: normal; line-height: 1.1;">W.H.T. Rate %</th>
+                            <th style="width: 85px; white-space: normal; line-height: 1.1;">W.H.T. Amount</th>
+                            <th style="width: 60px; white-space: normal; line-height: 1.1;">G.S.T. Rate %</th>
+                            <th style="width: 85px; white-space: normal; line-height: 1.1;">G.S.T. Amount</th>
+                            <th style="width: 75px; white-space: normal; line-height: 1.1;">Advance Adjusted</th>
+                            <th style="width: 75px; white-space: normal; line-height: 1.1;">Discount Received</th>
+                            <th style="width: 85px; white-space: normal; line-height: 1.1;">Total Debited to Party</th>
+                        </tr>
+                        <!-- Petty Header -->
+                        <tr id="bpPettyHeader" class="po-grid-header" style="display: none;">
+                            <th style="width: 30px;">#</th>
+                            <th style="width: 100px;">Account Code</th>
+                            <th style="width: 250px;">Account Name</th>
+                            <th style="width: 1fr;">Description</th>
+                            <th style="width: 110px;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bpGridBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Vendor Totals Footer -->
+            <div id="bpVendorFooter" style="background: #e2e8f0; border-top: 1px solid #cbd5e0;">
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                    <!-- Prepayment Row -->
+                    <tr style="height: 26px;">
+                        <td colspan="3"
+                            style="text-align: right; font-weight: 700; font-size: 10px; color: #1e3a8a; padding-right: 10px; width: 215px;">
+                            Prepayment / Advance</td>
+                        <td style="width: 85px; padding: 1px 2px;">
+                            <input type="text" id="bp_prepayment" class="po-total-input" value="0.00"
+                                style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td colspan="6"
+                            style="text-align: right; font-weight: 700; font-size: 10px; color: #1e3a8a; padding-right: 10px; width: 440px;">
+                            Total Adv</td>
+                        <td style="width: 85px; padding: 1px 2px;"><input type="text"
+                                id="bp_total_advance" class="po-total-input" value="0.00" readonly
+                                style="border: 1px solid #94a3b8; border-radius: 2px; background: #f8fafc; height: 24px;"></td>
+                    </tr>
+                    <!-- Main Totals Row -->
+                    <tr style="height: 26px; border-top: 1px solid #cbd5e0;">
+                        <td colspan="3"
+                            style="text-align: right; font-weight: 700; font-size: 10px; color: #1e3a8a; padding-right: 10px; width: 215px;">
+                            Totals</td>
+                        <td style="width: 85px; padding: 1px 2px;"><input type="text" id="bp_total_paid"
+                                class="po-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 60px;"></td>
+                        <td style="width: 85px; padding: 1px 2px;"><input type="text" id="bp_total_wht"
+                                class="po-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 60px;"></td>
+                        <td style="width: 85px; padding: 1px 2px;"><input type="text" id="bp_total_gst"
+                                class="po-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 75px; padding: 1px 2px;"><input type="text" id="bp_total_adj"
+                                class="po-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 75px; padding: 1px 2px;"><input type="text" id="bp_total_disc"
+                                class="po-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 85px; padding: 1px 2px; background: #1e3a8a;"><input type="text" id="bp_grand_total_vendor"
+                                class="po-total-input" value="0.00" readonly
+                                style="border: 1px solid #1e3a8a; background: transparent; color: white; height: 24px;"></td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Petty Totals Footer -->
+            <div id="bpPettyFooter" style="background: #e2e8f0; border-top: 1px solid #cbd5e0; padding: 4px; display: none;">
+                <div style="display: flex; justify-content: flex-end; align-items: center;">
+                    <div style="text-align: right; font-weight: 700; font-size: 10px; color: #1e3a8a; padding-right: 10px;">
+                        Totals</div>
+                    <div style="width: 110px;"><input type="text" id="bp_grand_total_petty" class="po-total-input"
+                            value="0.00" readonly
+                            style="background: #1e3a8a; color: white; height: 22px; font-size: 10px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grand Total Hidden Input for unified access -->
+        <input type="hidden" id="bp_grand_total" value="0.00">
+
+        <div
+            style="display: flex; flex-direction: column; gap: 2px; background: white; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label class="po-label" style="width: 90px;">Amt In Words</label>
+                <span id="bp_amt_words" style="font-size: 9px; font-weight: 700; color: #1e3a8a;">Rupees zero and 00/100
+                    only.</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label class="po-label" style="width: 90px;">Remarks</label>
+                <input type="text" id="bp_remarks" class="po-input" placeholder="Enter payment remarks..."
+                    style="height: 22px; font-size: 10px;">
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .po-tool-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            flex: 1;
+            height: 38px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .po-tool-btn:hover {
+            background: #f1f5f9;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .po-btn-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .po-btn-add:hover { background: #3b6998 !important; }
+
+        .po-btn-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .po-btn-save:hover { background: #3b6998 !important; }
+
+        .po-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .po-btn-cancel:hover { background: #3b6998 !important; }
+
+        .po-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .po-btn-delete:hover { background: #c82333 !important; }
+
+        .po-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto; }
+        .po-btn-info:hover { background: #3b6998 !important; }
+
+        .po-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; display: flex; align-items: center; justify-content: flex-start; text-align: left; white-space: nowrap; }
+
+        .po-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            font-weight: normal;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border 0.2s;
+        }
+
+        .po-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .po-input:disabled { background: #ffffff; color: #000000; border-color: #000000; }
+
+        select.po-input option {
+            padding: 4px;
+            font-size: 11px;
+            color: #000000;
+        }
+        select.po-input option:checked, select.po-input option:hover {
+            background-color: #1F4E79;
+            color: white;
+        }
+
+        .po-nav-btn {
+            height: 22px;
+            padding: 0 6px;
+            background: white;
+            border: 1px solid #000000;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 900;
+            color: #000000;
+            border-radius: 2px;
+        }
+        .po-nav-btn:hover { background: #f1f5f9; }
+
+        .po-total-input {
+            width: 100%;
+            height: 22px;
+            background: #fff;
+            border: 1px solid #000000;
+            text-align: right;
+            font-weight: bold;
+            font-size: 12px;
+            color: #1e3a8a;
+            padding: 0 4px;
+            box-sizing: border-box;
+        }
+        .grid-input { border: none; width: 100%; height: 100%; padding: 0 4px; font-size: 12px; outline: none; background: transparent; display: block; color: #000000; font-weight: bold; }
+        .grid-input:focus { background: #eff6ff; }
+        .grid-input.num { text-align: right; }
+        
+        #bpGrid th {
+            background: #e2e8f0;
+            border: 1px solid #94a3b8;
+            font-size: 9px;
+            font-weight: 700;
+            color: #334155;
+            padding: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            height: 22px;
+        }
+        #bpGrid td { border: 1px solid #94a3b8; padding: 0; height: 22px; position: relative; }
+
+        .po-suggest { position: absolute; top: 100%; left: 0; width: 450px; background: white; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; z-index: 10000; display: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .po-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .po-suggest div:hover, .po-suggest div.active { background: #1F4E79; color: white; }
+        
+        .grid-suggest { position: absolute; top: 100%; left: 0; width: 450px; background: white; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; z-index: 999999 !important; display: none; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+        .grid-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .grid-suggest div:hover, .grid-suggest div.active { background: #1F4E79 !important; color: white !important; }
+        .grid-suggest div:hover b, .grid-suggest div.active b { color: white !important; }
+
+        .cancelled-stamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 35px;
+            font-weight: bold;
+            color: rgba(220, 53, 69, 0.1);
+            border: 4px solid rgba(220, 53, 69, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        /* Custom Dropdown styling */
+        .custom-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border: 1px solid #94a3b8;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        .custom-select-dropdown div { padding: 2px 4px; cursor: pointer; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .custom-select-dropdown div:hover, .custom-select-dropdown div.active { background: #1F4E79; color: white; }
+
+        #bpGrid td {
+            border: 1px solid #cbd5e0;
+            padding: 0;
+            height: 20px;
+            position: relative;
+            overflow: visible; /* Important for suggestion boxes */
+        }
+        
+        #bpGrid tr.selected-row td:not(.row-selector) {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        #bpGrid tr.selected-row td:not(.row-selector) input {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        
+        .row-selector {
+            cursor: pointer;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border-top: 1px solid #ffffff !important;
+            border-left: 1px solid #ffffff !important;
+            border-bottom: 1px solid #808080 !important;
+            border-right: 1px solid #808080 !important;
+            text-align: center;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            width: 20px;
+        }
+
+        /* Petty Accounts Suggestion Dropdown */
+        .bp-suggest {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 450px;
+            background: #ffffff;
+            border: 1px solid #1F4E79;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 999999 !important;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        }
+        .bp-suggest div {
+            padding: 5px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            border-bottom: 1px solid #f1f5f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #000000;
+        }
+        .bp-suggest div:hover, .bp-suggest div.active {
+            background: #1F4E79 !important;
+            color: #ffffff !important;
+        }
+        .bp-suggest div b {
+            color: #1e3a8a;
+        }
+        .bp-suggest div:hover b, .bp-suggest div.active b {
+            color: #ffffff !important;
+        }
+    </style>
+
+    <!-- Find Modal -->
+    <div id="bp_find_modal" style="display: none; position: absolute; top: 30px; left: 100px; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+        <div id="bp_find_modal_content" style="background: white; width: 900px; border-radius: 4px; display: flex; flex-direction: column; font-family: Arial, sans-serif; border: 1px solid #cbd5e0;">
+            
+            <!-- Window Title -->
+            <div id="bp_find_modal_header" style="background: #1F4E79; color: white; padding: 5px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-radius: 4px 4px 0 0; cursor: move;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span id="bp_find_window_title">Find Bank Payments</span>
+                </div>
+                <button onclick="window.BPModule.closeFindModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; font-weight: bold; padding: 0 4px; line-height: 14px;">&times;</button>
+            </div>
+            
+            <!-- Toolbar Area -->
+            <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e0; display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Find</label>
+                    <select id="bp_find_field" style="font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px;">
+                        <option value="serial_no">Serial No.</option>
+                        <option value="payment_date">Date</option>
+                        <option value="vendor_name">Vendor</option>
+                        <option value="cash_account_name">Bank Account</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Value</label>
+                    <input type="text" id="bp_find_search" oninput="window.BPModule.filterFindTable()" style="width: 200px; font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px; outline: none;">
+                </div>
+
+                <div style="display: flex; gap: 5px; margin-left: auto;">
+                    <button onclick="window.BPModule.filterFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 4px 12px; font-size: 11px; cursor: pointer;">Find</button>
+                    <button onclick="window.BPModule.renderFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 4px 12px; font-size: 11px; cursor: pointer;">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Table Header Hint -->
+            <div style="padding: 5px 15px; font-size: 11px; font-style: italic; color: #555; background: #f8f9fa;">
+                Double-click a row to load the bank payment.
+            </div>
+            
+            <!-- Modal Table -->
+            <div style="height: 350px; overflow-y: auto; overflow-x: auto; background: white; margin: 0; border-top: 1px solid #cbd5e0; border-bottom: 1px solid #cbd5e0;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; white-space: nowrap;">
+                    <thead style="position: sticky; top: 0; background: #e2e8f0; z-index: 1;">
+                        <tr>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; width: 15px; text-align: center;"></th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Serial No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Vendor</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Bank Account</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">W.H. Tax</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Flood Tax</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Sales Tax</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Adv. Adj.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Discount</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Amount Paid</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: center;">Posted</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bp_find_table_body">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Footer Area -->
+            <div style="padding: 8px 15px; background: #f1f5f9; display: flex; align-items: center; gap: 10px; font-size: 11px; border-radius: 0 0 4px 4px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-weight: 500; color: #334155;">Added By User</span>
+                    <input type="text" id="bp_added_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="bp_added_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                    <span style="font-weight: 500; color: #334155;">Edited By User</span>
+                    <input type="text" id="bp_edited_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="bp_edited_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

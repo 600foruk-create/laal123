@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Softifyx Financial Software | Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #f0f4f8;
+            background-image: url('assets/images/login/login_bg.jpg');
+            background-size: cover;
+            background-position: center;
+            min-height: 100vh;
+            display: flex;
+            justify-content: flex-end; /* Desktop Default: Right-aligned */
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px 15% 20px 20px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                justify-content: center; /* Mobile: Centered */
+                padding: 20px;
+            }
+        }
+        form {
+            position: relative;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(10px);
+            padding: 1.5em 2em 2em;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 420px;
+            z-index: 10;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .login-logo {
+            display: block; width: 100px; margin: -50px auto 10px;
+            background: #fff; padding: 5px; border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .svgContainer {
+            width: 140px; height: 140px; margin: 0 auto 1.5em;
+            border-radius: 50%; overflow: hidden; background: #eef5ff;
+            border: 2px solid #217093;
+        }
+        .svgContainer .mySVG { width: 100%; height: 100%; }
+        
+        .field-row {
+            display: flex; align-items: center; margin-bottom: 10px;
+        }
+        .field-row label {
+            width: 120px; font-size: 0.85em; font-weight: 700; color: #3A5E77;
+        }
+        .field-row select, .field-row input {
+            flex: 1; height: 32px; padding: 0 10px; border: 1px solid #ced4da;
+            border-radius: 4px; font-size: 0.85em; color: #495057;
+            background-color: #f8f9fa; outline: none;
+            min-width: 0; /* Ensures flex-item can shrink below its content size */
+            width: 100%;
+        }
+        .field-row select:focus, .field-row input:focus { border-color: #217093; background: #fff; }
+        
+        .action-row {
+            display: flex; justify-content: space-between; gap: 10px; margin-top: 15px;
+        }
+        .btn {
+            height: 32px; padding: 0 15px; font-size: 0.8em; font-weight: 600;
+            border: 1px solid #ced4da; border-radius: 4px; cursor: pointer;
+            background: #f8f9fa; color: #495057; transition: all 0.2s;
+        }
+        .btn.btn-primary { background: #217093; border-color: #217093; color: #fff; flex: 1; }
+        .btn.btn-default { width: 100px; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .branding { text-align: center; margin-top: 20px; font-size: 0.75em; color: #6c757d; border-top: 1px solid #dee2e6; padding-top: 10px; }
+        .brand-title { font-weight: 700; color: #214d64; margin-bottom: 2px; }
+
+        /* Off-Time Modal Styles */
+        .offtime-modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 999999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            animation: offtimeFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes offtimeFadeIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .offtime-modal-card {
+            background: #ffffff;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 440px;
+            padding: 28px 24px 22px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(239, 68, 68, 0.2);
+            text-align: center;
+            position: relative;
+        }
+        .offtime-badge {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            margin-bottom: 14px;
+            box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.12);
+        }
+        .offtime-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 3px;
+        }
+        .offtime-subtitle {
+            font-size: 13px;
+            font-weight: 700;
+            color: #2563eb;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 14px;
+        }
+        .offtime-notice-box {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+            font-size: 12.5px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            line-height: 1.45;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .offtime-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .offtime-grid-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px;
+        }
+        .offtime-grid-item .label {
+            display: block;
+            font-size: 10.5px;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .offtime-grid-item .val {
+            display: block;
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 3px;
+        }
+        .countdown-wrapper {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #ffffff;
+            border-radius: 14px;
+            padding: 14px 12px;
+            margin-bottom: 14px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .countdown-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        .countdown-digits {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .time-box {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 6px 12px;
+            min-width: 68px;
+        }
+        .time-val {
+            display: block;
+            font-size: 26px;
+            font-weight: 800;
+            font-family: 'Consolas', 'Courier New', monospace;
+            color: #38bdf8;
+            line-height: 1;
+        }
+        .time-lbl {
+            display: block;
+            font-size: 9.5px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+        .colon {
+            font-size: 24px;
+            font-weight: 800;
+            color: #38bdf8;
+            animation: blinkColon 1s infinite;
+        }
+        @keyframes blinkColon {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
+        .offtime-security-note {
+            font-size: 11.5px;
+            color: #64748b;
+            line-height: 1.4;
+            margin-bottom: 16px;
+        }
+        .offtime-close-btn {
+            width: 100%;
+            height: 42px;
+            background: #0f172a;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .offtime-close-btn:hover {
+            background: #1e293b;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Fake 404 Security Lock Screen -->
+    <div id="security-lock-screen" style="display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #f7f9fc; z-index: 99999999; flex-direction: column; align-items: center; justify-content: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center;">
+        <div style="position: relative; width: 600px; height: 350px; display: flex; justify-content: center; align-items: center;">
+            <div style="position: absolute; top: 20px; left: 50px; width: 500px; height: 300px; border: 1px solid #dcdfe6; z-index: 1;"></div>
+            <div style="position: absolute; top: 20px; right: 50px; font-size: 100px; font-weight: 300; color: #e2e8f0; font-family: monospace; z-index: 1; letter-spacing: 5px;">404</div>
+            <div style="position: absolute; left: 100px; top: 100px; width: 150px; height: 150px; background-color: #ebeaf7; transform: rotate(45deg); z-index: 1;"></div>
+            <div style="position: absolute; left: 120px; bottom: 80px; width: 120px; height: 40px; border-bottom: 20px solid #6c46f6; border-left: 20px solid transparent; border-right: 10px solid transparent; border-radius: 0 0 50px 50px; transform: rotate(-20deg); z-index: 3;"></div>
+            <div style="position: absolute; right: 100px; bottom: 120px; width: 60px; height: 20px; background-color: #6c46f6; transform: rotate(-30deg); z-index: 3;"></div>
+            <i class="fas fa-skating" style="font-size: 140px; color: #4a5568; z-index: 2; position: relative; left: 20px;"></i>
+        </div>
+        <h1 style="font-size: 28px; font-weight: 700; color: #1a202c; margin-top: 20px; margin-bottom: 15px;">This Page Does Not Exist</h1>
+        <p style="color: #718096; font-size: 16px; max-width: 600px; line-height: 1.5;">
+            Sorry, the page you are looking for could not be found. It's just an accident that was not<br>intentional.
+        </p>
+    </div>
+
+    <!-- Branch Off-Time / Off-Day Countdown Modal -->
+    <div id="offTimeModal" class="offtime-modal-backdrop" style="display: none;">
+        <div class="offtime-modal-card">
+            <div class="offtime-badge" id="offTimeBadge">
+                <i class="fas fa-clock fa-spin" style="--fa-animation-duration: 12s;"></i>
+            </div>
+            <h2 class="offtime-title" id="offTimeTitle">Branch Closed (Off-Time)</h2>
+            <p class="offtime-subtitle" id="offTimeBranchName">Assigned Branch</p>
+            
+            <div class="offtime-notice-box" id="offTimeNoticeBox">
+                <i class="fas fa-exclamation-triangle" style="color: #e67e22; margin-right: 6px;" id="offTimeNoticeIcon"></i>
+                <span id="offTimeNoticeText">This branch is currently closed (off-hours). Please log in after the scheduled opening time.</span>
+            </div>
+
+            <div class="offtime-grid">
+                <div class="offtime-grid-item">
+                    <span class="label" id="offTimeHoursLabel">Operating Hours</span>
+                    <span class="val" id="offTimeOperatingHours">-- : --</span>
+                </div>
+                <div class="offtime-grid-item">
+                    <span class="label" id="offTimeClockLabel">Current Time (PKT)</span>
+                    <span class="val" id="offTimeCurrentClock">-- : --</span>
+                </div>
+            </div>
+
+            <div class="countdown-wrapper" id="offTimeCdWrapper">
+                <div class="countdown-title" id="offTimeCdTitle">Time Remaining Until Opening</div>
+                <div class="countdown-digits">
+                    <div class="time-box">
+                        <span class="time-val" id="cdHours">00</span>
+                        <span class="time-lbl">Hours</span>
+                    </div>
+                    <span class="colon">:</span>
+                    <div class="time-box">
+                        <span class="time-val" id="cdMinutes">00</span>
+                        <span class="time-lbl">Minutes</span>
+                    </div>
+                    <span class="colon">:</span>
+                    <div class="time-box">
+                        <span class="time-val" id="cdSeconds">00</span>
+                        <span class="time-lbl">Seconds</span>
+                    </div>
+                </div>
+            </div>
+
+            <p class="offtime-security-note" id="offTimeSecurityNote">
+                <i class="fas fa-shield-alt" style="color: #059669;"></i> Per branch operating policy, POS sales and user logins are strictly restricted during off-hours.
+            </p>
+
+            <button type="button" class="offtime-close-btn" id="closeOffTimeModalBtn">
+                <i class="fas fa-times-circle"></i> Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Branch Location / Geofencing Restriction Modal -->
+    <div id="geofenceModal" class="offtime-modal-backdrop" style="display: none;">
+        <div class="offtime-modal-card">
+            <div class="offtime-badge" id="geoBadge" style="background: #fee2e2; border-color: #fca5a5;">
+                <i class="fas fa-map-marker-alt" style="color: #ef4444; font-size: 28px;" id="geoIcon"></i>
+            </div>
+            <h2 class="offtime-title" id="geoTitle" style="color: #991b1b;">Location Access Required</h2>
+            <p class="offtime-subtitle" id="geoBranchName">Assigned Branch</p>
+            
+            <div class="offtime-notice-box" id="geoNoticeBox" style="background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b;">
+                <i class="fas fa-shield-alt" style="color: #dc2626; margin-right: 6px;" id="geoNoticeIcon"></i>
+                <span id="geoNoticeText">Location verification is required for this branch. Please allow GPS / Location access in your browser.</span>
+            </div>
+
+            <div class="offtime-grid" id="geoGridDetails" style="display: none;">
+                <div class="offtime-grid-item">
+                    <span class="label">Your Distance</span>
+                    <span class="val" id="geoDistanceVal" style="color: #dc2626;">-- m</span>
+                </div>
+                <div class="offtime-grid-item">
+                    <span class="label">Allowed Shop Radius</span>
+                    <span class="val" id="geoAllowedRadiusVal" style="color: #2563eb;">-- m</span>
+                </div>
+            </div>
+
+            <p class="offtime-security-note" id="geoSecurityNote" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; font-size: 11.5px; color: #475569; text-align: left; margin: 15px 0;">
+                <i class="fas fa-info-circle" style="color: #2563eb;"></i> Per shop security policy, POS login is strictly restricted to authorized shop premises. If you are inside the shop, please enable GPS / Location on your device.
+            </p>
+
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button type="button" class="btn btn-primary" id="geoRetryBtn" style="flex: 1; height: 42px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-location-arrow"></i> Allow GPS & Retry
+                </button>
+                <button type="button" class="btn btn-secondary" id="closeGeofenceModalBtn" style="height: 42px; border-radius: 8px; font-weight: 600; padding: 0 20px;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <form id="loginForm">
+        <img src="assets/logos/logo.png" class="login-logo" onerror="this.src='https://via.placeholder.com/100x30?text=Softifyx'">
+        
+        <div class="svgContainer">
+            <svg class="mySVG" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 200 200">
+                <defs>
+                    <circle id="armMaskPath" cx="100" cy="100" r="100" />
+                </defs>
+                <clipPath id="armMask">
+                    <use xlink:href="#armMaskPath" overflow="visible" />
+                </clipPath>
+                <circle cx="100" cy="100" r="100" fill="#a9ddf3" />
+                <g class="body">
+                    <path fill="#FFFFFF" d="M193.3,135.9c-5.8-8.4-15.5-13.9-26.5-13.9H151V72c0-27.6-22.4-50-50-50S51,44.4,51,72v50H32.1 c-10.6,0-20,5.1-25.8,13l0,78h187L193.3,135.9z" />
+                    <path fill="none" stroke="#3A5E77" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M193.3,135.9 c-5.8-8.4-15.5-13.9-26.5-13.9H151V72c0-27.6-22.4-50-50-50S51,44.4,51,72v50H32.1c-10.6,0-20,5.1-25.8,13" />
+                    <path fill="#DDF1FA" d="M100,156.4c-22.9,0-43,11.1-54.1,27.7c15.6,10,34.2,15.9,54.1,15.9s38.5-5.8,54.1-15.9 C143,167.5,122.9,156.4,100,156.4z" />
+                </g>
+                <g class="earL">
+                    <g class="outerEar" fill="#ddf1fa" stroke="#3a5e77" stroke-width="2.5">
+                        <circle cx="47" cy="83" r="11.5" />
+                        <path d="M46.3 78.9c-2.3 0-4.1 1.9-4.1 4.1 0 2.3 1.9 4.1 4.1 4.1" stroke-linecap="round" stroke-linejoin="round" />
+                    </g>
+                    <g class="earHair">
+                        <rect x="51" y="64" fill="#FFFFFF" width="15" height="35" />
+                        <path d="M53.4 62.8C48.5 67.4 45 72.2 42.8 77c3.4-.1 6.8-.1 10.1.1-4 3.7-6.8 7.6-8.2 11.6 2.1 0 4.2 0 6.3.2-2.6 4.1-3.8 8.3-3.7 12.5 1.2-.7 3.4-1.4 5.2-1.9" fill="#fff" stroke="#3a5e77" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </g>
+                </g>
+                <g class="earR">
+                    <g class="outerEar" fill="#ddf1fa" stroke="#3a5e77" stroke-width="2.5">
+                        <circle cx="155" cy="83" r="11.5" />
+                        <path d="M155.7 78.9c2.3 0 4.1 1.9 4.1 4.1 0 2.3-1.9 4.1-4.1 4.1" stroke-linecap="round" stroke-linejoin="round" />
+                    </g>
+                    <g class="earHair">
+                        <rect x="131" y="64" fill="#FFFFFF" width="20" height="35" />
+                        <path d="M148.6 62.8c4.9 4.6 8.4 9.4 10.6 14.2-3.4-.1-6.8-.1-10.1.1 4 3.7 6.8 7.6 8.2 11.6-2.1 0-4.2 0-6.3.2 2.6 4.1 3.8 8.3 3.7 12.5-1.2-.7-3.4-1.4-5.2-1.9" fill="#fff" stroke="#3a5e77" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </g>
+                </g>
+                <path class="chin" d="M84.1 121.6c2.7 2.9 6.1 5.4 9.8 7.5l.9-4.5c2.9 2.5 6.3 4.8 10.2 6.5 0-1.9-.1-3.9-.2-5.8 3 1.2 6.2 2 9.7 2.5-.3-2.1-.7-4.1-1.2-6.1" fill="none" stroke="#3a5e77" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                <path class="face" fill="#DDF1FA" d="M134.5,46v35.5c0,21.815-15.446,39.5-34.5,39.5s-34.5-17.685-34.5-39.5V46" />
+                <path class="hair" fill="#FFFFFF" stroke="#3A5E77" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M81.457,27.929 c1.755-4.084,5.51-8.262,11.253-11.77c0.979,2.565,1.883,5.14,2.712,7.723c3.162-4.265,8.626-8.27,16.272-11.235 c-0.737,3.293-1.588,6.573-2.554,9.837c4.857-2.116,11.049-3.64,18.428-4.156c-2.403,3.23-5.021,6.391-7.852,9.474" />
+                <g class="eyebrow">
+                    <path fill="#FFFFFF" d="M138.142,55.064c-4.93,1.259-9.874,2.118-14.787,2.599c-0.336,3.341-0.776,6.689-1.322,10.037 c-4.569-1.465-8.909-3.222-12.996-5.226c-0.98,3.075-2.07,6.137-3.267,9.179c-5.514-3.067-10.559-6.545-15.097-10.329 c-1.806,2.889-3.745,5.73-5.816,8.515c-7.916-4.124-15.053-9.114-21.296-14.738l1.107-11.768h73.475V55.064z" />
+                    <path fill="#FFFFFF" stroke="#3A5E77" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M63.56,55.102 c6.243,5.624,13.38,10.614,21.296,14.738c2.071-2.785,4.01-5.626,5.816-8.515c4.537,3.785,9.583,7.263,15.097,10.329 c1.197-3.043,2.287-6.104,3.267-9.179c4.087,2.004,8.427,3.761,12.996,5.226c0.545-3.348,0.986-6.696,1.322-10.037 c4.913-0.481,9.857-1.34,14.787-2.599" />
+                </g>
+                <g class="eyeL">
+                    <circle cx="85.5" cy="78.5" r="3.5" fill="#3a5e77" />
+                    <circle class="pupil-L" cx="84" cy="76" r="1.5" fill="#fff" />
+                </g>
+                <g class="eyeR">
+                    <circle cx="114.5" cy="78.5" r="3.5" fill="#3a5e77" />
+                    <circle class="pupil-R" cx="113" cy="76" r="1.5" fill="#fff" />
+                </g>
+                <g class="mouth">
+                    <path class="mouthBG" fill="#617E92" d="M100.2,101c-0.4,0-1.4,0-1.8,0c-2.7-0.3-5.3-1.1-8-2.5c-0.7-0.3-0.9-1.2-0.6-1.8 c0.2-0.5,0.7-0.7,1.2-0.7c0.2,0,0.5,0.1,0.6,0.2c3,1.5,5.8,2.3,8.6,2.3s5.7-0.7,8.6-2.3c0.2-0.1,0.4-0.2,0.6-0.2 c0.5,0,1,0.3,1.2,0.7c0.4,0.7,0.1,1.5-0.6,1.9c-2.6,1.4-5.3,2.2-7.9,2.5C101.7,101,100.5,101,100.2,101z" />
+                    <path class="mouthOutline" fill="none" stroke="#3A5E77" stroke-width="2.5" stroke-linejoin="round" d="M100.2,101c-0.4,0-1.4,0-1.8,0c-2.7-0.3-5.3-1.1-8-2.5c-0.7-0.3-0.9-1.2-0.6-1.8 c0.2-0.5,0.7-0.7,1.2-0.7c0.2,0,0.5,0.1,0.6,0.2c3,1.5,5.8,2.3,8.6,2.3s5.7-0.7,8.6-2.3c0.2-0.1,0.4-0.2,0.6-0.2 c0.5,0,1,0.3,1.2,0.7c0.4,0.7,0.1,1.5-0.6,1.9c-2.6,1.4-5.3,2.2-7.9,2.5C101.7,101,100.5,101,100.2,101z" />
+                </g>
+                <path class="nose" d="M97.7 79.9h4.7c1.9 0 3 2.2 1.9 3.7l-2.3 3.3c-.9 1.3-2.9 1.3-3.8 0l-2.3-3.3c-1.3-1.6-.2-3.7 1.8-3.7z" fill="#3a5e77" />
+                <g class="arms" clip-path="url(#armMask)">
+                    <g class="armL">
+                        <path fill="#fff" stroke="#3a5e77" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M123.5 96.8c-41.4 14.9-84.1 30.7-108.2 35.5L1.2 80c33.5-9.9 71.9-16.5 111.9-21.8" />
+                        <path fill="#fff" stroke="#3a5e77" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M108.5 59.4c7.7-5.3 14.3-8.4 22.8-13.2-2.4 5.3-4.7 10.3-6.7 15.1 4.3.3 8.4.7 12.3 1.3-4.2 5-8.1 9.6-11.5 13.9 3.1 1.1 6 2.4 8.7 3.8-1.4 2.9-2.7 5.8-3.9 8.5 2.5 3.5 4.6 7.2 6.3 11-4.9-.8-9-.7-16.2-2.7M94.5 102.8c-.6 4-3.8 8.9-9.4 14.7-2.6-1.8-5-3.7-7.2-5.7-2.5 4.1-6.6 8.8-12.2 14-1.9-2.2-3.4-4.5-4.5-6.9-4.4 3.3-9.5 6.9-15.4 10.8-.2-3.4.1-7.1 1.1-10.9M97.5 62.9c-1.7-2.4-5.9-4.1-12.4-5.2-.9 2.2-1.8 4.3-2.5 6.5-3.8-1.8-9.4-3.1-17-3.8.5 2.3 1.2 4.5 1.9 6.8-5-.6-11.2-.9-18.4-1 2 2.9.9 3.5 3.9 6.2" />
+                    </g>
+                    <g class="armR">
+                        <path fill="#fff" stroke="#3a5e77" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M263.3 96.7c41.4 14.9 84.1 30.7 108.2 35.5l14-52.3C352 70 313.6 63.5 273.6 58.1" />
+                        <path fill="#fff" stroke="#3a5e77" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M278.2 59.3l-18.6-10 2.5 11.9-10.7 6.5 9.9 8.7-13.9 6.4 9.1 5.9-13.2 9.2 23.1-.9M284.5 100.1c-.4 4 1.8 8.9 6.7 14.8 3.5-1.8 6.7-3.6 9.7-5.5 1.8 4.2 5.1 8.9 10.1 14.1 2.7-2.1 5.1-4.4 7.1-6.8 4.1 3.4 9 7 14.7 11 1.2-3.4 1.8-7 1.7-10.9M314 66.7s5.4-5.7 12.6-7.4c1.7 2.9 3.3 5.7 4.9 8.6 3.8-2.5 9.8-4.4 18.2-5.7.1 3.1.1 6.1 0 9.2 5.5-1 12.5-1.6 20.8-1.9-1.4 3.9-2.5 8.4-2.5 8.4" />
+                    </g>
+                </g>
+            </svg>
+        </div>
+
+        <div class="field-row" id="row_user">
+            <label id="userFieldLabel">User Name</label>
+            <select id="userDropdown"></select>
+            <input type="text" id="userInputText" placeholder="Enter User Name" style="display: none;" autocomplete="username">
+        </div>
+        <div class="field-row" id="row_company">
+            <label>Company</label>
+            <select id="companyDropdown"></select>
+        </div>
+        <div class="field-row" id="row_year">
+            <label>Financial Year</label>
+            <div style="display:flex; gap:5px; flex:1;">
+                <select id="yearDropdown" style="flex:1;"></select>
+                <button type="button" id="setDefaultBtn" class="btn btn-default" style="width: auto;">Set Default</button>
+            </div>
+        </div>
+        <div class="field-row" id="row_password">
+            <label>Password</label>
+            <div style="display:flex; gap:5px; flex:1;">
+                <input type="password" id="password" autocomplete="new-password" style="flex: 1; max-width: 140px;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">Log in</button>
+            </div>
+        </div>
+
+        <div class="branding">
+            <div class="brand-title">SOFTIFYX FINANCIALS</div>
+            <div>A Project of <span style="font-weight:700">SOFTIFYX TECHNOLOGIES</span> | <a href="http://www.softifyx.com" target="_blank" style="color: #217093; text-decoration: none;">www.softifyx.com</a></div>
+            <div style="margin-top:2px;">Plot No: 192/8, Road No: L-11, Industrial Estate Gadoon Amazai Tehsil Topi District Swabi, KPK Pakistan</div>
+            <div style="margin-top:2px; font-weight: 600;">support@softifyx.com | +92 331 7240256</div>
+        </div>
+    </form>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script>
+        let companies = [];
+        let users = [];
+        let financialYears = [];
+        const savedDefaults = JSON.parse(localStorage.getItem('softifyx_login_defaults') || '{}');
+
+        const userSelect = document.getElementById('userDropdown');
+        const userInputText = document.getElementById('userInputText');
+        const companySelect = document.getElementById('companyDropdown');
+        const yearSelect = document.getElementById('yearDropdown');
+
+        let loginSettings = {
+            login_user_dropdown: '1',
+            login_show_username: '1',
+            login_show_company: '1',
+            login_show_financial_year: '1'
+        };
+
+        function applyLoginSettings(cfg) {
+            if (!cfg) return;
+            const isDropdown = (cfg.login_user_dropdown !== '0');
+            if (userSelect && userInputText) {
+                if (isDropdown) {
+                    userSelect.style.display = 'block';
+                    userInputText.style.display = 'none';
+                } else {
+                    userSelect.style.display = 'none';
+                    userInputText.style.display = 'block';
+                    if (!userInputText.value && savedDefaults.username) {
+                        userInputText.value = savedDefaults.username;
+                    }
+                }
+            }
+
+            const showUser = (cfg.login_show_username !== '0');
+            const showCompany = (cfg.login_show_company !== '0');
+            const showYear = (cfg.login_show_financial_year !== '0');
+
+            const rUser = document.getElementById('row_user');
+            const rCompany = document.getElementById('row_company');
+            const rYear = document.getElementById('row_year');
+            const rPassword = document.getElementById('row_password');
+
+            if (rUser) rUser.style.display = showUser ? 'flex' : 'none';
+            if (rPassword) rPassword.style.display = showUser ? 'flex' : 'none';
+            if (rCompany) rCompany.style.display = showCompany ? 'flex' : 'none';
+            if (rYear) rYear.style.display = showYear ? 'flex' : 'none';
+        }
+
+        // Apply immediately from cache for 0ms flicker
+        try {
+            const cachedDisplay = localStorage.getItem('softifyx_login_display_settings');
+            if (cachedDisplay) {
+                loginSettings = Object.assign(loginSettings, JSON.parse(cachedDisplay));
+            }
+        } catch(e) {}
+        applyLoginSettings(loginSettings);
+
+        // 1. Initial Load: Fetch All Companies from Database
+        async function loadInitialData() {
+            try {
+                // Fetch Companies
+                const res = await fetch('api/admin.php?action=get_companies');
+                if (res.ok) {
+                    companies = await res.json();
+                    companySelect.innerHTML = '';
+                    companies.forEach(c => { 
+                        // Only show active companies (status=1)
+                        if (c.status != 0) {
+                            const cName = c.name || "Default Business";
+                            const cId = c.id;
+                            const op = new Option(cName, cName);
+                            op.dataset.id = cId;
+                            companySelect.add(op);
+                        }
+                    });
+
+                    // Set default if saved
+                    if (savedDefaults.company) companySelect.value = savedDefaults.company;
+                    
+                    // After companies are loaded, load users and years for the selected company
+                    updateUsersAndData();
+                }
+            } catch (err) { console.error('Initial Load Error:', err); }
+        }
+
+        // 2. Dynamic Data: Fetch Users & Years based on selected company
+        async function updateUsersAndData() {
+            const selectedOp = companySelect.options[companySelect.selectedIndex];
+            if (!selectedOp) return;
+            
+            const coName = selectedOp.value;
+            const coId = selectedOp.dataset.id;
+            
+            try {
+                // Update Users for this company
+                const usersRes = await fetch(`api/admin.php?action=get_users&company_id=${coId}`);
+                if (usersRes.ok) {
+                    users = await usersRes.json();
+                    userSelect.innerHTML = '';
+                    
+                    // Ensure Administrator is always first
+                    if (!users.some(u => u.username === "Administrator")) {
+                        userSelect.add(new Option("Administrator", "Administrator"));
+                    }
+
+                    users.forEach(u => {
+                        const op = new Option(u.username, u.username);
+                        userSelect.add(op);
+                    });
+
+                    // Set default user if saved
+                    if (savedDefaults.username) {
+                        userSelect.value = savedDefaults.username;
+                        if (userInputText && !userInputText.value) userInputText.value = savedDefaults.username;
+                    }
+                }
+
+                // Update Financial Years for this company
+                const fyRes = await fetch(`api/admin.php?action=get_fy&company_id=${coId}`);
+                if (fyRes.ok) {
+                    financialYears = await fyRes.json();
+                    yearSelect.innerHTML = '';
+                    financialYears.forEach(y => {
+                        const yName = y.abbreviation || y.year || "FY";
+                        const op = new Option(yName, yName); 
+                        yearSelect.add(op); 
+                    });
+
+                    // Set default year if saved
+                    if (savedDefaults.year) yearSelect.value = savedDefaults.year;
+                }
+            } catch (err) { console.error('Update Users Error:', err); }
+        }
+
+        companySelect.addEventListener('change', updateUsersAndData);
+
+        // Initial Initialization
+        loadInitialData();
+
+        document.getElementById('setDefaultBtn').addEventListener('click', () => {
+            const isDropdown = (loginSettings.login_user_dropdown !== '0');
+            const uVal = isDropdown ? userSelect.value : (userInputText?.value.trim() || '');
+            const selectedU = users.find(u => u.username === uVal);
+            const defaults = {
+                username: uVal,
+                company: companySelect.value,
+                year: yearSelect.value,
+                role: selectedU ? selectedU.role : ''
+            };
+            localStorage.setItem('softifyx_login_defaults', JSON.stringify(defaults));
+            
+            // Visual feedback
+            const btn = document.getElementById('setDefaultBtn');
+            const originalText = btn.textContent;
+            btn.textContent = 'Saved! ✅';
+            btn.style.borderColor = '#27ae60';
+            btn.style.color = '#27ae60';
+            
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.borderColor = '#ced4da';
+                btn.style.color = '#495057';
+            }, 2000);
+        });
+
+        // AUTHENTIC YETI LOGIC for User-Provided SVG
+        const armL = document.querySelector('.armL');
+        const armR = document.querySelector('.armR');
+        const pupilL = document.querySelector('.pupil-L');
+        const pupilR = document.querySelector('.pupil-R');
+        const passwordInput = document.getElementById('password');
+
+        // Initial setup for the folding arms
+        // Calibrated for the specific paths in the provided SVG
+        gsap.set(armL, { x: -93, y: 10 });
+        gsap.set(armR, { x: -93, y: 10 });
+
+        passwordInput.addEventListener('focus', () => {
+            // Fold up to cover eyes (Authentic motion)
+            gsap.to(armL, { x: -10, y: 2, ease: "power2.out", duration: 0.6 });
+            gsap.to(armR, { x: -178, y: 2, ease: "power2.out", duration: 0.6 });
+        });
+
+        passwordInput.addEventListener('blur', () => {
+            // Fold back down
+            gsap.to(armL, { x: -93, y: 10, ease: "power2.in", duration: 0.5 });
+            gsap.to(armR, { x: -93, y: 10, ease: "power2.in", duration: 0.5 });
+        });
+
+        // Interaction (Eye Tracking)
+        document.addEventListener('mousemove', (e) => {
+            if (document.activeElement === passwordInput) return;
+            const x = (e.clientX / window.innerWidth - 0.5) * 12;
+            const y = (e.clientY / window.innerHeight - 0.5) * 12;
+            gsap.to([pupilL, pupilR], { x: x, y: y, duration: 0.2 });
+        });
+
+        // Geolocation helper & proactive permission check
+        window.lastCapturedCoords = null;
+        async function getBrowserGPS(timeoutMs = 4000) {
+            if (!navigator.geolocation) return null;
+            return new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+                    (err) => resolve(null),
+                    { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 }
+                );
+            });
+        }
+
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+                if (result.state === 'granted') {
+                    getBrowserGPS(3000).then(c => { if (c) window.lastCapturedCoords = c; });
+                }
+            }).catch(() => {});
+        }
+
+        // Form Submit
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await attemptLogin(false);
+        });
+
+        async function attemptLogin(forceRequestGPS = false) {
+            const isDropdown = (loginSettings.login_user_dropdown !== '0');
+            const u = isDropdown ? userSelect.value : (userInputText?.value.trim() || '');
+            if (!u) {
+                alert('Please enter your User Name.');
+                (isDropdown ? userSelect : userInputText).focus();
+                return;
+            }
+            const p = passwordInput.value;
+            const coName = companySelect.value || savedDefaults.company || 'default';
+            
+            let coords = window.lastCapturedCoords;
+            if (!coords || forceRequestGPS) {
+                coords = await getBrowserGPS(forceRequestGPS ? 10000 : 3500);
+                if (coords) window.lastCapturedCoords = coords;
+            }
+
+            try {
+                const response = await fetch('api/auth.php?action=login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: u,
+                        password: p,
+                        company: coName,
+                        latitude: coords ? coords.latitude : null,
+                        longitude: coords ? coords.longitude : null
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    const selectedYearLabel = yearSelect.value || savedDefaults.year || (financialYears[0] ? (financialYears[0].abbreviation || financialYears[0].year) : '');
+                    const selectedYearData = financialYears.find(y => (y.abbreviation || y.year) === selectedYearLabel) || {};
+
+                    const sessionInfo = {
+                        user_id: result.user.id,
+                        username: result.user.username,
+                        role: result.user.role,
+                        company_id: result.user.company_id,
+                        company_name: result.user.company_name || coName,
+                        branch_id: result.user.branch_id || null,
+                        branch_name: result.user.branch_name || '',
+                        branch_code: result.user.branch_code || '',
+                        invoice_series: result.user.invoice_series || '',
+                        opening_time: result.user.opening_time || null,
+                        closing_time: result.user.closing_time || null,
+                        off_day: result.user.off_day || null,
+                        enable_geofencing: result.user.enable_geofencing || 0,
+                        radius_meters: result.user.radius_meters || 100,
+                        loginTime: Date.now(),
+                        // Financial Year Metadata
+                        fy_id: selectedYearData.id || 0,
+                        fy_label: selectedYearLabel,
+                        fy_start: selectedYearData.start_date || '',
+                        fy_end: selectedYearData.end_date || ''
+                    };
+                    localStorage.setItem('softifyx_session', JSON.stringify(sessionInfo));
+                    localStorage.setItem('softifyx_is_locked', 'false');
+                    if (savedDefaults.username === u) {
+                        savedDefaults.role = result.user.role;
+                        localStorage.setItem('softifyx_login_defaults', JSON.stringify(savedDefaults));
+                    }
+                    window.location.href = 'index.html';
+                } else {
+                    if (result && (result.is_location_required || result.is_out_of_bounds)) {
+                        showGeofenceModal(result);
+                    } else if (result && (result.is_off_time || result.is_off_day)) {
+                        showOffTimeModal(result);
+                    } else {
+                        alert(result.error || "Invalid username or password!");
+                        gsap.to("form", 0.05, { x: 10, repeat: 5, yoyo: true });
+                    }
+                }
+            } catch (err) {
+                console.error('Login error:', err);
+                alert("Server Connection Failed. Please try again later.");
+            }
+        }
+
+        // Off-Time / Off-Day Modal Logic & Live Countdown
+        let offTimeTimerInterval = null;
+
+        function showOffTimeModal(data) {
+            const modal = document.getElementById('offTimeModal');
+            if (!modal) return;
+            
+            const isOffDay = !!data.is_off_day;
+            const branchName = data.branch_name || 'Assigned Branch';
+            document.getElementById('offTimeBranchName').textContent = branchName;
+            
+            const badgeEl = document.getElementById('offTimeBadge');
+            const titleEl = document.getElementById('offTimeTitle');
+            const noticeIcon = document.getElementById('offTimeNoticeIcon');
+            const noticeText = document.getElementById('offTimeNoticeText');
+            const hoursLabel = document.getElementById('offTimeHoursLabel');
+            const hoursVal = document.getElementById('offTimeOperatingHours');
+            const clockLabel = document.getElementById('offTimeClockLabel');
+            const cdTitle = document.getElementById('offTimeCdTitle');
+            const secNote = document.getElementById('offTimeSecurityNote');
+
+            if (isOffDay) {
+                if (badgeEl) badgeEl.innerHTML = '<i class="fas fa-calendar-times" style="color: #ef4444; font-size: 26px;"></i>';
+                if (titleEl) titleEl.textContent = 'Branch Closed (Weekly Off Day)';
+                if (noticeIcon) {
+                    noticeIcon.className = 'fas fa-calendar-times';
+                    noticeIcon.style.color = '#ef4444';
+                }
+                const offDayName = data.off_day || data.current_day || 'Today';
+                if (noticeText) {
+                    noticeText.innerHTML = `Today (<strong>${data.current_day || offDayName}</strong>) is an official weekly <strong>OFF DAY</strong> for <strong>${branchName}</strong>. All POS terminal sales and cashier logins are closed today.`;
+                }
+                if (hoursLabel) hoursLabel.textContent = 'Weekly Off Day';
+                if (hoursVal) hoursVal.innerHTML = `<span style="color:#b45309; font-weight:700;">${offDayName}</span>`;
+                if (clockLabel) clockLabel.textContent = 'Current Day & Time';
+                if (cdTitle) cdTitle.textContent = 'Time Remaining Until Off Day Ends';
+                if (secNote) {
+                    secNote.innerHTML = '<i class="fas fa-shield-alt" style="color: #059669;"></i> Per branch schedule policy, POS terminal access is restricted on weekly off days.';
+                }
+            } else {
+                if (badgeEl) badgeEl.innerHTML = '<i class="fas fa-clock fa-spin" style="--fa-animation-duration: 12s;"></i>';
+                if (titleEl) titleEl.textContent = 'Branch Closed (Off-Time)';
+                if (noticeIcon) {
+                    noticeIcon.className = 'fas fa-exclamation-triangle';
+                    noticeIcon.style.color = '#e67e22';
+                }
+                if (noticeText) {
+                    noticeText.textContent = 'This branch is currently closed (off-hours). Please log in after the scheduled opening time.';
+                }
+                if (hoursLabel) hoursLabel.textContent = 'Operating Hours';
+                if (hoursVal) hoursVal.textContent = `${data.opening_time || ''} - ${data.closing_time || ''}`;
+                if (clockLabel) clockLabel.textContent = 'Current Time (PKT)';
+                if (cdTitle) cdTitle.textContent = 'Time Remaining Until Opening';
+                if (secNote) {
+                    secNote.innerHTML = '<i class="fas fa-shield-alt" style="color: #059669;"></i> Per branch operating policy, POS sales and user logins are strictly restricted during off-hours.';
+                }
+            }
+
+            let openH = 7, openM = 0, openS = 0;
+            if (data.raw_opening_time) {
+                const parts = data.raw_opening_time.split(':');
+                openH = parseInt(parts[0], 10) || 0;
+                openM = parseInt(parts[1], 10) || 0;
+                openS = parseInt(parts[2] || '0', 10) || 0;
+            }
+
+            if (offTimeTimerInterval) clearInterval(offTimeTimerInterval);
+
+            function updateCountdown() {
+                const now = new Date();
+                const curEl = document.getElementById('offTimeCurrentClock');
+                if (curEl) {
+                    if (isOffDay) {
+                        const dayStr = now.toLocaleDateString([], { weekday: 'short' });
+                        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                        curEl.textContent = `${dayStr}, ${timeStr}`;
+                    } else {
+                        curEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                    }
+                }
+
+                let target;
+                if (isOffDay) {
+                    target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, openH, openM, openS);
+                } else {
+                    target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), openH, openM, openS);
+                    if (target <= now) {
+                        target.setDate(target.getDate() + 1);
+                    }
+                }
+
+                const diffMs = target - now;
+                if (diffMs <= 0) {
+                    document.getElementById('cdHours').textContent = '00';
+                    document.getElementById('cdMinutes').textContent = '00';
+                    document.getElementById('cdSeconds').textContent = '00';
+                } else {
+                    const hrs = Math.floor(diffMs / 3600000);
+                    const mins = Math.floor((diffMs % 3600000) / 60000);
+                    const secs = Math.floor((diffMs % 60000) / 1000);
+                    document.getElementById('cdHours').textContent = String(hrs).padStart(2, '0');
+                    document.getElementById('cdMinutes').textContent = String(mins).padStart(2, '0');
+                    document.getElementById('cdSeconds').textContent = String(secs).padStart(2, '0');
+                }
+            }
+
+            updateCountdown();
+            offTimeTimerInterval = setInterval(updateCountdown, 1000);
+
+            modal.style.display = 'flex';
+        }
+
+        document.getElementById('closeOffTimeModalBtn')?.addEventListener('click', () => {
+            const modal = document.getElementById('offTimeModal');
+            if (modal) modal.style.display = 'none';
+            if (offTimeTimerInterval) clearInterval(offTimeTimerInterval);
+        });
+
+        // Geofencing / Location Modal Handlers
+        function showGeofenceModal(data) {
+            const modal = document.getElementById('geofenceModal');
+            if (!modal) return;
+
+            const isOutOfBounds = !!data.is_out_of_bounds;
+            const branchName = data.branch_name || 'Assigned Branch';
+            document.getElementById('geoBranchName').textContent = branchName;
+
+            const titleEl = document.getElementById('geoTitle');
+            const noticeText = document.getElementById('geoNoticeText');
+            const gridEl = document.getElementById('geoGridDetails');
+            const distVal = document.getElementById('geoDistanceVal');
+            const radVal = document.getElementById('geoAllowedRadiusVal');
+
+            if (isOutOfBounds) {
+                titleEl.textContent = 'Outside Authorized Shop Location';
+                noticeText.innerHTML = `You are currently <strong>${data.distance_meters}m</strong> away from <strong>${branchName}</strong>. Allowed shop radius is <strong>${data.allowed_radius}m</strong>. POS login is strictly restricted inside shop premises.`;
+                gridEl.style.display = 'grid';
+                distVal.textContent = (data.distance_meters || 0) + ' m';
+                radVal.textContent = (data.allowed_radius || 100) + ' m';
+            } else {
+                titleEl.textContent = 'Location Verification Required';
+                noticeText.innerHTML = `Your assigned branch (<strong>${branchName}</strong>) requires physical presence at the shop. Please click <strong>"Allow GPS & Retry"</strong> and grant location permissions in your browser.`;
+                gridEl.style.display = 'none';
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function hideGeofenceModal() {
+            const modal = document.getElementById('geofenceModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        document.getElementById('closeGeofenceModalBtn')?.addEventListener('click', hideGeofenceModal);
+        document.getElementById('geoRetryBtn')?.addEventListener('click', async () => {
+            const btn = document.getElementById('geoRetryBtn');
+            const origHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Getting GPS...';
+                btn.disabled = true;
+            }
+            const c = await getBrowserGPS(10000);
+            if (c) window.lastCapturedCoords = c;
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+            hideGeofenceModal();
+            attemptLogin(true);
+        });
+
+        // Auto-show off-time or off-day modal if redirected from session due to branch restrictions
+        try {
+            const _urlP = new URLSearchParams(window.location.search);
+            const _offReason = sessionStorage.getItem('softifyx_offtime_reason');
+            if ((_urlP.get('off_time') === '1' || _urlP.get('off_day') === '1') && _offReason) {
+                showOffTimeModal(JSON.parse(_offReason));
+                sessionStorage.removeItem('softifyx_offtime_reason');
+            }
+        } catch (e) {}
+
+        // Security Lock Screen Logic
+        let lockScreenActive = true;
+        let typedSequence = '';
+        let targetUnlockCode = 'open';
+
+        // Fast check from local cache
+        const cachedActive = localStorage.getItem('softifyx_404_active');
+        let cachedTargets = { erp: true, digital_invoice: true, pos: true };
+        try {
+            const rawT = localStorage.getItem('softifyx_404_targets');
+            if (rawT) cachedTargets = Object.assign(cachedTargets, JSON.parse(rawT));
+        } catch(e) {}
+
+        const savedRole = (savedDefaults.role || '').toUpperCase();
+        if (cachedActive === '0' || (!cachedTargets.erp && !cachedTargets.pos) || (savedRole === 'POS' && cachedTargets.pos === false)) {
+            const lockEl = document.getElementById('security-lock-screen');
+            if (lockEl) lockEl.style.display = 'none';
+            lockScreenActive = false;
+        }
+
+        // Fetch login display and security settings from API
+        fetch('api/settings.php?action=get_login_settings&_t=' + Date.now())
+            .then(r => r.json())
+            .then(res => {
+                if (res && res.settings) {
+                    const s = res.settings;
+                    if (s.login_user_dropdown !== undefined) loginSettings.login_user_dropdown = s.login_user_dropdown;
+                    if (s.login_show_username !== undefined) loginSettings.login_show_username = s.login_show_username;
+                    if (s.login_show_company !== undefined) loginSettings.login_show_company = s.login_show_company;
+                    if (s.login_show_financial_year !== undefined) loginSettings.login_show_financial_year = s.login_show_financial_year;
+
+                    localStorage.setItem('softifyx_login_display_settings', JSON.stringify(loginSettings));
+                    applyLoginSettings(loginSettings);
+
+                    if (s.security_404_code) targetUnlockCode = s.security_404_code.toLowerCase();
+                    const isGlobActive = (s.security_404_active !== undefined && s.security_404_active !== null) ? (s.security_404_active !== '0') : true;
+                    const isErp = (s.security_404_target_erp !== undefined && s.security_404_target_erp !== null) ? (s.security_404_target_erp === '1') : true;
+                    const isPos = (s.security_404_target_pos !== undefined && s.security_404_target_pos !== null) ? (s.security_404_target_pos === '1') : true;
+                    const isDig = (s.security_404_target_digital_invoice !== undefined && s.security_404_target_digital_invoice !== null) ? (s.security_404_target_digital_invoice === '1') : true;
+
+                    localStorage.setItem('softifyx_404_active', isGlobActive ? '1' : '0');
+                    localStorage.setItem('softifyx_404_targets', JSON.stringify({ erp: isErp, digital_invoice: isDig, pos: isPos }));
+
+                    const sRole = (savedDefaults.role || '').toUpperCase();
+                    if (!isGlobActive || (!isErp && !isPos) || (sRole === 'POS' && !isPos)) {
+                        const lockEl = document.getElementById('security-lock-screen');
+                        if (lockEl) lockEl.style.display = 'none';
+                        lockScreenActive = false;
+                    }
+                }
+            }).catch(e => console.error(e));
+
+        document.addEventListener('keydown', (e) => {
+            const lockEl = document.getElementById('security-lock-screen');
+            const isVis = lockScreenActive || (lockEl && lockEl.style.display !== 'none');
+            if (isVis && e.key && e.key.length === 1) {
+                typedSequence += e.key.toLowerCase();
+                const curCode = (targetUnlockCode || localStorage.getItem('softifyx_404_code') || 'open').toLowerCase().trim();
+                if (typedSequence.endsWith(curCode) || typedSequence.endsWith('open')) {
+                    if (lockEl) lockEl.style.display = 'none';
+                    lockScreenActive = false;
+                    localStorage.setItem('softifyx_is_locked', 'false');
+                    const uEl = (loginSettings.login_user_dropdown !== '0') ? document.getElementById('userDropdown') : document.getElementById('userInputText');
+                    if (uEl) uEl.focus();
+                }
+                if (typedSequence.length > 25) {
+                    typedSequence = typedSequence.slice(-25);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

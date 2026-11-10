@@ -1,0 +1,452 @@
+<div id="openingBalancesContainer" data-module="Accounts Opening Balances" 
+     style="height: 100%; display: flex; flex-direction: column; gap: 4px; background: white; padding: 0px 15px 4px 15px; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden;">
+    
+    <!-- Header with Buttons matching screenshot -->
+    <div style="display: flex; justify-content: flex-end; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 5px;">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+            <button class="ob-btn" id="ob_btn_display" onclick="applyOBFilters()">
+                Display
+            </button>
+            <button class="ob-btn" onclick="window.openSecondaryModularPopup('Navigation/Maintain/chart_of_accounts.html', 'fa-sitemap', 'Chart of Accounts', window.initChartOfAccountsView, 'Chart of Accounts', true)">
+                New<br>Account
+            </button>
+            <button class="ob-btn" onclick="importBalances()">
+                Import<br>Balances
+            </button>
+            <button class="ob-btn" onclick="openCustomerPendingInvoices()">Customer<br>Pending<br>Invoices</button>
+            <button class="ob-btn" onclick="openVendorPendingInvoices()">Vendor<br>Pending<br>Invoices</button>
+            <button class="ob-btn ob-save" onclick="saveOpeningBalances()">
+                Save<br>(Ctrl+S)
+            </button>
+            <button class="ob-btn ob-cancel" onclick="closeModularPopup()">
+                Cancel
+            </button>
+            <button class="ob-btn ob-delete" onclick="deleteOBAccount()">Delete</button>
+            <button class="ob-btn" onclick="printOpeningBalances()">Print</button>
+        </div>
+    </div>
+
+    <!-- Trial Balance Style Filter Section -->
+    <style>
+        .obf-top-bar {
+            background: #EFEFEF;
+            border: 1px solid #777;
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 5px;
+            gap: 15px;
+            font-size: 12px;
+        }
+        .obf-filters-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            max-width: 600px;
+        }
+        .obf-filter-row {
+            display: flex;
+            align-items: center;
+        }
+        .obf-filter-row label {
+            width: 160px;
+            flex: none;
+            font-weight: bold;
+            font-style: italic;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-sizing: border-box;
+        }
+        .obf-filter-row select, .obf-filter-row input[type="text"], .obf-filter-row input[type="date"] {
+            flex: 1;
+            border: 1px solid #000;
+            padding: 2px 5px;
+            height: 22px;
+            box-sizing: border-box;
+        }
+        .softify-custom-select {
+            position: relative;
+            flex: 1;
+            font-size: 12px;
+        }
+        .softify-custom-select-btn {
+            border: 1px solid #000;
+            padding: 2px 5px;
+            height: 22px;
+            background: #fff;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .softify-custom-select-btn.disabled {
+            background: #e9ecef;
+            cursor: not-allowed;
+            color: #6c757d;
+        }
+        .softify-custom-select-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: #fff;
+            border: 1px solid #000;
+            border-top: none;
+            z-index: 9999;
+            max-height: 250px;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .softify-custom-select-menu.open {
+            display: block;
+        }
+        .softify-custom-select-menu div {
+            padding: 3px 5px;
+            cursor: pointer;
+            line-height: 1.2;
+            border-bottom: 1px solid #eee;
+        }
+        .softify-custom-select-menu div:hover,
+        .softify-custom-select-menu div.selected {
+            background-color: #1F4E79 !important;
+            color: #fff !important;
+        }
+        .obf-filter-radio {
+            margin: 0 5px 0 0;
+            vertical-align: middle;
+        }
+        .obf-controls-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            justify-content: space-between;
+            height: 100%;
+        }
+        .obf-btn {
+            background-color: #2a5879;
+            border: 1px solid #1a3c5c;
+            color: white;
+            padding: 4px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 2px;
+            font-weight: bold;
+            box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2);
+            white-space: nowrap;
+        }
+        .obf-btn:hover { background-color: #153859; }
+        .obf-suggest {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #fff;
+            border: 1px solid #ccc;
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .obf-suggest div {
+            padding: 5px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .obf-suggest div:hover {
+            background: #1F4E79;
+            color: #fff;
+        }
+    </style>
+
+    <div class="obf-top-bar">
+        <div class="obf-filters-left">
+            <div class="obf-filter-row">
+                <label><input type="radio" name="ob_filter" class="obf-filter-radio" value="all" id="ob_filter_all" checked> All Accounts</label>
+            </div>
+            <div class="obf-filter-row">
+                <label><input type="radio" name="ob_filter" class="obf-filter-radio" value="main" id="ob_filter_main"> Main Account Type</label>
+                <select id="ob_main_type" disabled></select>
+            </div>
+            <div class="obf-filter-row">
+                <label style="justify-content: flex-end; padding-right: 5px;"><input type="checkbox" id="ob_sub_type_check" disabled class="obf-filter-radio"> Sub Type</label>
+                <select id="ob_sub_type" disabled></select>
+            </div>
+            <div class="obf-filter-row">
+                <label style="justify-content: space-between; padding-right: 5px;">
+                    <span><input type="radio" name="ob_filter" class="obf-filter-radio" value="range" id="ob_filter_range"> Range</span>
+                    <span>From</span>
+                </label>
+                <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                    <input type="text" id="ob_range_from" style="width:100px; flex: none;" disabled autocomplete="off" placeholder="Code">
+                    <input type="text" id="ob_range_from_name" style="flex:1; background: #f9f9f9;" disabled placeholder="Name">
+                    <div id="ob_range_from_suggest" class="obf-suggest" style="width:100%;"></div>
+                </div>
+            </div>
+            <div class="obf-filter-row">
+                <label style="justify-content: flex-end; padding-right: 5px;">To</label>
+                <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                    <input type="text" id="ob_range_to" style="width:100px; flex: none;" disabled autocomplete="off" placeholder="Code">
+                    <input type="text" id="ob_range_to_name" style="flex:1; background: #f9f9f9;" disabled placeholder="Name">
+                    <div id="ob_range_to_suggest" class="obf-suggest" style="width:100%;"></div>
+                </div>
+            </div>
+            <div class="obf-filter-row">
+                <label style="justify-content: flex-end; padding-right: 5px;">For Period From</label>
+                <div style="display: flex; flex: 1; align-items: center; gap: 5px;">
+                    <input type="date" id="ob_from_date" style="width: 110px; flex: none;">
+                    <span style="font-weight:bold; font-style:italic; color:#555;">To</span>
+                    <input type="date" id="ob_to_date" style="width: 110px; flex: none;">
+                    <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                        <span style="margin-right: 5px; font-weight: bold; font-size: 11px;">Search</span>
+                        <input type="text" id="obNameSearch" placeholder="Search..." autocomplete="off" style="border: 1px solid #ccc; padding: 2px 5px; height: 22px; font-size: 11px; width: 150px; font-weight: normal; background: #fff;" onkeyup="window.handleOBSearchByName(this.value)" onfocus="this.select()" onclick="this.select()">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Grid Table -->
+    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column;">
+        <div id="obGridContainer" style="flex: 1; overflow-y: scroll; position: relative; background: white; display: flex; flex-direction: column;">
+            <div style="display: grid; grid-template-columns: 140px minmax(200px, 1fr) 150px 150px; background: #f8f9fa; border-bottom: 2px solid #cbd5e0; font-weight: 600; font-size: 12px; color: #333; text-align: center; position: sticky; top: 0; z-index: 10;">
+                <div style="padding: 4px; border-right: 1px solid #cbd5e0;">Account Code</div>
+                <div style="padding: 4px; border-right: 1px solid #cbd5e0; text-align: left;">Account Name</div>
+                <div style="padding: 4px; border-right: 1px solid #cbd5e0;">Debit</div>
+                <div style="padding: 4px;">Credit</div>
+            </div>
+            <div id="obGridBody">
+                <!-- Rows injected by JS -->
+                <div style="padding: 40px; text-align: center; color: #94a3b8;">Loading accounts...</div>
+            </div>
+            <div class="ob-row" style="background: #fff;">
+                <div class="ob-col" style="padding:0;">
+                    <input type="text" class="ob-input" 
+                           onkeyup="handleOBSearch(event, null)"
+                           onkeydown="window.handleOBGridKeydown(event, this)"
+                           style="text-align: left;"
+                           placeholder="Select Account to add...">
+                </div>
+                <div class="ob-col" style="padding:0;">
+                    <input type="text" class="ob-input" readonly onkeydown="window.handleOBGridKeydown(event, this)" style="border:none; background:transparent;">
+                </div>
+                <div class="ob-col" style="padding:0;">
+                    <input type="text" class="ob-input" readonly onkeydown="window.handleOBGridKeydown(event, this)" style="border:none; background:transparent;">
+                </div>
+                <div class="ob-col" style="padding:0;">
+                    <input type="text" class="ob-input" readonly onkeydown="window.handleOBGridKeydown(event, this)" style="border:none; background:transparent;">
+                </div>
+            </div>
+            <div id="obSearchResults" class="ob-search-results"></div>
+        </div>
+        
+        <!-- Totals Footer -->
+        <div style="background: #e6f2ff; border-top: 2px solid #1F4E79; padding: 4px 10px; flex: none; display: flex; justify-content: space-between; align-items: center;">
+            <div id="obDifferenceMsg" style="font-size: 13px; font-weight: 600; color: #28a745; display: flex; align-items: center; gap: 5px;">
+                <!-- Difference message injected here -->
+            </div>
+            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-weight: 700; font-size: 13px; color: #1F4E79;">
+                <div style="text-transform: uppercase;">Totals</div>
+                <div style="padding: 2px 10px; background: #fff; border: 1px solid #94a3b8; text-align: right; min-width: 120px; font-size: 13px;" id="obTotalDebit">0.00</div>
+                <div style="padding: 2px 10px; background: #fff; border: 1px solid #94a3b8; text-align: right; min-width: 120px; font-size: 13px;" id="obTotalCredit">0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .ob-btn {
+            background: #4a789c;
+            border: 1px solid #4a789c;
+            padding: 2px;
+            font-size: 11px;
+            line-height: 1.2;
+            letter-spacing: -0.2px;
+            text-align: center;
+            white-space: normal;
+            font-weight: 600;
+            cursor: pointer;
+            width: 55px;
+            height: 55px;
+            border-radius: 4px;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+
+        .ob-btn:hover {
+            background: #3b6998;
+            border-color: #3b6998;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .ob-btn:active { transform: translateY(1px); }
+
+        .ob-save {
+            background: #4a789c !important;
+            border-color: #4a789c !important;
+        }
+        .ob-save:hover { background: #3b6998 !important; }
+
+        .ob-cancel {
+            background: #4a789c !important;
+            border-color: #4a789c !important;
+        }
+        .ob-cancel:hover { background: #3b6998 !important; }
+
+        .ob-delete {
+            background: #dc3545 !important;
+            border-color: #dc3545 !important;
+        }
+        .ob-delete:hover { background: #c82333 !important; }
+
+        /* Remove spinners from number inputs */
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { 
+            -webkit-appearance: none !important; 
+            margin: 0 !important; 
+        }
+        input[type="number"] {
+            -moz-appearance: textfield !important;
+        }
+
+        .ob-find {
+            background: #e9ecef;
+            color: #333;
+            border: 1px solid #ced4da;
+            height: 24px;
+            padding: 0 15px;
+            border-radius: 2px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .ob-find:hover { background: #dde2e6; }
+
+        .ob-row {
+            display: grid;
+            grid-template-columns: 140px minmax(200px, 1fr) 150px 150px;
+            border-bottom: 1px solid #cbd5e0;
+            transition: background 0.1s;
+            align-items: stretch;
+            height: 20px;
+            min-height: 20px;
+            max-height: 20px;
+            background: #fff;
+        }
+        .ob-row.selected {
+            background: var(--theme-primary, #1F4E79) !important;
+            color: #ffffff !important;
+            outline: none;
+        }
+        .ob-row.selected .ob-col,
+        .ob-row.selected .ob-input {
+            color: #ffffff !important;
+        }
+        .ob-row.selected .ob-col {
+            border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }
+        .ob-row.selected .ob-input::placeholder {
+            color: rgba(255, 255, 255, 0.6) !important;
+        }
+        .ob-row.selected .ob-input:focus {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: #ffffff !important;
+        }
+        .ob-row:hover { background: #edf2f7 !important; }
+        .ob-row.selected:hover { background: var(--theme-primary, #1F4E79) !important; }
+        
+        .ob-col {
+            box-sizing: border-box;
+            padding: 0px;
+            margin: 0;
+            height: 100%;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #cbd5e0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            min-height: 20px;
+        }
+        
+        .ob-input {
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            border-radius: 0;
+            border: 1px solid transparent;
+            padding: 0px 4px;
+            font-size: 13px;
+            text-align: right;
+            outline: none;
+            background: transparent;
+        }
+        .ob-input:focus {
+            background: #fff !important;
+            color: #1F4E79 !important;
+        }
+        .ob-input:disabled {
+            background: transparent;
+            cursor: not-allowed;
+            color: #94a3b8;
+        }
+        .ob-row.selected .ob-input:disabled {
+            background: transparent !important;
+            color: rgba(255, 255, 255, 0.6) !important;
+        }
+        .ob-input.has-value {
+            font-weight: 700;
+            color: #1F4E79;
+        }
+
+        .ob-search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #cbd5e0;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            z-index: 100;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.05);
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .ob-result-item {
+            padding: 2px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .ob-result-item:hover, .ob-result-item.selected { 
+            background: #1F4E79; 
+            color: #ffffff; 
+            font-weight: 600; 
+        }
+        .ob-result-item:hover span, .ob-result-item.selected span { 
+            color: #ffffff !important; 
+        }
+        .ob-result-item:last-child { border-bottom: none; }
+    </style>
+</div>
+

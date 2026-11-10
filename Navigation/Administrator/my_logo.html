@@ -1,0 +1,66 @@
+<div class="component-header" style="margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+    <h2><i class="fas fa-image" style="color: #4a90e2; margin-right: 10px;"></i> Logo Settings</h2>
+    <p style="color: #666; font-size: 14px; margin-top: 5px;">Configure the company logo that appears on all your documents.</p>
+</div>
+
+<div class="form-container" style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="background: #fff8e7; border-left: 4px solid #F5A623; padding: 12px; margin-bottom: 20px; border-radius: 0 6px 6px 0; font-size: 14px;">
+        <i class="fas fa-info-circle" style="color: #F5A623; margin-right: 8px;"></i>
+        Note: Only .jpeg, .jpg, .png or .gif files can be set as logo.
+    </div>
+
+    <!-- The actual preview state will be updated by JS -->
+    <div class="logo-preview-container" style="margin-bottom: 20px; border: 1px dashed #ccc; padding: 10px; display: inline-block; border-radius: 4px; min-width: 150px; min-height: 80px; text-align: center;">
+        <img id="logoPreview" class="logo-preview" src="" alt="Logo Preview" style="max-height: 80px; display: none;">
+        <span id="noLogoText" style="color: #999; line-height: 80px;">No Logo Selected</span>
+    </div>
+
+    <div style="margin: 15px 0;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <input type="radio" name="logoOption" id="noLogoOption" value="none"> 
+            <label for="noLogoOption" style="font-size: 14px; cursor: pointer;">No Logo</label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <input type="radio" name="logoOption" id="setLogoOption" value="set"> 
+            <label for="setLogoOption" style="font-size: 14px; cursor: pointer;">Set New Logo</label>
+        </div>
+        <div style="margin-left: 28px; display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+            <input type="file" id="logoFile" accept=".jpg,.jpeg,.png,.gif" onchange="window.previewLogo && window.previewLogo()" style="font-size: 14px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+    </div>
+    
+    <div style="background: #f0f5fc; padding: 12px; border-radius: 6px; margin: 20px 0; font-size: 13px; color: #1f4668;">
+        <i class="fas fa-info-circle" style="color: #4a90e2; margin-right: 8px;"></i>
+        Your selected logo will be printed on your documents and invoices.
+    </div>
+    
+    <div class="action-buttons" style="margin-top: 25px; display: flex; gap: 10px;">
+        <button class="btn btn-primary" onclick="window.saveLogoSettings && window.saveLogoSettings()">
+            <i class="fas fa-save"></i> Save Logo
+        </button>
+        <button class="btn btn-secondary" onclick="window.loadView('components/dashboard.html')">
+            Cancel
+        </button>
+    </div>
+</div>
+
+<script>
+    // Initialize logo view based on global window.logoData
+    setTimeout(() => {
+        const preview = document.getElementById('logoPreview');
+        const noText = document.getElementById('noLogoText');
+        const setOption = document.getElementById('setLogoOption');
+        const noneOption = document.getElementById('noLogoOption');
+
+        if (window.logoData) {
+            preview.src = window.logoData;
+            preview.style.display = 'inline-block';
+            noText.style.display = 'none';
+            if(setOption) setOption.checked = true;
+        } else {
+            preview.style.display = 'none';
+            noText.style.display = 'inline-block';
+            if(noneOption) noneOption.checked = true;
+        }
+    }, 100);
+</script>

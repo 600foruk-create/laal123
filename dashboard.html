@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Softifyx - My Company</title>
+    <script>
+        // Instant Login Check: Redirect if no session found before loading CSS/Body
+        if (!localStorage.getItem('softifyx_session')) {
+            window.location.href = 'login.html';
+        }
+    </script>
+    <link rel="stylesheet" href="assets/css/style.css?v=v63-dsr-fullsize">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="assets/js/theme_manager.js?v=14-invoice-grid-settings"></script>
+</head>
+
+<body>
+    <div class="main-window">
+        <div id="navbar-container"></div>
+        <div class="dashboard-layout">
+            <div id="sidebar-container"></div>
+            <div class="center-content" id="main-content">
+                <!-- Dynamic Content Loads Here -->
+            </div>
+
+            <div class="right-sidebar">
+                <div class="summary-section">
+                    <div class="summary-title">
+                        <i class="fas fa-chart-simple"></i>
+                        Today's Summary
+                    </div>
+
+                    <div class="summary-card">
+                        <h4><i class="fas fa-coins"></i> Cash Position</h4>
+                        <div class="summary-row"><span>Opening:</span> <span class="value money"
+                                id="summaryCashOpening">₹0</span></div>
+                        <div class="summary-row"><span>Receipts:</span> <span class="value money"
+                                id="summaryCashReceipts">₹0</span></div>
+                        <div class="summary-row"><span>Payments:</span> <span class="value money"
+                                id="summaryCashPayments">₹0</span></div>
+                        <div class="summary-row"><span>Net:</span> <span class="value highlight-value money"
+                                id="summaryCashNet">₹0</span></div>
+                    </div>
+
+                    <div class="summary-card">
+                        <h4><i class="fas fa-users"></i> Customer Activity</h4>
+                        <div class="summary-row"><span>New Invoices:</span> <span class="value"
+                                id="summaryNewInvoices">0</span></div>
+                        <div class="summary-row"><span>Receipts:</span> <span class="value money"
+                                id="summaryCustomerReceipts">₹0</span></div>
+                        <div class="summary-row"><span>Overdue:</span> <span class="value money"
+                                id="summaryOverdue">₹0</span></div>
+                    </div>
+
+                    <div class="summary-card">
+                        <h4><i class="fas fa-truck"></i> Vendor Activity</h4>
+                        <div class="summary-row"><span>New Purchases:</span> <span class="value"
+                                id="summaryNewPurchases">0</span></div>
+                        <div class="summary-row"><span>Payments:</span> <span class="value money"
+                                id="summaryVendorPayments">₹0</span></div>
+                        <div class="summary-row"><span>Outstanding:</span> <span class="value money"
+                                id="summaryOutstanding">₹0</span></div>
+                    </div>
+
+                    <div class="summary-card" id="inventoryAlertsCard" style="cursor: pointer;">
+                        <h4><i class="fas fa-box"></i> Inventory Alerts</h4>
+                        <div class="summary-row">
+                            <span>Low Stock Items:</span>
+                            <span class="alert-badge" id="lowStockCount">3 Items</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Reorder Needed:</span>
+                            <span class="alert-badge danger" id="reorderCount">2 Items</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Designed & Developed by Softifyx Technologies
+        </div>
+
+        <!-- Window Manager for Multiple Draggable Forms -->
+        <div id="window-manager"></div>
+    </div>
+
+    <script src="assets/js/app_v128.js?v=v61-live-metrics-sync"></script>
+    <script src="assets/js/inventory_price_settings.js?v=2"></script>
+    <script src="assets/js/inventory_tax_rates.js?v=1"></script>
+    <script src="assets/js/inventory_reorder_levels.js?v=1"></script>
+    <script src="assets/js/inventory_cost_method.js?v=2"></script>
+    <script src="assets/js/chart_of_services.js?v=2"></script>
+    <script src="assets/js/app_v2.js?v=v164-live-metrics-sync"></script>
+    <script src="assets/js/voucher_preferences.js?v=1"></script>
+    <script src="assets/js/inventory_movement_settings.js?v=2"></script>
+    <script src="assets/js/jobs.js?v=6"></script>
+    <script src="assets/js/purchase_order_v2.js?v=v50-match-so-fix"></script>
+    <script src="assets/js/purchase_invoice_v2.js?v=v50-match-so-fix"></script>
+    <script src="assets/js/purchase_return.js?v=v17"></script>
+    <script src="assets/js/cash_payments.js?v=v21-acc-focus"></script>
+    <script src="assets/js/bank_payments.js?v=v21-acc-focus"></script>
+    <script src="assets/js/customer_follow_up.js?v=3"></script>
+    <script src="assets/js/quotation.js?v=v51-so-match-fix"></script>
+    <script src="assets/js/sale_order.js?v=v42"></script>
+    <script src="assets/js/delivery_challans.js?v=v45"></script>
+    <script src="assets/js/sale_invoice.js?v=v72-print-footer-pin-custname"></script>
+    <script src="assets/js/sale_return.js?v=v51-so-match-fix"></script>
+    <script src="assets/js/cash_receipts.js?v=v9-invoice-suggest-fix"></script>
+    <script src="assets/js/bank_receipts.js?v=v23-wht-amt-sync-cheque"></script>
+    <script src="assets/js/inward_gate_passes.js?v=v54-dropdown-all"></script>
+    <script src="assets/js/outward_gate_passes.js?v=v54-dropdown-all"></script>
+    <script src="assets/js/material_issue_notes.js?v=v7"></script>
+    <script src="assets/js/production_notes.js?v=v7"></script>
+    <script src="assets/js/inventory_transfers.js?v=4"></script>
+    <script src="assets/js/add_inventory_adjustments.js?v=4"></script>
+    <script src="assets/js/reduce_inventory_adjustments.js?v=4"></script>
+    <script src="assets/js/sms_templates.js?v=1"></script>
+    <script src="assets/js/send_ledger_summary.js?v=2"></script>
+    <script src="assets/js/bulk_messages.js?v=3"></script>
+    <script src="assets/js/journal_notes.js?v=v5"></script>
+    <script src="assets/js/admin_notifications.js?v=v3"></script>
+    <script src="assets/js/general_journal_voucher.js?v=5"></script>
+    <script src="assets/js/activity_log.js?v=3"></script>
+    <script src="assets/js/account_ledgers.js?v=15"></script>
+    <script src="assets/js/journal_report.js?v=4"></script>
+    <script src="assets/js/print_voucher.js?v=1"></script>
+    <script src="assets/js/product_serial_tracking.js?v=1"></script>
+    <script src="assets/js/item_below_re_order_level.js?v=6"></script>
+    <script src="assets/js/purchase_order_tracker.js?v=9"></script>
+    <script src="assets/js/sale_order_tracker.js?v=v10-fix-order-replace"></script>
+    <script src="assets/js/inventory_balances.js?v=v5-same-tab-print"></script>
+    <script src="assets/js/purchase_summary.js?v=7"></script>
+    <script src="assets/js/party_purchase_summary.js?v=2"></script>
+    <script src="assets/js/payments_reports.js?v=5"></script>
+    <script src="assets/js/purchase_activity_invoice_wise.js?v=6"></script>
+    <script src="assets/js/purchase_activity_party_wise.js?v=5"></script>
+    <script src="assets/js/purchase_register.js?v=2"></script>
+    <script src="assets/js/item_purchase_summary.js?v=6"></script>
+    <script src="assets/js/item_purchase_analysis.js?v=6"></script>
+    <script src="assets/js/accounts_payable_aging.js?v=9"></script>
+    <script src="assets/js/material_consumption_report.js?v=8"></script>
+    <script src="assets/js/production_report.js?v=3"></script>
+    <script src="assets/js/sale_report.js?v=6"></script>
+    <script src="assets/js/wht_sale_report.js?v=4"></script>
+    <script src="assets/js/payment_reminder.js?v=2"></script>
+    <script src="assets/js/sale_register.js?v=5"></script>
+    <script src="assets/js/party_sale_summary.js?v=1"></script>
+    <script src="assets/js/recovery_receipts_report.js?v=3"></script>
+    <script src="assets/js/sale_activity_report.js?v=4"></script>
+    <script src="assets/js/sale_activity_customer_wise.js?v=1"></script>
+    <script src="assets/js/item_sale_summary.js?v=2"></script>
+    <script src="assets/js/item_sale_analysis.js?v=3"></script>
+    <script src="assets/js/services_analysis.js?v=1"></script>
+    <script src="assets/js/accounts_receivable_aging.js?v=2"></script>
+    <script src="assets/js/view_inventory_ledgers.js"></script>
+    <script src="assets/js/print_inventory_ledgers.js?v=1"></script>
+    <script src="assets/js/print_accounts_ledgers.js?v=1"></script>
+    <script src="assets/js/cash_bank_balances.js?v=1"></script>
+    <script src="assets/js/customer_balances.js?v=1"></script>
+    <script src="assets/js/qrcode.min.js"></script>
+    <script src="assets/js/pos_sale_register.js?v=25"></script>
+    <script src="assets/js/pos_sale_return.js?v=4"></script>
+    <script src="assets/js/pos_hold_register.js?v=1"></script>
+    <script src="assets/js/pos_day_closing.js?v=1"></script>
+    <script src="assets/js/pos_reports.js?v=1"></script>
+    <script src="assets/js/pos_sale.js?v=14-off-day"></script>
+    <script src="assets/js/digital_invoice_settings.js?v=32-fbr-uom-kg-fix"></script>
+    <script src="assets/js/digital_invoice.js?v=50-fbr-items-fix"></script>
+    <script src="assets/js/digital_sale_register.js?v=4-dropdown-cancel"></script>
+    <script src="assets/js/digital_credit_note.js?v=1"></script>
+    <script src="assets/js/digital_debit_note.js?v=1"></script>
+    <script src="assets/js/invoice_cancellation.js?v=1"></script>
+    <script src="assets/js/digital_invoice_reports.js?v=1"></script>
+</body>
+
+</html>

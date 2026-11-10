@@ -1,0 +1,148 @@
+<div id="autoAdjustContainer" data-module="Auto Adjustments" style="width: 940px; height: 620px; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; border: 1px solid #cbd5e0; border-radius: 4px; position: relative; box-sizing: border-box;">
+    
+    <style>
+        /* ===== Toolbar Buttons - Same as Inventory Transfers ===== */
+        .ria-tool-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1.1;
+            text-align: center;
+            width: 75px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        .ria-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .ria-btn-add    { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .ria-btn-add:hover    { background: #3b6998 !important; }
+        .ria-btn-save   { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .ria-btn-save:hover   { background: #3b6998 !important; }
+        .ria-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .ria-btn-cancel:hover { background: #3b6998 !important; }
+        .ria-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .ria-btn-delete:hover { background: #c82333 !important; }
+        .ria-btn-info   { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto; }
+        .ria-btn-info:hover   { background: #3b6998 !important; }
+
+        /* ===== Labels & Inputs - Same as Inventory Transfers ===== */
+        .ria-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; text-transform: none; display: block; }
+        .ria-input { height: 22px; border: 1px solid #000000; border-radius: 2px; padding: 0 4px; font-size: 13px; font-weight: normal; color: #000000; outline: none; width: 100%; transition: border-color 0.2s; box-sizing: border-box; }
+        .ria-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .ria-input:disabled, .ria-input[readonly] { background: #ffffff; color: #000000; border-color: #000000; }
+        select.ria-input { color: #000000; font-weight: normal; background: #ffffff; }
+
+        /* ===== Grid Table - Same as Inventory Transfers ===== */
+        .aaGridHeader th { background: #f1f5f9; border: 1px solid #94a3b8; font-size: 9px; font-weight: 700; color: #334155; padding: 2px; text-transform: uppercase; text-align: center; height: 22px; font-style: normal; white-space: normal; line-height: 1.1; }
+        .ria-grid-input { width: 100%; height: 100%; border: none; padding: 0 4px; font-size: 12px; outline: none; background: transparent; display: block; box-sizing: border-box; color: #000000; font-weight: bold; }
+        .ria-grid-input:focus { background: #eff6ff; }
+        .ria-grid-input.num { text-align: center; }
+
+        /* Hide Number Spinners */
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+    </style>
+
+    
+    <!-- Top Toolbar -->
+    <div style="background: #e2e8f0; padding: 4px; display: flex; gap: 5px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: auto;">
+        <button class="ria-tool-btn ria-btn-info" onclick="window.AAModule.loadData()">Fetch<br>Differences</button>
+        <button class="ria-tool-btn ria-btn-save" onclick="window.AAModule.saveAudit()">Save Audit</button>
+        <div style="width: 1px; height: 30px; background: #cbd5e0; margin: 0 4px;"></div>
+        <button class="ria-tool-btn ria-btn-add" onclick="window.AAModule.autoAdjustAll()">Auto Adjust</button>
+        <div style="width: 1px; height: 30px; background: #cbd5e0; margin: 0 4px;"></div>
+        <button class="ria-tool-btn ria-btn-info" onclick="window.AAModule.exportToExcel()">Excel</button>
+        <button class="ria-tool-btn ria-btn-info" onclick="window.AAModule.printAudit()">Print</button>
+        <button class="ria-tool-btn ria-btn-delete" onclick="window.AAModule.resetSession()">Reset</button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto;">
+        
+        <!-- Header Info Section -->
+        <div style="display: grid; grid-template-columns: 100px 300px 100px 300px; gap: 4px 10px; align-content: start; align-items: center; flex-shrink: 0; padding-bottom: 6px;">
+            <label class="ria-label">Category</label>
+            <select id="aa_category_id" class="ria-input" onchange="window.AAModule.refreshList()">
+                <option value="all">All Categories</option>
+            </select>
+
+            <label class="ria-label">Brand</label>
+            <select id="aa_brand_id" class="ria-input" onchange="window.AAModule.refreshList()">
+                <option value="all">All Brands</option>
+            </select>
+
+            <label class="ria-label">From Date</label>
+            <input type="date" id="aa_date_from" class="ria-input" onchange="window.AAModule.refreshList()">
+
+            <label class="ria-label">To Date</label>
+            <input type="date" id="aa_date_to" class="ria-input" onchange="window.AAModule.refreshList()">
+
+            <label class="ria-label">Search</label>
+            <input type="text" id="aa_search" class="ria-input" placeholder="Search..." oninput="window.AAModule.refreshList()">
+        </div>
+
+        <!-- Grid Table Container -->
+        <div style="border: 1px solid #cbd5e0; border-radius: 4px; flex: 1; min-height: 0; background: #fff; overflow: auto; position: relative;" id="aa_grid_container">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px;">
+                <colgroup>
+                    <col style="width: 40px;">
+                    <col style="width: 120px;">
+                    <col style="width: auto;">
+                    <col style="width: 70px;">
+                    <col style="width: 70px;">
+                    <col style="width: 70px;">
+                    <col style="width: 70px;">
+                    <col style="width: 70px;">
+                    <col style="width: 70px;">
+                    <col style="width: 70px;">
+                </colgroup>
+                <thead class="aaGridHeader" style="position: sticky; top: 0; background: #f1f5f9; z-index: 10;">
+                    <tr>
+                        <th rowspan="2" style="border-bottom: none;">S.No</th>
+                        <th rowspan="2" style="border-bottom: none;">Item Code</th>
+                        <th rowspan="2" style="border-bottom: none;">Item Name</th>
+                        <th colspan="2">System</th>
+                        <th colspan="2">Physical</th>
+                        <th colspan="2">Difference</th>
+                        <th rowspan="2" style="border-bottom: none;">Action</th>
+                    </tr>
+                    <tr>
+                        <th style="border-top: none;">Pcs</th>
+                        <th style="border-top: none;">Qty (Wt)</th>
+                        <th style="border-top: none;">Pcs</th>
+                        <th style="border-top: none;">Qty (Wt)</th>
+                        <th style="border-top: none;">Pcs</th>
+                        <th style="border-top: none;">Qty (Wt)</th>
+                    </tr>
+                </thead>
+                <tbody id="aa_grid_body">
+                    <!-- Rows will be populated by JS -->
+                </tbody>
+            </table>
+        </div>
+        
+    </div>
+</div>
+
+<script>
+if (!window.AAModuleLoaded) {
+    var script = document.createElement('script');
+    script.src = 'assets/js/auto_inventory_adjustments.js?v=' + new Date().getTime();
+    script.onload = function() { window.AAModule.init(); window.AAModule.loadData(); };
+    document.body.appendChild(script);
+    window.AAModuleLoaded = true;
+} else {
+    window.AAModule.init(); window.AAModule.loadData();
+}
+</script>

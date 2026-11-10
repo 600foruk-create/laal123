@@ -1,0 +1,397 @@
+<div id="invCOAContainer" data-module="Chart of Inventory" style="height: auto; min-height: 100%; display: flex; flex-direction: column; gap: 2px; background: white; padding: 0px 6px 14px 6px; font-family: 'Segoe UI', Arial, sans-serif; overflow-y: visible; overflow-x: hidden; border-radius: 4px;">
+    <style>
+        #invCOAContainer select option { padding: 0px 6px !important; margin: 0 !important; min-height: 16px !important; height: 16px !important; line-height: 16px !important; display: flex; align-items: center; }
+        #invCOAContainer select { padding: 2px 0; }
+        #invCOAContainer select option:checked {
+            background-color: var(--theme-primary, #1F4E79) !important;
+            color: white !important;
+            box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important; -webkit-box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+        }
+    </style>
+    
+    <!-- Section 1: Main Category Types -->
+    <div style="flex: none; height: 125px; display: flex; flex-direction: column;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px;">1. Inventory Categories</div>
+        <div style="display: flex; gap: 12px; flex: 1; align-items: stretch;">
+            <!-- Left: List -->
+            <div style="flex: 1.5; display: flex; flex-direction: column;">
+                <select id="invMainList" size="6" style="width: 100%; height: 95px; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;" onchange="onInvMainSelect(this.value)"></select>
+            </div>
+            
+            <!-- Right: Fields & All Buttons in One Line -->
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; padding-left: 128px; gap: 4px;">
+                    <button type="button" class="inv-btn inv-chart" onclick="printInvChart('main')">Chart</button>
+                    <button type="button" class="inv-btn inv-chart" onclick="printInvPriceList('main')">Price List</button>
+                    <div style="position: relative; margin-right: auto; display: inline-block;" id="excelDropdownContainer">
+                        <button type="button" class="inv-btn inv-chart" onclick="const dd = document.getElementById('invExcelDropdown'); dd.style.display = dd.style.display === 'none' ? 'block' : 'none'; event.stopPropagation();" style="background: #eab308; color: white; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#ca8a04'" onmouseout="this.style.backgroundColor='#eab308'">Excel</button>
+                        <div id="invExcelDropdown" style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); z-index: 100; min-width: 140px; margin-top: 5px; overflow: hidden; padding: 4px 0;">
+                            <button type="button" style="display: block; width: 100%; padding: 6px 12px; text-align: left; background: none; border: none; cursor: pointer; color: #374151; font-size: 14px; transition: background 0.2s; font-weight: 500;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'" onclick="exportInvExcel(); this.parentElement.style.display='none';"><i class="fas fa-file-export" style="margin-right: 8px; color: #6b7280; width: 16px; text-align: center;"></i> Export</button>
+                            <button type="button" style="display: block; width: 100%; padding: 6px 12px; text-align: left; background: none; border: none; cursor: pointer; color: #374151; font-size: 14px; transition: background 0.2s; font-weight: 500;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'" onclick="document.getElementById('invExcelImportFile').click(); this.parentElement.style.display='none';"><i class="fas fa-file-import" style="margin-right: 8px; color: #6b7280; width: 16px; text-align: center;"></i> Import</button>
+                        </div>
+                    </div>
+                    <input type="file" id="invExcelImportFile" style="display: none;" accept=".xlsx, .xls" onchange="importInvExcel(event)">
+                    <button type="button" class="inv-btn inv-add" onclick="document.getElementById('invMainCode').disabled=false; document.getElementById('invMainName').disabled=false; document.getElementById('invMainCode').removeAttribute('disabled'); document.getElementById('invMainName').removeAttribute('disabled'); document.getElementById('invMainCode').focus(); window.resetInvMainForm(true);">Add</button>
+                    <button type="button" class="inv-btn inv-save" onclick="saveInvMain()">Save</button>
+                    <button type="button" class="inv-btn inv-cancel" onclick="resetInvMainForm()">Cancel</button>
+                    <button type="button" class="inv-btn inv-delete" onclick="deleteInvMain()">Delete</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 120px 150px 100px 100px 1fr; gap: 4px 8px; align-content: start; margin-top: 4px; flex: 1;">
+                    <label class="inv-label" style="grid-column: 1;">Main Category Code</label>
+                    <input type="text" id="invMainCode" class="inv-input inv-bold-input" style="grid-column: 2;" disabled>
+                    
+                    <label class="inv-label" style="grid-column: 3; justify-self: end;">Category Type</label>
+                    <select id="invMainCategoryType" class="inv-input" style="grid-column: 4; background: white;" onchange="if(typeof updateItemFormUI==='function') updateItemFormUI();" disabled>
+                        <option value="">None</option>
+                        <option value="Pipes">Pipes</option>
+                        <option value="Fitting">Fitting</option>
+                        <option value="Raw Material">Raw Material</option>
+                    </select>
+                    
+                    <label class="inv-label" style="grid-column: 1;">Main Category Name</label>
+                    <input type="text" id="invMainName" class="inv-input inv-bold-input" style="grid-column: 2 / -1; width: 100%;" onfocus="this.select()" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #cbd5e0; margin: 2px 0;">
+
+    <!-- Section 2: Sub Category Types -->
+    <div style="flex: none; height: 125px; display: flex; flex-direction: column;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px;">2. Sub Inventory Categories</div>
+        <div style="display: flex; gap: 12px; flex: 1; align-items: stretch;">
+            <!-- Left: List -->
+            <div style="flex: 1.5; display: flex; flex-direction: column;">
+                <select id="invSubList" size="6" style="width: 100%; height: 95px; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;" onchange="onInvSubSelect(this.value)"></select>
+            </div>
+            
+            <!-- Right: Fields & All Buttons in One Line -->
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; padding-left: 128px; gap: 4px;">
+                    <button type="button" class="inv-btn inv-chart" onclick="printInvChart('sub')">Chart</button>
+                    <button type="button" class="inv-btn inv-chart" style="margin-right: auto;" onclick="printInvPriceList('sub')">Price List</button>
+                    <button type="button" class="inv-btn inv-add" onclick="document.getElementById('invSubName').disabled=false; document.getElementById('invSubName').removeAttribute('disabled'); document.getElementById('invSubName').focus(); window.resetInvSubForm(true);">Add</button>
+                    <button type="button" class="inv-btn inv-save" onclick="saveInvSub()">Save</button>
+                    <button type="button" class="inv-btn inv-cancel" onclick="resetInvSubForm()">Cancel</button>
+                    <button type="button" class="inv-btn inv-delete" onclick="deleteInvSub()">Delete</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 120px 150px 100px 100px 1fr; gap: 4px 8px; align-content: start; margin-top: 4px; flex: 1;">
+                    <label class="inv-label" style="grid-column: 1;">Sub Category Code</label>
+                    <input type="text" id="invSubCode" class="inv-input inv-bold-input" style="grid-column: 2;" disabled>
+                    <label class="inv-label" style="grid-column: 1;">Sub Category Name</label>
+                    <input type="text" id="invSubName" class="inv-input inv-bold-input" style="grid-column: 2 / -1; width: 100%;" onfocus="this.select()" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #cbd5e0; margin: 2px 0;">
+
+    <!-- Section 3: List of Inventory Items -->
+    <div style="display: flex; flex-direction: column; padding-bottom: 0px; flex: 1;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px;">3. List of Inventory Items</div>
+        <div style="display: flex; gap: 12px; align-items: stretch; flex: 1;">
+            <!-- Left: List -->
+            <div style="flex: 1.5; display: flex; flex-direction: column;">
+                <select id="invItemList" size="12" style="width: 100%; height: 100%; min-height: 250px; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;" onchange="onInvItemSelect(this.value)"></select>
+            </div>
+            
+            <!-- Right: Fields & All Buttons in One Line -->
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start; gap: 4px;">
+                <div style="display: flex; padding-left: 128px; gap: 4px; margin-bottom: 2px;">
+                    <button type="button" class="inv-btn inv-chart" onclick="printInvChart('item')">Chart</button>
+                    <button type="button" class="inv-btn inv-chart" onclick="printInvPriceList('item')">Price List</button>
+                    <button type="button" class="inv-btn inv-find" style="margin-right: auto;" onclick="openFindInvItemModal()">Find</button>
+                    <button type="button" class="inv-btn inv-add" onclick="document.getElementById('invItemName').disabled=false; document.getElementById('invItemName').removeAttribute('disabled'); document.getElementById('invItemName').focus(); window.resetInvItemForm(true);">Add</button>
+                    <button type="button" class="inv-btn inv-save" onclick="saveInvItem()">Save</button>
+                    <button type="button" class="inv-btn inv-cancel" onclick="resetInvItemForm()">Cancel</button>
+                    <button type="button" class="inv-btn inv-delete" onclick="deleteInvItem()">Delete</button>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 120px 1fr 90px 1fr; gap: 4px 8px; align-items: center; margin-bottom: 4px;">
+                    <label class="inv-label">Item Code</label>
+                    <input type="text" id="invItemCode" class="inv-input inv-bold-input" style="margin-right: 27px;" disabled>
+                    
+                    <label class="inv-label" style="text-align: right;">HS Code</label>
+                    <div style="display: flex; gap: 2px;">
+                        <select id="invItemHsCode" class="inv-input inv-bold-input" style="flex: 1;" disabled></select>
+                        <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageHsCodes()">..</button>
+                    </div>
+                    
+                    <label class="inv-label">Item Name</label>
+                    <input type="text" id="invItemName" class="inv-input inv-bold-input" style="grid-column: 2 / span 3;" disabled>
+                    
+                    <div id="itemDescContainer" style="display: contents;">
+                        <label id="lblItemDesc" class="inv-label">Item Description</label>
+                        <input type="text" id="invItemDesc" class="inv-input" style="grid-column: 2 / span 3;" disabled>
+                    </div>
+
+                    <!-- DYNAMIC FIELDS CONTAINER (Takes the place of description) -->
+                    <div id="dynamicFieldsContainer" style="display: none; grid-column: 1 / span 4; margin-top: 0px;">
+                        
+                        <!-- Pipes Fields -->
+                        <div id="fieldsPipes" style="display: none; grid-template-columns: 120px 1fr 90px 1fr; gap: 4px 8px; align-items: center;">
+                            <label class="inv-label" style="display:flex; align-items:center; gap:5px;">
+                                <input type="checkbox" id="chkEnablePipeSize" onchange="togglePipeSizeLength()"> Size
+                            </label>
+                            <div style="display: flex; gap: 2px;">
+                                <select id="invItemSize" class="inv-input" style="flex: 1; background: white;" onchange="autoGenerateItemName()" disabled>
+                                    <option value="">Select Size</option>
+                                </select>
+                                <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageItemSizes()">..</button>
+                            </div>
+                            
+                            <label class="inv-label" style="text-align: right; display:flex; align-items:center; justify-content:flex-end; gap:5px;">
+                                <input type="checkbox" id="chkEnablePipeLength" onchange="togglePipeSizeLength()"> Length
+                            </label>
+                            <div style="display: flex; gap: 2px;">
+                                <select id="invItemLength" class="inv-input" style="flex: 1; background: white;" onchange="autoGenerateItemName(); if(typeof onTopLengthChange==='function') onTopLengthChange();" disabled>
+                                    <option value="">Select Length</option>
+                                </select>
+                                <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageItemLengths()">..</button>
+                            </div>
+
+                            <label class="inv-label">Sign</label>
+                            <div style="display: flex; gap: 2px;">
+                                <select id="invItemUnitWeight" class="inv-input" style="flex: 1; background: white;" onchange="autoGenerateItemName()" disabled>
+                                    <option value="">Select Sign</option>
+                                </select>
+                                <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageItemSigns()">..</button>
+                            </div>
+
+                            <label class="inv-label" style="text-align: right;">Class</label>
+                            <div style="display: flex; gap: 2px;">
+                                <select id="invItemClass" class="inv-input" style="flex: 1; background: white;" onchange="autoGenerateItemName()" disabled>
+                                    <option value="">Select Class</option>
+                                </select>
+                                <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageItemClasses()">..</button>
+                            </div>
+                        </div>
+
+                        <!-- Fitting Fields -->
+                        <div id="fieldsFitting" style="display: none; grid-template-columns: 120px 1fr 90px 1fr; gap: 4px 8px; align-items: center;">
+                            <label class="inv-label">Size</label>
+                            <div style="display: flex; gap: 2px;">
+                                <select id="invItemFittingSize" class="inv-input" style="flex: 1; background: white;" onchange="autoGenerateItemName()" disabled>
+                                    <option value="">Select Size</option>
+                                </select>
+                                <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageItemSizes()">..</button>
+                            </div>
+
+                            <label class="inv-label" style="text-align: right;">Fitting Type</label>
+                            <div style="display: flex; gap: 2px;">
+                                <select id="invItemFittingType" class="inv-input" style="flex: 1; background: white;" onchange="autoGenerateItemName()" disabled>
+                                    <option value="">Select Type</option>
+                                </select>
+                                <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageItemFittingTypes()">..</button>
+                            </div>
+
+                            <label class="inv-label">Sign</label>
+                            <div style="display: flex; gap: 2px;">
+                                <select id="invItemCarton" class="inv-input" style="flex: 1; background: white;" onchange="autoGenerateItemName()" disabled>
+                                    <option value="">Select Sign</option>
+                                </select>
+                                <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageItemSigns()">..</button>
+                            </div>
+
+                            <label class="inv-label" style="text-align: right;">Class</label>
+                            <div style="display: flex; gap: 2px;">
+                                <select id="invItemFittingClass" class="inv-input" style="flex: 1; background: white;" onchange="autoGenerateItemName()" disabled>
+                                    <option value="">Select Class</option>
+                                </select>
+                                <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageItemClasses()">..</button>
+                            </div>
+                        </div>
+
+                        <!-- Raw Material Fields -->
+                        <div id="fieldsRawMaterial" style="display: none; grid-template-columns: 120px 1fr 90px 1fr; gap: 4px 8px; align-items: center;">
+                            <label class="inv-label">Material</label>
+                            <input type="text" id="invItemMaterial" class="inv-input" style="margin-right: 27px;" oninput="autoGenerateItemName()" disabled>
+
+                            <label class="inv-label" style="white-space: nowrap; text-align: right;">Grade/Spec</label>
+                            <input type="text" id="invItemGradeSpec" class="inv-input" style="margin-right: 27px;" oninput="autoGenerateItemName()" disabled>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 120px 1fr 90px 1fr; gap: 4px 8px; align-items: center;">
+                    <label class="inv-label">Brand Name</label>
+                    <div style="display: flex; gap: 2px;">
+                        <select id="invItemBrand" class="inv-input" style="flex: 1; background: white;" onchange="autoGenerateItemName()" disabled>
+                            <option value="">None</option>
+                        </select>
+                        <button type="button" class="inv-btn" style="min-width: 20px; width: 25px; height: 22px; padding: 0;" onclick="manageBrands()">..</button>
+                    </div>
+                    <label class="inv-label" style="text-align: right;">Rack No.</label>
+                    <input type="text" id="invItemRack" class="inv-input" style="margin-right: 27px;" disabled>
+
+                    <label class="inv-label">Purchase Price</label>
+                    <input type="number" id="invItemPurchasePrice" class="inv-input" style="margin-right: 27px;" onfocus="this.select()" disabled>
+                    <label class="inv-label" style="text-align: right;">Selling Price</label>
+                    <input type="number" id="invItemSellingPrice" class="inv-input" style="margin-right: 27px;" onfocus="this.select()" disabled>
+
+                    <label class="inv-label">Measurement Unit</label>
+                    <input type="text" id="invItemUnit" class="inv-input" style="background: white; margin-right: 27px;" disabled>
+                    <label id="lblItemQtyPerPiece" class="inv-label" style="text-align: right; white-space: nowrap;">Quantity/Piece</label>
+                    <input type="number" id="invItemQtyPerPiece" class="inv-input" style="margin-right: 27px;" oninput="autoGenerateItemName(); if(typeof updateFittingCartonWeightCalculation==='function') updateFittingCartonWeightCalculation(); if(typeof updatePipeWeightCalculation==='function') updatePipeWeightCalculation();" onfocus="this.select()" disabled>
+
+                    <!-- Fitting Weight Fields: Placed right after Measurement Unit & Pcs/Carton -->
+                    <div id="rowFittingWeight" style="display: none;">
+                        <label class="inv-label" style="white-space: nowrap;">Weight/Piece (KG)</label>
+                        <input type="number" step="0.001" id="invItemFittingUnitWeight" class="inv-input" style="margin-right: 27px; background: white;" oninput="if(typeof updateFittingCartonWeightCalculation==='function') updateFittingCartonWeightCalculation();" onfocus="this.select()" placeholder="0.000" disabled>
+
+                        <label class="inv-label" style="text-align: right; white-space: nowrap;">Carton Wt (KG)</label>
+                        <input type="text" id="invItemFittingCartonWeight" class="inv-input" style="margin-right: 27px; background: #f1f5f9; font-weight: bold; color: #1F4E79;" placeholder="0.00 KG" disabled readonly>
+                    </div>
+
+                    <!-- Pipes Specifications: Length Unit, Wt/Length, Billing Mode, Pipe Type -->
+                    <div id="rowPipesSpecs" style="display: none;">
+                        <label class="inv-label" style="white-space: nowrap;">Pipe Length</label>
+                        <input type="number" step="any" id="invItemPipeLength" class="inv-input" style="background: white; margin-right: 27px;" placeholder="e.g. 13" oninput="if(typeof updatePipeWeightCalculation==='function') updatePipeWeightCalculation();" onfocus="this.select()" disabled>
+
+                        <label class="inv-label" style="text-align: right; white-space: nowrap;">Length Unit</label>
+                        <select id="invItemPipeLengthUnit" class="inv-input" style="background: white; margin-right: 27px;" onchange="if(typeof updatePipeWeightCalculation==='function') updatePipeWeightCalculation();" disabled>
+                            <option value="Feet">Feet (ft)</option>
+                            <option value="Meter">Meter (m)</option>
+                        </select>
+
+                        <label class="inv-label" style="white-space: nowrap;">Billing Mode</label>
+                        <select id="invItemPipeBillingMode" class="inv-input" style="background: white; margin-right: 27px;" disabled>
+                            <option value="By Weight">By Weight (KG)</option>
+                            <option value="By Piece">By Piece / Pipe</option>
+                            <option value="By Length">By Length (Feet / Meter)</option>
+                        </select>
+
+                        <label class="inv-label" style="text-align: right; white-space: nowrap;">Pipe Type</label>
+                        <select id="invItemPipeSubType" class="inv-input" style="background: white; margin-right: 27px;" onchange="if(typeof onPipeSubTypeChange==='function') onPipeSubTypeChange();" disabled>
+                            <option value="uPVC">uPVC Pipe</option>
+                            <option value="HDPE">HDPE Pipe / Coil</option>
+                            <option value="PPRC">PPR / PPRC Pipe</option>
+                            <option value="Other">Other Pipe</option>
+                        </select>
+
+                        <label class="inv-label" style="white-space: nowrap;">Wt / Length</label>
+                        <input type="text" id="invItemPipeWeightPerLength" class="inv-input" style="margin-right: 27px; background: #f1f5f9; font-weight: bold; color: #1F4E79;" placeholder="0.000 KG/ft" disabled readonly>
+
+                        <div style="grid-column: span 2;"></div>
+                    </div>
+
+                    <label class="inv-label" style="grid-column: 1;">Sales Tax Rate</label>
+                    <div style="display: flex; align-items: center; gap: 4px; margin-right: 27px;">
+                        <input type="number" id="invItemTaxRate" class="inv-input" style="flex: 1;" disabled>
+                        <span style="font-size: 11px; font-weight: 700; color: #000000;">%</span>
+                    </div>
+                    <div style="display: flex; gap: 15px; font-size: 11px; font-weight: 600; color: #000000; grid-column: 4;">
+                        <label style="display: flex; align-items: center; gap: 3px;"><input type="radio" name="taxType" value="Percent" checked disabled> Percent</label>
+                        <label style="display: flex; align-items: center; gap: 3px;"><input type="radio" name="taxType" value="Amount" disabled> Amount</label>
+                    </div>
+
+                    <label class="inv-label">Valuation Method</label>
+                    <div style="display: flex; font-size: 11px; font-weight: 600; color: #000000; grid-column: 2 / span 2;">
+                        <label style="display: flex; align-items: center; gap: 3px;"><input type="radio" name="costValuation" value="Weighted Average" disabled> Weighted Average Price</label>
+                    </div>
+                    <div style="display: flex; font-size: 11px; font-weight: 600; color: #000000; grid-column: 4;">
+                        <label style="display: flex; align-items: center; gap: 3px;"><input type="radio" name="costValuation" value="Manual" checked disabled> Manual Valuation Cost</label>
+                    </div>
+
+                    <label class="inv-label">Valuation Cost</label>
+                    <input type="number" id="invItemValuationCost" class="inv-input" style="margin-right: 27px;" disabled>
+                    <label class="inv-label" style="text-align: right;">Order Quantity</label>
+                    <input type="number" id="invItemOrderQty" class="inv-input" style="margin-right: 27px;" disabled>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px; margin-bottom: 8px;">
+                    <label class="inv-label" style="min-width: 120px;">Inactive Item</label>
+                    <input type="checkbox" id="invItemInactive" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #cbd5e0; margin: 2px 0;">
+
+    <style>
+        .inv-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 5px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .inv-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .inv-btn:active { transform: translateY(1px); }
+        
+        .inv-chart { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .inv-chart:hover { background: #3b6998 !important; }
+
+        .inv-find { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .inv-find:hover { background: #3b6998 !important; }
+
+        .inv-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .inv-add:hover { background: #3b6998 !important; }
+
+        .inv-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .inv-save:hover { background: #3b6998 !important; }
+
+        .inv-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .inv-cancel:hover { background: #3b6998 !important; }
+
+        .inv-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .inv-delete:hover { background: #c82333 !important; }
+        
+        .inv-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; display: flex; align-items: center; justify-content: flex-start; text-align: left; }
+        .inv-input { height: 22px; border: 1px solid #000000; border-radius: 2px; padding: 0 4px; font-size: 13px; font-weight: 500; color: #000000; outline: none; width: 100%; box-sizing: border-box; transition: border 0.2s; }
+        .inv-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .inv-input:disabled { background: #ffffff; color: #000000; border-color: #000000; }
+        .inv-bold-input { font-weight: bold; }
+        
+        input[type="number"].inv-input { text-align: right; }
+    </style>
+    <!-- Find Inventory Item Modal -->
+    <div id="findInvItemModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; width: 800px; border-radius: 4px; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <!-- Modal Header -->
+            <div style="background: #1F4E79; color: white; padding: 10px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-radius: 4px 4px 0 0;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span>Find Inventory Item</span>
+                </div>
+                <button onclick="closeFindInvItemModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px;">&times;</button>
+            </div>
+            
+            <!-- Modal Toolbar -->
+            <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e0; display: flex; align-items: center; gap: 10px;">
+                <label style="font-weight: 500; font-size: 13px; color: #334155;">Search Item</label>
+                <input type="text" id="findInvItemSearchInput" oninput="filterFindInvItemTable()" style="flex: 1; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px; font-size: 13px; outline: none;">
+                <button onclick="renderFindInvItemTable()" style="background: #f1f5f9; border: 1px solid #cbd5e0; padding: 4px 12px; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 2px;">Refresh</button>
+            </div>
+            
+            <!-- Modal Table -->
+            <div style="padding: 10px 15px; height: 400px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #cbd5e0;">
+                            <th style="padding: 6px; font-weight: 600; color: #334155; width: 40%;">Item Name</th>
+                            <th style="padding: 6px; font-weight: 600; color: #334155; width: 30%;">Sub Category</th>
+                            <th style="padding: 6px; font-weight: 600; color: #334155; width: 30%;">Main Category</th>
+                        </tr>
+                    </thead>
+                    <tbody id="findInvItemTableBody">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

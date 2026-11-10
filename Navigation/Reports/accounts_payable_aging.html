@@ -1,0 +1,153 @@
+<div style="display: flex; flex-direction: column; height: 100%; background: #ffffff; padding: 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px;">
+    
+    <!-- Filter Section -->
+    <div style="background: #ffffff; padding: 10px; border: 1px solid #cbd5e0; border-radius: 4px; margin-bottom: 5px; position: relative;">
+        <div style="display: flex; gap: 20px; align-items: flex-start; justify-content: flex-start;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 2px;">
+                <label><input type="radio" name="apa_vendor_mode" id="apa_all_vendors" value="all" checked> <span style="font-weight: bold; font-style: italic;">All Vendors</span></label>
+                <label><input type="radio" name="apa_vendor_mode" id="apa_select_vendor" value="select"> <span style="font-weight: bold; font-style: italic;">Select Vendor</span></label>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <div style="display: flex; gap: 2px; position: relative;">
+                    <input type="text" id="apa_vendor_code" style="width: 100px; border: 1px solid #000000; border-radius: 2px; padding: 2px;" disabled autocomplete="off" onclick="this.select()">
+                    <div id="apa_vendor_suggest_code" class="apa-suggest-box"></div>
+                    
+                    <input type="text" id="apa_vendor_name" style="width: 250px; border: 1px solid #000000; border-radius: 2px; padding: 2px;" disabled autocomplete="off" onclick="this.select()">
+                    <div id="apa_vendor_suggest_name" class="apa-suggest-box"></div>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                    <label><input type="radio" name="apa_gap_mode" id="apa_gap_10" value="10" checked> <span style="font-weight: bold; font-style: italic;">Days Gap (0-10, 11-20, 21-30 and Above 30 Days)</span></label>
+                    <label><input type="radio" name="apa_gap_mode" id="apa_gap_30" value="30"> <span style="font-weight: bold; font-style: italic;">Days Gap (0-30, 31-60, 61-90 and Above 90 Days)</span></label>
+                </div>
+            </div>
+
+            <div style="position: absolute; right: 10px; top: 10px; display: flex; gap: 5px;">
+                <button id="apa_btn_display" class="gj-tool-btn gj-btn-info">Display</button>
+                <button id="apa_btn_print" class="gj-tool-btn gj-btn-info">Print</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Grid -->
+    <div id="apa_table_container" style="flex: 1; border: 1px solid #999; background: #fff; overflow: hidden; display: flex; flex-direction: column;">
+        <!-- Header (Fixed) -->
+        <div style="background: #e2e8f0; flex-shrink: 0; overflow-y: scroll;">
+            <table class="ips-tbl" style="width: 100%; border-collapse: collapse; table-layout: fixed;" id="apa_table">
+                <thead>
+                    <tr>
+                        <th style="width: 25px;"></th>
+                        <th style="width: 70px;">Account Code</th>
+                        <th>Vendor</th>
+                        <th style="width: 60px;">Invoice No.</th>
+                        <th style="width: 70px;">Invoice Date</th>
+                        <th style="width: 40px;">Days</th>
+                        <th style="width: 80px;">Invoice Amount</th>
+                        <th style="width: 70px;" id="apa_th_gap1">0-10 Days</th>
+                        <th style="width: 70px;" id="apa_th_gap2">11-20 Days</th>
+                        <th style="width: 70px;" id="apa_th_gap3">21-30 Days</th>
+                        <th style="width: 80px;" id="apa_th_gap4">Above 30 Days</th>
+                        <th style="width: 80px;">Balance Amount</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Body (Scrollable) -->
+        <div style="flex: 1; overflow-y: scroll; font-size: 11px;">
+            <table class="ips-tbl" style="width: 100%; border-collapse: collapse; table-layout: fixed;" id="apa_tbody_table">
+                <tbody id="apa_tbody">
+                    <!-- Data populated via JS -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Footer (Fixed) -->
+        <div style="background: #c0c0c0; font-size: 11px; font-weight: bold; flex-shrink: 0; overflow-y: scroll; border-top: 1px solid #999;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <tfoot>
+                    <tr>
+                        <td style="width: 25px; border-right: 1px solid #999; border-left: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="width: 60px; border-right: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="width: 40px; border-right: 1px solid #999; padding: 2px; border-bottom: 1px solid #999; background: transparent;">&nbsp;</td>
+                        <td style="width: 80px; border-right: 1px solid #999; padding: 2px; text-align: right; font-style: italic; border-bottom: 1px solid #999; background: transparent;">Totals Rs.</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: right; background: #fff; border-bottom: 1px solid #999;" id="apa_tot_gap1">0.00</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: right; background: #fff; border-bottom: 1px solid #999;" id="apa_tot_gap2">0.00</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: right; background: #fff; border-bottom: 1px solid #999;" id="apa_tot_gap3">0.00</td>
+                        <td style="width: 80px; border-right: 1px solid #999; padding: 2px; text-align: right; background: #fff; border-bottom: 1px solid #999;" id="apa_tot_gap4">0.00</td>
+                        <td style="width: 80px; border-right: 1px solid #999; padding: 2px; text-align: right; background: #fff; border-bottom: 1px solid #999;" id="apa_tot_bal">0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1.1;
+            text-align: center;
+            width: 75px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .gj-btn-info:hover { background: #3b6998 !important; }
+        
+        .ips-tbl { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: 11px; }
+        .ips-tbl th { background: #e2e8f0 !important; border: 1px solid #94a3b8 !important; font-size: 9px !important; font-weight: 700 !important; color: #334155 !important; padding: 2px !important; text-transform: uppercase; text-align: center; height: 22px; font-style: normal !important; white-space: normal; line-height: 1.1; }
+        .ips-tbl tbody td { border: 1px solid #e0e0e0; padding: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+        
+        #apa_tbody tr { border-bottom: 1px solid #eee; cursor: pointer; }
+        #apa_tbody tr.selected td { background-color: #1F4E79 !important; color: white; }
+        #apa_tbody td { padding: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-right: 1px solid #e0e0e0; }
+        #apa_tbody td:last-child { border-right: none; }
+
+        .apa-suggest-box {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 300px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ccc;
+            z-index: 1000;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            font-size: 11px;
+        }
+        .apa-suggest-box div { padding: 4px; cursor: pointer; }
+        .apa-suggest-box div:hover, .apa-suggest-box div.active { background-color: #5C4033; color: white; }
+        
+        .apa-row-pointer {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            border-left: 6px solid transparent;
+            margin-left: 2px;
+        }
+        
+        #apa_tbody tr.selected .apa-row-pointer {
+            border-left-color: white;
+        }
+    </style>
+</div>

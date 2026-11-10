@@ -1,0 +1,499 @@
+<div id="posSaleRegisterApp" class="pos-register-wrapper" data-module="POS Sales Register" style="padding: 16px; background: #f4f6f9; min-height: 600px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #2d3748; box-sizing: border-box;">
+    
+    <!-- Custom Styles scoped for POS Sales Register -->
+    <style>
+        .pos-register-wrapper * { box-sizing: border-box; }
+        .pos-reg-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+        .pos-reg-title { font-size: 20px; font-weight: 700; color: #1a202c; display: flex; align-items: center; gap: 8px; margin: 0; }
+        .pos-reg-title i { color: #1F4E79; font-size: 22px; }
+        .pos-reg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        
+        /* Summary Cards */
+        .pos-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 16px; }
+        .pos-summary-card { background: #ffffff; border-radius: 8px; padding: 14px 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; position: relative; overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; }
+        .pos-summary-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+        .pos-summary-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+        .pos-card-blue::before { background: #3182ce; }
+        .pos-card-green::before { background: #38a169; }
+        .pos-card-teal::before { background: #319795; }
+        .pos-card-amber::before { background: #dd6b20; }
+        .pos-sum-info h4 { margin: 0 0 4px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #718096; font-weight: 600; }
+        .pos-sum-info .pos-sum-value { font-size: 20px; font-weight: 800; color: #1a202c; line-height: 1.2; }
+        .pos-sum-info .pos-sum-sub { font-size: 11px; color: #a0aec0; margin-top: 4px; }
+        .pos-sum-icon { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .pos-card-blue .pos-sum-icon { background: #ebf8ff; color: #3182ce; }
+        .pos-card-green .pos-sum-icon { background: #f0fff4; color: #38a169; }
+        .pos-card-teal .pos-sum-icon { background: #e6fffa; color: #319795; }
+        .pos-card-amber .pos-sum-icon { background: #fffaf0; color: #dd6b20; }
+
+        /* Filter Section */
+        .pos-filter-card { background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .pos-filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; align-items: flex-end; }
+        .pos-filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .pos-filter-group label { font-size: 11px; font-weight: 600; color: #4a5568; margin: 0; }
+        .pos-filter-input, .pos-filter-select { height: 32px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; color: #2d3748; background-color: #fff; width: 100%; }
+        .pos-filter-input:focus, .pos-filter-select:focus { border-color: #3182ce; outline: none; box-shadow: 0 0 0 2px rgba(49,130,206,0.2); }
+        .pos-filter-buttons { display: flex; gap: 6px; }
+
+        /* Table Card */
+        .pos-table-card { background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; }
+        .pos-table-responsive { width: 100%; overflow-x: auto; max-height: calc(100vh - 380px); min-height: 250px; }
+        .pos-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+        .pos-table thead th { background: #f8fafc; color: #4a5568; font-weight: 700; padding: 9px 10px; border-bottom: 2px solid #e2e8f0; white-space: nowrap; position: sticky; top: 0; z-index: 10; cursor: pointer; user-select: none; }
+        .pos-table thead th:hover { background: #edf2f7; color: #1a202c; }
+        .pos-table tbody td { padding: 8px 10px; border-bottom: 1px solid #edf2f7; vertical-align: middle; white-space: nowrap; color: #2d3748; }
+        .pos-table tbody tr:hover { background-color: #f7fafc; }
+        .pos-table tbody tr.row-cancelled { background-color: #fff5f5; color: #a0aec0; }
+        .pos-table tbody tr.row-cancelled td { text-decoration: line-through; }
+        .pos-table tbody tr.row-cancelled td.no-strike { text-decoration: none; }
+
+        /* Status Badges */
+        .pos-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; line-height: 1.4; border: 1px solid transparent; }
+        .badge-paid { background: #e6fffa; color: #234e52; border-color: #b2f5ea; }
+        .badge-partially-paid { background: #fffaf0; color: #7b341e; border-color: #feebc8; }
+        .badge-unpaid { background: #fff5f5; color: #742a2a; border-color: #fed7d7; }
+        .badge-cancelled { background: #edf2f7; color: #4a5568; border-color: #cbd5e0; }
+
+        .badge-fbr-submitted { background: #ebf8ff; color: #2b6cb0; border-color: #bee3f8; }
+        .badge-fbr-pending { background: #fffaf0; color: #c05621; border-color: #fbd38d; }
+        .badge-fbr-not-submitted { background: #f7fafc; color: #718096; border-color: #e2e8f0; }
+        .badge-fbr-rejected { background: #fff5f5; color: #c53030; border-color: #feb2b2; }
+        .badge-fbr-failed { background: #fff5f5; color: #9b2c2c; border-color: #feb2b2; }
+        .badge-fbr-verify { background: #faf5ff; color: #6b46c1; border-color: #e9d8fd; }
+
+        /* Action Buttons */
+        .pos-action-btn { background: #edf2f7; border: 1px solid #cbd5e0; border-radius: 4px; padding: 3px 6px; font-size: 11px; color: #4a5568; cursor: pointer; transition: all 0.15s; margin: 0 1px; }
+        .pos-action-btn:hover { background: #e2e8f0; color: #1a202c; }
+        .pos-btn-view:hover { background: #ebf8ff; border-color: #3182ce; color: #3182ce; }
+        .pos-btn-print:hover { background: #e6fffa; border-color: #319795; color: #319795; }
+        .pos-btn-fbr:hover { background: #faf5ff; border-color: #805ad5; color: #805ad5; }
+        .pos-btn-return:hover { background: #fffaf0; border-color: #dd6b20; color: #dd6b20; }
+        .pos-btn-edit:hover { background: #ebf8ff; border-color: #3182ce; color: #3182ce; }
+        .pos-btn-cancel:hover { background: #fff5f5; border-color: #e53e3e; color: #e53e3e; }
+        .pos-btn-delete:hover { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+
+        /* Pagination */
+        .pos-pagination-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #ffffff; border-top: 1px solid #edf2f7; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #718096; }
+        .pos-pag-controls { display: flex; align-items: center; gap: 4px; }
+        .pos-pag-btn { padding: 3px 8px; border: 1px solid #cbd5e0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .pos-pag-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .pos-pag-btn.active { background: #1F4E79; color: #fff; border-color: #1F4E79; font-weight: bold; }
+
+        /* Modal Overlays */
+        .pos-modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .pos-modal-backdrop.show { display: flex; }
+        .pos-modal-dialog { background: #fff; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 90%; max-width: 850px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; animation: posModalIn 0.2s ease-out; }
+        @keyframes posModalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        .pos-modal-header { padding: 12px 18px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+        .pos-modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; color: #1a202c; display: flex; align-items: center; gap: 8px; }
+        .pos-modal-close { background: none; border: none; font-size: 20px; color: #718096; cursor: pointer; line-height: 1; }
+        .pos-modal-close:hover { color: #e53e3e; }
+        .pos-modal-body { padding: 18px; overflow-y: auto; flex: 1; font-size: 13px; }
+        .pos-modal-footer { padding: 12px 18px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; background: #f8fafc; }
+
+        /* Thermal Receipt Paper Preview */
+        .receipt-paper { background: #fff; width: 340px; margin: 0 auto; padding: 15px; border: 1px solid #cbd5e0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #000; line-height: 1.35; }
+        .receipt-center { text-align: center; }
+        .receipt-divider { border-top: 1px dashed #000; margin: 6px 0; }
+        .receipt-double-divider { border-top: 2px dashed #000; margin: 6px 0; }
+        .receipt-table { width: 100%; font-size: 11px; }
+        .receipt-table th { border-bottom: 1px dashed #000; padding: 3px 0; }
+        .receipt-table td { padding: 3px 0; }
+        .receipt-right { text-align: right; }
+        .receipt-reprint-banner { background: #000; color: #fff; text-align: center; font-weight: bold; padding: 2px 0; margin-bottom: 6px; letter-spacing: 2px; }
+    </style>
+
+    <!-- 1. Page Header -->
+    <div class="pos-reg-header">
+        <div>
+            <h2 class="pos-reg-title">
+                <i class="fas fa-list-alt"></i> POS Sales Register
+            </h2>
+            <div style="font-size: 12px; color: #718096; margin-top: 2px;">
+                View, filter, manage POS sales, verify FBR digital submissions, and reprint receipts.
+            </div>
+        </div>
+        <div class="pos-reg-actions">
+            <button class="btn btn-success btn-sm" onclick="window.POSRegisterModule.openNewSale()" style="font-weight: 600; padding: 6px 12px; background: #27ae60; border-color: #27ae60; color: #fff;">
+                <i class="fas fa-plus-circle"></i> New Sale
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="window.POSRegisterModule.loadInvoices()" style="font-weight: 600; padding: 6px 12px; background: #1F4E79; border-color: #1F4E79; color: #fff;">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="window.POSRegisterModule.exportCSV()" style="font-weight: 600; padding: 6px 12px; background: #fff; color: #2d3748; border: 1px solid #cbd5e0;">
+                <i class="fas fa-file-csv" style="color: #27ae60;"></i> Export CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. Summary Cards -->
+    <div class="pos-summary-grid">
+        <div class="pos-summary-card pos-card-blue">
+            <div class="pos-sum-info">
+                <h4>Total Invoices</h4>
+                <div class="pos-sum-value" id="pos_sum_total_invoices">0</div>
+                <div class="pos-sum-sub" id="pos_sum_sub_inv">Matching filters</div>
+            </div>
+            <div class="pos-sum-icon">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+        </div>
+
+        <div class="pos-summary-card pos-card-green">
+            <div class="pos-sum-info">
+                <h4>Total Sales Amount</h4>
+                <div class="pos-sum-value" id="pos_sum_total_sales">PKR 0.00</div>
+                <div class="pos-sum-sub">Net revenue (excl. cancelled)</div>
+            </div>
+            <div class="pos-sum-icon">
+                <i class="fas fa-cash-register"></i>
+            </div>
+        </div>
+
+        <div class="pos-summary-card pos-card-teal">
+            <div class="pos-sum-info">
+                <h4>FBR Submitted</h4>
+                <div class="pos-sum-value" id="pos_sum_fbr_submitted">0</div>
+                <div class="pos-sum-sub">Verified & accepted invoices</div>
+            </div>
+            <div class="pos-sum-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+        </div>
+
+        <div class="pos-summary-card pos-card-amber">
+            <div class="pos-sum-info">
+                <h4>FBR Pending</h4>
+                <div class="pos-sum-value" id="pos_sum_fbr_pending">0</div>
+                <div class="pos-sum-sub">Not submitted / awaiting action</div>
+            </div>
+            <div class="pos-sum-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Search and Filters Card -->
+    <div class="pos-filter-card">
+        <div class="pos-filter-grid">
+            <div class="pos-filter-group">
+                <label><i class="fas fa-hashtag"></i> Invoice No / FBR Ref</label>
+                <input type="text" id="pos_filter_search" class="pos-filter-input" placeholder="e.g. INV-001, FBR Ref..." onkeyup="if(event.key==='Enter') window.POSRegisterModule.applyFilters()">
+            </div>
+
+            <div class="pos-filter-group">
+                <label><i class="fas fa-user"></i> Customer Name / Mobile</label>
+                <input type="text" id="pos_filter_customer" class="pos-filter-input" placeholder="Search customer or phone..." onkeyup="if(event.key==='Enter') window.POSRegisterModule.applyFilters()">
+            </div>
+
+            <div class="pos-filter-group">
+                <label><i class="fas fa-building"></i> Branch / Outlet</label>
+                <select id="pos_filter_branch" class="pos-filter-select" onchange="window.POSRegisterModule.applyFilters()">
+                    <option value="">All Branches</option>
+                </select>
+            </div>
+
+            <div class="pos-filter-group">
+                <label><i class="fas fa-calendar-alt"></i> From Date</label>
+                <input type="date" id="pos_filter_from" class="pos-filter-input" onchange="window.POSRegisterModule.applyFilters()">
+            </div>
+
+            <div class="pos-filter-group">
+                <label><i class="fas fa-calendar-alt"></i> To Date</label>
+                <input type="date" id="pos_filter_to" class="pos-filter-input" onchange="window.POSRegisterModule.applyFilters()">
+            </div>
+
+            <div class="pos-filter-group">
+                <label><i class="fas fa-money-check-alt"></i> Payment Status</label>
+                <select id="pos_filter_payment" class="pos-filter-select" onchange="window.POSRegisterModule.applyFilters()">
+                    <option value="">All Payment Statuses</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Partially Paid">Partially Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Cancelled">Cancelled</option>
+                </select>
+            </div>
+
+            <div class="pos-filter-group">
+                <label><i class="fas fa-cloud-upload-alt"></i> FBR Status</label>
+                <select id="pos_filter_fbr" class="pos-filter-select" onchange="window.POSRegisterModule.applyFilters()">
+                    <option value="">All FBR Statuses</option>
+                    <option value="Submitted">Submitted / Accepted</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Not Submitted">Not Submitted</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Failed">Failed</option>
+                    <option value="Verification Required">Verification Required</option>
+                </select>
+            </div>
+
+            <div class="pos-filter-group">
+                <label>&nbsp;</label>
+                <div class="pos-filter-buttons">
+                    <button class="btn btn-primary btn-sm" onclick="window.POSRegisterModule.applyFilters()" style="flex: 1; height: 32px; background: #1F4E79; border-color: #1F4E79; color: #fff;">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="window.POSRegisterModule.clearFilters()" style="height: 32px; background: #edf2f7; color: #4a5568; border: 1px solid #cbd5e0;" title="Clear Filters">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Invoice Register Table Card -->
+    <div class="pos-table-card">
+        <div class="pos-table-responsive">
+            <table class="pos-table" id="pos_register_table">
+                <thead>
+                    <tr>
+                        <th onclick="window.POSRegisterModule.sortBy('pos_invoice_no')">Invoice # <i class="fas fa-sort"></i></th>
+                        <th onclick="window.POSRegisterModule.sortBy('invoice_date')">Date <i class="fas fa-sort"></i></th>
+                        <th onclick="window.POSRegisterModule.sortBy('branch_name')">Branch <i class="fas fa-sort"></i></th>
+                        <th onclick="window.POSRegisterModule.sortBy('customer_name')">Customer Name <i class="fas fa-sort"></i></th>
+                        <th style="text-align: center;">Items</th>
+                        <th style="text-align: right;">Subtotal</th>
+                        <th style="text-align: right;">Discount</th>
+                        <th style="text-align: right;">Tax Amount</th>
+                        <th onclick="window.POSRegisterModule.sortBy('net_total')" style="text-align: right;">Grand Total <i class="fas fa-sort"></i></th>
+                        <th style="text-align: center;">Payment Status</th>
+                        <th onclick="window.POSRegisterModule.sortBy('fbr_status')" style="text-align: center;">FBR Status <i class="fas fa-sort"></i></th>
+                        <th>FBR Invoice # / Ref</th>
+                        <th style="text-align: center; min-width: 130px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="pos_register_tbody">
+                    <tr>
+                        <td colspan="13" style="text-align: center; padding: 40px; color: #718096;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 20px; color: #1F4E79;"></i>
+                            <div style="margin-top: 8px;">Loading sales register...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 5. Table Pagination Controls -->
+        <div class="pos-pagination-bar">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Show:</span>
+                <select id="pos_page_size" class="pos-filter-select" style="width: 70px; height: 26px; font-size: 11px;" onchange="window.POSRegisterModule.changePageSize(this.value)">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span id="pos_pagination_info">Showing 0 - 0 of 0 invoices</span>
+            </div>
+
+            <div class="pos-pag-controls" id="pos_pagination_controls">
+                <!-- Dynamically populated buttons -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 1: Complete Invoice Details View -->
+    <div id="posModalDetails" class="pos-modal-backdrop">
+        <div class="pos-modal-dialog" style="max-width: 900px;">
+            <div class="pos-modal-header">
+                <h3><i class="fas fa-file-invoice-dollar" style="color: #1F4E79;"></i> Invoice Details <span id="pos_md_inv_no" style="color: #3182ce;"></span></h3>
+                <button class="pos-modal-close" onclick="window.POSRegisterModule.closeModal('posModalDetails')">&times;</button>
+            </div>
+            <div class="pos-modal-body" id="pos_md_body">
+                <!-- Injected dynamically via JS -->
+            </div>
+            <div class="pos-modal-footer">
+                <button class="btn btn-outline-secondary btn-sm" onclick="window.POSRegisterModule.closeModal('posModalDetails')">Close</button>
+                <button class="btn btn-primary btn-sm" id="pos_md_btn_print" style="background: #16a085; border-color: #16a085; color: #fff;"><i class="fas fa-print"></i> Print Receipt</button>
+                <button class="btn btn-info btn-sm" id="pos_md_btn_fbr" style="background: #34495e; border-color: #34495e; color: #fff;"><i class="fas fa-cloud-upload-alt"></i> Submit to FBR</button>
+                <button class="btn btn-warning btn-sm" id="pos_md_btn_return" style="background: #e67e22; border-color: #e67e22; color: #fff;"><i class="fas fa-undo"></i> Sales Return</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Receipt / Invoice Print Preview -->
+    <div id="posModalReceipt" class="pos-modal-backdrop">
+        <div class="pos-modal-dialog" id="pos_modal_receipt_dialog" style="max-width: 440px; transition: max-width 0.25s ease;">
+            <div class="pos-modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <h3 style="margin: 0; font-size: 15px; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-print" style="color: #2563eb;"></i> POS Print Preview
+                    </h3>
+                    <div style="display: flex; align-items: center; gap: 6px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                        <span style="font-size: 11px; font-weight: 600; color: #475569;"><i class="fas fa-file-invoice"></i> Paper:</span>
+                        <select id="pos_print_paper_select" onchange="window.POSRegisterModule.changePrintPaper(this.value)" style="font-size: 11px; padding: 2px 6px; border: 1px solid #cbd5e0; border-radius: 4px; background: #fff; cursor: pointer; font-weight: 600; color: #0f172a;">
+                            <option value="thermal">Thermal (80mm)</option>
+                            <option value="58mm">Thermal (58mm)</option>
+                            <option value="A4">A4 Full Page</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="pos-modal-close" onclick="window.POSRegisterModule.closeModal('posModalReceipt')">&times;</button>
+            </div>
+            <div class="pos-modal-body" style="background: #cbd5e1; padding: 15px; display: flex; justify-content: center; max-height: calc(88vh - 120px); overflow-y: auto;">
+                <div id="pos_receipt_print_area" style="width: 100%; display: flex; justify-content: center;">
+                    <!-- Print Paper Layout Injected Here -->
+                </div>
+            </div>
+            <div class="pos-modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 11px; color: #64748b;" id="pos_print_mode_hint">
+                    <i class="fas fa-check-circle" style="color: #10b981;"></i> Dynamic format based on POS Settings.
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm" onclick="window.POSRegisterModule.closeModal('posModalReceipt')">Close</button>
+                    <button class="btn btn-success btn-sm" onclick="window.POSRegisterModule.executeReceiptPrint()" style="background: #27ae60; border-color: #27ae60; color: #fff; font-weight: 600; padding: 5px 15px;">
+                        <i class="fas fa-print"></i> Print Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: Cancellation Modal with CAPTCHA -->
+    <div id="posModalCancel" class="pos-modal-backdrop">
+        <div class="pos-modal-dialog" style="max-width: 480px;">
+            <div class="pos-modal-header" style="background: #fff5f5; border-bottom-color: #fed7d7;">
+                <h3 style="color: #c53030;"><i class="fas fa-exclamation-triangle"></i> Cancel Invoice</h3>
+                <button class="pos-modal-close" onclick="window.POSRegisterModule.closeModal('posModalCancel')">&times;</button>
+            </div>
+            <div class="pos-modal-body">
+                <p style="font-size: 13px; color: #4a5568; margin-bottom: 8px;">
+                    You are cancelling POS Invoice: <b id="pos_cancel_inv_no" style="color: #c53030;"></b>
+                </p>
+
+                <div id="pos_cancel_fbr_warning" style="display: none; background: #fffaf0; border: 1px solid #fbd38d; padding: 10px; border-radius: 6px; font-size: 12px; color: #9c4221; margin-bottom: 12px;">
+                    <i class="fas fa-info-circle"></i> <b>FBR Notice:</b> This invoice was submitted to FBR (<span id="pos_cancel_fbr_ref"></span>). Cancelling it locally will update your internal ERP books. To reverse the FBR tax liability, a corresponding Sales Return / Credit Note must be generated.
+                </div>
+
+                <div class="form-group" style="margin-top: 10px;">
+                    <label style="font-size: 12px; font-weight: 600; color: #2d3748; display: block; margin-bottom: 4px;">
+                        Cancellation Reason <span style="color: #e53e3e;">*</span>
+                    </label>
+                    <textarea id="pos_cancel_reason_input" class="form-control" rows="2" style="width: 100%; border: 1px solid #cbd5e0; border-radius: 4px; padding: 8px; font-size: 12px;" placeholder="Please specify why this invoice is being cancelled..."></textarea>
+                </div>
+
+                <!-- CAPTCHA Verification Box -->
+                <div style="background: #f8fafc; border: 1px solid #cbd5e0; border-radius: 8px; padding: 12px; margin-top: 12px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #2d3748; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <span><i class="fas fa-shield-alt" style="color: #c53030;"></i> Verify CAPTCHA <span style="color: #e53e3e;">*</span></span>
+                        <button type="button" onclick="window.POSRegisterModule.refreshCancelCaptcha()" style="background: none; border: none; color: #2b6cb0; cursor: pointer; font-size: 11px; font-weight: 600;" title="Get a different question">
+                            <i class="fas fa-sync-alt"></i> Change Question
+                        </button>
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div id="pos_cancel_captcha_question" style="background: #edf2f7; border: 1px dashed #718096; padding: 6px 14px; border-radius: 6px; font-size: 18px; font-weight: 800; letter-spacing: 2px; color: #1a202c; font-family: monospace; min-width: 110px; text-align: center; user-select: none;">
+                            ? + ?
+                        </div>
+                        <span style="font-size: 18px; font-weight: bold; color: #4a5568;">=</span>
+                        <input type="number" id="pos_cancel_captcha_input" class="form-control" style="width: 110px; font-size: 16px; font-weight: 700; text-align: center; padding: 6px 8px; border: 2px solid #cbd5e0; border-radius: 6px;" placeholder="Answer" autocomplete="off" onkeydown="if(event.key==='Enter') window.POSRegisterModule.submitCancelInvoice()">
+                    </div>
+                    <div id="pos_cancel_captcha_error" style="display: none; color: #e53e3e; font-size: 11px; font-weight: 600; margin-top: 6px;"></div>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="window.POSRegisterModule.closeModal('posModalCancel')">Close</button>
+                <button class="btn btn-danger btn-sm" onclick="window.POSRegisterModule.submitCancelInvoice()" style="background: #e53e3e; border-color: #e53e3e; color: #fff; font-weight: 600;">
+                    <i class="fas fa-ban"></i> Verify & Confirm Cancellation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3B: Delete Confirmation Modal with CAPTCHA -->
+    <div id="posModalDelete" class="pos-modal-backdrop">
+        <div class="pos-modal-dialog" style="max-width: 480px;">
+            <div class="pos-modal-header" style="background: #fff5f5; border-bottom-color: #fed7d7;">
+                <h3 style="color: #c53030;"><i class="fas fa-trash-alt"></i> Delete Invoice (Permanent)</h3>
+                <button class="pos-modal-close" onclick="window.POSRegisterModule.closeModal('posModalDelete')">&times;</button>
+            </div>
+            <div class="pos-modal-body">
+                <p style="font-size: 13px; color: #4a5568; margin-bottom: 8px;">
+                    Are you sure you want to permanently delete POS invoice: <b id="pos_delete_inv_no" style="color: #c53030;"></b>?
+                </p>
+                <div style="background: #fff5f5; border: 1px solid #fed7d7; padding: 10px; border-radius: 6px; font-size: 11px; color: #9b2c2c; margin-bottom: 12px;">
+                    <i class="fas fa-exclamation-circle"></i> <b>Warning:</b> This will completely remove this invoice and its line items from the database. This action cannot be reversed.
+                </div>
+
+                <!-- CAPTCHA Verification Box -->
+                <div style="background: #f8fafc; border: 1px solid #cbd5e0; border-radius: 8px; padding: 12px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #2d3748; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <span><i class="fas fa-shield-alt" style="color: #c53030;"></i> Verify CAPTCHA <span style="color: #e53e3e;">*</span></span>
+                        <button type="button" onclick="window.POSRegisterModule.refreshDeleteCaptcha()" style="background: none; border: none; color: #2b6cb0; cursor: pointer; font-size: 11px; font-weight: 600;" title="Get a different question">
+                            <i class="fas fa-sync-alt"></i> Change Question
+                        </button>
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div id="pos_delete_captcha_question" style="background: #edf2f7; border: 1px dashed #718096; padding: 6px 14px; border-radius: 6px; font-size: 18px; font-weight: 800; letter-spacing: 2px; color: #1a202c; font-family: monospace; min-width: 110px; text-align: center; user-select: none;">
+                            ? + ?
+                        </div>
+                        <span style="font-size: 18px; font-weight: bold; color: #4a5568;">=</span>
+                        <input type="number" id="pos_delete_captcha_input" class="form-control" style="width: 110px; font-size: 16px; font-weight: 700; text-align: center; padding: 6px 8px; border: 2px solid #cbd5e0; border-radius: 6px;" placeholder="Answer" autocomplete="off" onkeydown="if(event.key==='Enter') window.POSRegisterModule.confirmDeleteInvoice()">
+                    </div>
+                    <div id="pos_delete_captcha_error" style="display: none; color: #e53e3e; font-size: 11px; font-weight: 600; margin-top: 6px;"></div>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="window.POSRegisterModule.closeModal('posModalDelete')">Close</button>
+                <button class="btn btn-danger btn-sm" onclick="window.POSRegisterModule.confirmDeleteInvoice()" style="background: #e53e3e; border-color: #e53e3e; color: #fff; font-weight: 600;">
+                    <i class="fas fa-trash-alt"></i> Verify & Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: Invoice Audit & History View -->
+    <div id="posModalHistory" class="pos-modal-backdrop">
+        <div class="pos-modal-dialog" style="max-width: 650px;">
+            <div class="pos-modal-header">
+                <h3><i class="fas fa-history" style="color: #4a5568;"></i> Invoice Timeline & History</h3>
+                <button class="pos-modal-close" onclick="window.POSRegisterModule.closeModal('posModalHistory')">&times;</button>
+            </div>
+            <div class="pos-modal-body" id="pos_history_body">
+                <!-- Timeline populated via JS -->
+            </div>
+            <div class="pos-modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="window.POSRegisterModule.closeModal('posModalHistory')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: Check FBR Status Modal -->
+    <div id="posModalFBR" class="pos-modal-backdrop">
+        <div class="pos-modal-dialog" style="max-width: 550px;">
+            <div class="pos-modal-header">
+                <h3><i class="fas fa-cloud-check" style="color: #3182ce;"></i> FBR Submission Details</h3>
+                <button class="pos-modal-close" onclick="window.POSRegisterModule.closeModal('posModalFBR')">&times;</button>
+            </div>
+            <div class="pos-modal-body" id="pos_fbr_details_body">
+                <!-- FBR verification status populated via JS -->
+            </div>
+            <div class="pos-modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" onclick="window.POSRegisterModule.closeModal('posModalFBR')">Close</button>
+                <button class="btn btn-info btn-sm" id="pos_fbr_validate_btn" style="background: #2b6cb0; border-color: #2b6cb0; color: #fff;"><i class="fas fa-check-double"></i> Pre-Flight Validate</button>
+                <button class="btn btn-primary btn-sm" id="pos_fbr_retry_btn" style="background: #1F4E79; border-color: #1F4E79; color: #fff;"><i class="fas fa-cloud-upload-alt"></i> Submit to FBR</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Auto Load Javascript Logic if not already cached -->
+<script src="assets/js/qrcode.min.js"></script>
+<script src="assets/js/pos_sale_register.js?v=25"></script>
+<script>
+    if (window.POSRegisterModule) {
+        window.POSRegisterModule.init();
+    } else {
+        setTimeout(() => window.POSRegisterModule && window.POSRegisterModule.init(), 100);
+    }
+</script>
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" onload="
+    (function() {
+        var s = document.createElement('script');
+        s.src = 'assets/js/pos_sale_register.js?v=' + Date.now();
+        s.onload = function() {
+            if (window.POSRegisterModule) window.POSRegisterModule.init();
+        };
+        document.head.appendChild(s);
+    })();
+" style="display:none;">

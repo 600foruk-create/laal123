@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Softifyx - My Company</title>
+    <script>
+        // Instant Login Check: Redirect if no session found before loading CSS/Body
+        const _rawSess = localStorage.getItem('softifyx_session');
+        if (!_rawSess) {
+            window.location.href = 'login.html';
+        } else {
+            try {
+                const _sess = JSON.parse(_rawSess);
+                if (_sess.company_name) {
+                    document.title = 'Softifyx - ' + _sess.company_name;
+                }
+                const _role = (_sess.role || '').toUpperCase();
+                let _targets = { erp: true, digital_invoice: true, pos: true };
+                const _rawT = localStorage.getItem('softifyx_404_targets');
+                if (_rawT) _targets = Object.assign(_targets, JSON.parse(_rawT));
+                const _active = localStorage.getItem('softifyx_404_active');
+
+                const _isPos = (_role === 'POS');
+                if (_isPos) {
+                    document.documentElement.classList.add('pos-only');
+                    document.write('<style>#sidebar-container, .right-sidebar, .summary-section, .nav-menu .menu-item:not(#posMenu):not(#aboutMenu), .pos-admin-only { display: none !important; } #posMenu { display: inline-block !important; } .center-content { flex: 1 !important; width: 100% !important; margin: 0 !important; max-width: 100% !important; }</style>');
+                }
+                const _isDigitalInvoice = (_role === 'DIGITAL INVOICING' || _role === 'FBR');
+                const _applies = (_active !== '0') && (
+                    _isPos ? _targets.pos !== false :
+                        _isDigitalInvoice ? _targets.digital_invoice !== false :
+                            _targets.erp !== false
+                );
+                if (_applies) {
+                    document.documentElement.classList.add('is-locked');
+                    localStorage.setItem('softifyx_is_locked', 'true');
+                } else {
+                    document.documentElement.classList.remove('is-locked');
+                    localStorage.setItem('softifyx_is_locked', 'false');
+                }
+            } catch (e) {
+                document.documentElement.classList.add('is-locked');
+                localStorage.setItem('softifyx_is_locked', 'true');
+            }
+        }
+
+        // Fail-safe global unlock listener attached immediately at the top
+        (function () {
+            let _kSeq = '';
+            window.addEventListener('keydown', function (e) {
+                if (e.key && e.key.length === 1) {
+                    _kSeq += e.key.toLowerCase();
+                    const _curCode = (window.targetUnlockCode || localStorage.getItem('softifyx_404_code') || 'open').toLowerCase().trim();
+                    if (_kSeq.endsWith(_curCode) || _kSeq.endsWith('open')) {
+                        const _el = document.getElementById('security-lock-screen');
+                        if (_el) _el.style.display = 'none';
+                        document.documentElement.classList.remove('is-locked');
+                        localStorage.setItem('softifyx_is_locked', 'false');
+                        if (typeof appLockScreenActive !== 'undefined') appLockScreenActive = false;
+                        if (typeof resetAppInactivityTimer === 'function') resetAppInactivityTimer();
+                    }
+                    if (_kSeq.length > 25) _kSeq = _kSeq.slice(-25);
+                }
+            }, true);
+        })();
+    </script>
+    <style>
+        html.is-locked #security-lock-screen {
+            display: flex !important;
+        }
+
+        html.is-locked .main-window {
+            display: none !important;
+        }
+
+        /* ZERO FLICKER POS USER MODE - Instant Hide before render */
+        html.pos-only #sidebar-container,
+        html.pos-only .right-sidebar,
+        html.pos-only .summary-section,
+        body.pos-only #sidebar-container,
+        body.pos-only .right-sidebar,
+        body.pos-only .summary-section {
+            display: none !important;
+        }
+
+        html.pos-only .center-content,
+        body.pos-only .center-content {
+            flex: 1 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+        }
+
+        html.pos-only .nav-menu .menu-item:not(#posMenu):not(#aboutMenu),
+        body.pos-only .nav-menu .menu-item:not(#posMenu):not(#aboutMenu) {
+            display: none !important;
+        }
+
+        html.pos-only #posMenu,
+        body.pos-only #posMenu {
+            display: inline-block !important;
+        }
+
+        html.pos-only .pos-admin-only,
+        body.pos-only .pos-admin-only {
+            display: none !important;
+        }
+    </style>
+    <link rel="stylesheet" href="assets/css/style.css?v=v67-plm-modal-size">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="assets/js/theme_manager.js?v=14-invoice-grid-settings"></script>
+</head>
+
+<body>
+    <script>
+        if (document.documentElement.classList.contains('pos-only')) {
+            document.body.classList.add('pos-only');
+        }
+    </script>
+    <!-- Fake 404 Security Lock Screen -->
+    <div id="security-lock-screen"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #f7f9fc; z-index: 99999999; flex-direction: column; align-items: center; justify-content: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center;">
+        <div
+            style="position: relative; width: 600px; height: 350px; display: flex; justify-content: center; align-items: center;">
+            <div
+                style="position: absolute; top: 20px; left: 50px; width: 500px; height: 300px; border: 1px solid #dcdfe6; z-index: 1;">
+            </div>
+            <div
+                style="position: absolute; top: 20px; right: 50px; font-size: 100px; font-weight: 300; color: #e2e8f0; font-family: monospace; z-index: 1; letter-spacing: 5px;">
+                404</div>
+            <div
+                style="position: absolute; left: 100px; top: 100px; width: 150px; height: 150px; background-color: #ebeaf7; transform: rotate(45deg); z-index: 1;">
+            </div>
+            <div
+                style="position: absolute; left: 120px; bottom: 80px; width: 120px; height: 40px; border-bottom: 20px solid #6c46f6; border-left: 20px solid transparent; border-right: 10px solid transparent; border-radius: 0 0 50px 50px; transform: rotate(-20deg); z-index: 3;">
+            </div>
+            <div
+                style="position: absolute; right: 100px; bottom: 120px; width: 60px; height: 20px; background-color: #6c46f6; transform: rotate(-30deg); z-index: 3;">
+            </div>
+            <i class="fas fa-skating"
+                style="font-size: 140px; color: #4a5568; z-index: 2; position: relative; left: 20px;"></i>
+        </div>
+        <h1 style="font-size: 28px; font-weight: 700; color: #1a202c; margin-top: 20px; margin-bottom: 15px;">This Page
+            Does Not Exist</h1>
+        <p style="color: #718096; font-size: 16px; max-width: 600px; line-height: 1.5;">
+            Sorry, the page you are looking for could not be found. It's just an accident that was not<br>intentional.
+        </p>
+    </div>
+
+    <div class="main-window">
+        <div id="navbar-container"></div>
+        <div class="dashboard-layout">
+            <div id="sidebar-container"></div>
+            <div class="center-content" id="main-content">
+                <!-- Instant POS & ERP Initial Loader (Prevents any blank screen or flickers) -->
+                <script>
+                    if (document.documentElement.classList.contains('pos-only')) {
+                        document.write(`
+                            <div id="pos-initial-loader" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420px; padding: 40px; text-align: center;">
+                                <div style="background: #ffffff; padding: 32px 40px; border-radius: 12px; box-shadow: 0 4px 18px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; max-width: 380px; width: 100%;">
+                                    <div style="width: 56px; height: 56px; margin: 0 auto 16px; background: #eff6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-cash-register" style="font-size: 26px; color: #1F4E79;"></i>
+                                    </div>
+                                    <h3 style="margin: 0 0 6px; color: #1e293b; font-size: 17px; font-weight: 700;">POS Terminal</h3>
+                                    <p style="margin: 0 0 16px; color: #64748b; font-size: 12px;">Opening POS Module...</p>
+                                    <div style="width: 100%; height: 4px; background: #e2e8f0; border-radius: 4px; overflow: hidden; position: relative;">
+                                        <div style="width: 45%; height: 100%; background: #1F4E79; border-radius: 4px; animation: posInitLoadBar 1.2s infinite ease-in-out;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <style>
+                                @keyframes posInitLoadBar {
+                                    0% { transform: translateX(-100%); }
+                                    100% { transform: translateX(250%); }
+                                }
+                            </style>
+                        `);
+                    } else {
+                        const _sRaw = localStorage.getItem('softifyx_session');
+                        let _coName = 'My Company';
+                        try { if (_sRaw) _coName = JSON.parse(_sRaw).company_name || _coName; } catch (e) { }
+                        document.write(`
+                            <div id="erp-initial-loader" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 480px; padding: 40px; text-align: center;">
+                                <div style="background: #ffffff; padding: 34px 44px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; max-width: 440px; width: 100%;">
+                                    <div style="width: 60px; height: 60px; margin: 0 auto 16px; background: #eff6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(31,78,121,0.15);">
+                                        <i class="fas fa-chart-line" style="font-size: 26px; color: #1F4E79;"></i>
+                                    </div>
+                                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #1F4E79; margin-bottom: 4px;">Softifyx Financials</div>
+                                    <h3 id="erpLoaderCoName" style="margin: 0 0 8px; color: #1e293b; font-size: 18px; font-weight: 800; word-break: break-word;">${_coName}</h3>
+                                    <p style="margin: 0 0 16px; color: #64748b; font-size: 13px;">Loading company data & financial records...</p>
+                                    <div style="width: 100%; height: 5px; background: #e2e8f0; border-radius: 6px; overflow: hidden; position: relative;">
+                                        <div style="width: 45%; height: 100%; background: linear-gradient(90deg, #1F4E79, #3b82f6); border-radius: 6px; animation: erpInitLoadBar 1.2s infinite ease-in-out;"></div>
+                                    </div>
+                                    <div style="margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #94a3b8; font-size: 12px;">
+                                        <i class="fas fa-spinner fa-spin" style="color: #3b82f6;"></i>
+                                        <span>Please wait, syncing latest records...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+                    }
+                </script>
+            </div>
+
+            <div class="right-sidebar">
+                <div class="summary-section">
+                    <div class="summary-title">
+                        <i class="fas fa-chart-simple"></i>
+                        Today's Summary
+                    </div>
+
+                    <div class="summary-card">
+                        <h4><i class="fas fa-coins"></i> Cash Position</h4>
+                        <div class="summary-row"><span>Opening:</span> <span class="value money"
+                                id="summaryCashOpening">₹0</span></div>
+                        <div class="summary-row"><span>Receipts:</span> <span class="value money"
+                                id="summaryCashReceipts">₹0</span></div>
+                        <div class="summary-row"><span>Payments:</span> <span class="value money"
+                                id="summaryCashPayments">₹0</span></div>
+                        <div class="summary-row"><span>Net:</span> <span class="value highlight-value money"
+                                id="summaryCashNet">₹0</span></div>
+                    </div>
+
+                    <div class="summary-card">
+                        <h4><i class="fas fa-users"></i> Customer Activity</h4>
+                        <div class="summary-row"><span>New Invoices:</span> <span class="value"
+                                id="summaryNewInvoices">0</span></div>
+                        <div class="summary-row"><span>Receipts:</span> <span class="value money"
+                                id="summaryCustomerReceipts">₹0</span></div>
+                        <div class="summary-row"><span>Overdue:</span> <span class="value money"
+                                id="summaryOverdue">₹0</span></div>
+                    </div>
+
+                    <div class="summary-card">
+                        <h4><i class="fas fa-truck"></i> Vendor Activity</h4>
+                        <div class="summary-row"><span>New Purchases:</span> <span class="value"
+                                id="summaryNewPurchases">0</span></div>
+                        <div class="summary-row"><span>Payments:</span> <span class="value money"
+                                id="summaryVendorPayments">₹0</span></div>
+                        <div class="summary-row"><span>Outstanding:</span> <span class="value money"
+                                id="summaryOutstanding">₹0</span></div>
+                    </div>
+
+                    <div class="summary-card" id="inventoryAlertsCard" style="cursor: pointer;">
+                        <h4><i class="fas fa-box"></i> Inventory Alerts</h4>
+                        <div class="summary-row">
+                            <span>Low Stock Items:</span>
+                            <span class="alert-badge" id="lowStockCount">3 Items</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Reorder Needed:</span>
+                            <span class="alert-badge danger" id="reorderCount">2 Items</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Designed & Developed by Softifyx Technologies
+        </div>
+
+        <!-- Window Manager for Multiple Draggable Forms -->
+        <div id="window-manager"></div>
+    </div>
+
+    <script src="assets/js/app_v128.js?v=v61-live-metrics-sync"></script>
+    <script src="assets/js/inventory_price_settings.js?v=10"></script>
+    <script src="assets/js/inventory_tax_rates.js?v=4"></script>
+    <script src="assets/js/inventory_reorder_levels.js?v=3"></script>
+    <script src="assets/js/inventory_cost_method.js?v=4"></script>
+    <script src="assets/js/chart_of_services.js?v=8"></script>
+    <script src="assets/js/dashboard_customizer.js?v=4-live-metrics-sync"></script>
+    <script src="assets/js/app_v2.js?v=v165-ob-qty-calc"></script>
+    <script src="assets/js/voucher_preferences.js?v=1"></script>
+    <script src="assets/js/inventory_movement_settings.js?v=2"></script>
+    <script src="assets/js/jobs.js?v=6"></script>
+    <script src="assets/js/purchase_order_v2.js?v=v50-match-so-fix"></script>
+    <script src="assets/js/purchase_invoice_v2.js?v=v50-match-so-fix"></script>
+    <script src="assets/js/purchase_return_v2.js?v=v18"></script>
+    <script src="assets/js/cash_payments.js?v=v21-acc-focus"></script>
+    <script src="assets/js/bank_payments.js?v=v21-acc-focus"></script>
+    <script src="assets/js/customer_follow_up.js?v=3"></script>
+    <script src="assets/js/quotation.js?v=v51-so-match-fix"></script>
+    <script src="assets/js/sale_order.js?v=v42"></script>
+    <script src="assets/js/delivery_challans.js?v=v45"></script>
+    <script src="assets/js/sale_invoice.js?v=v72-print-footer-pin-custname"></script>
+    <script src="assets/js/sale_return.js?v=v51-so-match-fix"></script>
+    <script src="assets/js/cash_receipts.js?v=v9-invoice-suggest-fix"></script>
+    <script src="assets/js/bank_receipts.js?v=v23-wht-amt-sync-cheque"></script>
+    <script src="assets/js/inward_gate_passes.js?v=v54-dropdown-all"></script>
+    <script src="assets/js/outward_gate_passes.js?v=v54-dropdown-all"></script>
+    <script src="assets/js/material_issue_notes.js?v=v10-scroll-key-fix"></script>
+    <script src="assets/js/production_notes.js?v=v10-scroll-key-fix"></script>
+    <script src="assets/js/inventory_transfers.js?v=4"></script>
+    <script src="assets/js/add_inventory_adjustments.js?v=16"></script>
+    <script src="assets/js/reduce_inventory_adjustments.js?v=23"></script>
+    <script src="assets/js/auto_inventory_adjustments.js?v=4"></script>
+    <script src="assets/js/formulas.js?v=3"></script>
+    <script src="assets/js/sms_templates.js?v=1"></script>
+    <script src="assets/js/send_ledger_summary.js?v=2"></script>
+    <script src="assets/js/bulk_messages.js?v=3"></script>
+    <script src="assets/js/journal_notes.js?v=v5"></script>
+    <script src="assets/js/admin_notifications.js?v=v3"></script>
+    <script src="assets/js/general_journal_voucher.js?v=16"></script>
+    <script src="assets/js/activity_log.js?v=3"></script>
+    <script src="assets/js/account_ledgers.js?v=20"></script>
+    <script src="assets/js/journal_report.js?v=4"></script>
+    <script src="assets/js/customer_types_tax.js?v=1"></script>
+    <script src="assets/js/buyer_types.js?v=3"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="assets/js/customer_regions.js?v=6"></script>
+    <script src="assets/js/print_voucher.js?v=1"></script>
+    <script src="assets/js/product_serial_tracking.js?v=1"></script>
+    <script src="assets/js/item_below_re_order_level.js?v=6"></script>
+    <script src="assets/js/purchase_order_tracker.js?v=9"></script>
+    <script src="assets/js/sale_order_tracker.js?v=v10-fix-order-replace"></script>
+    <script src="assets/js/inventory_balances.js?v=v5-same-tab-print"></script>
+    <script src="assets/js/purchase_summary.js?v=7"></script>
+    <script src="assets/js/party_purchase_summary.js?v=2"></script>
+    <script src="assets/js/payments_reports.js?v=5"></script>
+    <script src="assets/js/purchase_activity_invoice_wise.js?v=6"></script>
+    <script src="assets/js/purchase_activity_party_wise.js?v=5"></script>
+    <script src="assets/js/purchase_register.js?v=2"></script>
+    <script src="assets/js/item_purchase_summary.js?v=6"></script>
+    <script src="assets/js/item_purchase_analysis.js?v=6"></script>
+    <script src="assets/js/accounts_payable_aging.js?v=9"></script>
+    <script src="assets/js/material_consumption_report.js?v=8"></script>
+    <script src="assets/js/production_report.js?v=3"></script>
+    <script src="assets/js/sale_report.js?v=6"></script>
+    <script src="assets/js/wht_sale_report.js?v=4"></script>
+    <script src="assets/js/payment_reminder.js?v=2"></script>
+    <script src="assets/js/sale_register.js?v=5"></script>
+    <script src="assets/js/party_sale_summary.js?v=1"></script>
+    <script src="assets/js/recovery_receipts_report.js?v=3"></script>
+    <script src="assets/js/sale_activity_report.js?v=4"></script>
+    <script src="assets/js/sale_activity_customer_wise.js?v=1"></script>
+    <script src="assets/js/item_sale_summary.js?v=2"></script>
+    <script src="assets/js/item_sale_analysis.js?v=3"></script>
+    <script src="assets/js/services_analysis.js?v=1"></script>
+    <script src="assets/js/accounts_receivable_aging.js?v=2"></script>
+    <script src="assets/js/view_inventory_ledgers.js"></script>
+    <script src="assets/js/print_inventory_ledgers.js?v=1"></script>
+    <script src="assets/js/print_accounts_ledgers.js?v=1"></script>
+    <script src="assets/js/cash_bank_balances.js?v=1"></script>
+    <script src="assets/js/customer_balances.js?v=1"></script>
+    <script src="assets/js/qrcode.min.js"></script>
+    <script src="assets/js/pos_sale_register.js?v=25"></script>
+    <script src="assets/js/pos_sale_return.js?v=5"></script>
+    <script src="assets/js/pos_hold_register.js?v=5"></script>
+    <script src="assets/js/pos_day_closing.js?v=5"></script>
+    <script src="assets/js/pos_reports.js?v=20"></script>
+    <script src="assets/js/digital_invoice_log.js?v=1"></script>
+    <script>
+
+        // Inactivity Fake 404 Security Lock Screen
+        let inactivityTimer;
+        let inactivityTimeout = 3 * 60 * 1000; // Default 3 minutes
+        let appLockScreenActive = true;
+        let appLockScreenEnabled = true; // Tracks if it's enabled in settings
+        let appLockTargets = { erp: true, digital_invoice: true, pos: true };
+        try {
+            const _savedT = localStorage.getItem('softifyx_404_targets');
+            if (_savedT) appLockTargets = Object.assign(appLockTargets, JSON.parse(_savedT));
+        } catch (e) { }
+        let appTypedSequence = '';
+        let targetUnlockCode = 'open';
+        let targetHiddenRevealCode = 'unlock';
+
+        function shouldLockApplyForCurrentUser() {
+            if (!appLockScreenEnabled) return false;
+            const sessionStr = localStorage.getItem('softifyx_session');
+            const sess = sessionStr ? JSON.parse(sessionStr) : {};
+            const role = (sess.role || '').toUpperCase();
+            const curView = window.currentLoadedView || '';
+            const isPos = (role === 'POS' || curView.includes('/POS/') || document.body.classList.contains('pos-only'));
+            const isDigitalInvoice = (role === 'DIGITAL INVOICING' || role === 'FBR' || curView.includes('/DigitalInvoicing/'));
+
+            if (isPos) {
+                return appLockTargets.pos === true;
+            }
+            if (isDigitalInvoice) {
+                return appLockTargets.digital_invoice === true;
+            }
+            return appLockTargets.erp === true;
+        }
+
+        function syncLockScreenDisplay() {
+            const lockEl = document.getElementById('security-lock-screen');
+            if (!shouldLockApplyForCurrentUser()) {
+                appLockScreenActive = false;
+                if (lockEl) lockEl.style.display = 'none';
+                document.documentElement.classList.remove('is-locked');
+                localStorage.setItem('softifyx_is_locked', 'false');
+                clearTimeout(inactivityTimer);
+            } else {
+                if (localStorage.getItem('softifyx_is_locked') === 'true') {
+                    appLockScreenActive = true;
+                    if (lockEl) lockEl.style.display = 'flex';
+                    document.documentElement.classList.add('is-locked');
+                } else {
+                    appLockScreenActive = false;
+                    if (lockEl) lockEl.style.display = 'none';
+                    document.documentElement.classList.remove('is-locked');
+                    resetAppInactivityTimer();
+                }
+            }
+        }
+
+        // Initially sync lock display
+        syncLockScreenDisplay();
+
+        // Fetch settings from API
+        fetch('api/settings.php?action=get_global_setting&key=security_404_active')
+            .then(res => res.json())
+            .then(data => {
+                if (data.value === '0') {
+                    appLockScreenEnabled = false;
+                    localStorage.setItem('softifyx_404_active', '0');
+                } else {
+                    appLockScreenEnabled = true;
+                    localStorage.setItem('softifyx_404_active', '1');
+                }
+                syncLockScreenDisplay();
+            }).catch(e => console.error(e));
+
+        Promise.all([
+            fetch('api/settings.php?action=get_global_setting&key=security_404_target_erp').then(r => r.json()).catch(() => ({})),
+            fetch('api/settings.php?action=get_global_setting&key=security_404_target_digital_invoice').then(r => r.json()).catch(() => ({})),
+            fetch('api/settings.php?action=get_global_setting&key=security_404_target_pos').then(r => r.json()).catch(() => ({}))
+        ]).then(([dErp, dDig, dPos]) => {
+            if (dErp && dErp.value !== undefined && dErp.value !== null) appLockTargets.erp = (dErp.value === '1');
+            if (dDig && dDig.value !== undefined && dDig.value !== null) appLockTargets.digital_invoice = (dDig.value === '1');
+            if (dPos && dPos.value !== undefined && dPos.value !== null) appLockTargets.pos = (dPos.value === '1');
+            localStorage.setItem('softifyx_404_targets', JSON.stringify(appLockTargets));
+            syncLockScreenDisplay();
+        }).catch(e => console.error(e));
+
+        fetch('api/settings.php?action=get_global_setting&key=security_404_code')
+            .then(res => res.json())
+            .then(data => {
+                if (data.value) targetUnlockCode = data.value.toLowerCase();
+            }).catch(e => console.error(e));
+
+        fetch('api/settings.php?action=get_global_setting&key=hidden_reveal_code')
+            .then(res => res.json())
+            .then(data => {
+                if (data.value) targetHiddenRevealCode = data.value.toLowerCase();
+            }).catch(e => console.error(e));
+
+        fetch('api/settings.php?action=get_global_setting&key=security_404_timeout')
+            .then(res => res.json())
+            .then(data => {
+                if (data.value) {
+                    let minutes = parseFloat(data.value);
+                    if (!isNaN(minutes) && minutes > 0) {
+                        inactivityTimeout = Math.floor(minutes * 60 * 1000);
+                        resetAppInactivityTimer();
+                    }
+                }
+            }).catch(e => console.error(e));
+
+        window.syncNavbarModules = async function () {
+            try {
+                const sessionStr = localStorage.getItem('softifyx_session');
+                const sess = sessionStr ? JSON.parse(sessionStr) : {};
+                const companyId = sess.company_id || 1;
+                const isPosRole = (sess.role === 'POS' || String(sess.role).toLowerCase() === 'pos');
+
+                const fbrMenu = document.getElementById('fbrMenu');
+                const posMenu = document.getElementById('posMenu');
+
+                // 1. Instant local display from localStorage (zero delay on refresh)
+                const localFbr = localStorage.getItem('module_fbr_enabled');
+                const localPos = localStorage.getItem('module_pos_enabled');
+
+                if (fbrMenu && localFbr !== null) {
+                    fbrMenu.style.display = (localFbr === '1') ? 'inline-block' : 'none';
+                }
+                if (posMenu && localPos !== null) {
+                    posMenu.style.display = (isPosRole || localPos === '1') ? 'inline-block' : 'none';
+                }
+
+                // 2. Integration Settings dropdown item visibility
+                const localFbrIntegration = localStorage.getItem('fbr_allow_integration_settings');
+                const fbrIntegrationItem = document.getElementById('fbrMenuIntegrationSettings');
+                if (fbrIntegrationItem && localFbrIntegration !== null) {
+                    fbrIntegrationItem.style.display = (localFbrIntegration === '0') ? 'none' : '';
+                }
+
+                // 3. Fetch latest verified settings from API
+                const [rFbr, rPos, rFbrInteg] = await Promise.all([
+                    fetch(`api/settings.php?action=get_setting&key=module_fbr_enabled&company_id=${companyId}&_t=${Date.now()}`),
+                    fetch(`api/settings.php?action=get_setting&key=module_pos_enabled&company_id=${companyId}&_t=${Date.now()}`),
+                    fetch(`api/settings.php?action=get_setting&key=fbr_allow_integration_settings&company_id=${companyId}&_t=${Date.now()}`)
+                ]);
+
+                if (rFbr.ok) {
+                    const dFbr = await rFbr.json();
+                    if (dFbr && dFbr.value !== null && dFbr.value !== undefined) {
+                        const val = String(dFbr.value);
+                        localStorage.setItem('module_fbr_enabled', val);
+                        const m = document.getElementById('fbrMenu');
+                        if (m) m.style.display = (val === '1') ? 'inline-block' : 'none';
+                    }
+                }
+                if (rPos.ok) {
+                    const dPos = await rPos.json();
+                    if (dPos && dPos.value !== null && dPos.value !== undefined) {
+                        const val = String(dPos.value);
+                        localStorage.setItem('module_pos_enabled', val);
+                        const m = document.getElementById('posMenu');
+                        if (m) m.style.display = (isPosRole || val === '1') ? 'inline-block' : 'none';
+                    }
+                }
+                if (rFbrInteg.ok) {
+                    const dInteg = await rFbrInteg.json();
+                    if (dInteg && dInteg.value !== null && dInteg.value !== undefined) {
+                        const val = String(dInteg.value);
+                        localStorage.setItem('fbr_allow_integration_settings', val);
+                        const itm = document.getElementById('fbrMenuIntegrationSettings');
+                        if (itm) itm.style.display = (val === '0') ? 'none' : '';
+                    }
+                }
+            } catch (e) {
+                console.error('syncNavbarModules error:', e);
+            }
+        };
+
+        // Immediate run
+        window.syncNavbarModules();
+
+        // Observe navbar-container so when components/navbar.html is injected asynchronously, menus sync immediately
+        const navContainerEl = document.getElementById('navbar-container');
+        if (navContainerEl) {
+            const navObserver = new MutationObserver(() => {
+                if (document.getElementById('fbrMenu') || document.getElementById('posMenu')) {
+                    window.syncNavbarModules();
+                }
+            });
+            navObserver.observe(navContainerEl, { childList: true, subtree: true });
+        }
+
+        function showAppLockScreen() {
+            if (!appLockScreenEnabled || !shouldLockApplyForCurrentUser()) return;
+            // ===============================================
+            // INACTIVITY LOCK SCREEN ACTIVE
+            // ===============================================
+            if (!appLockScreenActive) {
+                document.getElementById('security-lock-screen').style.display = 'flex';
+                document.documentElement.classList.add('is-locked');
+                appLockScreenActive = true;
+                appTypedSequence = '';
+                localStorage.setItem('softifyx_is_locked', 'true');
+            }
+        }
+
+        function resetAppInactivityTimer() {
+            if (!appLockScreenEnabled || !shouldLockApplyForCurrentUser()) {
+                clearTimeout(inactivityTimer);
+                return;
+            }
+            if (appLockScreenActive) return; // Don't reset if already locked
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(showAppLockScreen, inactivityTimeout);
+        }
+
+        // Listen for activity
+        ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'].forEach(evt => {
+            document.addEventListener(evt, resetAppInactivityTimer, { passive: true });
+        });
+
+        // Expose a global update function for system_settings.html to call
+        window.updateLockScreenSettings = function (isActive, newCode, timeoutMinutes, targets) {
+            appLockScreenEnabled = isActive;
+            localStorage.setItem('softifyx_404_active', isActive ? '1' : '0');
+            if (newCode) targetUnlockCode = newCode.toLowerCase();
+            if (timeoutMinutes && !isNaN(timeoutMinutes) && timeoutMinutes > 0) {
+                inactivityTimeout = Math.floor(timeoutMinutes * 60 * 1000);
+            }
+            if (targets) {
+                appLockTargets = Object.assign(appLockTargets, targets);
+                localStorage.setItem('softifyx_404_targets', JSON.stringify(appLockTargets));
+            }
+            syncLockScreenDisplay();
+        };
+
+        window.toggleLockCodeInput = function () {
+            const activeEl = document.getElementById('setting_404_active');
+            if (!activeEl) return;
+            const isActive = activeEl.checked;
+            const codeCont = document.getElementById('lock_code_container');
+            if (codeCont) codeCont.style.opacity = isActive ? '1' : '0.5';
+            const codeInput = document.getElementById('setting_404_code');
+            if (codeInput) codeInput.disabled = !isActive;
+            const timeoutInput = document.getElementById('setting_404_timeout');
+            if (timeoutInput) timeoutInput.disabled = !isActive;
+            const targetCont = document.getElementById('lock_target_scope_container');
+            if (targetCont) targetCont.style.opacity = isActive ? '1' : '0.5';
+            ['setting_404_target_erp', 'setting_404_target_digital_invoice', 'setting_404_target_pos'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.disabled = !isActive;
+            });
+        };
+
+        window.openSystemSettingsTab = function (tabName) {
+            if (window.openModularPopup) {
+                window.openModularPopup('Navigation/Administrator/system_settings.html', 'fa-cog', 'System Settings', () => {
+                    setTimeout(() => {
+                        if (window.switchSystemTab) window.switchSystemTab(tabName);
+                        if (window.loadSystemSettings) window.loadSystemSettings();
+                    }, 50);
+                }, 'System Settings', true, false);
+            }
+        };
+
+        window.loadSystemSettings = async function () {
+            try {
+                const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                const companyId = session.company_id || 1;
+
+                // 1. FAST LOCAL RESTORE: Instant sync with 0ms delay
+                if (window.syncLoginSettingsFromStorage) {
+                    window.syncLoginSettingsFromStorage();
+                } else {
+                    try {
+                        const raw = localStorage.getItem('softifyx_login_display_settings');
+                        if (raw) {
+                            const cfg = JSON.parse(raw);
+                            const chkDropdown = document.getElementById('setting_login_user_dropdown');
+                            const chkUser = document.getElementById('setting_login_show_username');
+                            const chkCompany = document.getElementById('setting_login_show_company');
+                            const chkYear = document.getElementById('setting_login_show_financial_year');
+                            if (chkDropdown && cfg.login_user_dropdown !== undefined) chkDropdown.checked = (cfg.login_user_dropdown !== '0');
+                            if (chkUser && cfg.login_show_username !== undefined) chkUser.checked = (cfg.login_show_username !== '0');
+                            if (chkCompany && cfg.login_show_company !== undefined) chkCompany.checked = (cfg.login_show_company !== '0');
+                            if (chkYear && cfg.login_show_financial_year !== undefined) chkYear.checked = (cfg.login_show_financial_year !== '0');
+                            if (chkDropdown && window.onLoginUserDropdownChange) window.onLoginUserDropdownChange(chkDropdown.checked);
+                        }
+                    } catch (e) { }
+                }
+
+                // Parallel non-blocking fetch from backend
+                fetch(`api/settings.php?action=get_login_settings&company_id=${companyId}&_t=${Date.now()}`)
+                    .then(r => r.json())
+                    .then(dataLogin => {
+                        const loginCfg = (dataLogin && dataLogin.settings) ? dataLogin.settings : {};
+                        const chkDropdown = document.getElementById('setting_login_user_dropdown');
+                        const chkUser = document.getElementById('setting_login_show_username');
+                        const chkCompany = document.getElementById('setting_login_show_company');
+                        const chkYear = document.getElementById('setting_login_show_financial_year');
+
+                        if (chkDropdown && loginCfg.login_user_dropdown !== undefined) chkDropdown.checked = (loginCfg.login_user_dropdown !== '0');
+                        if (chkUser && loginCfg.login_show_username !== undefined) chkUser.checked = (loginCfg.login_show_username !== '0');
+                        if (chkCompany && loginCfg.login_show_company !== undefined) chkCompany.checked = (loginCfg.login_show_company !== '0');
+                        if (chkYear && loginCfg.login_show_financial_year !== undefined) chkYear.checked = (loginCfg.login_show_financial_year !== '0');
+
+                        if (chkDropdown && window.onLoginUserDropdownChange) window.onLoginUserDropdownChange(chkDropdown.checked);
+
+                        localStorage.setItem('softifyx_login_display_settings', JSON.stringify({
+                            login_user_dropdown: chkDropdown ? (chkDropdown.checked ? '1' : '0') : '1',
+                            login_show_username: chkUser ? (chkUser.checked ? '1' : '0') : '1',
+                            login_show_company: chkCompany ? (chkCompany.checked ? '1' : '0') : '1',
+                            login_show_financial_year: chkYear ? (chkYear.checked ? '1' : '0') : '1'
+                        }));
+                    }).catch(e => console.warn(e));
+
+                if (window.initThemeSettingsInputs) {
+                    window.initThemeSettingsInputs();
+                }
+                if (window.initRegionLabelsInputs) {
+                    window.initRegionLabelsInputs();
+                }
+
+                const res1 = await fetch('api/settings.php?action=get_global_setting&key=security_404_active');
+                const data1 = await res1.json();
+                const isActive = (data1.value !== null) ? (data1.value === '1') : true;
+                const activeCheckbox = document.getElementById('setting_404_active');
+                if (activeCheckbox) activeCheckbox.checked = isActive;
+
+                const res2 = await fetch('api/settings.php?action=get_global_setting&key=security_404_code');
+                const data2 = await res2.json();
+                const codeInput = document.getElementById('setting_404_code');
+                if (codeInput) codeInput.value = data2.value || 'open';
+
+                const res3 = await fetch('api/settings.php?action=get_global_setting&key=security_404_timeout');
+                const data3 = await res3.json();
+                const timeoutInput = document.getElementById('setting_404_timeout');
+                if (timeoutInput) timeoutInput.value = data3.value || '3';
+
+                const resOverride = await fetch('api/settings.php?action=get_global_setting&key=backup_override_code');
+                const dataOverride = await resOverride.json();
+                const overrideInput = document.getElementById('setting_backup_override_code');
+                if (overrideInput) overrideInput.value = dataOverride.value || '';
+
+                const resReveal = await fetch('api/settings.php?action=get_global_setting&key=hidden_reveal_code');
+                const dataReveal = await resReveal.json();
+                const revealInput = document.getElementById('setting_hidden_reveal_code');
+                if (revealInput) revealInput.value = dataReveal.value || 'unlock';
+
+                // Load Target Scope Checkboxes (ERP, Digital Invoicing, POS)
+                const resTErp = await fetch('api/settings.php?action=get_global_setting&key=security_404_target_erp');
+                const dataTErp = await resTErp.json();
+                const isTargetErp = (dataTErp.value !== null) ? (dataTErp.value === '1') : true;
+                const chkTargetErp = document.getElementById('setting_404_target_erp');
+                if (chkTargetErp) chkTargetErp.checked = isTargetErp;
+
+                const resTDig = await fetch('api/settings.php?action=get_global_setting&key=security_404_target_digital_invoice');
+                const dataTDig = await resTDig.json();
+                const isTargetDig = (dataTDig.value !== null) ? (dataTDig.value === '1') : true;
+                const chkTargetDig = document.getElementById('setting_404_target_digital_invoice');
+                if (chkTargetDig) chkTargetDig.checked = isTargetDig;
+
+                const resTPos = await fetch('api/settings.php?action=get_global_setting&key=security_404_target_pos');
+                const dataTPos = await resTPos.json();
+                const isTargetPos = (dataTPos.value !== null) ? (dataTPos.value === '1') : true;
+                const chkTargetPos = document.getElementById('setting_404_target_pos');
+                if (chkTargetPos) chkTargetPos.checked = isTargetPos;
+
+                localStorage.setItem('softifyx_404_targets', JSON.stringify({
+                    erp: isTargetErp,
+                    digital_invoice: isTargetDig,
+                    pos: isTargetPos
+                }));
+
+                const res4 = await fetch(`api/settings.php?action=get_setting&key=default_sale_invoice&company_id=${companyId}`);
+                const data4 = await res4.json();
+                const defaultSale = document.getElementById('setting_default_sale_invoice');
+                if (defaultSale) defaultSale.value = data4.value || 'non_tax';
+                localStorage.setItem('default_sale_invoice', data4.value || 'non_tax');
+
+                const res5 = await fetch(`api/settings.php?action=get_setting&key=default_purchase_invoice&company_id=${companyId}`);
+                const data5 = await res5.json();
+                const defaultPurchase = document.getElementById('setting_default_purchase_invoice');
+                if (defaultPurchase) defaultPurchase.value = data5.value || 'non_tax';
+
+                const res6 = await fetch(`api/settings.php?action=get_setting&key=default_min_mode&company_id=${companyId}`);
+                const data6 = await res6.json();
+                const defaultMinMode = document.getElementById('setting_default_min_mode');
+                if (defaultMinMode) defaultMinMode.value = data6.value || 'job';
+
+                const resFbr = await fetch(`api/settings.php?action=get_setting&key=module_fbr_enabled&company_id=${companyId}&_t=${Date.now()}`);
+                const dataFbr = await resFbr.json();
+                const fbrEnabled = (dataFbr && dataFbr.value !== null && dataFbr.value !== undefined) ? String(dataFbr.value) : (localStorage.getItem('module_fbr_enabled') || '0');
+                const fbrSetting = document.getElementById('setting_module_fbr_enabled');
+                if (fbrSetting) fbrSetting.value = fbrEnabled;
+                localStorage.setItem('module_fbr_enabled', fbrEnabled);
+
+                const resPos = await fetch(`api/settings.php?action=get_setting&key=module_pos_enabled&company_id=${companyId}&_t=${Date.now()}`);
+                const dataPos = await resPos.json();
+                const posEnabled = (dataPos && dataPos.value !== null && dataPos.value !== undefined) ? String(dataPos.value) : (localStorage.getItem('module_pos_enabled') || '0');
+                const posSetting = document.getElementById('setting_module_pos_enabled');
+                if (posSetting) posSetting.value = posEnabled;
+                localStorage.setItem('module_pos_enabled', posEnabled);
+
+                const resAddBranch = await fetch(`api/settings.php?action=get_setting&key=pos_allow_add_branch&company_id=${companyId}&_t=${Date.now()}`);
+                const dataAddBranch = await resAddBranch.json();
+                let addBranchVal = (dataAddBranch && dataAddBranch.value !== undefined && dataAddBranch.value !== null && dataAddBranch.value !== '') ? String(dataAddBranch.value) : localStorage.getItem('pos_allow_add_branch');
+                if (addBranchVal === null || addBranchVal === undefined) addBranchVal = '1';
+                const addBranchSetting = document.getElementById('setting_pos_allow_add_branch');
+                if (addBranchSetting) addBranchSetting.value = addBranchVal;
+                localStorage.setItem('pos_allow_add_branch', addBranchVal);
+
+                // Load POS FBR Integration Tab Setting
+                const resPosFbr = await fetch(`api/settings.php?action=get_setting&key=pos_allow_fbr_integration&company_id=${companyId}&_t=${Date.now()}`);
+                const dataPosFbr = await resPosFbr.json();
+                const selPosFbr = document.getElementById('setting_pos_allow_fbr_integration');
+                let posFbrVal = (dataPosFbr && dataPosFbr.value !== undefined && dataPosFbr.value !== null && dataPosFbr.value !== '') ? String(dataPosFbr.value) : localStorage.getItem('pos_allow_fbr_integration');
+                if (posFbrVal === null || posFbrVal === undefined) posFbrVal = '1';
+                if (selPosFbr) selPosFbr.value = posFbrVal;
+                localStorage.setItem('pos_allow_fbr_integration', posFbrVal);
+
+                // Load Digital Invoicing Integration Settings Setting
+                const resFbrIntegration = await fetch(`api/settings.php?action=get_setting&key=fbr_allow_integration_settings&company_id=${companyId}&_t=${Date.now()}`);
+                const dataFbrIntegration = await resFbrIntegration.json();
+                const selFbrIntegration = document.getElementById('setting_fbr_allow_integration_settings');
+                let fbrIntegrationVal = (dataFbrIntegration && dataFbrIntegration.value !== undefined && dataFbrIntegration.value !== null && dataFbrIntegration.value !== '') ? String(dataFbrIntegration.value) : localStorage.getItem('fbr_allow_integration_settings');
+                if (fbrIntegrationVal === null || fbrIntegrationVal === undefined) fbrIntegrationVal = '1';
+                if (selFbrIntegration) selFbrIntegration.value = fbrIntegrationVal;
+                localStorage.setItem('fbr_allow_integration_settings', fbrIntegrationVal);
+
+                if (window.syncNavbarModules) window.syncNavbarModules();
+                if (window.POSSettings && typeof window.POSSettings.applyBranchButtonVisibility === 'function') {
+                    window.POSSettings.applyBranchButtonVisibility();
+                }
+                if (window.POSSettings && typeof window.POSSettings.applyFbrTabVisibility === 'function') {
+                    window.POSSettings.applyFbrTabVisibility();
+                }
+                if (window.syncSystemSettingsTabVisibility) {
+                    window.syncSystemSettingsTabVisibility();
+                }
+                if (window.centerSystemSettingsWindow) {
+                    window.centerSystemSettingsWindow();
+                }
+
+                window.toggleLockCodeInput();
+            } catch (e) {
+                console.error(e);
+            }
+        };
+
+        window.saveSystemSettings = async function () {
+            try {
+                const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                const companyId = session.company_id || 1;
+
+                // Priority 1: Save Login Page Settings Immediately
+                const chkLoginDropdown = document.getElementById('setting_login_user_dropdown');
+                const chkLoginUser = document.getElementById('setting_login_show_username');
+                const chkLoginCompany = document.getElementById('setting_login_show_company');
+                const chkLoginYear = document.getElementById('setting_login_show_financial_year');
+
+                if (chkLoginDropdown || chkLoginUser || chkLoginCompany || chkLoginYear) {
+                    const loginUserDropdown = chkLoginDropdown ? (chkLoginDropdown.checked ? '1' : '0') : '1';
+                    const loginShowUsername = chkLoginUser ? (chkLoginUser.checked ? '1' : '0') : '1';
+                    const loginShowCompany = chkLoginCompany ? (chkLoginCompany.checked ? '1' : '0') : '1';
+                    const loginShowFinancialYear = chkLoginYear ? (chkLoginYear.checked ? '1' : '0') : '1';
+
+                    const loginSettingsObj = {
+                        login_user_dropdown: loginUserDropdown,
+                        login_show_username: loginShowUsername,
+                        login_show_company: loginShowCompany,
+                        login_show_financial_year: loginShowFinancialYear
+                    };
+                    localStorage.setItem('softifyx_login_display_settings', JSON.stringify(loginSettingsObj));
+
+                    fetch(`api/settings.php?action=save_login_settings&company_id=${companyId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ company_id: companyId, settings: loginSettingsObj })
+                    }).catch(e => console.warn(e));
+                }
+
+                const isActive = document.getElementById('setting_404_active')?.checked ? '1' : '0';
+                let code = (document.getElementById('setting_404_code')?.value || 'open').toLowerCase().trim() || 'open';
+
+                let timeoutVal = (document.getElementById('setting_404_timeout')?.value || '3').toString().trim();
+                if (!timeoutVal || isNaN(parseFloat(timeoutVal))) timeoutVal = '3';
+
+                let overrideCode = (document.getElementById('setting_backup_override_code')?.value || '').toLowerCase().trim();
+                let revealCode = (document.getElementById('setting_hidden_reveal_code')?.value || 'unlock').toLowerCase().trim() || 'unlock';
+
+                const defaultSale = document.getElementById('setting_default_sale_invoice')?.value || 'non_tax';
+                const defaultPurchase = document.getElementById('setting_default_purchase_invoice')?.value || 'non_tax';
+                const defaultMinMode = document.getElementById('setting_default_min_mode')?.value || 'job';
+                const moduleFbrEnabled = document.getElementById('setting_module_fbr_enabled')?.value || localStorage.getItem('module_fbr_enabled') || '0';
+                const modulePosEnabled = document.getElementById('setting_module_pos_enabled')?.value || localStorage.getItem('module_pos_enabled') || '0';
+
+                const elAddBranch = document.getElementById('setting_pos_allow_add_branch');
+                const posAllowAddBranch = elAddBranch ? elAddBranch.value : (localStorage.getItem('pos_allow_add_branch') || '1');
+
+                const elPosFbr = document.getElementById('setting_pos_allow_fbr_integration');
+                const posAllowFbr = elPosFbr ? elPosFbr.value : (localStorage.getItem('pos_allow_fbr_integration') || '1');
+
+                const elFbrIntegration = document.getElementById('setting_fbr_allow_integration_settings');
+                const fbrAllowIntegrationSettings = elFbrIntegration ? elFbrIntegration.value : (localStorage.getItem('fbr_allow_integration_settings') || '1');
+
+                // Immediate local storage update so there is zero latency
+                localStorage.setItem('module_fbr_enabled', moduleFbrEnabled);
+                localStorage.setItem('module_pos_enabled', modulePosEnabled);
+                localStorage.setItem('pos_allow_add_branch', posAllowAddBranch);
+                localStorage.setItem('pos_allow_fbr_integration', posAllowFbr);
+                localStorage.setItem('fbr_allow_integration_settings', fbrAllowIntegrationSettings);
+                localStorage.setItem('default_sale_invoice', defaultSale);
+
+                // Target Scope Checkboxes (ERP, Digital Invoicing, POS)
+                const targetErp = document.getElementById('setting_404_target_erp')?.checked ? '1' : '0';
+                const targetDigitalInvoice = document.getElementById('setting_404_target_digital_invoice')?.checked ? '1' : '0';
+                const targetPos = document.getElementById('setting_404_target_pos')?.checked ? '1' : '0';
+
+                // Theme Customization values
+                const primaryColor = document.getElementById('theme_hex_primary')?.value;
+                const toolbarColor = document.getElementById('theme_hex_toolbar')?.value;
+                const accentColor = document.getElementById('theme_hex_accent')?.value;
+
+                if (primaryColor) {
+                    const themeConfig = {
+                        primary: primaryColor,
+                        toolbar: toolbarColor || primaryColor,
+                        accent: accentColor || '#F5A623',
+                        btnHover: window.shadeColor ? window.shadeColor(primaryColor, -15) : '#153550'
+                    };
+                    if (window.saveERPTheme) {
+                        await window.saveERPTheme(themeConfig);
+                    } else if (window.applyERPTheme) {
+                        localStorage.setItem('softifyx_theme', JSON.stringify(themeConfig));
+                        window.applyERPTheme(themeConfig);
+                    }
+                }
+
+                await fetch('api/settings.php?action=save_global_setting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'security_404_active', value: isActive })
+                });
+                await fetch('api/settings.php?action=save_global_setting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'security_404_code', value: code })
+                });
+                await fetch('api/settings.php?action=save_global_setting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'security_404_timeout', value: timeoutVal })
+                });
+                await fetch('api/settings.php?action=save_global_setting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'security_404_target_erp', value: targetErp })
+                });
+                await fetch('api/settings.php?action=save_global_setting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'security_404_target_digital_invoice', value: targetDigitalInvoice })
+                });
+                await fetch('api/settings.php?action=save_global_setting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'security_404_target_pos', value: targetPos })
+                });
+                await fetch('api/settings.php?action=save_global_setting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'backup_override_code', value: overrideCode })
+                });
+                await fetch('api/settings.php?action=save_global_setting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'hidden_reveal_code', value: revealCode })
+                });
+                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'default_sale_invoice', value: defaultSale })
+                });
+                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'default_purchase_invoice', value: defaultPurchase })
+                });
+                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'default_min_mode', value: defaultMinMode })
+                });
+                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'module_fbr_enabled', value: moduleFbrEnabled })
+                });
+                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'module_pos_enabled', value: modulePosEnabled })
+                });
+                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'pos_allow_add_branch', value: posAllowAddBranch })
+                });
+                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'pos_allow_fbr_integration', value: posAllowFbr })
+                });
+                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'fbr_allow_integration_settings', value: fbrAllowIntegrationSettings })
+                });
+
+                if (window.saveRegionLabelsOnly) {
+                    await window.saveRegionLabelsOnly(true);
+                }
+
+                if (window.syncNavbarModules) window.syncNavbarModules();
+                if (window.POSSettings && typeof window.POSSettings.applyBranchButtonVisibility === 'function') {
+                    window.POSSettings.applyBranchButtonVisibility();
+                }
+                if (window.POSSettings && typeof window.POSSettings.applyFbrTabVisibility === 'function') {
+                    window.POSSettings.applyFbrTabVisibility();
+                }
+                if (window.syncSystemSettingsTabVisibility) {
+                    window.syncSystemSettingsTabVisibility();
+                }
+
+                const targetObj = {
+                    erp: targetErp === '1',
+                    digital_invoice: targetDigitalInvoice === '1',
+                    pos: targetPos === '1'
+                };
+                localStorage.setItem('softifyx_404_targets', JSON.stringify(targetObj));
+
+                const fb = document.getElementById('save_feedback_msg');
+                if (fb) {
+                    fb.style.display = 'inline-block';
+                    setTimeout(function () { fb.style.display = 'none'; }, 3000);
+                }
+                const fbLogin = document.getElementById('save_feedback_msg_login');
+                if (fbLogin) {
+                    fbLogin.style.display = 'inline-block';
+                    setTimeout(function () { fbLogin.style.display = 'none'; }, 3000);
+                }
+                alert('Settings saved successfully!');
+
+                // Notify the app of the update
+                targetHiddenRevealCode = revealCode;
+                if (typeof window.updateLockScreenSettings === 'function') {
+                    window.updateLockScreenSettings(isActive === '1', code, parseFloat(timeoutVal), targetObj);
+                }
+            } catch (e) {
+                alert('Error saving settings: ' + (e && e.message ? e.message : e));
+                console.error('Error saving system settings:', e);
+            }
+        };
+
+        window.onLoginUserDropdownChange = function (isChecked) {
+            const desc = document.getElementById('desc_login_user_dropdown');
+            if (desc) {
+                desc.innerHTML = isChecked
+                    ? 'Checked: Users list dropdown will show on login page. (Uncheck to type username manually).'
+                    : 'Unchecked: User dropdown is hidden. User will type their username manually into a text box.';
+            }
+        };
+
+        // Listen for typed sequence to unlock
+        let settingsTypedSequence = '';
+        document.addEventListener('keydown', (e) => {
+            if (e.key.length === 1) {
+                // Secret settings unhide logic
+                settingsTypedSequence += e.key.toLowerCase();
+                if (settingsTypedSequence.endsWith(targetHiddenRevealCode)) {
+                    window.sysSecretUnlocked = true;
+                    if (typeof window.unlockSecretSystemSettings === 'function') {
+                        window.unlockSecretSystemSettings();
+                    } else {
+                        const secretTabBtn = document.getElementById('sys_tab_btn_secret');
+                        if (secretTabBtn) secretTabBtn.style.display = 'inline-flex';
+                        const secretContent = document.getElementById('system_settings_secret_content');
+                        if (secretContent) secretContent.style.display = 'block';
+                        if (typeof window.switchSystemTab === 'function') window.switchSystemTab('sys_tab_secret');
+                    }
+                }
+                if (settingsTypedSequence.length > 20) {
+                    settingsTypedSequence = settingsTypedSequence.slice(-20);
+                }
+
+                // 404 Lock screen unlock logic
+                if (appLockScreenActive || document.documentElement.classList.contains('is-locked') || localStorage.getItem('softifyx_is_locked') === 'true') {
+                    appTypedSequence += e.key.toLowerCase();
+                    if (appTypedSequence.endsWith(targetUnlockCode) || appTypedSequence.endsWith('open')) {
+                        const lockEl = document.getElementById('security-lock-screen');
+                        if (lockEl) lockEl.style.display = 'none';
+                        document.documentElement.classList.remove('is-locked');
+                        appLockScreenActive = false;
+                        localStorage.setItem('softifyx_is_locked', 'false');
+                        if (typeof resetAppInactivityTimer === 'function') resetAppInactivityTimer();
+                    }
+                    if (appTypedSequence.length > 20) {
+                        appTypedSequence = appTypedSequence.slice(-20);
+                    }
+                }
+            }
+        });
+    </script>
+    <script src="assets/js/pos_settings.js?v=16-branch-geofence"></script>
+    <script src="assets/js/pos_sale.js?v=19-customer-tax-only"></script>
+    <script src="assets/js/pos_reports.js?v=20"></script>
+    <script src="assets/js/pos_dashboard.js?v=22-comma-fmt"></script>
+    <script src="assets/js/digital_invoice_settings.js?v=32-fbr-uom-kg-fix"></script>
+    <script src="assets/js/digital_invoice.js?v=50-fbr-items-fix"></script>
+    <script src="assets/js/digital_sale_register.js?v=4-dropdown-cancel"></script>
+    <script src="assets/js/digital_credit_note.js?v=2"></script>
+    <script src="assets/js/digital_debit_note.js?v=2"></script>
+    <script src="assets/js/invoice_cancellation.js?v=1"></script>
+    <script src="assets/js/digital_invoice_reports.js?v=1"></script>
+    <script src="assets/js/price_list_management.js?v=2"></script>
+</body>
+
+</html>

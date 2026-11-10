@@ -1,0 +1,117 @@
+<div id="smsTemplatesContainer" data-module="SMS Templates" style="min-height: 580px; display: flex; flex-direction: column; gap: 8px; background: white; padding: 12px; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 4px; width: 930px; position: relative;">
+
+    <!-- Section 1: Top List of Templates -->
+    <div style="flex: 0.8; display: flex; flex-direction: column; min-height: 180px; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px; background: #f8fafc;">
+        <div style="font-size: 12px; font-weight: 700; color: #1F4E79; margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid #1F4E79; padding-bottom: 2px;">
+            SMS Templates List
+        </div>
+        <div style="flex: 1; background: white; border: 1px solid #cbd5e0; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead style="position: sticky; top: 0; background: #1F4E79; color: white;">
+                    <tr>
+                        <th style="padding: 4px 8px; text-align: left; border: 1px solid #cbd5e0; width: 80px;">Serial No</th>
+                        <th style="padding: 4px 8px; text-align: left; border: 1px solid #cbd5e0; width: 200px;">Template Name</th>
+                        <th style="padding: 4px 8px; text-align: left; border: 1px solid #cbd5e0;">Message Text</th>
+                        <th style="padding: 4px 8px; text-align: center; border: 1px solid #cbd5e0; width: 85px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tmplListBody">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 2: Bottom Details Form -->
+    <div style="flex: 1.2; border: 1px solid #e2e8f0; padding: 12px; border-radius: 4px; background: white; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="sms-btn sms-add" onclick="window.SMSTemplatesModule.resetForm(true)">Add</button>
+            <button class="sms-btn sms-save" onclick="window.SMSTemplatesModule.saveTemplate()">Save</button>
+            <button class="sms-btn sms-cancel" onclick="window.SMSTemplatesModule.resetForm(false)">Cancel</button>
+            <button class="sms-btn sms-delete" onclick="window.SMSTemplatesModule.deleteTemplate()" style="margin-left: 20px;">Delete</button>
+        </div>
+
+        <div style="display: flex; gap: 20px;">
+            <!-- Left Side: Fields -->
+            <div style="flex: 1.2; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: grid; grid-template-columns: 100px 120px 80px 1fr; gap: 8px; align-items: center;">
+                    <label class="sms-label">Serial No</label>
+                    <input type="text" id="tmplSerialNo" class="sms-input" readonly style="color: blue; font-weight: 700; background-color: #f1f5f9;">
+
+                    <label class="sms-label" style="text-align: right;">Active</label>
+                    <input type="checkbox" id="tmplIsActive" checked style="width: 16px; height: 16px; cursor: pointer;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 100px 1fr; gap: 8px; align-items: center;">
+                    <label class="sms-label">Template Name</label>
+                    <input type="text" id="tmplName" class="sms-input" placeholder="e.g. Ledger Notification">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label class="sms-label">Message Content</label>
+                    <textarea id="tmplMessage" class="sms-input" style="height: 120px; resize: none; padding: 6px; font-family: monospace; font-size: 12px;" placeholder="Write message body here..."></textarea>
+                    <div style="font-size: 10px; color: #64748b; text-align: right;" id="tmplCharCounter">0 characters / 0 SMS Parts</div>
+                </div>
+            </div>
+
+            <!-- Right Side: Placeholders Helper -->
+            <div style="width: 320px; display: flex; flex-direction: column; gap: 8px; border: 1px dashed #cbd5e0; padding: 10px; border-radius: 4px; background: #fafafa;">
+                <div style="font-size: 11px; font-weight: 800; color: #1e3a8a; border-bottom: 1px solid #1e3a8a; padding-bottom: 2px; text-transform: uppercase;">
+                    Dynamic Placeholders
+                </div>
+                <div style="font-size: 10.5px; color: #334155; line-height: 1.4;">
+                    <p style="margin: 0 0 8px 0; font-weight: 600; color: #475569;">You can use the following tags in templates. They will be auto-replaced when sending:</p>
+                    <ul style="margin: 0; padding-left: 15px; display: flex; flex-direction: column; gap: 4px;">
+                        <li><strong>{customer_name}</strong> - Client name</li>
+                        <li><strong>{opening_balance}</strong> - Starting balance</li>
+                        <li><strong>{receipts}</strong> - Received amount / total payments</li>
+                        <li><strong>{payments}</strong> - Payments amount</li>
+                        <li><strong>{net_balance}</strong> - Current outstanding balance</li>
+                        <li><strong>{company_name}</strong> - Your company name</li>
+                    </ul>
+                    <p style="margin: 8px 0 0 0; font-style: italic; color: #64748b;">Double click a tag above to copy or insert it into the message box.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .sms-btn {
+            height: 28px;
+            min-width: 70px;
+            padding: 0 12px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #cbd5e0;
+            background: white;
+            transition: all 0.2s;
+        }
+        .sms-add { color: #16a34a; }
+        .sms-add:hover { background: #f0fdf4; border-color: #16a34a; }
+        .sms-save { color: #1F4E79; }
+        .sms-save:hover { background: #eff6ff; border-color: #1F4E79; }
+        .sms-cancel { color: #64748b; }
+        .sms-cancel:hover { background: #f8fafc; border-color: #64748b; }
+        .sms-delete { color: #ef4444; border-color: #ef4444; }
+        .sms-delete:hover { background: #fef2f2; }
+
+        .sms-label { font-size: 11px; font-weight: 600; color: #334155; }
+        .sms-input {
+            height: 24px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            padding: 0 6px;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+        .sms-input:focus { border-color: #1e3a8a; }
+        
+        #tmplListBody tr { cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+        #tmplListBody tr:hover { background: #f8fafc; }
+        #tmplListBody tr.active { background: #eff6ff; color: #1e3a8a; font-weight: 700; }
+        #tmplListBody td { padding: 5px 8px; border: 1px solid #e2e8f0; }
+    </style>
+</div>

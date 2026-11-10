@@ -1,0 +1,292 @@
+<div class="branding-row">
+    <div class="company-title">
+        <span class="softifyx">Softifyx</span>
+        <span class="company-name" id="titleCompanyName"></span>
+    </div>
+    <div id="logoDisplay"></div>
+</div>
+<script>
+    (function() {
+        try {
+            const _s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const _c = JSON.parse(localStorage.getItem('softifyx_cached_company_' + (_s.company_id || 1)) || '{}');
+            const _name = (window.companyData && window.companyData.name) || _c.name || _s.company_name || '';
+            const _el = document.getElementById('titleCompanyName');
+            if (_el && _name) _el.textContent = '- ' + _name;
+        } catch(e) {}
+    })();
+</script>
+
+<div class="divider"></div>
+
+<div class="toolbar-row">
+    <div class="mobile-menu-toggle" id="mobileMenuToggle">
+        <i class="fas fa-bars"></i>
+    </div>
+    <div class="nav-menu" id="navMenu">
+        <div class="menu-item" id="adminMenu">
+            Administrator <i class="fas fa-chevron-down"></i>
+            <div class="dropdown" id="adminDropdown">
+                <div class="dropdown-item" id="myCompanyBtn" data-module="My Company">My Company</div>
+                <div class="dropdown-item" id="myLogoBtn" data-module="My Logo">My Logo</div>
+                <div class="dropdown-item" id="listOfCompaniesBtn" data-module="List Of Companies">List Of Companies</div>
+                <div class="dropdown-item" id="userLoginsBtn" data-module="User Logins">User Logins</div>
+                <div class="dropdown-item" id="userRightsBtn" data-module="User Rights">User Rights</div>
+                <div class="dropdown-item" onclick="setTimeout(window.loadSystemSettings, 200)" data-target="Navigation/Administrator/system_settings.html" data-module="System Settings">System Settings</div>
+                <div class="dropdown-item" data-target="Navigation/Administrator/passwords.html" data-module="Passwords">Passwords</div>
+                <div class="dropdown-item" data-target="Navigation/Administrator/financial_year.html" data-module="Financial Year">Financial Year</div>
+                <div class="dropdown-item" data-target="Navigation/Administrator/clear_transactions.html" data-module="Clear Transactions">Clear Transactions</div>
+                <div class="dropdown-item" data-target="Navigation/Administrator/currency.html" data-module="Currency">Currency</div>
+                <div class="dropdown-item" data-target="Navigation/Administrator/backup_utility.html" data-module="BackUp Utility">BackUp Utility</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="maintainMenu">
+            Maintain <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" data-target="Navigation/Maintain/chart_of_accounts.html" data-module="Chart of Accounts">Chart of Accounts</div>
+                <div class="dropdown-item" data-target="Navigation/Maintain/customers.html" data-module="Customers">Customers</div>
+                <div class="dropdown-item" data-target="Navigation/Maintain/vendors.html" data-module="Vendors/Suppliers">Vendors/Suppliers</div>
+                <div class="dropdown-item" data-target="Navigation/Maintain/bank_accounts.html" data-module="Bank Accounts">Bank Accounts</div>
+                <div class="dropdown-item" data-target="Navigation/Maintain/accounts_opening_balances.html" data-module="Accounts Opening Balances">Accounts Opening Balances</div>
+                <div class="dropdown-item" data-target="Navigation/Maintain/chart_of_inventory.html" data-module="Chart Of Inventory">Chart Of Inventory</div>
+                <div class="dropdown-item" data-target="Navigation/Maintain/inventory_opening_balances.html" data-module="Inventory Opening Balances">Inventory Opening Balances</div>
+                <div class="dropdown-item has-nested">Inventory Settings
+                    <div class="nested-dropdown">
+                        <div class="nested-item" data-target="Navigation/Maintain/inventory_brands.html" data-module="Inventory Brands">Inventory Brands</div>
+                        <div class="nested-item" data-target="Navigation/Maintain/hs_codes.html" data-module="HS Codes">HS Codes</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); if(window.manageItemClasses) window.manageItemClasses()">Item Classes</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); if(window.manageItemLengths) window.manageItemLengths()">Item Lengths</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); if(window.manageItemSizes) window.manageItemSizes()">Item Sizes</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); if(window.manageItemFittingTypes) window.manageItemFittingTypes()">Item Fitting Types</div>
+                    </div>
+                </div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/inventory_locations.html', 'fa-map-marker-alt', 'Inventory Locations', null, 'Inventory Locations', true, true)">Inventory Locations</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/item_price_settings.html', 'fa-tag', 'Item Price Settings', () => window.PriceSettingsModule.init(), 'Item Price Settings', true, true)">Item Price Settings</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/item_sales_tax_rates.html', 'fa-percent', 'Item Sales Tax Rates', () => window.TaxRatesModule.init(), 'Item Sales Tax Rates', true, true)">Item Sales Tax Rates</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/item_pre_order_levels.html', 'fa-boxes', 'Item Pre-Order Levels', () => window.ReorderLevelsModule.init(), 'Item Pre-Order Levels', true, true)">Item Pre-Order Levels</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/item_cost_valuation_method.html', 'fa-calculator', 'Item Cost Valuation Method', () => window.CostMethodModule.init(), 'Item Cost Valuation Method', true, true)">Item Cost Valuation Method</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/chart_of_services.html', 'fa-concierge-bell', 'Chart Of Services', () => window.ChartOfServices.init(), 'Chart Of Services', true, true)">Chart Of Services</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/voucher_posting_preferences.html', 'fa-cog', 'Voucher Posting Preferences', () => window.VoucherPrefs.init(), 'Voucher Posting Preferences', false, false)">Voucher Posting Preferences</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/inventory_movement_settings.html', 'fa-sync-alt', 'Inventory Movement Settings', () => window.InvMovementPrefs.init(), 'Inventory Movement Settings', true, false)">Inventory Movement Settings</div>
+                <div class="dropdown-item" data-target="Navigation/Maintain/customer_regions.html" data-module="Customer Regions">Customer Regions</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); if(window.manageCustomerTaxTypes) window.manageCustomerTaxTypes()">Customer Types & Rates</div>
+                <div class="dropdown-item" data-target="Navigation/Maintain/buyer_types.html" data-module="Buyer Types">Buyer Types & Rates</div>
+                <div class="dropdown-item" data-target="Navigation/Maintain/business_sectors.html" data-module="Business Sectors">Business Sectors</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/employees.html', 'fa-users', 'Employees', null, 'Employees', true, true)">Employees</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/jobs.html', 'fa-briefcase', 'Jobs', () => window.JobsModule.init(), 'Jobs', true, true)">Jobs</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Maintain/drivers.html', 'fa-id-card', 'Drivers', () => { if(window.loadDriversForMaintenance) window.loadDriversForMaintenance(); }, 'Drivers', false, false)">Drivers</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="purchasesMenu">
+            Purchases <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Purchases/purchase_order.html', 'fa-shopping-cart', 'Purchase Order', () => window.POModule.init(), 'Purchase Order', true, true)">Purchase Order</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Purchases/purchase_invoice.html', 'fa-file-invoice-dollar', 'Purchase Invoice', () => window.PIModule.init(), 'Purchase Invoice', true, true)">Purchase Invoice</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Purchases/purchase_return.html', 'fa-undo', 'Purchase Return / Debit Note', () => window.PRModule.init(), 'Purchase Return', true, true)">Purchase Return / Debit Note</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Purchases/cash_payments.html', 'fa-money-bill-wave', 'Cash Payments', () => window.initCashPaymentModule(), 'Cash Payments', true, true)">Cash Payments</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Purchases/bank_payments.html', 'fa-university', 'Bank Payments', () => window.initBankPaymentModule(), 'Bank Payments', true, true)">Bank Payments</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="salesMenu">
+            Sales <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Sales/customer_follow_up.html', 'fa-calendar-check', 'Customer Follow Ups', () => { if(window.CFUModule) window.CFUModule.init(); else alert('Module not ready. Please refresh.'); }, 'Customer Follow-Up', true, true)">Customer Follow-Up</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Sales/quotation.html', 'fa-file-invoice', 'Quotations', () => { if(window.QuotationModule) window.QuotationModule.init(); else alert('Module not ready.'); }, 'Quotations', true, true)">Quotations</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Sales/sale_order.html', 'fa-file-signature', 'Sale Orders', () => { if(window.SaleOrderModule) window.SaleOrderModule.init(); else alert('Module not ready.'); }, 'Sale Orders', true, true)">Sale Orders</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Sales/delivery_challans.html', 'fa-truck-loading', 'Delivery Challans', () => { if(window.DeliveryChallanModule) window.DeliveryChallanModule.init(); else alert('Module not ready.'); }, 'Delivery Challans', true, true)">Delivery Challans</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openDefaultSaleInvoice()">Sale Invoice</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Sales/sale_return.html', 'fa-undo', 'Sale Return / Credit Notes', () => { if(window.SRModule) window.SRModule.init(); else alert('Module not ready.'); }, 'Sale Return', true, true)">Sale Return/Credit Notes</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Sales/cash_receipts.html', 'fa-hand-holding-usd', 'Cash Receipts', () => window.initCashReceiptModule(), 'Cash Receipts', true, true)">Cash Receipts</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Sales/bank_receipts.html', 'fa-university', 'Bank Receipts', () => window.initBankReceiptModule(), 'Bank Receipts', true, true)">Bank Receipts</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="storeMenu">
+            Store <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Store/inward_gate_passes.html', 'fa-dolly', 'Inward Gate Passes', () => window.IGPModule && window.IGPModule.init(), 'Inward Gate Passes', true, true)">Inward Gate Passes</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Store/outward_gate_passes.html', 'fa-dolly', 'Outward Gate Passes', () => window.OGPModule && window.OGPModule.init(), 'Outward Gate Passes', true, true)">Outward Gate Passes</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Store/material_issue_notes.html', 'fa-clipboard-list', 'Material Issue Notes', () => window.MINModule && window.MINModule.init(), 'Material Issue Notes', true, true)">Material Issue Notes</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Store/production_notes.html', 'fa-industry', 'Production Notes', () => window.PNModule && window.PNModule.init(), 'Production Notes', true, true)">Production Notes</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Store/inventory_transfers.html', 'fa-exchange-alt', 'Inventory Transfers', () => window.ITModule && window.ITModule.init(), 'Inventory Transfers', true, true)">Inventory Transfers</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Store/add_inventory_adjustments.html', 'fa-plus-circle', 'Add Inventory Adjustments', () => window.AIAModule && window.AIAModule.init(), 'Add Inventory Adjustments', true, true)">Add Inventory Adjustments</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Store/reduce_inventory_adjustments.html', 'fa-minus-circle', 'Reduce Inventory Adjustments', () => window.RIAModule && window.RIAModule.init(), 'Reduce Inventory Adjustments', true, true)">Reduce Inventory Adjustments</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Store/auto_inventory_adjustments.html', 'fa-magic', 'Auto Adjustments', () => window.AAModule && window.AAModule.init(), 'Auto Adjustments', true, true)">Auto Adjustments</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Store/formulas.html', 'fa-flask', 'Formulas', () => window.FRMModule && window.FRMModule.init(), 'Formulas', true, true)">Formulas</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="smsMenu">
+            SMS <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/SMS/send_ledger_summary.html', 'fa-file-invoice-dollar', 'Send Ledger Summary', () => window.SendLedgerSummaryModule && window.SendLedgerSummaryModule.init(), 'Send Ledger Summary', true, true)">Send Ledger Summary</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/SMS/sms_templates.html', 'fa-sms', 'SMS Templates', () => window.SMSTemplatesModule && window.SMSTemplatesModule.init(), 'SMS Templates', true, true)">SMS Templates</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/SMS/bulk_messages.html', 'fa-paper-plane', 'Bulk Messages', () => window.BulkMessagesModule && window.BulkMessagesModule.init(), 'Bulk Messages', true, true)">Bulk Messages</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="notesMenu">
+            Notes <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Notes/journal_notes.html', 'fa-sticky-note', 'Journal Notes', () => window.JournalNotesModule && window.JournalNotesModule.init(), 'Journal Notes', true, true)">Journal Notes</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="adjustmentMenu">
+            Adjustment <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Adjustment/general_journal_voucher.html', 'fa-book', 'General Journal Voucher', () => window.initGJVModule(), 'General Journal Voucher', true, true)">General Journal Voucher</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="fbrMenu" style="display: none;">
+            Digital Invoicing <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" id="fbrMenuIntegrationSettings" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/DigitalInvoicing/integration_settings.html', 'fa-cogs', 'Digital Invoice - Integration Settings', () => { if(window.DigitalInvoiceSettings) window.DigitalInvoiceSettings.init(); }, 'Digital Invoice - Integration Settings', true, true)">Integration Settings</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/DigitalInvoicing/digital_invoice.html', 'fa-file-invoice', 'FBR Digital Invoice', () => { if(window.DigitalInvoiceModule) window.DigitalInvoiceModule.init(); }, 'FBR Digital Invoice', true, true)">Invoices</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/DigitalInvoicing/digital_sale_register.html', 'fa-list-alt', 'Digital Invoice Sales Register', () => { if(window.DigitalSaleRegisterModule) window.DigitalSaleRegisterModule.init(); }, 'Digital Invoice Sales Register', true, true)">Sales Register</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/DigitalInvoicing/credit_note.html', 'fa-file-invoice-dollar', 'FBR Digital Credit Note', () => { if(window.DigitalCreditNoteModule) window.DigitalCreditNoteModule.init(); }, 'FBR Digital Credit Note', true, true)">Credit Note</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/DigitalInvoicing/debit_note.html', 'fa-file-invoice-dollar', 'FBR Digital Debit Note', () => { if(window.DigitalDebitNoteModule) window.DigitalDebitNoteModule.init(); }, 'FBR Digital Debit Note', true, true)">Debit Note</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/DigitalInvoicing/invoice_cancellation.html', 'fa-ban', 'FBR Invoice Cancellation', () => { if(window.InvoiceCancellationModule) window.InvoiceCancellationModule.init(); }, 'FBR Invoice Cancellation', true, true)">Cancellation</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/DigitalInvoicing/digital_invoice_reports.html', 'fa-chart-bar', 'Digital Invoice Reports', () => { if(window.DigitalInvoiceReportsModule) window.DigitalInvoiceReportsModule.init(); }, 'Digital Invoice Reports', true, true)">Reports</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/DigitalInvoicing/integration_log.html', 'fa-list-alt', 'Digital Invoice Integration Log', () => { if(window.DigitalInvoiceLogModule) window.DigitalInvoiceLogModule.init(); }, 'Digital Invoice Integration Log', true, true)">Integration Log</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="posMenu" style="display: none;">
+            POS <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); window.loadView('Navigation/POS/pos_dashboard.html')">Dashboard</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/POS/pos_sale.html', 'fa-cash-register', 'POS Sale', () => { if(window.POSModule) window.POSModule.init(); }, 'POS Sale', true, true)">Sale</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/POS/pos_sale_register.html', 'fa-list-alt', 'POS Sales Register', () => { if(window.POSRegisterModule) window.POSRegisterModule.init(); }, 'POS Sales Register', true, true)">Sales Register</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/POS/pos_sale_return.html', 'fa-undo', 'POS Sales Return', () => { if(window.POSReturnModule) window.POSReturnModule.init(); }, 'POS Sales Return', true, true)">Sales Return</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/POS/pos_hold_register.html', 'fa-pause-circle', 'POS Hold / Recall Register', () => { if(window.POSHoldRegisterModule) window.POSHoldRegisterModule.init(); }, 'POS Hold / Recall Register', true, true)">Hold / Recall</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/POS/pos_day_closing.html', 'fa-door-closed', 'POS Day Closing', () => { if(window.POSDayClosingModule) window.POSDayClosingModule.init(); }, 'POS Day Closing', true, true)">Day Closing</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/POS/pos_reports.html', 'fa-chart-line', 'POS Reports', () => { if(window.POSReportsModule) window.POSReportsModule.init(); }, 'POS Reports', true, true)">Reports</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="reportsMenu">
+            Reports <i class="fas fa-chevron-down"></i>
+            <div class="dropdown wide">
+                <div class="dropdown-item" data-target="Navigation/Reports/journal_report.html" data-module="Journal Report">Journal Report</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/wht_sale_report.html', 'fa-receipt', 'Tax Transaction Report', () => { if(window.WHTSaleReportModule) window.WHTSaleReportModule.init(); }, 'Tax Transaction Report', true, true)" data-module="Tax Transaction Report">Tax Transaction Report</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/price_list_management.html', 'fa-tags', 'Price List Management & Price Revision', () => { if(window.PriceListManagementModule) window.PriceListManagementModule.init(); }, 'Price List Management', true, true)" data-module="Price List Management">Price List & Revision</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/payment_reminder_report.html', 'fa-bell', 'Payment Reminder (Credit Control)', () => { if(window.PaymentReminderModule) window.PaymentReminderModule.init(); }, 'Payment Reminder Report', true, true)" data-module="Payment Reminder Report">Payment Reminder (Credit Control)</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/print_voucher.html" data-module="Print Voucher">Print Voucher</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/product_serials_tracking.html" data-module="Product Serials Tracking">Product Serials Tracking</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/item_below_re_order_level.html" data-module="Item Below Re-Order Level">Item Below Re-Order Level</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/purchase_order_tracker.html" data-module="Purchase Order Tracking">Purchase Order Tracking</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/sale_order_tracking.html" data-module="Sale Order Tracking">Sale Order Tracking</div>
+                
+                <div class="dropdown-item has-nested">Purchase Reports
+                    <div class="nested-dropdown">
+                        <div class="nested-item" data-target="Navigation/Reports/purchase_summary.html" data-module="Purchase Summary">Purchase Summary</div>
+                        <div class="nested-item" data-target="Navigation/Reports/purchase_register.html" data-module="Purchase Register">Purchase Register</div>
+                        <div class="nested-item" data-target="Navigation/Reports/party_purchase_summary.html" data-module="Party Purchase Summary">Party Purchase Summary</div>
+                        <div class="nested-item" data-target="Navigation/Reports/payments_reports.html" data-module="Payments Reports">Payments Reports</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/purchase_activity_invoice_wise.html', 'fa-file-invoice-dollar', 'Purchase Activity Report - Invoice Wise', () => { if(window.PurchaseActivityInvoiceWiseModule) window.PurchaseActivityInvoiceWiseModule.init(); }, 'Purchase Activity Report - Invoice Wise', true, true)">Purchase Activity Report - Invoice Wise</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/purchase_activity_party_wise.html?v=2', 'fa-file-invoice-dollar', 'Purchase Activity Report - Party Wise', () => { if(window.PurchaseActivityPartyWiseModule) window.PurchaseActivityPartyWiseModule.init(); }, 'Purchase Activity Report - Party Wise', true, true)">Purchase Activity Report - Party Wise</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/item_purchase_summary.html', 'fa-file-invoice-dollar', 'Item Purchase Summary', () => { if(window.ItemPurchaseSummaryModule) window.ItemPurchaseSummaryModule.init(); }, 'Item Purchase Summary', true, true)">Item Purchase Summary</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/item_purchase_analysis.html?v=13', 'fa-chart-line', 'Item Purchase Analysis', () => { if(window.ItemPurchaseAnalysisModule) window.ItemPurchaseAnalysisModule.init(); }, 'Item Purchase Analysis', true, true)">Item Purchase Analysis</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/accounts_payable_aging.html?v=3', 'fa-chart-pie', 'Accounts Payable Aging', () => { if(window.AccountsPayableAgingModule) window.AccountsPayableAgingModule.init(); }, 'Accounts Payable Aging', true, true)">Accounts Payable Aging</div>
+                    </div>
+                </div>
+                
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/material_consumption_report.html', 'fa-box-open', 'Material Consumption Report', () => { if(window.MaterialConsumptionReportModule) window.MaterialConsumptionReportModule.init(); }, 'Material Consumption Report', true, true)">Material Consumption Report</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/production_report.html', 'fa-industry', 'Production Report', () => { if(window.ProductionReportModule) window.ProductionReportModule.init(); }, 'Production Report', true, true)">Production Report</div>
+                
+                <div class="dropdown-item has-nested">Sale Reports
+                    <div class="nested-dropdown">
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/sale_report.html', 'fa-file-invoice-dollar', 'Sale Summary', () => { if(window.SaleReportModule) window.SaleReportModule.init(); }, 'Sale Summary', true, true)">Sale Summary</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/wht_sale_report.html', 'fa-receipt', 'Tax Transaction Report', () => { if(window.WHTSaleReportModule) window.WHTSaleReportModule.init(); }, 'Tax Transaction Report', true, true)">Tax Transaction Report</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/payment_reminder_report.html', 'fa-bell', 'Payment Reminder (Credit Control)', () => { if(window.PaymentReminderModule) window.PaymentReminderModule.init(); }, 'Payment Reminder Report', true, true)">Payment Reminder (Credit Control)</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/sale_register.html', 'fa-file-invoice-dollar', 'Sale Register', () => { if(window.SaleRegisterModule) window.SaleRegisterModule.init(); }, 'Sale Register', true, true)">Sale Register</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/party_sale_summary.html', 'fa-file-invoice-dollar', 'Party Sale Summary', () => { if(window.PartySaleSummaryModule) window.PartySaleSummaryModule.init(); }, 'Party Sale Summary', true, true)">Party Sale Summary</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/recovery_receipts_report.html', 'fa-file-invoice-dollar', 'Recovery / Receipt Report', () => { if(window.RecoveryReceiptsReport) { window.RecoveryReceiptsReport.isInitialized = false; window.RecoveryReceiptsReport.init(); } }, 'Recovery / Receipt Report', true, true)">Recovery / Receipt Report</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/sale_activity_report.html', 'fa-file-invoice-dollar', 'Sale Activity Report - Invoice Wise', () => { if(window.SaleActivityReport) { window.SaleActivityReport.isInitialized = false; window.SaleActivityReport.init(); } }, 'Sale Activity Report - Invoice Wise', true, true)">Sale Activity Report - Invoice Wise</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/sale_activity_customer_wise.html', 'fa-file-invoice-dollar', 'Sale Activity Report - Customer Wise', () => { if(window.SaleActivityCustomerWise) { window.SaleActivityCustomerWise.isInitialized = false; window.SaleActivityCustomerWise.init(); } }, 'Sale Activity Report - Party Wise', true, true)">Sale Activity Report - Party Wise</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/item_sale_summary.html', 'fa-file-invoice-dollar', 'Item Sale Summary', () => { if(window.ItemSaleSummaryModule) { window.ItemSaleSummaryModule.isInitialized = false; window.ItemSaleSummaryModule.init(); } }, 'Item Sale Summary', true, true)">Item Sale Summary</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/item_sale_analysis.html', 'fa-chart-line', 'Item Sale Analysis', () => { if(window.ItemSaleAnalysisModule) { window.ItemSaleAnalysisModule.isInitialized = false; window.ItemSaleAnalysisModule.init(); } }, 'Item Sale Analysis', true, true)">Item Sale Analysis</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/services_analysis.html', 'fa-concierge-bell', 'Services Analysis', () => { if(window.ServicesAnalysisModule) { window.ServicesAnalysisModule.isInitialized = false; window.ServicesAnalysisModule.init(); } }, 'Services Analysis', true, true)">Services Analysis</div>
+                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/accounts_receivable_aging.html', 'fa-chart-pie', 'Accounts Receivable Aging', () => { if(window.AccountsReceivableAgingModule) { window.AccountsReceivableAgingModule.isInitialized = false; window.AccountsReceivableAgingModule.init(); } }, 'Accounts Receivable Aging', true, true)">Accounts Receivable Aging</div>
+                    </div>
+                </div>
+                
+                <div class="dropdown-item" data-target="Navigation/Reports/view_inventory_ledgers.html" data-module="View Inventory Ledgers">View Inventory Ledgers</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/print_inventory_ledgers.html" data-module="Print Inventory Ledgers">Print Inventory Ledgers</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/item_wise_profit_loss.html" data-module="Item-Wise Profit/Loss">Item-Wise Profit/Loss</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/inventory_balances.html" data-module="Inventory Balances">Inventory Balances</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/job_ledgers.html" data-module="Job Ledgers">Job Ledgers</div>
+                <div class="dropdown-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/view_account_ledger.html', 'fa-book', 'Accounts\' Ledgers', () => { if(window.AccountLedgerModule) window.AccountLedgerModule.init(); }, 'View Account Ledger', true, true)">View Account Ledger</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/print_accounts_ledgers.html" data-module="Print Accounts Ledgers">Print Accounts Ledgers</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/cash_bank_balances.html" data-module="Cash & Bank Balances">Cash & Bank Balances</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/customer_balances.html" data-module="Customer Balances">Customer Balances</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/vendor_balances.html" data-module="Vendor Balances">Vendor Balances</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/trial_balance.html" data-module="Trial Balance">Trial Balance</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/income_statement.html" data-module="Income Statement">Income Statement</div>
+                <div class="dropdown-item" data-target="Navigation/Reports/balance_sheet.html" data-module="Balance Sheet">Balance Sheet</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="aboutMenu">
+            About <i class="fas fa-chevron-down"></i>
+            <div class="dropdown">
+                <div class="dropdown-item" data-target="Navigation/About/software_information.html">Software Information</div>
+                <div class="dropdown-item" data-target="Navigation/About/license_details.html">License Details</div>
+                <div class="dropdown-item" data-target="Navigation/About/contact_info.html">Contact Info</div>
+            </div>
+        </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <div id="userNotificationsBtn" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; position: relative; color: white; transition: background 0.2s;" title="View Notifications from Admin" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Notes/admin_notifications.html', 'fa-bell', 'Notifications from Admin', () => window.AdminNotificationsModule && window.AdminNotificationsModule.init(), 'Notifications from Admin', true, true)">
+            <i class="fas fa-bell" style="font-size: 14px; color: #F5A623;"></i>
+            <span id="notificationDot" style="display: none; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; border: 1.5px solid #214F77; box-shadow: 0 0 4px #ef4444;"></span>
+        </div>
+        
+        <div id="userActivityLogBtn" style="display: none; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; position: relative; color: white; transition: background 0.2s;" title="User Activity History" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Administrator/activity_logs.html', 'fa-history', 'User Activity Logs', () => window.ActivityLogModule && window.ActivityLogModule.init(), 'User Activity Logs', true, true)">
+            <i class="fas fa-history" style="font-size: 14px; color: #4A90E2;"></i>
+        </div>
+        
+        <div class="welcome-user" id="welcomeUserDisplay" style="cursor: pointer;" title="Click to Change Profile Photo">
+            <i class="fas fa-user-circle"></i>
+            <span>Welcome Administrator</span>
+        </div>
+        <button class="logout-btn" onclick="handleLogout()" title="Log out"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+    <input type="file" id="profilePhotoInput" style="display: none;" accept="image/*">
+</div>
+
+<script>
+if (typeof window.handleLogout !== 'function') {
+    window.handleLogout = async function() {
+        const adminBackup = localStorage.getItem('softifyx_admin_backup_session');
+        if (adminBackup) {
+            if (confirm("Log out of branch and return to Main Admin Dashboard?")) {
+                try {
+                    const adminObj = JSON.parse(adminBackup);
+                    localStorage.setItem('softifyx_session', adminBackup);
+                    localStorage.removeItem('softifyx_admin_backup_session');
+                    await fetch('api/pos.php?action=restore_admin_session&company_id=' + (adminObj.company_id || 1) + '&user_id=' + (adminObj.user_id || 1));
+                } catch(e) {}
+                document.documentElement.classList.remove('pos-only');
+                document.body.classList.remove('pos-only');
+                window.location.href = 'index.html';
+                return;
+            }
+            return;
+        }
+
+        if (confirm("Are you sure you want to log out?")) {
+            try {
+                await fetch('api/auth.php?action=logout');
+            } catch (err) {}
+            localStorage.removeItem('softifyx_session');
+            window.location.href = 'login.html';
+        }
+    };
+}
+</script>

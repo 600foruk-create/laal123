@@ -1,0 +1,74 @@
+<div id="backupPopupWrapper" data-module="BackUp Utility" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; width: 100%; box-sizing: border-box; padding: 25px;">
+    
+    <!-- Header with Icon -->
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 25px; border-bottom: 1px solid #dee2e6; padding-bottom: 15px;">
+        <i class="fas fa-shield-alt" style="font-size: 24px; color: #1f4668;"></i>
+        <div>
+            <h2 style="margin: 0; font-size: 18px; color: #333; font-weight: 600;">System Backup & Restore</h2>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: #dc3545; font-style: italic;">Note: Please close the main application before performing backup operations to prevent data errors.</p>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 20px; align-items: stretch;">
+        <!-- Card 1: Backup -->
+        <div style="flex: 1; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #1f4668; border-left: 4px solid #1f4668; padding-left: 10px;">Back-Up Data</h3>
+                <p style="color: #555; font-size: 13px; line-height: 1.6; margin: 0 0 20px 0;">
+                    Securely export your latest application data. It is recommended to perform this daily and store the backup in a safe location like an external drive. Remember, your data is irreplaceable if lost without a backup.
+                </p>
+            </div>
+            <button class="btn btn-primary" onclick="executeBackup()" 
+                style="background-color: #1f4668; color: #fff; border: none; border-radius: 6px; padding: 12px 20px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.2s; width: 100%;"
+                onmouseover="this.style.backgroundColor='#163854'; this.style.transform='translateY(-1px)'" 
+                onmouseout="this.style.backgroundColor='#1f4668'; this.style.transform='translateY(0)'">
+                <i class="fas fa-download"></i> Start Back-Up
+            </button>
+        </div>
+
+        <!-- Card 2: Restore -->
+        <div style="flex: 1; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #1f4668; border-left: 4px solid #1f4668; padding-left: 10px;">Restore Back-Up</h3>
+                <p style="color: #555; font-size: 13px; line-height: 1.6; margin: 0 0 20px 0;">
+                    Restore your application to a previous state using a backup file. <b>Warning:</b> This will overwrite all current data. Ensure your backup file is valid and up-to-date before proceeding.
+                </p>
+            </div>
+            <div style="width: 100%;">
+                <button class="btn btn-primary" onclick="document.getElementById('restoreFileInput').click()" 
+                    style="background-color: #1f4668; color: #fff; border: none; border-radius: 6px; padding: 12px 20px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.2s; width: 100%;"
+                    onmouseover="this.style.backgroundColor='#163854'; this.style.transform='translateY(-1px)'" 
+                    onmouseout="this.style.backgroundColor='#1f4668'; this.style.transform='translateY(0)'">
+                    <i class="fas fa-upload"></i> Restore Data
+                </button>
+                <input type="file" id="restoreFileInput" style="display:none;" accept=".json" onchange="executeRestore(event)">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    setTimeout(() => {
+        const modalContainer = document.getElementById('modalContainer');
+        if (modalContainer) {
+            modalContainer.style.width = '900px';
+            modalContainer.style.maxWidth = '95vw';
+            modalContainer.style.padding = '0';
+            modalContainer.style.borderRadius = '12px';
+            modalContainer.style.overflow = 'hidden';
+            modalContainer.style.backgroundColor = '#f8f9fa';
+        }
+        
+        const orgClose = window.closeModal;
+        window.closeModal = function() {
+            if(modalContainer) {
+                modalContainer.style.width = '';
+                modalContainer.style.padding = '';
+                modalContainer.style.borderRadius = '';
+                modalContainer.style.overflow = '';
+                modalContainer.style.backgroundColor = '';
+            }
+            if(orgClose) orgClose();
+        };
+    }, 10);
+</script>

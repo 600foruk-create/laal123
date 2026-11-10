@@ -1,0 +1,176 @@
+<div class="report-module" style="padding: 2px; background: #ffffff; height: 100%; display: flex; flex-direction: column; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px;">
+    
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+            min-width: 60px;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info   { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .gj-btn-info:hover   { background: #3b6998 !important; }
+        .gj-btn-success { background: #28a745 !important; color: white !important; border-color: #28a745 !important; }
+        .gj-btn-success:hover { background: #218838 !important; }
+
+        .pot-table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        .pot-table th { background: #e2e8f0 !important; border: 1px solid #94a3b8 !important; font-size: 9px !important; font-weight: 700 !important; color: #334155 !important; padding: 2px !important; text-transform: uppercase; text-align: center; height: 22px; font-style: normal !important; }
+        .pot-table tbody td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border: 1px solid #ddd;
+            padding: 2px 4px;
+        }
+    </style>
+
+    <!-- Filter Area -->
+    <div class="filters-section" style="background-color: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 4px; padding: 5px 8px; margin-bottom: 5px; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            
+            <!-- Left Filters -->
+            <div style="flex: 1;">
+                
+                <!-- Radio Group -->
+                <div style="display: flex; align-items: center; margin-bottom: 10px; margin-left: 120px;">
+                    <div style="background: #fff; border: 1px solid #999; padding: 2px 15px; display: flex; gap: 20px; border-radius: 2px; font-size: 12px;">
+                        <label style="cursor: pointer; font-weight: bold; font-size: 11px;">
+                            <input type="radio" name="pr_tax_filter" value="all" checked> All Purchases
+                        </label>
+                        <label style="cursor: pointer; font-weight: bold; font-size: 11px;">
+                            <input type="radio" name="pr_tax_filter" value="sales_tax"> Sales Tax
+                        </label>
+                        <label style="cursor: pointer; font-weight: bold; font-size: 11px;">
+                            <input type="radio" name="pr_tax_filter" value="non_sales_tax"> Non Sales Tax
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Vendor Type -->
+                <div style="display: flex; align-items: center; margin-bottom: 4px;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; width: 120px; font-size: 13px; font-style: italic; color: #333; font-weight: 500;">
+                        <input type="checkbox" id="pr_use_vendor_type" style="margin-right: 5px;"> Vendor Type
+                    </label>
+                    <select id="pr_vendor_type" style="flex: 1; max-width: 400px; padding: 2px 6px; border: 1px solid #999; border-radius: 2px; font-size: 13px; background-color: #fff; height: 24px;" disabled>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+
+                <!-- Vendor -->
+                <div style="display: flex; align-items: center; margin-bottom: 4px; position: relative;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; width: 120px; font-size: 13px; font-style: italic; color: #333; font-weight: 500;">
+                        <input type="checkbox" id="pr_use_vendor" style="margin-right: 5px;"> Vendor
+                    </label>
+                    <input type="text" id="pr_vendor_code" placeholder="" style="width: 100px; padding: 2px 6px; border: 1px solid #999; border-radius: 2px; font-size: 13px; background-color: #fff; height: 24px; margin-right: 4px;" disabled>
+                    <input type="text" id="pr_vendor_name" placeholder="" style="flex: 1; max-width: 296px; padding: 2px 6px; border: 1px solid #999; border-radius: 2px; font-size: 13px; background-color: #fff; height: 24px;" disabled>
+                    <input type="hidden" id="pr_vendor_id">
+                    
+                    <div id="pr_vendor_suggest" style="display:none; position:absolute; top:24px; left:100px; width:450px; background:#fff; border:1px solid #ccc; max-height:200px; overflow-y:auto; z-index:999; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);"></div>
+                </div>
+
+                <!-- Employee -->
+                <div style="display: flex; align-items: center; margin-bottom: 4px;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; width: 120px; font-size: 13px; font-style: italic; color: #333; font-weight: 500;">
+                        <input type="checkbox" id="pr_use_employee" style="margin-right: 5px;"> Employee
+                    </label>
+                    <select id="pr_employee" style="flex: 1; max-width: 400px; padding: 2px 6px; border: 1px solid #999; border-radius: 2px; font-size: 13px; background-color: #fff; height: 24px;" disabled>
+                        <option value="">Select Employee...</option>
+                    </select>
+                </div>
+
+                <!-- Period From -->
+                <div style="display: flex; align-items: center; margin-bottom: 4px;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; width: 120px; font-size: 13px; font-style: italic; color: #333; font-weight: 500;">
+                        <input type="checkbox" id="pr_use_date" style="margin-right: 5px;"> Period From
+                    </label>
+                    <input type="date" id="pr_date_from" style="width: 130px; padding: 1px 4px; border: 1px solid #999; border-radius: 2px; font-size: 13px; background-color: #fff; height: 24px;" disabled>
+                    <span style="margin: 0 10px; font-weight: bold; font-size: 11px;">To</span>
+                    <input type="date" id="pr_date_to" style="width: 130px; padding: 1px 4px; border: 1px solid #999; border-radius: 2px; font-size: 13px; background-color: #fff; height: 24px;" disabled>
+                </div>
+
+            </div>
+
+            <!-- Buttons -->
+            <div style="display: flex; gap: 10px; align-items: flex-end;">
+                <button id="pr_btn_display" class="gj-tool-btn gj-btn-info">Display</button>
+                <button id="pr_btn_print" class="gj-tool-btn gj-btn-info"><i class="fas fa-print" style="margin-right: 5px;"></i> Print</button>
+                <button id="pr_btn_excel" class="gj-tool-btn gj-btn-info"><i class="fas fa-file-excel" style="margin-right: 5px;"></i> Excel</button>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Data Grid -->
+    <div style="flex: 1; overflow-y: auto; overflow-x: hidden; background: #fff; border: 1px solid #999; position: relative;">
+        <table id="pr_table" class="pot-table">
+            <thead style="position: sticky; top: 0; background-color: #e2e8f0; z-index: 10;">
+                <tr>
+                    <th style="width: 25px;"></th>
+                    <th style="width: 60px; text-align: left;">Invoice No.</th>
+                    <th style="width: 70px; text-align: left;">Date</th>
+                    <th style="text-align: left;">Vendor</th>
+                    <th style="width: 80px; text-align: left;">Item Code</th>
+                    <th style="width: 150px; text-align: left;">Item Name</th>
+                    <th style="width: 70px; text-align: right;">Quantity</th>
+                    <th style="width: 50px; text-align: center;">Unit</th>
+                    <th style="width: 70px; text-align: right;">Rate</th>
+                    <th style="width: 80px; text-align: right;">Amt Exc. Tax</th>
+                    <th style="width: 70px; text-align: right;">Sales Tax</th>
+                    <th style="width: 70px; text-align: right;">Further Tax</th>
+                    <th style="width: 90px; text-align: right;">Amt Inc. Tax</th>
+                </tr>
+            </thead>
+            <tbody id="pr_tbody" style="font-size: 11px; cursor: default;">
+                <!-- Data populated here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Totals Footer -->
+    <div style="background: #e2e8f0; border: 1px solid #94a3b8; border-top: none; display: flex; font-size: 11px; font-weight: bold; align-items: stretch; height: 22px;">
+        <div style="width: 25px; border-right: 1px solid #94a3b8;"></div>
+        <div style="width: 60px; border-right: 1px solid #94a3b8;"></div>
+        <div style="width: 70px; border-right: 1px solid #94a3b8;"></div>
+        <div style="flex: 1; border-right: 1px solid #94a3b8; text-align: right; padding: 2px 4px; font-style: normal; color: #334155; text-transform: uppercase;">Totals</div>
+        <div style="width: 80px; border-right: 1px solid #94a3b8;"></div>
+        <div style="width: 150px; border-right: 1px solid #94a3b8;"></div>
+        <div id="pr_tot_qty" style="width: 70px; border-right: 1px solid #94a3b8; text-align: right; padding: 2px 4px; background: #fff;">0</div>
+        <div style="width: 50px; border-right: 1px solid #94a3b8;"></div>
+        <div style="width: 70px; border-right: 1px solid #94a3b8;"></div>
+        <div id="pr_tot_excl" style="width: 80px; border-right: 1px solid #94a3b8; text-align: right; padding: 2px 4px; background: #fff;">0.00</div>
+        <div id="pr_tot_sales_tax" style="width: 70px; border-right: 1px solid #94a3b8; text-align: right; padding: 2px 4px; background: #fff;">0.00</div>
+        <div id="pr_tot_further" style="width: 70px; border-right: 1px solid #94a3b8; text-align: right; padding: 2px 4px; background: #fff;">0.00</div>
+        <div id="pr_tot_incl" style="width: 90px; text-align: right; padding: 2px 4px; background: #fff;">0.00</div>
+    </div>
+</div>
+
+<style>
+    #pr_tbody tr:hover td { background-color: #f1f5f9; }
+    #pr_tbody tr.selected td { background-color: #1f4668 !important; color: white !important; }
+    
+    .pr-row-pointer { display: none; }
+    #pr_tbody tr.selected .pr-row-pointer {
+        display: inline-block;
+        width: 0; 
+        height: 0; 
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        border-left: 6px solid white;
+    }
+</style>
+
+<!-- Force Initialization Hack for Cached app.js -->
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" onload="if(window.PurchaseRegisterReport && window.PurchaseRegisterReport.selectedIndex === -1) { window.PurchaseRegisterReport.init(); }" style="display:none;">

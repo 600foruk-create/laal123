@@ -1,0 +1,1334 @@
+<style>
+.pos-settings-container {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    height: 100%;
+    background: #f4f6f9;
+    padding: 15px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.pos-settings-sidebar {
+    width: 250px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    padding: 15px 0;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+.pos-settings-sidebar h3 {
+    margin: 0 15px 15px;
+    color: #2c3e50;
+    font-size: 16px;
+    font-weight: bold;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+}
+
+.pos-settings-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pos-settings-nav li {
+    padding: 12px 20px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    color: #495057;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pos-settings-nav li:hover {
+    background: #f8f9fa;
+    color: #3498db;
+}
+
+.pos-settings-nav li.active {
+    background: #eaf2f8;
+    color: #3498db;
+    border-left-color: #3498db;
+}
+
+.pos-settings-content {
+    flex: 1;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    padding: 25px;
+    overflow-y: auto;
+}
+
+.pos-settings-section {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.pos-settings-section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.pos-settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.pos-settings-header h2 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 13px;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.checkbox-wrapper label {
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
+    color: #495057;
+}
+
+.btn-save {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.btn-save:hover {
+    background: #219a52;
+}
+
+.btn-cancel {
+    background: #95a5a6;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.btn-cancel:hover {
+    background: #7f8c8d;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* FBR Status Badges */
+.badge-status-connected {
+    background: #e6fffa;
+    color: #234e52;
+    border: 1px solid #b2f5ea;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.badge-status-config-req {
+    background: #fffaf0;
+    color: #9c4221;
+    border: 1px solid #feebc8;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.badge-status-not-config {
+    background: #edf2f7;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.badge-status-failed {
+    background: #fff5f5;
+    color: #9b2c2c;
+    border: 1px solid #fed7d7;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.badge-status-disabled {
+    background: #f7fafc;
+    color: #718096;
+    border: 1px solid #cbd5e0;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-fbr-action {
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+}
+
+.btn-fbr-edit {
+    background: #ebf8ff;
+    color: #2b6cb0;
+    border-color: #bee3f8;
+}
+.btn-fbr-edit:hover {
+    background: #bee3f8;
+}
+
+.btn-fbr-test {
+    background: #f0fff4;
+    color: #276749;
+    border-color: #c6f6d5;
+}
+.btn-fbr-test:hover {
+    background: #c6f6d5;
+}
+
+.btn-fbr-reset {
+    background: #fffaf0;
+    color: #c05621;
+    border-color: #feebc8;
+}
+.btn-fbr-reset:hover {
+    background: #feebc8;
+}
+
+.btn-fbr-deactivate {
+    background: #fff5f5;
+    color: #c53030;
+    border-color: #fed7d7;
+}
+.btn-fbr-deactivate:hover {
+    background: #fed7d7;
+}
+
+.btn-fbr-delete {
+    background: #fff5f5;
+    color: #e53e3e;
+    border-color: #fed7d7;
+}
+.btn-fbr-delete:hover {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+.btn-fbr-save {
+    background: #27ae60;
+    color: #fff;
+}
+.btn-fbr-save:hover {
+    background: #219a52;
+}
+
+.btn-fbr-cancel {
+    background: #edf2f7;
+    color: #4a5568;
+}
+.btn-fbr-cancel:hover {
+    background: #e2e8f0;
+}
+
+.badge-reg-registered {
+    background: #f3e8ff;
+    color: #6b21a8;
+    border: 1px solid #e9d5ff;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.badge-reg-pending {
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.badge-cloud {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.badge-onprem {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.fbr-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 999999;
+    align-items: center;
+    justify-content: center;
+}
+
+.fbr-modal-dialog {
+    background: #fff;
+    width: 520px;
+    max-width: 95%;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    overflow: hidden;
+    animation: fbrModalFadeIn 0.2s ease-out;
+}
+
+@keyframes fbrModalFadeIn {
+    from { opacity: 0; transform: translateY(-15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<div class="pos-settings-container" id="posSettingsContainer" data-module="POS Settings">
+    <div class="pos-settings-sidebar">
+        <h3>POS Settings</h3>
+        <ul class="pos-settings-nav" id="posSettingsNav">
+            <li class="active" data-target="general"><i class="fas fa-sliders-h"></i> General Settings</li>
+            <li data-target="receipt"><i class="fas fa-print"></i> Receipt & Printer</li>
+            <li data-target="sales"><i class="fas fa-gavel"></i> Sales Rules & Controls</li>
+            <li data-target="fbr" id="posTabFbrIntegration"><i class="fas fa-cloud-upload-alt"></i> FBR Integration</li>
+            <li data-target="items"><i class="fas fa-boxes"></i> POS Items</li>
+            <li data-target="branch"><i class="fas fa-building"></i> Branch Settings</li>
+            <li data-target="logs"><i class="fas fa-history"></i> Logs & Status</li>
+        </ul>
+    </div>
+
+    <div class="pos-settings-content">
+        <!-- General Settings -->
+        <div class="pos-settings-section active" id="sec-general">
+            <div class="pos-settings-header">
+                <h2>General Settings</h2>
+                <div>
+                    <button class="btn-save" onclick="window.POSSettings.saveSettings('general')"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div>
+                    <div class="form-group">
+                        <label>Default Sales Mode</label>
+                        <select class="form-control" id="gen_default_mode">
+                            <option value="retail">Retail</option>
+                            <option value="wholesale">Wholesale</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Default Payment Method</label>
+                        <select class="form-control" id="gen_default_payment">
+                            <option value="Cash">Cash</option>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Invoice Numbering Series</label>
+                        <input type="text" class="form-control" id="gen_invoice_series" placeholder="e.g. POS-INV-">
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="gen_allow_negative_stock">
+                        <label for="gen_allow_negative_stock">Allow Negative Stock Sales</label>
+                    </div>
+                    
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="gen_allow_zero_stock">
+                        <label for="gen_allow_zero_stock">Allow Selling Zero Stock Products</label>
+                    </div>
+
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="gen_enable_barcode" checked>
+                        <label for="gen_enable_barcode">Enable Barcode Scanning</label>
+                    </div>
+
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="gen_enable_search_suggestions" checked>
+                        <label for="gen_enable_search_suggestions">Enable Product Search Suggestions</label>
+                    </div>
+                    
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="gen_enable_price_edit">
+                        <label for="gen_enable_price_edit">Enable Price Editing During Sale</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operating Hours & Shift Timing (General / Auto Apply to All Branches) -->
+            <div style="margin-top: 25px; padding: 18px 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <div style="margin-bottom: 12px;">
+                    <h4 style="margin: 0; color: #1e293b; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                        <i class="far fa-clock" style="color: #0284c7;"></i> General Operating Hours & Weekly Off Day (Opening, Closing & Holiday)
+                    </h4>
+                    <p style="margin: 4px 0 0; color: #64748b; font-size: 12px;">
+                        Set universal opening/closing times and weekly off day here. Saving here will automatically apply to all branches if checked. Individual branch timings and off days can still be customized separately in Branch Settings.
+                    </p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label><i class="far fa-clock" style="color: #10b981;"></i> Opening Time <span style="font-size: 11px; color: #64748b; font-weight: normal;">(e.g. 08:00 AM)</span></label>
+                        <input type="time" class="form-control" id="gen_opening_time" title="General Opening Time applied to all branches">
+                        <small style="color: #64748b; font-size: 11px;">Leave empty for 24/7 unrestricted</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label><i class="far fa-clock" style="color: #ef4444;"></i> Closing Time <span style="font-size: 11px; color: #64748b; font-weight: normal;">(e.g. 10:00 PM)</span></label>
+                        <input type="time" class="form-control" id="gen_closing_time" title="General Closing Time applied to all branches (Sales & login blocked after this)">
+                        <small style="color: #64748b; font-size: 11px;">Leave empty for 24/7 unrestricted</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label><i class="far fa-calendar-times" style="color: #e67e22;"></i> Weekly Off Day <span style="font-size: 11px; color: #64748b; font-weight: normal;">(Chutti Ka Din)</span></label>
+                        <select class="form-control" id="gen_off_day" title="General Weekly Off Day applied to all branches">
+                            <option value="">None (Open all 7 days)</option>
+                            <option value="Sunday">Sunday</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                        </select>
+                        <small style="color: #64748b; font-size: 11px;">POS logins & sales blocked on this day</small>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="gen_apply_hours_to_all_branches" checked style="width: 16px; height: 16px; cursor: pointer;">
+                    <label for="gen_apply_hours_to_all_branches" style="margin: 0; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer;">
+                        Automatically apply these operating hours and off day to all branches on Save (Sub per apply ho jaye)
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receipt & Printer -->
+        <div class="pos-settings-section" id="sec-receipt">
+            <div class="pos-settings-header">
+                <h2>Receipt & Printer Settings</h2>
+                <div>
+                    <button class="btn btn-secondary btn-sm" onclick="window.POSSettings.testPrint()"><i class="fas fa-print"></i> Test Print</button>
+                    <button class="btn-save" onclick="window.POSSettings.saveSettings('receipt')"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <div class="form-group">
+                        <label>Printer Type</label>
+                        <select class="form-control" id="rec_printer_type">
+                            <option value="browser">Browser Default Printing</option>
+                            <option value="raw">Raw Bluetooth/USB Printer</option>
+                            <option value="network">Network Printer (IP)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Paper Size</label>
+                        <select class="form-control" id="rec_paper_size">
+                            <option value="80mm">80mm Thermal (Standard)</option>
+                            <option value="58mm">58mm Thermal</option>
+                            <option value="A4">A4 Standard</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Receipt Header Text</label>
+                        <textarea class="form-control" id="rec_header" rows="3" placeholder="Thank you for shopping!"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Receipt Footer Text</label>
+                        <textarea class="form-control" id="rec_footer" rows="3" placeholder="Exchange within 7 days."></textarea>
+                    </div>
+                </div>
+                <div>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="rec_auto_print">
+                        <label for="rec_auto_print">Automatic Receipt Printing</label>
+                    </div>
+
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="rec_show_header">
+                        <label for="rec_show_header">Show Company Header</label>
+                    </div>
+                    
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="rec_show_logo">
+                        <label for="rec_show_logo">Show Company Logo</label>
+                    </div>
+
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="rec_show_tax">
+                        <label for="rec_show_tax">Show Tax Breakdown</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Number of Copies</label>
+                        <input type="number" class="form-control" id="rec_copies" value="1" min="1" max="5">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Rules -->
+        <div class="pos-settings-section" id="sec-sales">
+            <div class="pos-settings-header">
+                <h2>Sales Rules & Controls</h2>
+                <div>
+                    <button class="btn-save" onclick="window.POSSettings.saveSettings('sales')"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <div class="form-group">
+                        <label>Maximum Discount Limit (%)</label>
+                        <input type="number" class="form-control" id="rule_max_discount" value="10" min="0" max="100">
+                    </div>
+
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="rule_allow_credit_sales">
+                        <label for="rule_allow_credit_sales">Allow Credit Sales</label>
+                    </div>
+                    
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="rule_require_customer_for_credit" checked>
+                        <label for="rule_require_customer_for_credit">Require Valid Customer for Credit Sales</label>
+                    </div>
+                </div>
+                <div>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="rule_prevent_duplicate">
+                        <label for="rule_prevent_duplicate">Prevent Duplicate Invoice Submissions</label>
+                    </div>
+
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="rule_allow_returns">
+                        <label for="rule_allow_returns">Allow Sales Returns from POS</label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Stock Deduction Timing</label>
+                        <select class="form-control" id="rule_stock_deduction">
+                            <option value="realtime">Real-time (On Invoice Save)</option>
+                            <option value="dayend">Day End Closing</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FBR Integration -->
+        <div class="pos-settings-section" id="sec-fbr">
+            <div class="pos-settings-header">
+                <div>
+                    <h2>Digital Invoice / FBR Integration</h2>
+                    <p style="margin: 4px 0 0; color: #7f8c8d; font-size: 12px;">Configure central FBR credentials and map branch-specific POS IDs for official digital invoicing.</p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm" id="btn_fbr_test_central" onclick="window.POSSettings.testFBRConnection()"><i class="fas fa-plug"></i> Test Connection</button>
+                    <button class="btn-save" onclick="window.POSSettings.saveSettings('fbr')"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Central FBR Integration Settings -->
+            <div style="background: #fdfefe; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                <div style="margin: 0 0 15px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; color: #2c3e50; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-server" style="color: #3498db;"></i> Central FBR Integration Settings
+                    </h3>
+                    <span id="fbr_env_badge" style="font-size: 11px; padding: 3px 10px; border-radius: 12px; background: #e2e8f0; color: #4a5568; font-weight: 600;">Sandbox Mode</span>
+                </div>
+
+                <div id="fbr_prod_warning" style="display: none; background: #fff5f5; border: 1px solid #feb2b2; color: #9b2c2c; padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 15px; font-weight: 600;">
+                    <i class="fas fa-exclamation-triangle" style="margin-right: 5px;"></i> Caution: Live Production Mode Active. All verified sales will be legally posted to the Federal Board of Revenue (FBR). Ensure live credentials are configured.
+                </div>
+
+                <div class="grid-2">
+                    <div>
+                        <div class="checkbox-wrapper" style="margin-bottom: 12px;">
+                            <input type="checkbox" id="fbr_enable" onchange="window.POSSettings.onFBREnableToggle(this.checked)">
+                            <label for="fbr_enable" style="color: #e74c3c; font-weight: bold;">Enable FBR Integration</label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Environment</label>
+                            <select class="form-control" id="fbr_environment" onchange="window.POSSettings.onEnvironmentChange(this.value)">
+                                <option value="sandbox">Sandbox (Testing / Trial)</option>
+                                <option value="production">Production (Live)</option>
+                            </select>
+                            <small style="color: #7f8c8d; font-size: 11px;">Select Sandbox for trial or Production for live digital invoices.</small>
+                        </div>
+
+                        <!-- Central POS ID removed: POS IDs and Tokens are managed per branch below -->
+                        <input type="hidden" id="fbr_pos_id" value="">
+
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; font-size: 11.5px; color: #1e40af; line-height: 1.4;">
+                            <i class="fas fa-store-alt" style="color: #2563eb; margin-right: 5px;"></i>
+                            <strong>Branch-wise Setup:</strong> Har branch ki apni FBR POS ID aur Token neeche <em>Branch-wise FBR Mapping</em> section mein set hoti hai.
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Overall Integration Status</span>
+                                <span id="fbr_diag_badge" style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #e2e8f0; color: #4a5568;">Real Verification</span>
+                            </label>
+                            
+                            <!-- Overall Status Main Indicator -->
+                            <div id="fbr_status_indicator" style="padding: 10px 14px; background: #ecf0f1; border-radius: 6px; font-weight: bold; color: #7f8c8d; display: flex; align-items: center; justify-content: space-between; border: 1px solid #cbd5e0;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-circle-notch" id="fbr_status_icon"></i> <span id="fbr_status_text">Not Configured</span>
+                                </div>
+                                <span id="fbr_last_tested_badge" style="font-size: 10px; font-weight: 600; color: #718096; display: none;"></span>
+                            </div>
+
+                            <!-- 5 Separate Status Dimensions -->
+                            <div style="margin-top: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; font-size: 11px;">
+                                <div style="font-weight: 700; color: #334155; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-layer-group" style="color: #3b82f6;"></i> Verification Breakdown
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr; gap: 4px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 2px 0;">
+                                        <span style="color: #64748b;">A. Configuration:</span>
+                                        <span id="fbr_stat_config" style="font-weight: 700; color: #64748b;">Not Configured</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 2px 0;">
+                                        <span style="color: #64748b;">B. Server Connectivity:</span>
+                                        <span id="fbr_stat_connectivity" style="font-weight: 700; color: #64748b;">Not Tested</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 2px 0;">
+                                        <span style="color: #64748b;">C. Authentication:</span>
+                                        <span id="fbr_stat_auth" style="font-weight: 700; color: #64748b;">Not Tested</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 2px 0;">
+                                        <span style="color: #64748b;">D. Invoice Validation:</span>
+                                        <span id="fbr_stat_validation" style="font-weight: 700; color: #64748b;">Not Tested</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 2px 0;">
+                                        <span style="color: #64748b;">E. Invoice Submission:</span>
+                                        <span id="fbr_stat_submission" style="font-weight: 700; color: #64748b;">Not Submitted</span>
+                                    </div>
+                                </div>
+                                <div id="fbr_diag_notice" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1; font-size: 10.5px; color: #64748b; line-height: 1.35; display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <!-- Hidden Central API Token (Fallback) kept for JS compatibility -->
+                        <input type="hidden" id="fbr_api_token" value="">
+
+                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px;">
+                            <div style="font-weight: 700; color: #166534; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-check-shield" style="color: #16a34a;"></i> Branch-Specific POS Token Architecture
+                            </div>
+                            <div style="font-size: 11px; color: #15803d; margin-top: 3px; line-height: 1.4;">
+                                Central Fallback token ki ab zaroorat nahi hai. Har branch ka apna official e-FBR Token aur POS ID neeche <em>Branch-wise FBR Mapping</em> table se manage hota hai.
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Validate Invoice Endpoint</label>
+                            <input type="text" class="form-control" id="fbr_validate_url" placeholder="https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData">
+                            <small style="color: #7f8c8d; font-size: 11px;">Validation / verification endpoint.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Post Invoice Endpoint</label>
+                            <input type="text" class="form-control" id="fbr_post_url" placeholder="https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData">
+                            <small style="color: #7f8c8d; font-size: 11px;">Official invoice submission endpoint.</small>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Default Item PCT / HS Code (Tariff Fallback)</label>
+                            <input type="text" class="form-control" id="fbr_default_pct_code" placeholder="e.g. 19059000 (8 digits, no dots)">
+                            <small style="color: #7f8c8d; font-size: 11px;">Official 8-digit tariff code without dots (e.g. 19059000) used if item's PCT code is missing.</small>
+                        </div>
+
+                        <!-- Clean hidden override to prevent invalid HTML URLs -->
+                        <input type="hidden" id="fbr_base_url" value="">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Branch-wise FBR Mapping -->
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #edf2f7; padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h3 style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-store-alt" style="color: #3498db;"></i> Dynamic Branch-wise FBR Mapping
+                        </h3>
+                        <p style="margin: 4px 0 0; color: #7f8c8d; font-size: 12px;">Dynamic mapping linked to ERP Branch Settings with assigned FBR POS ID, Identification No, and dedicated e-FBR Token.</p>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span id="fbr_mapping_counter" style="font-size: 12px; color: #4a5568; background: #f8fafc; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0; font-weight: 600;">0 Branches</span>
+                        <button class="btn btn-primary btn-sm" onclick="window.POSSettings.openAddBranchModal()" style="font-size: 12px; padding: 4px 12px; font-weight: 600;">
+                            <i class="fas fa-plus"></i> Add New Branch
+                        </button>
+                        <button class="btn btn-light btn-sm" onclick="window.POSSettings.loadBranchMappings()" title="Reload branch mappings" style="border: 1px solid #cbd5e0; padding: 4px 10px; font-size: 12px; cursor: pointer; border-radius: 4px; background: #fff;">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="user-table" style="width: 100%; border-collapse: collapse; font-size: 12px; min-width: 900px;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #4a5568; font-size: 11px; text-transform: uppercase;">
+                                <th style="padding: 10px 10px; text-align: left; width: 18%;">Branch Name & Address</th>
+                                <th style="padding: 10px 8px; text-align: left; width: 8%;">Code</th>
+                                <th style="padding: 10px 8px; text-align: left; width: 10%;">POS ID</th>
+                                <th style="padding: 10px 8px; text-align: center; width: 12%;">e-FBR Token</th>
+                                <th style="padding: 10px 8px; text-align: center; width: 7%;">Ident #</th>
+                                <th style="padding: 10px 8px; text-align: center; width: 9%;">POS Status</th>
+                                <th style="padding: 10px 8px; text-align: center; width: 13%;">Connection Status</th>
+                                <th style="padding: 10px 8px; text-align: center; width: 23%;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fbr_branch_mapping_tbody">
+                            <tr>
+                                <td colspan="8" style="padding: 20px; text-align: center; color: #a0aec0;">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading branch mappings...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Branch Mapping Modal -->
+        <div id="posModalEditBranchMapping" class="fbr-modal-overlay">
+            <div class="fbr-modal-dialog">
+                <div style="padding: 15px 20px; background: #2c3e50; color: #fff; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-edit" style="color: #3498db;"></i> Edit Branch FBR Mapping
+                    </h3>
+                    <i class="fas fa-times" onclick="window.POSSettings.closeEditBranchModal()" style="cursor: pointer; font-size: 16px;"></i>
+                </div>
+                <div style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                    <input type="hidden" id="modal_edit_branch_id">
+                    
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px;">
+                        <div style="font-weight: 700; color: #2d3748; font-size: 13px;" id="modal_edit_branch_title">Branch Name</div>
+                        <div style="font-size: 11px; color: #718096; margin-top: 2px;">Code: <span id="modal_edit_branch_code" style="font-family: monospace; font-weight: bold; color: #2b6cb0;">-</span></div>
+                    </div>
+
+                    <div class="grid-2" style="margin-bottom: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 12px; font-weight: 600;">Official FBR POS ID *</label>
+                            <input type="text" id="modal_edit_pos_id" class="form-control" style="font-size: 12px;" placeholder="e.g. 202183">
+                            <small style="color: #718096; font-size: 10.5px;">6 or 7-digit ID from e.fbr.gov.pk</small>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 12px; font-weight: 600;">Identification No *</label>
+                            <input type="text" id="modal_edit_ident_no" class="form-control" style="font-size: 12px;" placeholder="e.g. 01, 1, 2">
+                            <small style="color: #718096; font-size: 10.5px;">Counter / Register #</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; font-weight: 600;">Official e-FBR POS Security Token / Auth Code *</label>
+                        <div style="position: relative;">
+                            <input type="password" id="modal_edit_pos_token" class="form-control" style="font-size: 12px; padding-right: 35px;" placeholder="Paste e-FBR POS Token for this branch" autocomplete="new-password">
+                            <i class="fas fa-eye" id="toggle_modal_token_visibility" onclick="window.POSSettings.toggleModalEditTokenVisibility()" style="position: absolute; right: 10px; top: 10px; color: #a0aec0; cursor: pointer; font-size: 13px;" title="Show/Hide"></i>
+                        </div>
+                        <div id="modal_edit_token_help" style="margin-top: 4px; font-size: 11px; color: #718096; line-height: 1.35;">
+                            Token assigned to this POS ID on e.fbr.gov.pk → POS Integration.
+                        </div>
+                    </div>
+
+                    <div class="grid-2" style="margin-bottom: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 12px; font-weight: 600;">Registration Status</label>
+                            <select id="modal_edit_pos_status" class="form-control" style="font-size: 12px;">
+                                <option value="Registered">Registered</option>
+                                <option value="Active">Active</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 12px; font-weight: 600;">FBR POS Version</label>
+                            <input type="text" id="modal_edit_version" class="form-control" style="font-size: 12px;" value="1.0" placeholder="1.0">
+                        </div>
+                    </div>
+
+                    <div class="grid-2" style="margin-bottom: 0;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 12px; font-weight: 600;">Deployment Mode</label>
+                            <select id="modal_edit_is_cloud" class="form-control" style="font-size: 12px;">
+                                <option value="1">Cloud Hosted</option>
+                                <option value="0">On-Premise POS</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 12px; font-weight: 600;">Integration Enabled</label>
+                            <div style="margin-top: 8px;">
+                                <input type="checkbox" id="modal_edit_is_enabled" style="cursor: pointer; width: 16px; height: 16px; vertical-align: middle;">
+                                <label for="modal_edit_is_enabled" style="font-size: 12px; cursor: pointer; margin-left: 5px;">Active for this branch</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm" onclick="window.POSSettings.closeEditBranchModal()">Cancel</button>
+                    <button class="btn btn-primary btn-sm" onclick="window.POSSettings.saveBranchMappingFromModal()"><i class="fas fa-save"></i> Save Mapping</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Add Branch Modal -->
+        <div id="posModalQuickAddBranch" class="fbr-modal-overlay">
+            <div class="fbr-modal-dialog">
+                <div style="padding: 15px 20px; background: #2c3e50; color: #fff; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-store-alt" style="color: #2ecc71;"></i> Add / Connect ERP Branch & FBR Mapping
+                    </h3>
+                    <i class="fas fa-times" onclick="window.POSSettings.closeAddBranchModal()" style="cursor: pointer; font-size: 16px;"></i>
+                </div>
+                <div style="padding: 20px;">
+                    <div class="form-group" style="margin-bottom: 14px; background: #f0f7ff; border: 1px solid #bee3f8; border-radius: 6px; padding: 10px 12px;">
+                        <label style="font-size: 12px; font-weight: 700; color: #2b6cb0; display: block; margin-bottom: 5px;">
+                            <i class="fas fa-building"></i> Select Existing ERP Branch to Connect *
+                        </label>
+                        <select id="quick_add_branch_select" class="form-control" onchange="window.POSSettings.onQuickBranchSelected(this.value)" style="font-size: 12px; font-weight: 600;">
+                            <option value="">-- Choose Existing ERP Branch --</option>
+                            <option value="__new__">+ Enter New ERP Branch Details</option>
+                        </select>
+                        <small style="color: #4a5568; font-size: 11px; margin-top: 4px; display: block;">
+                            Select any branch from Branch Settings to automatically load its details without typing them again.
+                        </small>
+                    </div>
+                    <input type="hidden" id="quick_add_branch_id" value="">
+
+                    <div class="form-group">
+                        <label style="font-size: 12px; font-weight: 600;">Branch Name *</label>
+                        <input type="text" id="quick_add_branch_name" class="form-control" placeholder="e.g. SEASTONE OUTLET (PESHAWAR)">
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label style="font-size: 12px; font-weight: 600;">Branch Code *</label>
+                            <input type="text" id="quick_add_branch_code" class="form-control" placeholder="e.g. 47A890EF">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 12px; font-weight: 600;">Official FBR POS ID</label>
+                            <input type="text" id="quick_add_pos_id" class="form-control" placeholder="e.g. 202183">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="font-size: 12px; font-weight: 600;">Official e-FBR POS Token / Auth Key</label>
+                        <div style="position: relative;">
+                            <input type="password" id="quick_add_pos_token" class="form-control" placeholder="Paste e-FBR token for this branch" style="padding-right: 35px; font-size: 12px;">
+                            <i class="fas fa-eye" id="toggle_quick_token_visibility" onclick="window.POSSettings.toggleQuickAddTokenVisibility()" style="position: absolute; right: 10px; top: 10px; color: #a0aec0; cursor: pointer; font-size: 13px;" title="Show/Hide"></i>
+                        </div>
+                        <small style="color: #718096; font-size: 11px;">Security token assigned to this POS ID on e.fbr.gov.pk</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="font-size: 12px; font-weight: 600;">Identification No</label>
+                        <input type="text" id="quick_add_ident_no" class="form-control" placeholder="e.g. 01">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 12px; font-weight: 600;">Branch Address</label>
+                        <textarea id="quick_add_branch_address" class="form-control" rows="2" placeholder="Full outlet physical address"></textarea>
+                    </div>
+                </div>
+                <div style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm" onclick="window.POSSettings.closeAddBranchModal()">Cancel</button>
+                    <button class="btn btn-success btn-sm" onclick="window.POSSettings.saveQuickAddBranch()"><i class="fas fa-check-circle"></i> Connect & Save Branch</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- POS Items Assignment -->
+        <div class="pos-settings-section" id="sec-items">
+            <div class="pos-settings-header">
+                <div>
+                    <h2>POS Item Assignment</h2>
+                    <p style="margin: 4px 0 0; color: #7f8c8d; font-size: 12px;">Select which items from your ERP inventory are available for sale in the POS module.</p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-save" onclick="window.POSSettings.savePOSItems()"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Top Controls Card -->
+            <div style="background: #fdfefe; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <div class="checkbox-wrapper" style="margin-bottom: 5px;">
+                            <input type="checkbox" id="pos_item_filter_enabled" onchange="window.POSSettings.onItemFilterToggle(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
+                            <label for="pos_item_filter_enabled" style="color: #2c3e50; font-size: 14px; font-weight: 700; cursor: pointer;">
+                                Restrict POS to Assigned Items Only
+                            </label>
+                        </div>
+                        <p style="margin: 0; color: #7f8c8d; font-size: 12px;" id="pos_filter_help_text">
+                            When enabled, POS sales will only display items checked below. When disabled, all ERP inventory items remain available in POS.
+                        </p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="text-align: right;">
+                            <div style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 600;">Assignment Summary</div>
+                            <div id="pos_items_summary_badge" style="font-size: 14px; font-weight: 800; color: #2b6cb0;">0 / 0 Assigned</div>
+                        </div>
+                        <button class="btn btn-light btn-sm" onclick="window.POSSettings.loadPOSItems()" title="Refresh items" style="border: 1px solid #cbd5e0; padding: 6px 12px; font-size: 12px; cursor: pointer; border-radius: 4px; background: #fff;">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter & Bulk Actions Bar -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 15px; margin-bottom: 15px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 220px; position: relative;">
+                    <i class="fas fa-search" style="position: absolute; left: 10px; top: 10px; color: #a0aec0; font-size: 12px;"></i>
+                    <input type="text" id="pos_items_search" class="form-control" style="padding-left: 30px; font-size: 12px;" placeholder="Search by item code or name..." onkeyup="window.POSSettings.filterPOSItemsList()">
+                </div>
+                <div>
+                    <select id="pos_items_filter_category" class="form-control" style="width: 170px; font-size: 12px;" onchange="window.POSSettings.filterPOSItemsList()">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="pos_items_filter_status" class="form-control" style="width: 150px; font-size: 12px;" onchange="window.POSSettings.filterPOSItemsList()">
+                        <option value="all">All Items</option>
+                        <option value="assigned">Assigned Only</option>
+                        <option value="unassigned">Unassigned Only</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 6px; margin-left: auto;">
+                    <button class="btn btn-secondary btn-sm" onclick="window.POSSettings.bulkAssignFiltered(true)" style="padding: 4px 10px; font-size: 11px;">
+                        <i class="fas fa-check-double"></i> Assign Visible
+                    </button>
+                    <button class="btn btn-light btn-sm" onclick="window.POSSettings.bulkAssignFiltered(false)" style="border: 1px solid #cbd5e0; padding: 4px 10px; font-size: 11px; background:#fff;">
+                        <i class="fas fa-times"></i> Unassign Visible
+                    </button>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div style="overflow-x: auto; max-height: 480px; overflow-y: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;">
+                <table class="user-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 2;">
+                        <tr style="border-bottom: 2px solid #e2e8f0; color: #4a5568; font-size: 11px; text-transform: uppercase;">
+                            <th style="padding: 10px 12px; text-align: center; width: 45px;">
+                                <input type="checkbox" id="pos_items_select_all" onchange="window.POSSettings.toggleSelectAllItems(this.checked)" title="Select / Deselect all visible items" style="cursor: pointer; width: 14px; height: 14px;">
+                            </th>
+                            <th style="padding: 10px 12px; text-align: left; width: 15%;">Item Code</th>
+                            <th style="padding: 10px 12px; text-align: left; width: 35%;">Item Name</th>
+                            <th style="padding: 10px 12px; text-align: left; width: 18%;">Category</th>
+                            <th style="padding: 10px 12px; text-align: right; width: 14%;">Selling Price</th>
+                            <th style="padding: 10px 12px; text-align: center; width: 14%;">POS Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pos_items_tbody">
+                        <tr>
+                            <td colspan="6" style="padding: 25px; text-align: center; color: #a0aec0;">
+                                <i class="fas fa-spinner fa-spin"></i> Loading inventory items...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Branch Settings -->
+        <div class="pos-settings-section" id="sec-branch">
+            <div class="pos-settings-header" style="border-bottom:none; margin-bottom:10px; padding-bottom:0;">
+                <h2>Branch Settings</h2>
+                <div>
+                    <button id="pos_btn_add_new_branch" class="btn btn-primary btn-sm" onclick="window.POSSettings.showBranchForm()"><i class="fas fa-plus"></i> Add New Branch</button>
+                </div>
+            </div>
+            
+            <div id="branch_list_view">
+                <table class="user-table" style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 15px;">
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Code</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Branch Name</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;"><i class="far fa-clock"></i> Hours</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;"><i class="fas fa-map-marker-alt" style="color: #ef4444;"></i> Location (Geofence)</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Manager</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">FBR POS ID / Ident</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Status</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="branch_list_tbody">
+                        <tr><td colspan="8" style="padding: 15px; text-align: center; color: #999;">Loading branches...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="branch_form_view" style="display: none; background: #f8f9fa; padding: 20px; border: 1px solid #ddd; border-radius: 4px; margin-top: 10px;">
+                <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 10px; color: #2c3e50;" id="branch_form_title">Add New Branch</h4>
+                <input type="hidden" id="branch_id" value="">
+                
+                <div class="grid-2" style="gap: 10px;">
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Branch Code <span style="color:red">*</span></label>
+                        <input type="text" class="form-control" id="branch_code" placeholder="Unique Code">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Branch Name <span style="color:red">*</span></label>
+                        <input type="text" class="form-control" id="branch_name" placeholder="Branch Name">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Official FBR POS ID <span style="font-size: 11px; color: #3498db; font-weight: normal;">(FBR Integration)</span></label>
+                        <input type="text" class="form-control" id="branch_fbr_pos_id" placeholder="e.g. 210450">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Identification No <span style="font-size: 11px; color: #3498db; font-weight: normal;">(Terminal / Counter)</span></label>
+                        <input type="text" class="form-control" id="branch_fbr_ident_no" placeholder="e.g. 01, 02, 03">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Contact Number</label>
+                        <input type="text" class="form-control" id="branch_contact" placeholder="Phone / Mobile">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Invoice Series (e.g. B1-POS-)</label>
+                        <input type="text" class="form-control" id="branch_invoice_series" placeholder="e.g. B1-POS-">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2; margin-bottom: 5px;">
+                        <label>Branch Address</label>
+                        <textarea class="form-control" id="branch_address" rows="2" placeholder="Full Address"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Branch Manager</label>
+                        <select class="form-control" id="branch_manager">
+                            <option value="">Select Manager</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Default Warehouse</label>
+                        <select class="form-control" id="branch_warehouse">
+                            <option value="">Select Warehouse</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px; position: relative;">
+                        <label>Default Customer</label>
+                        <input type="text" class="form-control" id="branch_default_customer_search" placeholder="Search Customer..." autocomplete="off" onkeyup="window.POSSettings.filterCustomers(this.value)" onfocus="window.POSSettings.filterCustomers(this.value)" onclick="this.select()">
+                        <input type="hidden" id="branch_default_customer">
+                        <div id="branch_customer_dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:1000; background:white; border:1px solid #ddd; max-height:150px; overflow-y:auto; box-shadow:0 4px 6px rgba(0,0,0,0.1);"></div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Status</label>
+                        <select class="form-control" id="branch_status">
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label><i class="far fa-clock" style="color: #10b981;"></i> Opening Time <span style="font-size: 11px; color: #64748b; font-weight: normal;">(e.g. 07:00 AM)</span></label>
+                        <input type="time" class="form-control" id="branch_opening_time" title="Branch Opening Time for login & sales">
+                        <small style="color: #64748b; font-size: 10px;">Leave blank for 24/7 unrestricted</small>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label><i class="far fa-clock" style="color: #ef4444;"></i> Closing Time <span style="font-size: 11px; color: #64748b; font-weight: normal;">(e.g. 08:00 PM)</span></label>
+                        <input type="time" class="form-control" id="branch_closing_time" title="Branch Closing Time (Sales & login blocked after this)">
+                        <small style="color: #64748b; font-size: 10px;">Leave blank for 24/7 unrestricted</small>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label><i class="far fa-calendar-times" style="color: #e67e22;"></i> Weekly Off Day</label>
+                        <select class="form-control" id="branch_off_day" title="Branch Weekly Off Day (Logins & sales blocked on this day)">
+                            <option value="">None (Open all 7 days)</option>
+                            <option value="Sunday">Sunday</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                        </select>
+                        <small style="color: #64748b; font-size: 10px;">Select custom off day for this branch</small>
+                    </div>
+
+                    <!-- Branch Geofencing / Location Setup -->
+                    <div style="grid-column: span 2; background: #f0f7ff; border: 1.5px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin-top: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                            <label style="font-weight: 700; color: #1e40af; font-size: 13px; display: flex; align-items: center; gap: 10px; margin: 0; cursor: pointer;">
+                                <input type="checkbox" id="branch_enable_geofencing" onchange="window.POSSettings.toggleGeofencingFields(this.checked)" style="width: 18px; height: 18px; cursor: pointer; accent-color: #2563eb;">
+                                <span><i class="fas fa-map-marker-alt" style="color: #ef4444; font-size: 14px;"></i> Enable Location / Geofencing Restriction for this Branch</span>
+                            </label>
+                            <span style="font-size: 11.5px; color: #64748b; font-weight: 500;">(When checked, users can only login from within the shop)</span>
+                        </div>
+
+                        <div id="branch_geofence_details" style="display: none; padding-top: 10px; margin-top: 8px; border-top: 1px dashed #cbd5e1;">
+                            <div style="display: flex; flex-direction: row; align-items: flex-end; gap: 10px; width: 100%; flex-wrap: nowrap;">
+                                <div style="flex: 1; min-width: 110px;">
+                                    <label style="font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 3px; display: block; white-space: nowrap;">Shop Latitude (GPS) <span style="color: #ef4444;">*</span></label>
+                                    <input type="number" step="any" class="form-control" id="branch_latitude" placeholder="e.g. 34.0152410" style="background: white; height: 34px; padding: 4px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                                </div>
+                                <div style="flex: 1; min-width: 110px;">
+                                    <label style="font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 3px; display: block; white-space: nowrap;">Shop Longitude (GPS) <span style="color: #ef4444;">*</span></label>
+                                    <input type="number" step="any" class="form-control" id="branch_longitude" placeholder="e.g. 72.5249150" style="background: white; height: 34px; padding: 4px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                                </div>
+                                <div style="width: 135px; flex: none;">
+                                    <label style="font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 3px; display: block; white-space: nowrap;">Allowed Radius (Meters) <span style="color: #ef4444;">*</span></label>
+                                    <input type="number" class="form-control" id="branch_radius_meters" placeholder="100" value="100" style="background: white; height: 34px; padding: 4px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                                </div>
+                                <div style="flex: none;">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="btn_fetch_gps" onclick="window.POSSettings.fetchCurrentGPS()" style="height: 34px; padding: 0 12px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; background: #fff; border: 1.5px solid #3b82f6; border-radius: 4px; cursor: pointer; color: #1d4ed8;">
+                                        <i class="fas fa-crosshairs" style="color: #2563eb;"></i> Fetch Current Location
+                                    </button>
+                                </div>
+                            </div>
+                            <small style="color: #475569; font-size: 10.5px; margin-top: 6px; display: block; background: #fff; padding: 5px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                <i class="fas fa-info-circle" style="color: #2563eb;"></i> <strong>Tip:</strong> Dukan mein mojood system/mobile par <strong>"Fetch Current Location"</strong> dabayein taake coordinates خود بخود save ho jayen. Allowed Radius batata hai ke dukan ke kitne meter daire (e.g. 100m) ke andar login ki ijazat hogi.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+                    <button class="btn-cancel" onclick="window.POSSettings.hideBranchForm()">Cancel</button>
+                    <button class="btn-save" style="margin-left: 10px;" onclick="window.POSSettings.saveBranchForm()">Save Branch</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs & Status -->
+        <div class="pos-settings-section" id="sec-logs">
+            <div class="pos-settings-header">
+                <div>
+                    <h2>Logs & Status</h2>
+                    <p style="margin: 4px 0 0; color: #7f8c8d; font-size: 12px;">Track POS FBR submission records, verification logs, and diagnostics. Sensitive secrets and tokens are never logged.</p>
+                </div>
+                <div>
+                    <button class="btn btn-secondary btn-sm" onclick="window.POSSettings.loadFBRLogs()"><i class="fas fa-sync-alt"></i> Refresh Logs</button>
+                </div>
+            </div>
+
+            <!-- Filter Controls -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 15px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 12px; font-weight: 600; color: #4a5568; margin: 0;">Branch:</label>
+                    <select id="fbr_log_filter_branch" class="form-control" style="width: 180px; padding: 4px 8px; font-size: 12px;" onchange="window.POSSettings.loadFBRLogs()">
+                        <option value="">All Branches</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 12px; font-weight: 600; color: #4a5568; margin: 0;">Status:</label>
+                    <select id="fbr_log_filter_status" class="form-control" style="width: 140px; padding: 4px 8px; font-size: 12px;" onchange="window.POSSettings.loadFBRLogs()">
+                        <option value="">All Statuses</option>
+                        <option value="Submitted">Submitted (Success)</option>
+                        <option value="Failed">Failed</option>
+                    </select>
+                </div>
+                <div style="margin-left: auto; font-size: 12px; color: #718096;">
+                    Showing recent digital invoice submissions.
+                </div>
+            </div>
+
+            <!-- Logs Table -->
+            <div style="overflow-x: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;">
+                <table class="user-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #4a5568; font-size: 11px; text-transform: uppercase;">
+                            <th style="padding: 10px; text-align: left; width: 14%;">Date & Time</th>
+                            <th style="padding: 10px; text-align: left; width: 16%;">Branch</th>
+                            <th style="padding: 10px; text-align: left; width: 14%;">ERP Invoice #</th>
+                            <th style="padding: 10px; text-align: center; width: 8%;">Env</th>
+                            <th style="padding: 10px; text-align: left; width: 10%;">POS ID</th>
+                            <th style="padding: 10px; text-align: center; width: 12%;">Status</th>
+                            <th style="padding: 10px; text-align: left; width: 14%;">FBR Invoice / Ref #</th>
+                            <th style="padding: 10px; text-align: left; width: 12%;">Response / Message</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fbr_logs_tbody">
+                        <tr>
+                            <td colspan="8" style="padding: 25px; text-align: center; color: #a0aec0;">
+                                <i class="fas fa-spinner fa-spin"></i> Loading logs...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Admin Password Verification Modal for Branch Deactivation -->
+<div id="modalBranchDeactivateAuth" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15, 23, 42, 0.65); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+    <div style="background:#ffffff; width:420px; max-width:92%; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.35); overflow:hidden; border:1px solid #e2e8f0; animation: posFadeIn 0.2s ease-out; font-family: inherit;">
+        <div style="background:linear-gradient(135deg, #991b1b, #dc2626); color:#fff; padding:14px 18px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-shield-alt" style="font-size:16px;"></i> Administrator Authorization
+            </div>
+            <button type="button" onclick="window.POSSettings.closeDeactivateModal()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; line-height:1;">&times;</button>
+        </div>
+        <div style="padding:20px 22px;">
+            <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:14px;">
+                <div style="background:#fee2e2; color:#ef4444; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fas fa-exclamation-triangle" style="font-size:16px;"></i>
+                </div>
+                <div>
+                    <h5 style="margin:0 0 4px 0; color:#0f172a; font-size:14px; font-weight:700;">Deactivate Branch</h5>
+                    <p style="font-size:12px; color:#64748b; margin:0; line-height:1.4;">
+                        Are you sure you want to mark branch <strong id="deact_branch_name" style="color:#0f172a;"></strong> as <strong>Inactive</strong>?
+                    </p>
+                </div>
+            </div>
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:14px;">
+                <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">
+                    <i class="fas fa-lock"></i> Enter Live Admin Password
+                </label>
+                <div style="position:relative;">
+                    <input type="password" id="deact_admin_password" placeholder="Current Administrator Password" style="width:100%; padding:9px 36px 9px 12px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#cbd5e1'" onkeydown="if(event.key==='Enter') window.POSSettings.confirmDeactivateBranch();">
+                    <i id="deact_pwd_eye" class="fas fa-eye" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:#94a3b8; cursor:pointer; font-size:14px;" onclick="window.POSSettings.toggleDeactPwdVisibility()" title="Show/Hide Password"></i>
+                </div>
+                <small style="display:block; font-size:10px; color:#64748b; margin-top:5px;">
+                    * Password is verified in real-time from your Administrator account.
+                </small>
+            </div>
+            <div id="deact_error_msg" style="display:none; color:#dc2626; font-size:12px; margin-bottom:12px; font-weight:600; background:#fef2f2; padding:8px 12px; border-radius:6px; border:1px solid #fecaca; align-items:center; gap:6px;">
+                <i class="fas fa-times-circle"></i> <span id="deact_error_text"></span>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:6px;">
+                <button type="button" onclick="window.POSSettings.closeDeactivateModal()" style="padding:8px 16px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s;">Cancel</button>
+                <button type="button" id="btn_confirm_deact_branch" onclick="window.POSSettings.confirmDeactivateBranch()" style="padding:8px 18px; border:none; background:#dc2626; color:#ffffff; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(220,38,38,0.3);">
+                    <i class="fas fa-ban"></i> Deactivate Branch
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    if (window.POSSettings && typeof window.POSSettings.init === 'function') {
+        window.POSSettings.init();
+    }
+</script>
+
+

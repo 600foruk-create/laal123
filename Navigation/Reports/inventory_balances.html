@@ -1,0 +1,538 @@
+<div id="ib_root" style="display: flex; flex-direction: column; height: 100%; background: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11.5px; box-sizing: border-box; overflow: hidden; color: #1e293b;">
+
+    <style>
+        /* Exact Sale Invoice Window Container Matching */
+        .modal-container:has(#ib_root) {
+            max-width: 1260px !important;
+            width: 98% !important;
+            height: 94vh !important;
+            max-height: 94vh !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            border-radius: 6px !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+        /* ERP Action Buttons */
+        .ib-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            color: #1e293b;
+            padding: 2.5px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            height: 24px;
+            box-sizing: border-box;
+        }
+        .ib-tool-btn:hover {
+            background: #f1f5f9;
+            border-color: #1F4E79;
+            color: #1F4E79;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .ib-btn-primary {
+            background: #1F4E79 !important;
+            color: #ffffff !important;
+            border-color: #1F4E79 !important;
+        }
+        .ib-btn-primary:hover {
+            background: #163c5e !important;
+            color: #ffffff !important;
+        }
+
+        /* Filter Panel - Compact */
+        .ib-filter-panel {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin: 4px 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            flex-shrink: 0;
+        }
+        .ib-filter-header {
+            font-size: 11px;
+            font-weight: 800;
+            color: #1F4E79;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .ib-filter-grid {
+            display: grid;
+            grid-template-columns: 280px 280px 1fr 80px;
+            gap: 4px 10px;
+            align-items: center;
+        }
+        .ib-field-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ib-field-label {
+            width: 80px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .ib-select, .ib-input {
+            flex: 1;
+            height: 23px;
+            padding: 1px 6px;
+            font-size: 11px;
+            border: 1px solid #94a3b8;
+            border-radius: 3px;
+            background: #ffffff;
+            color: #0f172a;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .ib-select:focus, .ib-input:focus {
+            border-color: #1F4E79;
+            box-shadow: 0 0 0 1px #1F4E79;
+        }
+        .ib-btn-search {
+            background: #1F4E79;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            height: 48px;
+            width: 78px;
+            font-size: 11.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(31,78,121,0.25);
+        }
+        .ib-btn-search:hover {
+            background: #163c5e;
+            box-shadow: 0 3px 6px rgba(31,78,121,0.35);
+        }
+
+        /* Compact Summary Cards */
+        .ib-cards-grid {
+            display: grid;
+            grid-template-columns: 160px 1fr 180px 150px;
+            gap: 6px;
+            padding: 2px 6px;
+            margin-bottom: 3px;
+            flex-shrink: 0;
+        }
+        .ib-card {
+            border-radius: 4px;
+            padding: 4px 8px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            box-sizing: border-box;
+        }
+        .ib-card-blue   { background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; }
+        .ib-card-green  { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+        .ib-card-red    { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+        .ib-card-yellow { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+        .ib-card-icon {
+            font-size: 16px;
+            line-height: 1;
+        }
+        .ib-card-content {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .ib-card-title {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+        }
+        .ib-card-val {
+            font-size: 12.5px;
+            font-weight: 800;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Table Area - Takes maximum available space */
+        .ib-table-wrap {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            margin: 0 6px 4px 6px;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .ib-table-scroll {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .ib-main-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            table-layout: fixed;
+        }
+        .ib-main-table th {
+            background: #1F4E79;
+            color: #ffffff;
+            border: 1px solid #0f2d4a;
+            padding: 3px 5px;
+            font-weight: 700;
+            text-align: center;
+            font-size: 10px;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+        .ib-main-table td {
+            border: 1px solid #cbd5e1;
+            padding: 2.5px 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+        .ib-main-table tbody tr:hover {
+            background: #f1f5f9;
+        }
+        .ib-main-table tbody tr.selected {
+            background: #e0f2fe !important;
+            outline: 1px solid #0369a1;
+        }
+
+        /* Category Header Row */
+        .ib-cat-row {
+            background: #dbeafe !important;
+            color: #1e3a8a;
+            font-weight: 800;
+            font-size: 11px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .ib-cat-row:hover {
+            background: #bfdbfe !important;
+        }
+
+        /* Subtotal Row */
+        .ib-subtotal-row {
+            background: #f1f5f9 !important;
+            font-weight: 800;
+            border-top: 1.5px solid #64748b;
+            border-bottom: 1.5px solid #64748b;
+        }
+
+        /* Grand Total Row */
+        .ib-grand-row {
+            background: #0b2942 !important;
+            color: #ffffff !important;
+            font-weight: 900;
+            font-size: 11.5px;
+            border-top: 2px solid #0369a1;
+        }
+
+        /* Negative Value Styling */
+        .ib-neg {
+            color: #dc2626 !important;
+            font-weight: 800 !important;
+        }
+
+        /* Autocomplete dropdown */
+        .ib-suggest-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #1F4E79;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10000;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .ib-suggest-item {
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            border-bottom: 1px solid #f1f5f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ib-suggest-item:hover, .ib-suggest-item.active {
+            background: #1F4E79;
+            color: #ffffff;
+        }
+
+        /* Report options footer */
+        .ib-report-options {
+            background: #f1f5f9;
+            border-top: 1px solid #cbd5e1;
+            padding: 3px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10.5px;
+            font-weight: 600;
+            color: #334155;
+            flex-shrink: 0;
+        }
+    </style>
+
+    <!-- Search / Filter Options Panel with Top Actions -->
+    <div class="ib-filter-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <div class="ib-filter-header" style="margin-bottom: 0;">
+                <i class="fas fa-filter"></i> Search / Filter Options
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <button class="ib-tool-btn" onclick="window.InventoryBalancesModule.printReport()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                <button class="ib-tool-btn" onclick="window.InventoryBalancesModule.exportPDF()">
+                    <i class="fas fa-file-pdf" style="color: #b91c1c;"></i> Export PDF
+                </button>
+                <button class="ib-tool-btn" onclick="window.InventoryBalancesModule.exportExcel()">
+                    <i class="fas fa-file-excel" style="color: #15803d;"></i> Export Excel
+                </button>
+                <button class="ib-tool-btn ib-btn-primary" onclick="window.InventoryBalancesModule.search()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="ib-filter-grid">
+            
+            <!-- Col 1: Category, Sub Category, Item -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="ib-field-row">
+                    <span class="ib-field-label"><i class="fas fa-boxes" style="color:#0284c7;"></i> Category</span>
+                    <select id="ib_filter_cat" class="ib-select" onchange="window.InventoryBalancesModule.onCategoryChange()">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="ib-field-row">
+                    <span class="ib-field-label"><i class="fas fa-sitemap" style="color:#0284c7;"></i> Sub Category</span>
+                    <select id="ib_filter_subcat" class="ib-select" onchange="window.InventoryBalancesModule.search()">
+                        <option value="">All Sub Categories</option>
+                    </select>
+                </div>
+                <div class="ib-field-row" style="position: relative;">
+                    <span class="ib-field-label"><i class="fas fa-tag" style="color:#0284c7;"></i> Item</span>
+                    <input type="text" id="ib_filter_item" class="ib-input" placeholder="Search by Item Name / Code..." autocomplete="off">
+                    <input type="hidden" id="ib_filter_item_id">
+                    <div id="ib_item_suggest" class="ib-suggest-box"></div>
+                </div>
+            </div>
+
+            <!-- Col 2: Brand, Location, Stock Status -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="ib-field-row">
+                    <span class="ib-field-label"><i class="fas fa-bookmark" style="color:#0284c7;"></i> Brand</span>
+                    <select id="ib_filter_brand" class="ib-select" onchange="window.InventoryBalancesModule.search()">
+                        <option value="">All Brands</option>
+                    </select>
+                </div>
+                <div class="ib-field-row">
+                    <span class="ib-field-label"><i class="fas fa-map-marker-alt" style="color:#0284c7;"></i> Location</span>
+                    <select id="ib_filter_location" class="ib-select" onchange="window.InventoryBalancesModule.search()">
+                        <option value="">All Locations (Warehouse)</option>
+                    </select>
+                </div>
+                <div class="ib-field-row">
+                    <span class="ib-field-label"><i class="fas fa-layer-group" style="color:#0284c7;"></i> Stock Status</span>
+                    <select id="ib_filter_status" class="ib-select" onchange="window.InventoryBalancesModule.search()">
+                        <option value="all">All (With Stock + Zero + Negative)</option>
+                        <option value="positive">Positive Stock Only (> 0)</option>
+                        <option value="zero">Zero Stock Only (= 0)</option>
+                        <option value="negative">Negative Stock Only (< 0)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Col 3: As of Date / Period Mode -->
+            <div style="display: flex; flex-direction: column; gap: 4px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px 6px;">
+                <div style="font-weight: 700; color: #1F4E79; font-size: 10.5px; display: flex; align-items: center; gap: 4px;">
+                    <i class="far fa-calendar-alt"></i> As of Date / Period
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <label style="display: flex; align-items: center; gap: 3px; cursor: pointer; font-weight: 600;">
+                        <input type="radio" name="ib_date_mode" id="ib_mode_asof" value="as_of" checked onchange="window.InventoryBalancesModule.toggleDateMode()"> As of Date
+                    </label>
+                    <input type="date" id="ib_as_of_date" class="ib-input" style="max-width: 130px;" onchange="window.InventoryBalancesModule.search()">
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <label style="display: flex; align-items: center; gap: 3px; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        <input type="radio" name="ib_date_mode" id="ib_mode_period" value="period" onchange="window.InventoryBalancesModule.toggleDateMode()"> Period
+                    </label>
+                    <span style="font-size: 10.5px; color: #64748b;">From</span>
+                    <input type="date" id="ib_from_date" class="ib-input" style="max-width: 110px;" disabled onchange="window.InventoryBalancesModule.search()">
+                    <span style="font-size: 10.5px; color: #64748b;">To</span>
+                    <input type="date" id="ib_to_date" class="ib-input" style="max-width: 110px;" disabled onchange="window.InventoryBalancesModule.search()">
+                </div>
+            </div>
+
+            <!-- Col 4: Search Button -->
+            <div>
+                <button id="ib_btn_search" class="ib-btn-search" onclick="window.InventoryBalancesModule.search()">
+                    <i class="fas fa-search" style="font-size: 15px;"></i>
+                    <span>Search</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Stock Summary Cards (Compact 32px height) -->
+    <div class="ib-cards-grid">
+        <div class="ib-card ib-card-blue">
+            <div class="ib-card-icon"><i class="fas fa-boxes"></i></div>
+            <div class="ib-card-content">
+                <span class="ib-card-title">Total Items:</span>
+                <span id="ib_card_items" class="ib-card-val">0</span>
+            </div>
+        </div>
+        <div class="ib-card ib-card-green">
+            <div class="ib-card-icon"><i class="fas fa-box-open"></i></div>
+            <div class="ib-card-content">
+                <span class="ib-card-title">Total Stock:</span>
+                <span id="ib_card_stock" class="ib-card-val">Pcs: 0 | Ctn: 0 | Kg: 0.00</span>
+            </div>
+        </div>
+        <div class="ib-card ib-card-red">
+            <div class="ib-card-icon"><i class="fas fa-times-circle"></i></div>
+            <div class="ib-card-content">
+                <span class="ib-card-title">Negative Stock:</span>
+                <span id="ib_card_negative" class="ib-card-val" style="color: #dc2626;">0 Items</span>
+            </div>
+        </div>
+        <div class="ib-card ib-card-yellow">
+            <div class="ib-card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="ib-card-content">
+                <span class="ib-card-title">Low Stock:</span>
+                <span id="ib_card_low" class="ib-card-val">0 Items</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Inventory Balance Grouped Grid -->
+    <div id="ib_view_balance" class="ib-table-wrap">
+        <div class="ib-table-scroll">
+            <table id="ib_main_table" class="ib-main-table">
+                <thead style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th rowspan="2" style="width: 30px;">#</th>
+                        <th rowspan="2" style="text-align: left;">Item Name / Description</th>
+                        <th rowspan="2" style="width: 75px;">Unit(s)</th>
+                        <th colspan="2">Opening Stock</th>
+                        <th colspan="2">In (Received)</th>
+                        <th colspan="2">Out (Issued)</th>
+                        <th colspan="2">Adjustment</th>
+                        <th colspan="2">Closing Stock</th>
+                    </tr>
+                    <tr>
+                        <th style="width: 60px; background: #163c5e;">Pcs / Ctn</th>
+                        <th style="width: 75px; background: #163c5e;">Kg</th>
+                        <th style="width: 60px; background: #163c5e;">Pcs / Ctn</th>
+                        <th style="width: 75px; background: #163c5e;">Kg</th>
+                        <th style="width: 60px; background: #163c5e;">Pcs / Ctn</th>
+                        <th style="width: 75px; background: #163c5e;">Kg</th>
+                        <th style="width: 60px; background: #163c5e;">Pcs / Ctn</th>
+                        <th style="width: 75px; background: #163c5e;">Kg</th>
+                        <th style="width: 65px; background: #0f2d4a;">Pcs / Ctn</th>
+                        <th style="width: 80px; background: #0f2d4a;">Kg</th>
+                    </tr>
+                </thead>
+                <tbody id="ib_main_tbody">
+                    <!-- Dynamic Rows Injected Here -->
+                </tbody>
+                <tfoot id="ib_main_tfoot" style="position: sticky; bottom: 0; z-index: 10;">
+                    <!-- Grand Total Row -->
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Report Options Footer -->
+        <div class="ib-report-options">
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" id="ib_opt_subtotals" checked onchange="window.InventoryBalancesModule.renderMainTable()"> Show Category Totals
+                </label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" id="ib_opt_only_stock" onchange="window.InventoryBalancesModule.renderMainTable()"> Show Only Items with Stock
+                </label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" id="ib_opt_zero_stock" checked onchange="window.InventoryBalancesModule.renderMainTable()"> Show Zero Stock Items
+                </label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" id="ib_opt_neg_stock" checked onchange="window.InventoryBalancesModule.renderMainTable()"> Show Negative Stock Items
+                </label>
+            </div>
+            <div style="display: flex; gap: 6px;">
+                <button type="button" class="ib-top-btn" style="color: #1F4E79; border-color: #cbd5e1; background: #ffffff; padding: 2px 8px;" onclick="window.InventoryBalancesModule.toggleAllCategories(true)">
+                    <i class="fas fa-expand-alt"></i> Expand All
+                </button>
+                <button type="button" class="ib-top-btn" style="color: #1F4E79; border-color: #cbd5e1; background: #ffffff; padding: 2px 8px;" onclick="window.InventoryBalancesModule.toggleAllCategories(false)">
+                    <i class="fas fa-compress-alt"></i> Collapse All
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spinner Overlay -->
+    <div id="ib_loading" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.7); z-index: 99999; justify-content: center; align-items: center; flex-direction: column; gap: 8px;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 26px; color: #1F4E79;"></i>
+        <span style="font-size: 12px; font-weight: bold; color: #1F4E79;">Loading Inventory Stock Balances...</span>
+    </div>
+
+</div>
+
+<!-- Auto-initialization and Window Sizing script -->
+<script>
+    (function() {
+        // Enforce Sale Invoice Modal Size
+        const root = document.getElementById('ib_root');
+        const win = root?.closest('.modal-container');
+        if (win) {
+            win.classList.add('modal-fbr-invoice');
+            win.style.maxWidth = '1260px';
+            win.style.width = '98%';
+            win.style.height = '94vh';
+            win.style.maxHeight = '94vh';
+        }
+
+        if (window.InventoryBalancesModule) {
+            window.InventoryBalancesModule.init();
+        }
+    })();
+</script>

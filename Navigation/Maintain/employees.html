@@ -1,0 +1,157 @@
+<div id="employeesContainer" data-module="Employees"
+    style="height: auto; width: 100%; display: flex; flex-direction: column; gap: 8px; background: white; padding: 12px; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 4px;">
+
+    <!-- Sub-header Removed as requested -->
+
+    <div style="display: flex; gap: 15px; flex: 1; align-items: stretch;">
+        <!-- Left: Employee List -->
+        <div class="employees-sidebar" style="flex: 1.5; display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; background: #f8fafc;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 5px; text-transform: uppercase;">Employee List</div>
+            <select id="employeeList" size="20"
+                style="width: 100%; flex: 1; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;"
+                onchange="onEmployeeSelect(this.value)"></select>
+        </div>
+
+        <!-- Right: Employee Details -->
+        <div style="flex: 2; display: flex; flex-direction: column; gap: 10px; border: 1px solid #e2e8f0; padding: 12px; border-radius: 4px;">
+            <!-- Buttons Header -->
+            <div style="display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 5px;">
+                <button class="coa-btn coa-add" id="empAddBtn" onclick="resetEmployeeForm(true)">Add</button>
+                <button class="coa-btn coa-save" id="empSaveBtn" onclick="saveEmployee()" disabled>Save</button>
+                <button class="coa-btn coa-cancel" id="empCancelBtn" onclick="resetEmployeeForm(false)">Cancel</button>
+                <button class="coa-btn coa-delete" id="empDeleteBtn" onclick="deleteEmployee()">Delete</button>
+            </div>
+
+            <!-- Fields Grid -->
+            <div style="display: grid; grid-template-columns: 110px 1fr 110px 1fr; gap: 8px 12px; align-content: start;">
+                
+                <label class="coa-label">Name</label>
+                <input type="text" id="empName" class="coa-input" style="grid-column: span 3;" disabled>
+
+                <label class="coa-label">Father Name</label>
+                <input type="text" id="empFatherName" class="coa-input" style="grid-column: span 3;" disabled>
+
+                <label class="coa-label">Address</label>
+                <textarea id="empAddress" class="coa-input" style="grid-column: span 3; height: 50px; resize: none; padding-top: 4px;" disabled></textarea>
+
+                <label class="coa-label">Telephone</label>
+                <input type="text" id="empTelephone" class="coa-input" disabled>
+                <label class="coa-label" style="text-align: right;">E-Mail</label>
+                <input type="email" id="empEmail" class="coa-input" disabled>
+
+                <label class="coa-label">N.I.C. No.</label>
+                <input type="text" id="empNicNo" class="coa-input" disabled>
+                <label class="coa-label" style="text-align: right;">Date of Birth</label>
+                <input type="date" id="empDob" class="coa-input" disabled>
+
+                <label class="coa-label">Joining Date</label>
+                <input type="date" id="empJoiningDate" class="coa-input" disabled>
+                <label class="coa-label" style="text-align: right;">Salary</label>
+                <input type="number" id="empSalary" class="coa-input" value="0" disabled>
+
+                <label class="coa-label">Designation</label>
+                <input type="text" id="empDesignation" class="coa-input" style="grid-column: span 3;" disabled>
+
+                <label class="coa-label">Department</label>
+                <select id="empDepartment" class="coa-input" style="grid-column: span 3;" disabled>
+                    <option value="">-- Select Department --</option>
+                </select>
+
+                <label class="coa-label">Remarks</label>
+                <textarea id="empRemarks" class="coa-input" style="grid-column: span 3; height: 40px; resize: none; padding-top: 4px;" disabled></textarea>
+
+                <label class="coa-label">Reference</label>
+                <input type="text" id="empReference" class="coa-input" style="grid-column: span 3;" disabled>
+
+                <label class="coa-label">Job Left</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="empJobLeft" onchange="toggleLeavingDate(this.checked)" disabled>
+                </div>
+                <label class="coa-label" style="text-align: right;">Leaving Date</label>
+                <input type="date" id="empLeavingDate" class="coa-input" disabled>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .coa-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 5px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .coa-btn:hover:not(:disabled) { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .coa-btn:active:not(:disabled) { transform: translateY(1px); }
+        .coa-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #f8fafc !important; border-color: #cbd5e0 !important; color: #94a3b8 !important; }
+
+        .coa-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-add:hover:not(:disabled) { background: #3b6998 !important; }
+        .coa-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-save:hover:not(:disabled) { background: #3b6998 !important; }
+        .coa-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-cancel:hover:not(:disabled) { background: #3b6998 !important; }
+        .coa-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .coa-delete:hover:not(:disabled) { background: #c82333 !important; }
+
+        .coa-label {
+            font-size: 11px;
+            font-style: italic;
+            font-weight: 500;
+            color: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            text-align: left;
+        }
+        
+        .coa-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            transition: border 0.2s;
+        }
+
+        #empName {
+            font-weight: bold;
+        }
+
+        textarea.coa-input {
+            height: auto;
+            min-height: 40px;
+        }
+
+        .coa-input:focus:not(:disabled) { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .coa-input:disabled { background-color: #f8fafc; color: #64748b; }
+
+        #employeesContainer select option:checked {
+            background-color: var(--theme-primary, #1F4E79) !important;
+            color: white !important;
+            box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important; -webkit-box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+        }
+        #employeesContainer select option {
+            padding: 0px 4px !important;
+            margin: 0 !important;
+            min-height: 16px !important;
+            height: 16px !important;
+            line-height: 16px !important;
+        }
+        #employeesContainer select { padding: 2px 0; }
+    </style>
+</div>

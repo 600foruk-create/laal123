@@ -1,0 +1,104 @@
+<div id="journalNotesContainer" data-module="Journal Notes" style="min-height: 565px; display: flex; flex-direction: column; gap: 15px; background: white; padding: 15px; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 4px; width: 940px; position: relative;">
+    
+    <!-- Top Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1F4E79; padding-bottom: 8px;">
+        <div style="font-size: 16px; font-weight: bold; color: #1F4E79;">
+            <i class="fas fa-sticky-note" style="margin-right: 6px;"></i> Daily Journal Notes
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="display: flex; gap: 18px; flex: 1;">
+        
+        <!-- LEFT: Create New Note -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; border-radius: 6px; padding: 15px; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-height: 500px;">
+            <div style="font-size: 13px; font-weight: 700; color: #1F4E79; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">
+                <i class="fas fa-plus-circle"></i> Create New Note
+            </div>
+
+            <!-- Note Date -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 11px; font-weight: 600; color: #475569;">Note Date</label>
+                <input type="date" id="jnNoteDate" style="padding: 6px 10px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; width: 150px; outline: none;">
+            </div>
+
+            <!-- Title -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 11px; font-weight: 600; color: #475569;">Title / Subject</label>
+                <input type="text" id="jnTitle" placeholder="Enter note title..." style="padding: 8px 10px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; outline: none; width: 100%; box-sizing: border-box;">
+            </div>
+
+            <!-- Content (Taller Textarea to fill the space) -->
+            <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 180px;">
+                <label style="font-size: 11px; font-weight: 600; color: #475569;">Note Content</label>
+                <textarea id="jnContent" placeholder="Write your note details here..." style="flex: 1; min-height: 180px; resize: none; padding: 10px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; font-family: inherit; outline: none; box-sizing: border-box; width: 100%;"></textarea>
+            </div>
+
+            <!-- Notification Section (Single Dropdown) -->
+            <div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 11px; font-weight: bold; color: #0369a1; margin: 0;">
+                    <i class="fas fa-bell"></i> Send Notification To:
+                </label>
+                <select id="jnNotifyTarget" style="padding: 6px 8px; border: 1px solid #7dd3fc; border-radius: 4px; font-size: 12px; outline: none; background: white; width: 100%;">
+                    <option value="0">Do Not Send Notification</option>
+                    <option value="ALL">All Users</option>
+                    <!-- Users will be populated here by JS -->
+                </select>
+            </div>
+
+            <!-- Save Button -->
+            <button id="btnSaveNote" onclick="window.JournalNotesModule.saveNote()" style="height: 38px; background: #1F4E79; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 5px;">
+                <i class="fas fa-save"></i> Save Note
+            </button>
+        </div>
+
+        <!-- RIGHT: View Notes -->
+        <div style="flex: 1.3; border: 1px solid #cbd5e0; border-radius: 6px; padding: 15px; background: #fff; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-height: 500px;">
+            <div style="font-size: 13px; font-weight: 700; color: #1F4E79; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">
+                <i class="fas fa-history"></i> Notes Archive
+            </div>
+
+            <!-- Filter Bar -->
+            <div style="background: #f1f5f9; padding: 10px; border-radius: 4px; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end;">
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                    <label style="font-size: 10px; font-weight: 600; color: #475569;">From Date</label>
+                    <input type="date" id="jnFromDate" style="padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 3px; font-size: 11px; outline: none;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                    <label style="font-size: 10px; font-weight: 600; color: #475569;">To Date</label>
+                    <input type="date" id="jnToDate" style="padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 3px; font-size: 11px; outline: none;">
+                </div>
+                <button onclick="window.JournalNotesModule.loadNotes()" style="height: 27px; padding: 0 12px; background: #1F4E79; color: white; border: none; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer;">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <button id="btnTodayNotes" onclick="window.JournalNotesModule.loadToday()" style="height: 27px; padding: 0 12px; background: #f59e0b; color: white; border: none; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer;">
+                    <i class="fas fa-calendar-day"></i> Today's Notes
+                </button>
+                <span id="jnNotesCount" style="font-size: 10px; color: #64748b; align-self: center; margin-left: auto;"></span>
+            </div>
+
+            <!-- Notes List -->
+            <div id="jnNotesList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; max-height: 410px; padding-right: 4px;">
+                <div style="text-align: center; color: #94a3b8; font-size: 12px; padding: 30px 0;">
+                    <i class="fas fa-search" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
+                    Click "Today's Notes" or use the date filter above
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    #jnNotesList::-webkit-scrollbar { width: 5px; }
+    #jnNotesList::-webkit-scrollbar-track { background: #f1f5f9; }
+    #jnNotesList::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; }
+    #btnSaveNote:hover { background: #153a5b !important; }
+    #btnTodayNotes:hover { background: #d97706 !important; }
+    .jn-note-item { border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; transition: box-shadow 0.15s; }
+    .jn-note-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .jn-note-header { padding: 9px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .jn-note-body { padding: 12px; font-size: 12px; color: #334155; line-height: 1.6; white-space: pre-wrap; display: none; border-top: 1px solid #f1f5f9; background: #fff; }
+    .jn-badge-all { background: #ef4444; color: white; padding: 1px 7px; border-radius: 10px; font-size: 9px; font-weight: bold; }
+    .jn-badge-user { background: #f59e0b; color: white; padding: 1px 7px; border-radius: 10px; font-size: 9px; font-weight: bold; }
+</style>

@@ -1,0 +1,57 @@
+<div id="vendorPendingInvoicesContainer" style="padding: 15px; font-family: 'Segoe UI', Arial, sans-serif;">
+    <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: flex-end;">
+        <div>
+            <label style="display: block; font-size: 11px; margin-bottom: 4px;">Date</label>
+            <input type="date" id="vpiDate" style="width: 120px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div>
+            <label style="display: block; font-size: 11px; margin-bottom: 4px;">Invoice No</label>
+            <input type="text" id="vpiInvoiceNo" placeholder="INV-..." style="width: 120px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div>
+            <label style="display: block; font-size: 11px; margin-bottom: 4px;">Vendor</label>
+            <select id="vpiVendor" style="width: 180px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
+                <option value="">Select Vendor</option>
+            </select>
+        </div>
+        <div>
+            <label style="display: block; font-size: 11px; margin-bottom: 4px;">Amount</label>
+            <input type="number" id="vpiAmount" placeholder="0.00" style="width: 100px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div>
+            <label style="display: block; font-size: 11px; margin-bottom: 4px;">Remarks</label>
+            <input type="text" id="vpiRemarks" placeholder="Remarks..." style="width: 150px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <button onclick="window.addVendorPendingInvoice()" style="padding: 5px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; height: 26px;">Add</button>
+    </div>
+
+    <div style="border: 1px solid #cbd5e0; border-radius: 4px; height: 350px; overflow-y: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead style="background: #f8fafc; position: sticky; top: 0;">
+                <tr>
+                    <th style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left;">Date</th>
+                    <th style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left;">Invoice No</th>
+                    <th style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left;">Vendor</th>
+                    <th style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left;">Remarks</th>
+                    <th style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">Amount</th>
+                    <th style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: center;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="vpiGridBody">
+                <!-- Rows will be added here dynamically -->
+            </tbody>
+            <tfoot>
+                <tr style="background: #f8fafc; font-weight: bold;">
+                    <td colspan="4" style="padding: 8px; border-top: 1px solid #e2e8f0; text-align: right;">Total Pending Amount:</td>
+                    <td id="vpiTotalAmount" style="padding: 8px; border-top: 1px solid #e2e8f0; text-align: right;">0.00</td>
+                    <td style="padding: 8px; border-top: 1px solid #e2e8f0;"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    
+    <div style="margin-top: 15px; text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
+        <button onclick="window.saveVendorPendingInvoices()" style="padding: 6px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Save Invoices</button>
+        <button onclick="closeSecondaryModularPopup()" style="padding: 6px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+    </div>
+</div>

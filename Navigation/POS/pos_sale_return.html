@@ -1,0 +1,475 @@
+<div id="posSaleReturnApp" class="pos-return-wrapper" data-module="POS Sales Return" style="width: 100%; height: 100%; display: flex; flex-direction: column; background: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-y: auto; box-sizing: border-box; position: relative;">
+    
+    <!-- Top Action Bar (Matching POS Sale exactly) -->
+    <div style="background: #ffffff; padding: 6px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-bottom: 2px solid #007bff; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <button class="pos-btn pos-btn-secondary" onclick="window.POSReturnModule.resetForm()" title="Clear form / New Return"><i class="fas fa-file"></i> New Return</button>
+            <button class="pos-btn pos-btn-indigo" onclick="window.POSReturnModule.openFindModal()" title="Find previous returns"><i class="fas fa-search"></i> Find Returns</button>
+            <button class="pos-btn pos-btn-success" onclick="window.POSReturnModule.saveReturn()" title="Save and approve return"><i class="fas fa-check-circle"></i> Save & Approve</button>
+            <button class="pos-btn pos-btn-info" id="pos_btn_print_receipt" onclick="window.POSReturnModule.printReceipt()" style="display: none;"><i class="fas fa-print"></i> Print Receipt</button>
+            <button class="pos-btn pos-btn-warning" id="pos_btn_fbr_submit" onclick="window.POSReturnModule.submitCreditNoteToFBR()" style="display: none;"><i class="fas fa-cloud-upload-alt"></i> Submit FBR Credit Note</button>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: #2c3e50; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-undo" style="color: #007bff;"></i> POS Sales Return
+        </div>
+    </div>
+
+    <!-- FBR Notice Banner (Shown when original invoice is FBR integrated) -->
+    <div id="pos_fbr_notice_container" style="display: none; background: #ebf8ff; border: 1px solid #bee3f8; border-left: 5px solid #3182ce; color: #2b6cb0; padding: 6px 15px; margin: 6px 15px 0 15px; border-radius: 6px; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 12px;">
+            <i class="fas fa-check-double" style="font-size: 16px; color: #3182ce;"></i>
+            <div>
+                <span style="font-weight: 700;">FBR Integrated Invoice:</span>
+                <span>This original sale was submitted to FBR (<strong id="pos_ret_orig_fbr_ref_text"></strong>). This return will be linked as a digital Credit Note.</span>
+            </div>
+        </div>
+        <span class="pos-badge" style="background: #2b6cb0; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">FBR Digital Return</span>
+    </div>
+
+    <!-- Header / Meta Info (Matching POS Sale side-by-side cards) -->
+    <div style="padding: 10px 15px; display: flex; justify-content: space-between; align-items: stretch; flex-wrap: wrap; gap: 10px;">
+        <!-- Left Column: Return Details -->
+        <div style="width: 350px; background: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e0; flex: none; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+            <table style="width: 100%; border-spacing: 0 3px;">
+                <tr>
+                    <td style="width: 105px; font-weight: 600; color: #4a5568; font-size: 12px;">Return No</td>
+                    <td>
+                        <input type="text" id="pos_ret_no" value="RET-0001" readonly style="width: 150px; padding: 3px 8px; border: 1px solid #cbd5e0; border-radius: 4px; background: #edf2f7; font-weight: bold; color: #c53030; font-size: 12px;">
+                    </td>
+                </tr>
+                <tr>
+                    <td style="font-weight: 600; color: #4a5568; font-size: 12px;">Return Date</td>
+                    <td><input type="date" id="pos_ret_date" style="width: 150px; padding: 3px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;"></td>
+                </tr>
+                <tr>
+                    <td style="font-weight: 600; color: #4a5568; font-size: 12px;">Return Type</td>
+                    <td>
+                        <select id="pos_ret_type" style="width: 100%; padding: 3px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;">
+                            <option value="Partial">Partial Return</option>
+                            <option value="Full">Full Return</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="font-weight: 600; color: #4a5568; font-size: 12px;">Return Reason</td>
+                    <td>
+                        <select id="pos_ret_reason" style="width: 100%; padding: 3px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;">
+                            <option value="Customer Request">Customer Request</option>
+                            <option value="Damaged">Damaged / Defective</option>
+                            <option value="Wrong Item">Wrong Item Shipped / Sold</option>
+                            <option value="Quality Issue">Quality Not Satisfactory</option>
+                            <option value="Other">Other Reason</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="font-weight: 600; color: #4a5568; font-size: 12px;">Stock Condition</td>
+                    <td>
+                        <select id="pos_ret_stock_cond" style="width: 100%; padding: 3px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;" onchange="window.POSReturnModule.onStockConditionChange()">
+                            <option value="Resalable">Resalable (Active Branch Stock)</option>
+                            <option value="Damaged">Damaged (Quarantine / Scrap)</option>
+                            <option value="Inspection Required">Inspection Required</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr id="pos_damaged_wh_group" style="display: none;">
+                    <td style="font-weight: 600; color: #4a5568; font-size: 12px;">Quarantine WH</td>
+                    <td>
+                        <select id="pos_ret_damaged_wh" style="width: 100%; padding: 3px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;">
+                            <option value="">Select Warehouse</option>
+                        </select>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Right Column: Original Invoice Search & Details -->
+        <div style="flex: 1; min-width: 440px; background: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e0; box-shadow: 0 1px 2px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;">
+            <!-- Top search input -->
+            <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px;">
+                <span style="font-weight: 700; color: #4a5568; font-size: 12px; white-space: nowrap; width: 85px;">Orig Invoice:</span>
+                <div style="position: relative; flex: 1;">
+                    <input type="text" id="pos_ret_inv_search" placeholder="Scan barcode or type Invoice # (e.g. INV-001)..." onkeyup="if(event.key==='Enter') window.POSReturnModule.loadOriginalInvoice()" style="width: 100%; height: 28px; padding: 2px 8px 2px 24px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; font-weight: 700; color: #1F4E79; box-sizing: border-box;">
+                    <i class="fas fa-barcode" style="position: absolute; left: 7px; top: 7px; color: #a0aec0; font-size: 13px;"></i>
+                </div>
+                <button type="button" class="pos-btn pos-btn-primary" style="padding: 4px 10px; height: 28px;" onclick="window.POSReturnModule.loadOriginalInvoice()" title="Load Invoice"><i class="fas fa-arrow-down"></i> Load</button>
+                <button type="button" class="pos-btn pos-btn-secondary" style="padding: 4px 10px; height: 28px;" onclick="window.POSReturnModule.openInvoiceSearchModal()" title="Browse Invoices"><i class="fas fa-search"></i> Browse</button>
+            </div>
+
+            <!-- Readonly Details Grid -->
+            <div id="pos_ret_inv_info_panel" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: #f8fafc; padding: 6px 8px; border-radius: 4px; border: 1px solid #edf2f7; font-size: 11px;">
+                <div>
+                    <span style="display: block; color: #718096; font-size: 10px; font-weight: 600;">INVOICE NO</span>
+                    <input type="text" id="pos_ret_orig_inv_no" readonly value="—" style="width: 100%; border: none; background: transparent; font-weight: bold; color: #2b6cb0; padding: 0; font-size: 11px;">
+                </div>
+                <div>
+                    <span style="display: block; color: #718096; font-size: 10px; font-weight: 600;">DATE</span>
+                    <input type="text" id="pos_ret_orig_date" readonly value="—" style="width: 100%; border: none; background: transparent; color: #2d3748; padding: 0; font-size: 11px;">
+                </div>
+                <div>
+                    <span style="display: block; color: #718096; font-size: 10px; font-weight: 600;">CUSTOMER</span>
+                    <input type="text" id="pos_ret_cust_name" readonly value="—" style="width: 100%; border: none; background: transparent; font-weight: 600; color: #2d3748; padding: 0; font-size: 11px;">
+                </div>
+                <div>
+                    <span style="display: block; color: #718096; font-size: 10px; font-weight: 600;">MOBILE</span>
+                    <input type="text" id="pos_ret_cust_mobile" readonly value="—" style="width: 100%; border: none; background: transparent; color: #2d3748; padding: 0; font-size: 11px;">
+                </div>
+                <div>
+                    <span style="display: block; color: #718096; font-size: 10px; font-weight: 600;">BRANCH</span>
+                    <input type="text" id="pos_ret_branch" readonly value="—" style="width: 100%; border: none; background: transparent; color: #2d3748; padding: 0; font-size: 11px;">
+                </div>
+                <div>
+                    <span style="display: block; color: #718096; font-size: 10px; font-weight: 600;">PAYMENT</span>
+                    <input type="text" id="pos_ret_orig_payment" readonly value="—" style="width: 100%; border: none; background: transparent; color: #2d3748; padding: 0; font-size: 11px;">
+                </div>
+                <div>
+                    <span style="display: block; color: #718096; font-size: 10px; font-weight: 600;">ORIG TOTAL</span>
+                    <input type="text" id="pos_ret_orig_total" readonly value="PKR 0.00" style="width: 100%; border: none; background: transparent; font-weight: 800; color: #1a202c; padding: 0; font-size: 11px;">
+                </div>
+                <div>
+                    <span style="display: block; color: #718096; font-size: 10px; font-weight: 600;">FBR STATUS</span>
+                    <input type="text" id="pos_ret_orig_fbr_status" readonly value="Not Submitted" style="width: 100%; border: none; background: transparent; color: #4a5568; padding: 0; font-size: 11px;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items Table Section (Flex: 1 to fill height, internal scroll) -->
+    <div style="padding: 0 15px; flex: 1; min-height: 250px; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding: 0 2px;">
+            <div style="font-size: 12px; font-weight: 700; color: #2d3748; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-boxes" style="color: #27ae60;"></i> Invoice Items Available For Return
+            </div>
+            <div style="display: flex; gap: 6px;">
+                <button type="button" class="pos-btn-action-sm" onclick="window.POSReturnModule.selectAllFullReturn()" style="color: #2b6cb0;"><i class="fas fa-check-double"></i> Full Return (All)</button>
+                <button type="button" class="pos-btn-action-sm" onclick="window.POSReturnModule.clearAllReturnQty()"><i class="fas fa-times"></i> Clear Quantities</button>
+            </div>
+        </div>
+        <div style="background: white; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #cbd5e0; overflow-y: auto; overflow-x: auto; flex: 1; display: flex; flex-direction: column;">
+            <table class="pos-items-table" id="pos_return_items_table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; white-space: nowrap;">
+                <thead style="background: #edf2f6; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <tr>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 35px; text-align: center;">Ret?</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 110px;">ITEM CODE</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 100px;">BARCODE</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0;">DESCRIPTION</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 75px; text-align: right;">SOLD</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 85px; text-align: right;">PREV RET</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 85px; text-align: right; color: #27ae60;">AVAILABLE</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 95px; text-align: center; color: #c53030;">RET QTY *</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 60px;">UNIT</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 80px; text-align: right;">RATE</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 80px; text-align: right;">DISC</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 60px; text-align: right;">TAX %</th>
+                        <th style="padding: 5px 6px; border-bottom: 1px solid #cbd5e0; width: 100px; text-align: right;">RET TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody id="pos_ret_items_tbody">
+                    <tr>
+                        <td colspan="13" style="text-align: center; padding: 35px; color: #a0aec0;">
+                            <i class="fas fa-receipt" style="font-size: 24px; margin-bottom: 6px; color: #cbd5e0;"></i>
+                            <div>Please search and load an original POS invoice above to select items for return.</div>
+                        </td>
+                    </tr>
+                </tbody>
+                <tbody style="height: 100%;">
+                    <tr><td colspan="13" style="border: none !important; padding: 0; background: transparent;"></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Bottom Footer (Action Bar + Totals, matching POS Sale bottom section) -->
+    <div style="padding: 10px 15px; display: flex; gap: 15px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+        
+        <!-- Left Box: Refund Accounting & Actions -->
+        <div style="flex: 1; min-width: 360px; background: #fff; padding: 10px 14px; border-radius: 6px; border: 1px solid #cbd5e0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #edf2f7; padding-bottom: 6px;">
+                <div style="font-size: 12px; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <i class="fas fa-hand-holding-usd" style="color: #27ae60;"></i> Refund Method & Accounting
+                </div>
+                <div style="font-size: 11px; color: #718096;">
+                    Status: <strong style="color: #2b6cb0;">Ready for Return</strong>
+                </div>
+            </div>
+
+            <!-- Refund Selectors Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px;">
+                <div class="pos-fg">
+                    <label style="font-size: 11px; font-weight: 600; color: #4a5568;">Refund Method</label>
+                    <select id="pos_ret_refund_method" class="pos-ctrl" onchange="window.POSReturnModule.onRefundMethodChange()" style="height: 28px; padding: 2px 6px; font-size: 12px;">
+                        <option value="Cash Refund">Cash Refund</option>
+                        <option value="Bank / Card Refund">Bank / Card Refund</option>
+                        <option value="Customer Account Credit">Customer Account Credit (Ledger)</option>
+                        <option value="Exchange / Replacement">Exchange / Replacement Voucher</option>
+                        <option value="Refund Pending">Refund Pending (Awaiting Clearance)</option>
+                    </select>
+                </div>
+
+                <div class="pos-fg" id="pos_fg_cash_account">
+                    <label style="font-size: 11px; font-weight: 600; color: #4a5568;">Cash Drawer / Account</label>
+                    <select id="pos_ret_cash_account" class="pos-ctrl" style="height: 28px; padding: 2px 6px; font-size: 12px;">
+                        <option value="">Loading Cash Accounts...</option>
+                    </select>
+                </div>
+
+                <div class="pos-fg" id="pos_fg_bank_account" style="display: none;">
+                    <label style="font-size: 11px; font-weight: 600; color: #4a5568;">Bank Account</label>
+                    <select id="pos_ret_bank_account" class="pos-ctrl" style="height: 28px; padding: 2px 6px; font-size: 12px;">
+                        <option value="">Loading Bank Accounts...</option>
+                    </select>
+                </div>
+
+                <div class="pos-fg" id="pos_fg_refund_ref" style="display: none;">
+                    <label style="font-size: 11px; font-weight: 600; color: #4a5568;">Bank / Card Ref #</label>
+                    <input type="text" id="pos_ret_refund_ref" class="pos-ctrl" placeholder="e.g. Card Slip / Ref #" style="height: 28px; padding: 2px 6px; font-size: 12px;">
+                </div>
+            </div>
+
+            <!-- Remarks Input -->
+            <div class="pos-fg" style="margin-top: 2px;">
+                <input type="text" id="pos_ret_remarks" class="pos-ctrl" placeholder="Optional return remarks / notes..." style="height: 26px; padding: 2px 8px; font-size: 11px;">
+            </div>
+
+            <!-- Big Cashier Buttons -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px;">
+                <button type="button" class="pos-big-btn pos-big-save" onclick="window.POSReturnModule.saveReturn()" title="Save and approve return">
+                    <i class="fas fa-check-circle" style="color: #16a34a;"></i>
+                    <span>Save & Approve</span>
+                    <small>Approve Return</small>
+                </button>
+                <button type="button" class="pos-big-btn pos-big-recall" onclick="window.POSReturnModule.openFindModal()" title="Find previous returns">
+                    <i class="fas fa-history" style="color: #2563eb;"></i>
+                    <span>Find Returns</span>
+                    <small>Audit & Search</small>
+                </button>
+                <button type="button" class="pos-big-btn pos-big-clear" onclick="window.POSReturnModule.resetForm()" title="Clear form for new return">
+                    <i class="fas fa-redo-alt" style="color: #dc2626;"></i>
+                    <span>New Return</span>
+                    <small>Reset Form</small>
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Box: Return Calculations & Summary -->
+        <div style="background: #fff; padding: 10px 14px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #cbd5e0; min-width: 320px; flex: none;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px;">
+                <tr>
+                    <td style="padding: 3px 0; font-weight: 600; color: #555;">Return Subtotal</td>
+                    <td style="padding: 3px 0; text-align: right; font-weight: bold;" id="pos_sum_subtotal">PKR 0.00</td>
+                </tr>
+                <tr>
+                    <td style="padding: 3px 0; font-weight: 600; color: #555;">Discount Adjustment</td>
+                    <td style="padding: 3px 0; text-align: right; font-weight: bold; color: #e53e3e;" id="pos_sum_discount">-PKR 0.00</td>
+                </tr>
+                <tr>
+                    <td style="padding: 3px 0; font-weight: 600; color: #555;">Tax Adjustment</td>
+                    <td style="padding: 3px 0; text-align: right; font-weight: bold; color: #2b6cb0;" id="pos_sum_tax">+PKR 0.00</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0 3px 0; font-weight: bold; color: #c53030; font-size: 16px; border-top: 2px solid #eee;">Net Return</td>
+                    <td style="padding: 6px 0 3px 0; font-weight: bold; color: #c53030; font-size: 16px; border-top: 2px solid #eee; text-align: right;" id="pos_sum_net_return">PKR 0.00</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px 0; font-weight: 700; color: #2d3748;">Refund Pay / Credit *</td>
+                    <td style="padding: 4px 0;">
+                        <input type="number" id="pos_ret_refund_amount" class="pos-ctrl" style="width: 120px; height: 26px; font-size: 13px; font-weight: 800; color: #27ae60; text-align: right; float: right;" oninput="window.POSReturnModule.onRefundAmountInput()" placeholder="0.00">
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 3px 0; font-weight: 600; color: #718096; font-size: 11px;">Remaining / Pending</td>
+                    <td style="padding: 3px 0; text-align: right; font-weight: bold; font-size: 11px; color: #4a5568;" id="pos_sum_remaining">PKR 0.00</td>
+                </tr>
+            </table>
+
+            <!-- Mini FBR Credit Note status row inside bottom box -->
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #edf2f7; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                <span style="color: #718096;">FBR Credit Note:</span>
+                <span id="pos_fbr_stat_badge" class="pos-badge" style="background: #edf2f7; color: #4a5568;">Not Submitted</span>
+                <span id="pos_fbr_cn_ref_text" style="display: none;">—</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 1: Invoice Search / Browse Modal -->
+    <div id="posModalSearchInvoice" class="pos-ret-modal">
+        <div class="pos-ret-dialog" style="max-width: 800px;">
+            <div class="pos-ret-modal-header">
+                <span><i class="fas fa-search" style="color: #63b3ed;"></i> Browse POS Invoices</span>
+                <button type="button" style="border: none; background: none; font-size: 18px; cursor: pointer; color: #fff; line-height: 1;" onclick="window.POSReturnModule.closeModal('posModalSearchInvoice')">&times;</button>
+            </div>
+            <div class="pos-ret-modal-body">
+                <div style="margin-bottom: 10px;">
+                    <input type="text" id="pos_modal_inv_query" class="pos-ctrl" placeholder="Search by Invoice #, Customer Name, Mobile or FBR Ref..." onkeyup="window.POSReturnModule.executeInvoiceSearch(this.value)">
+                </div>
+                <div style="max-height: 340px; overflow-y: auto; border: 1px solid #cbd5e0; border-radius: 4px;">
+                    <table class="pos-ret-table">
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Branch</th>
+                                <th style="text-align: right;">Total</th>
+                                <th>FBR Status</th>
+                                <th style="text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pos_modal_inv_tbody">
+                            <tr><td colspan="7" style="text-align: center; padding: 20px;">Type to search invoices...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="pos-ret-modal-footer">
+                <button class="pos-btn pos-btn-secondary" onclick="window.POSReturnModule.closeModal('posModalSearchInvoice')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Find Previous Returns Modal -->
+    <div id="posModalFindReturns" class="pos-ret-modal">
+        <div class="pos-ret-dialog" style="max-width: 850px;">
+            <div class="pos-ret-modal-header">
+                <span><i class="fas fa-history" style="color: #63b3ed;"></i> Find Previous POS Returns</span>
+                <button type="button" style="border: none; background: none; font-size: 18px; cursor: pointer; color: #fff; line-height: 1;" onclick="window.POSReturnModule.closeModal('posModalFindReturns')">&times;</button>
+            </div>
+            <div class="pos-ret-modal-body">
+                <div style="margin-bottom: 10px;">
+                    <input type="text" id="pos_modal_ret_query" class="pos-ctrl" placeholder="Search by Return #, Original Invoice #, or Customer..." onkeyup="window.POSReturnModule.executeFindReturns(this.value)">
+                </div>
+                <div style="max-height: 340px; overflow-y: auto; border: 1px solid #cbd5e0; border-radius: 4px;">
+                    <table class="pos-ret-table">
+                        <thead>
+                            <tr>
+                                <th>Return #</th>
+                                <th>Original Invoice</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th style="text-align: right;">Net Return</th>
+                                <th style="text-align: right;">Refunded</th>
+                                <th>FBR Status</th>
+                                <th style="text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pos_modal_ret_tbody">
+                            <tr><td colspan="8" style="text-align: center; padding: 20px;">Loading returns...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="pos-ret-modal-footer">
+                <button class="pos-btn pos-btn-secondary" onclick="window.POSReturnModule.closeModal('posModalFindReturns')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: Thermal Receipt Preview Modal -->
+    <div id="posModalReturnReceipt" class="pos-ret-modal">
+        <div class="pos-ret-dialog" style="max-width: 420px;">
+            <div class="pos-ret-modal-header">
+                <span><i class="fas fa-receipt" style="color: #63b3ed;"></i> POS Sales Return Receipt</span>
+                <button type="button" style="border: none; background: none; font-size: 18px; cursor: pointer; color: #fff; line-height: 1;" onclick="window.POSReturnModule.closeModal('posModalReturnReceipt')">&times;</button>
+            </div>
+            <div class="pos-ret-modal-body" style="background: #e2e8f0; padding: 12px; display: flex; justify-content: center;">
+                <div id="pos_return_receipt_paper" style="background: #fff; width: 340px; padding: 15px; border: 1px solid #cbd5e0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #000; line-height: 1.35;">
+                    <!-- Thermal paper content injected via JS -->
+                </div>
+            </div>
+            <div class="pos-ret-modal-footer">
+                <button class="pos-btn pos-btn-secondary" onclick="window.POSReturnModule.closeModal('posModalReturnReceipt')">Close</button>
+                <button class="pos-btn pos-btn-success" onclick="window.POSReturnModule.executePrintNow()">
+                    <i class="fas fa-print"></i> Print Now
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    @keyframes posFadeIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+
+    .pos-return-wrapper * { box-sizing: border-box; }
+
+    /* Buttons matching POS Sale */
+    .pos-btn { padding: 6px 12px; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; transition: all 0.2s; white-space: nowrap; }
+    .pos-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .pos-btn:active { transform: translateY(0); }
+    .pos-btn-primary { background: #1F4E79; color: white; }
+    .pos-btn-secondary { background: #6c757d; color: white; }
+    .pos-btn-success { background: #28a745; color: white; }
+    .pos-btn-danger { background: #dc3545; color: white; }
+    .pos-btn-warning { background: #d97706; color: white; }
+    .pos-btn-indigo { background: #4f46e5; color: white; }
+    .pos-btn-info { background: #17a2b8; color: white; }
+
+    /* Cashier Big Buttons */
+    .pos-big-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 10px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; transition: all 0.15s; font-weight: 700; text-align: center; }
+    .pos-big-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .pos-big-btn:active { transform: translateY(0); }
+    .pos-big-btn i { font-size: 18px; margin-bottom: 2px; }
+    .pos-big-btn span { font-size: 13px; line-height: 1.2; }
+    .pos-big-btn small { font-size: 10px; opacity: 0.8; font-weight: normal; margin-top: 1px; }
+
+    .pos-big-recall { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .pos-big-recall:hover { background: #dbeafe; color: #1e40af; border-color: #3b82f6; }
+
+    .pos-big-save { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .pos-big-save:hover { background: #dcfce7; color: #166534; border-color: #22c55e; }
+
+    .pos-big-clear { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+    .pos-big-clear:hover { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
+
+    .pos-btn-action-sm { background: #ffffff; border: 1px solid #cbd5e0; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-weight: 600; color: #4a5568; }
+    .pos-btn-action-sm:hover { background: #f7fafc; color: #1a202c; border-color: #a0aec0; }
+
+    .pos-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+
+    .pos-fg { display: flex; flex-direction: column; gap: 2px; }
+    .pos-fg label { font-size: 11px; font-weight: 600; color: #4a5568; margin: 0; }
+    .pos-ctrl { height: 28px; padding: 2px 6px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; color: #2d3748; background: #fff; width: 100%; box-sizing: border-box; }
+    .pos-ctrl:focus { border-color: #3182ce; outline: none; box-shadow: 0 0 0 2px rgba(49,130,206,0.2); }
+    .pos-ctrl[readonly] { background-color: #f7fafc; color: #4a5568; }
+
+    /* Table grid borders matching pos_sale.html */
+    .pos-items-table { height: 100%; }
+    .pos-items-table th, .pos-items-table td {
+        border: 1px solid #cbd5e0 !important;
+        padding: 4px 6px;
+    }
+    .pos-ret-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+    .pos-ret-table th, .pos-ret-table td { border-bottom: 1px solid #edf2f7; padding: 6px 8px; font-size: 12px; }
+    .pos-ret-table thead th { background: #edf2f7; color: #4a5568; font-weight: 700; position: sticky; top: 0; z-index: 5; }
+    .pos-ret-table tbody tr:hover { background-color: #f8fafc; }
+    .pos-ret-table tbody tr.row-excluded { opacity: 0.5; background: #fafafa; }
+
+    .qty-input { width: 75px; height: 24px; text-align: right; font-weight: 700; border: 1px solid #3182ce; border-radius: 4px; padding: 2px 6px; font-size: 12px; }
+    .qty-input:focus { outline: none; box-shadow: 0 0 0 2px rgba(49,130,206,0.3); }
+
+    /* Hide number arrows */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
+    input[type=number] { -moz-appearance: textfield; }
+
+    /* Modals matching POS design */
+    .pos-ret-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+    .pos-ret-modal.show { display: flex; }
+    .pos-ret-dialog { background: #ffffff; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 92%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; animation: posFadeIn 0.2s ease-out; }
+    .pos-ret-modal-header { background: #1F4E79; color: #ffffff; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 700; }
+    .pos-ret-modal-body { padding: 12px 16px; overflow-y: auto; flex: 1; font-size: 12px; }
+    .pos-ret-modal-footer { padding: 8px 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; background: #f8fafc; }
+</style>
+
+<script src="assets/js/pos_sale_return.js?v=4"></script>
+<script>
+    if (window.POSReturnModule) {
+        window.POSReturnModule.init();
+    } else {
+        setTimeout(() => window.POSReturnModule && window.POSReturnModule.init(), 100);
+    }
+</script>
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" onload="if(window.POSReturnModule) { window.POSReturnModule.init(); }" style="display:none;">

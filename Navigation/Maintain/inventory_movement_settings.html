@@ -1,0 +1,74 @@
+<div id="invMovementSettingsContainer" data-module="Inventory Movement Settings" style="width: 600px; display: flex; flex-direction: column; gap: 20px; font-family: 'Segoe UI', Arial, sans-serif; position: relative;">
+
+    <!-- Top Buttons -->
+    <div style="display: flex; justify-content: flex-end; gap: 10px; padding-bottom: 15px; border-bottom: 2px solid #1e3a8a;">
+        <button class="inv-pref-btn inv-pref-btn-save" onclick="window.InvMovementPrefs.save()">Save</button>
+        <button class="inv-pref-btn inv-pref-btn-cancel" onclick="window.closeModal(this.closest('.modal-container').id)">Cancel</button>
+    </div>
+
+    <!-- Inwards Section -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 11px; font-weight: 800; color: #1e3a8a; text-transform: uppercase;">Inwards Inventory Movement Through</div>
+        <div style="display: flex; gap: 30px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 20px; background: white;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 600; color: #475569;">
+                <input type="radio" name="inwardsMovement" value="gate_pass" style="width: 18px; height: 18px; cursor: pointer;">
+                <span style="font-style: italic;">Inwards Gate Passes</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 600; color: #475569;">
+                <input type="radio" name="inwardsMovement" value="purchases" checked style="width: 18px; height: 18px; cursor: pointer;">
+                <span style="font-style: italic;">Purchases</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Outwards Section -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 11px; font-weight: 800; color: #1e3a8a; text-transform: uppercase;">Outwards Inventory Movement Through</div>
+        <div style="display: flex; gap: 30px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 20px; background: white;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 600; color: #475569;">
+                <input type="radio" name="outwardsMovement" value="gate_pass" style="width: 18px; height: 18px; cursor: pointer;">
+                <span style="font-style: italic;">Outwards Gate Passes</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 600; color: #475569;">
+                <input type="radio" name="outwardsMovement" value="delivery_challans" style="width: 18px; height: 18px; cursor: pointer;">
+                <span style="font-style: italic;">Delivery Challans</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 600; color: #475569;">
+                <input type="radio" name="outwardsMovement" value="sale_invoices" checked style="width: 18px; height: 18px; cursor: pointer;">
+                <span style="font-style: italic;">Sale Invoices</span>
+            </label>
+        </div>
+    </div>
+
+    <style>
+        .inv-pref-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 5px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .inv-pref-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .inv-pref-btn:active { transform: translateY(1px); }
+
+        .inv-pref-btn-save { background: #1F4E79 !important; color: white !important; border-color: #1F4E79 !important; }
+        .inv-pref-btn-save:hover { background: #1a4266 !important; }
+        
+        .inv-pref-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .inv-pref-btn-cancel:hover { background: #3b6998 !important; }
+        
+        label:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+    </style>
+</div>

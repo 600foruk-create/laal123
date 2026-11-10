@@ -1,0 +1,239 @@
+<div id="addInventoryAdjustmentsContainer" data-module="Add Inventory Adjustments" style="width: 940px; height: 620px; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; border: 1px solid #cbd5e0; border-radius: 4px; position: relative; box-sizing: border-box;">
+    
+    <!-- Cancellation Stamp -->
+    <div id="aia_cancelled_stamp" style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 60px; color: rgba(220, 53, 69, 0.2); font-weight: 900; border: 8px double rgba(220, 53, 69, 0.2); padding: 8px 25px; pointer-events: none; z-index: 999; display: none; text-transform: uppercase; letter-spacing: 6px; border-radius: 12px; white-space: nowrap;">
+        Cancelled
+    </div>
+
+    <!-- Top Toolbar -->
+    <div style="background: #e2e8f0; padding: 4px; display: flex; gap: 2px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: auto;">
+        <button class="aia-tool-btn aia-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/chart_of_inventory.html', 'fa-boxes', 'Inventory Items', window.initChartOfInventoryView, 'Chart of Inventory', true)">New Item</button>
+        <div style="width: 1px; height: 30px; background: #cbd5e0; margin: 0 4px;"></div>
+        <button class="aia-tool-btn aia-btn-add" onclick="window.AIAModule.resetForm(true)">Add</button>
+        <button class="aia-tool-btn aia-btn-save" onclick="window.AIAModule.saveAIA()">Save (Ctrl+S)</button>
+        <button class="aia-tool-btn aia-btn-cancel" onclick="window.AIAModule.resetForm()">Cancel</button>
+        <button class="aia-tool-btn aia-btn-delete" onclick="window.AIAModule.deleteAIA()">Delete</button>
+        <button id="aia_btn_post" class="aia-tool-btn aia-btn-info" onclick="window.AIAModule.postAIA()">Post</button>
+        <div style="width: 1px; height: 30px; background: #cbd5e0; margin: 0 4px;"></div>
+        <button class="aia-tool-btn aia-btn-info" onclick="window.AIAModule.findAIA()">Find</button>
+        <button class="aia-tool-btn aia-btn-info" onclick="window.AIAModule.navigate('last')">Retrieve Last<br>Saved</button>
+        <button class="aia-tool-btn aia-btn-info" onclick="window.AIAModule.printAIA()">Print</button>
+        <div style="flex: 2;"></div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto;">
+        
+        <!-- Header Info Section -->
+        <div style="display: grid; grid-template-columns: 160px 400px; gap: 4px 4px; align-content: start; align-items: center; flex-shrink: 0;">
+            <label class="aia-label">Serial No</label>
+            <div style="position: relative; width: 130px; display: flex; align-items: center;">
+                <button class="aia-nav-btn" onclick="window.AIAModule.navigate('prev')" style="font-weight: 900; width: 30px; height: 22px; position: absolute; left: -34px;">&lt;&lt;</button>
+                <input type="text" id="aia_sn" class="aia-input" style="width: 100%; text-align: center; color: blue; font-weight: 800; font-size: 14px; box-sizing: border-box;">
+                <button class="aia-nav-btn" onclick="window.AIAModule.navigate('next')" style="font-weight: 900; width: 30px; height: 22px; position: absolute; right: -34px;">&gt;&gt;</button>
+                <div style="position: absolute; left: 100%; margin-left: 55px; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
+                    <label id="aia_cancel_label" style="display:flex;align-items:center;gap:2px;font-weight:bold;color:#c00;margin-bottom:0;cursor:pointer;">
+                        <input type="checkbox" id="aia_is_cancelled" onchange="window.AIAModule.updateCancellationUI()"> Cancel
+                    </label>
+                    <div id="aia_posted_stamp" style="display: none; color: #dc3545; font-size: 13px; font-weight: bold; border: 2px solid #dc3545; padding: 1px 5px; border-radius: 4px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85; white-space: nowrap;">POSTED</div>
+                </div>
+            </div>
+
+            <label class="aia-label">Date</label>
+            <input type="date" id="aia_date" class="aia-input" style="width: 130px; box-sizing: border-box;">
+
+            <label class="aia-label">Inventory Location</label>
+            <select id="aia_location_id" class="aia-input"><option value="">Select Option</option></select>
+
+            <label class="aia-label">Job No &amp; Description</label>
+            <select id="aia_job_id" class="aia-input"><option value="">Select Option</option></select>
+
+            <label class="aia-label">Employee Reference</label>
+            <select id="aia_employee_id" class="aia-input"><option value="">Select Option</option></select>
+        </div>
+
+        <!-- Grid Table Container -->
+        <div style="border: 1px solid #cbd5e0; border-radius: 4px; flex: 1; min-height: 0; background: #fff; overflow: auto; position: relative;">
+            <table id="aia_grid" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 10;">
+                    <tr id="aiaGridHeader">
+                        <th style="width: 30px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">#</th>
+                        <th style="width: 120px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Item Code</th>
+                        <th style="border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Description</th>
+                        <th style="width: 70px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Pieces</th>
+                        <th style="width: 70px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Quantity</th>
+                        <th style="width: 60px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Unit</th>
+                        <th style="width: 80px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Rate</th>
+                        <th style="width: 100px; border: 1px solid #cbd5e0; font-size: 10px; padding: 4px;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows injected by JS -->
+                </tbody>
+                <tfoot style="position: sticky; bottom: 0; background: #f1f5f9; z-index: 10;">
+                    <tr style="height: 24px;">
+                        <td colspan="3" style="text-align: right; padding-right: 10px; font-size: 11px; font-weight: bold; color: #1e3a8a; border: 1px solid #cbd5e0; border-top: 2px solid #cbd5e0; background: #f1f5f9; box-sizing: border-box;">TOTALS</td>
+                        <td style="padding: 0; border: 1px solid #cbd5e0; border-top: 2px solid #cbd5e0; background: #f1f5f9; box-sizing: border-box;">
+                            <input type="text" id="aia_total_pieces" class="aia-grid-input num" style="font-weight: bold; color: #1e3a8a; background: transparent; border: none;" tabindex="-1">
+                        </td>
+                        <td style="padding: 0; border: 1px solid #cbd5e0; border-top: 2px solid #cbd5e0; background: #f1f5f9; box-sizing: border-box;">
+                            <input type="text" id="aia_total_qty" class="aia-grid-input num" style="font-weight: bold; color: #1e3a8a; background: transparent; border: none;" tabindex="-1">
+                        </td>
+                        <td colspan="2" style="border: 1px solid #cbd5e0; border-top: 2px solid #cbd5e0; background: #f1f5f9; box-sizing: border-box;"></td>
+                        <td style="padding: 0; border: 1px solid #cbd5e0; border-top: 2px solid #cbd5e0; background: #f1f5f9; box-sizing: border-box;">
+                            <input type="text" id="aia_total_amount" class="aia-grid-input num" style="font-weight: bold; color: #1e3a8a; background: transparent; border: none;" tabindex="-1">
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div id="aia_item_results" class="so-suggest-box"></div>
+        </div>
+
+        <!-- Footer Section -->
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                <span style="font-size: 11px; color: #475569; font-weight: bold; text-transform: uppercase;">Amount in Words:</span>
+                <span id="aia_amount_words" style="font-size: 11px; font-weight: 800; color: #1F4E79; font-style: italic;">Rupees zero and 00/100 only.</span>
+            </div>
+            
+            <div style="display: flex; align-items: start; gap: 8px; flex-shrink: 0;">
+                <label class="so-label" style="width: 80px; margin-top: 4px;">Remarks</label>
+                <textarea id="aia_remarks" class="so-input" style="flex: 1; height: 36px; resize: none; padding-top: 4px;"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* ===== Toolbar Buttons - Same as Inventory Transfers ===== */
+        .aia-tool-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+            flex: 1;
+        }
+        .aia-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .aia-btn-add    { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .aia-btn-add:hover    { background: #3b6998 !important; }
+        .aia-btn-save   { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .aia-btn-save:hover   { background: #3b6998 !important; }
+        .aia-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .aia-btn-cancel:hover { background: #3b6998 !important; }
+        .aia-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .aia-btn-delete:hover { background: #c82333 !important; }
+        .aia-btn-info   { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto; }
+        .aia-btn-info:hover   { background: #3b6998 !important; }
+
+        /* ===== Labels & Inputs - Same as Inventory Transfers ===== */
+        .aia-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; text-transform: none; display: block; }
+        .aia-input { height: 22px; border: 1px solid #000000; border-radius: 2px; padding: 0 4px; font-size: 13px; font-weight: normal; color: #000000; outline: none; width: 100%; transition: border-color 0.2s; box-sizing: border-box; }
+        .aia-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .aia-input:disabled, .aia-input[readonly] { background: #ffffff; color: #000000; border-color: #000000; }
+        select.aia-input { color: #000000; font-weight: normal; background: #ffffff; }
+
+        /* ===== Nav Buttons - Same as Inventory Transfers ===== */
+        .aia-nav-btn { height: 22px; padding: 0 6px; background: white; border: 1px solid #000000; cursor: pointer; font-size: 11px; font-weight: 900; color: #000000; border-radius: 2px; }
+        .aia-nav-btn:hover { background: #f1f5f9; }
+
+        /* ===== Suggest / Autocomplete Box ===== */
+        .aia-suggest-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #fff;
+            border: 1px solid #1F4E79;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-height: 250px;
+            overflow-y: auto;
+            width: 100%;
+            display: none;
+            border-radius: 0 0 4px 4px;
+        }
+        
+        .aia-suggest-item {
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            white-space: nowrap;
+        }
+        .aia-suggest-item:hover, .aia-suggest-item.active { background: #1F4E79; color: #fff !important; }
+        .aia-suggest-item .code { font-weight: 800; color: #000 !important; }
+        .aia-suggest-item:hover .code, .aia-suggest-item.active .code { color: #fff !important; }
+
+        /* ===== Grid Table - Same as Inventory Transfers ===== */
+        #aiaGridHeader th { background: #e2e8f0; border: 1px solid #94a3b8; font-size: 9px; font-weight: 700; color: #334155; padding: 2px; text-transform: uppercase; text-align: center; height: 22px; }
+        .aia-grid-cell { border: 1px solid #94a3b8; padding: 0; position: relative; height: 22px; }
+        .aia-grid-input { width: 100%; height: 100%; border: none; padding: 0 4px; font-size: 12px; outline: none; background: transparent; display: block; box-sizing: border-box; color: #000000; font-weight: bold; }
+        .aia-grid-input:focus { background: #eff6ff; }
+        .aia-grid-input.num { text-align: right; }
+        .aia-row-selector { cursor: pointer; user-select: none; }
+        .aia-row-selected { background-color: #000000 !important; }
+        .aia-row-selected .aia-grid-input { color: #ffffff !important; background: transparent !important; }
+
+        /* ===== Find Modal ===== */
+        #aia_find_modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        #aia_find_modal .modal-content { background: white; width: 100%; height: 100%; display: flex; flex-direction: column; font-family: Arial, sans-serif; }
+        #aia_find_table_body tr { cursor: pointer; }
+        #aia_find_table_body tr:hover td { background-color: #e0f0ff; }
+        #aia_find_table_body tr.selected td { background-color: #000000 !important; color: white !important; }
+    </style>
+
+    <!-- Find Modal -->
+    <div id="aia_find_modal">
+        <div class="modal-content">
+            <div style="background: #1F4E79; color: white; padding: 3px 5px; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                <span>Find Add Inventory Adjustments</span>
+                <button onclick="window.AIAModule.closeFindModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; font-weight: bold;">&times;</button>
+            </div>
+            <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e0; display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Find</label>
+                    <select id="aia_find_field" style="font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px;">
+                        <option value="serial_no">Serial No.</option>
+                        <option value="date">Date</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Value</label>
+                    <input type="text" id="aia_find_search" oninput="window.AIAModule.filterFindTable()" style="width: 200px; font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px; outline: none;">
+                </div>
+                <div style="display: flex; gap: 5px; margin-left: auto;">
+                    <button onclick="window.AIAModule.filterFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Find</button>
+                    <button onclick="window.AIAModule.renderFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Refresh</button>
+                </div>
+            </div>
+            <div style="padding: 5px 15px; font-size: 11px; font-style: italic; color: #555; background: #f8f9fa;">Double-click a row to load the record.</div>
+            <div style="flex: 1; overflow-y: auto; background: white; border-top: 1px solid #cbd5e0; border-bottom: 1px solid #cbd5e0;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; white-space: nowrap;">
+                    <thead style="position: sticky; top: 0; background: #e2e8f0; z-index: 1;">
+                        <tr>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; width: 15px;"></th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.AIAModule.sortFindGrid('serial_no')">Serial No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.AIAModule.sortFindGrid('date')">Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: center;">Posted</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="aia_find_table_body"></tbody>
+                </table>
+            </div>
+            <div style="padding: 5px 15px; background: #e2e8f0; font-size: 11px; color: #334155; display: flex; gap: 20px;">
+                <div style="display: flex; gap: 5px;"><span>Added on:</span> <input type="text" id="aia_find_added_on" style="width: 120px; font-size: 10px; background: #f1f5f9; border: 1px solid #cbd5e0;"></div>
+            </div>
+        </div>
+    </div>
+</div>
