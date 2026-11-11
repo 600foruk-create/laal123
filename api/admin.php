@@ -437,8 +437,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ?, status = ?, branch_id = ? WHERE id = ?");
                 $stmt->execute([$data['username'], $data['email'], $data['role'], $status, $branch_id, $data['id']]);
             } else {
+                $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
                 $stmt = $pdo->prepare("INSERT INTO users (company_id, username, password, role, email, branch_id) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$company_id, $data['username'], $data['password'], $data['role'], $data['email'], $branch_id]);
+                $stmt->execute([$company_id, $data['username'], $hashedPassword, $data['role'], $data['email'], $branch_id]);
                 $id = $pdo->lastInsertId();
                 
                 // AUTO-INITIALIZE RIGHTS based on role
@@ -513,8 +514,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!isset($data['id']) || !isset($data['password'])) {
             sendResponse(['error' => 'Missing ID or Password'], 400);
         }
+        $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
-        $stmt->execute([$data['password'], $data['id']]);
+        $stmt->execute([$hashedPassword, $data['id']]);
         sendResponse(['status' => 'success']);
     }
 

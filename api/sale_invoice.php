@@ -7,98 +7,100 @@ header('Content-Type: application/json');
 require_once 'db_config.php';
 
 // MIGRATION: Ensure Sale Invoice tables exist
-try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS sale_invoices (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        company_id INT NOT NULL,
-        serial_no INT NOT NULL,
-        is_tax_invoice TINYINT(1) DEFAULT 0,
-        invoice_date DATE,
-        invoice_type VARCHAR(50),
-        customer_order_no VARCHAR(100),
-        customer_order_date DATE,
-        delivery_challan_no VARCHAR(100),
-        delivery_challan_date DATE,
-        payment_terms VARCHAR(255),
-        income_account VARCHAR(50),
-        customer_coa_id INT NOT NULL,
-        inventory_location_id INT,
-        job_no VARCHAR(100),
-        employee_ref VARCHAR(100),
-        amount_in_words VARCHAR(255),
-        remarks TEXT,
-        carriage_freight DECIMAL(15,2) DEFAULT 0,
-        additional_discount DECIMAL(15,2) DEFAULT 0,
-        net_total DECIMAL(15,2) DEFAULT 0,
-        amount_received DECIMAL(15,2) DEFAULT 0,
-        is_cancelled TINYINT DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX (company_id),
-        INDEX (serial_no),
-        INDEX (is_tax_invoice)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+if (shouldRunMigration('sale_invoices_schema', 1)) {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS sale_invoices (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_id INT NOT NULL,
+            serial_no INT NOT NULL,
+            is_tax_invoice TINYINT(1) DEFAULT 0,
+            invoice_date DATE,
+            invoice_type VARCHAR(50),
+            customer_order_no VARCHAR(100),
+            customer_order_date DATE,
+            delivery_challan_no VARCHAR(100),
+            delivery_challan_date DATE,
+            payment_terms VARCHAR(255),
+            income_account VARCHAR(50),
+            customer_coa_id INT NOT NULL,
+            inventory_location_id INT,
+            job_no VARCHAR(100),
+            employee_ref VARCHAR(100),
+            amount_in_words VARCHAR(255),
+            remarks TEXT,
+            carriage_freight DECIMAL(15,2) DEFAULT 0,
+            additional_discount DECIMAL(15,2) DEFAULT 0,
+            net_total DECIMAL(15,2) DEFAULT 0,
+            amount_received DECIMAL(15,2) DEFAULT 0,
+            is_cancelled TINYINT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX (company_id),
+            INDEX (serial_no),
+            INDEX (is_tax_invoice)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-    $siCols = $pdo->query("SHOW COLUMNS FROM sale_invoices")->fetchAll(PDO::FETCH_COLUMN);
-    $siNewCols = [
-        'customer_name' => 'VARCHAR(255) DEFAULT NULL',
-        'customer_address' => 'VARCHAR(500) DEFAULT NULL',
-        'customer_telephone' => 'VARCHAR(100) DEFAULT NULL',
-        'customer_ntn' => 'VARCHAR(100) DEFAULT NULL',
-        'customer_gst' => 'VARCHAR(100) DEFAULT NULL',
-        'customer_tax_rate' => 'DECIMAL(10,2) DEFAULT 0',
-        'customer_tax_amount' => 'DECIMAL(15,2) DEFAULT 0',
-        'customer_wht_type' => 'VARCHAR(50) DEFAULT NULL',
-        'gross_amount' => 'DECIMAL(15,2) DEFAULT 0',
-        'updated_at' => 'TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
-    ];
-    foreach ($siNewCols as $col => $def) {
-        if (!in_array($col, $siCols)) {
-            $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN $col $def");
-            if ($col === 'updated_at') {
-                $pdo->exec("UPDATE sale_invoices SET updated_at = created_at WHERE updated_at IS NULL");
+        $siCols = $pdo->query("SHOW COLUMNS FROM sale_invoices")->fetchAll(PDO::FETCH_COLUMN);
+        $siNewCols = [
+            'customer_name' => 'VARCHAR(255) DEFAULT NULL',
+            'customer_address' => 'VARCHAR(500) DEFAULT NULL',
+            'customer_telephone' => 'VARCHAR(100) DEFAULT NULL',
+            'customer_ntn' => 'VARCHAR(100) DEFAULT NULL',
+            'customer_gst' => 'VARCHAR(100) DEFAULT NULL',
+            'customer_tax_rate' => 'DECIMAL(10,2) DEFAULT 0',
+            'customer_tax_amount' => 'DECIMAL(15,2) DEFAULT 0',
+            'customer_wht_type' => 'VARCHAR(50) DEFAULT NULL',
+            'gross_amount' => 'DECIMAL(15,2) DEFAULT 0',
+            'updated_at' => 'TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
+        ];
+        foreach ($siNewCols as $col => $def) {
+            if (!in_array($col, $siCols)) {
+                $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN $col $def");
+                if ($col === 'updated_at') {
+                    $pdo->exec("UPDATE sale_invoices SET updated_at = created_at WHERE updated_at IS NULL");
+                }
             }
         }
-    }
 
-    $pdo->exec("CREATE TABLE IF NOT EXISTS sale_invoice_items (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        invoice_id INT NOT NULL,
-        item_coa_id INT NOT NULL,
-        hs_code VARCHAR(50),
-        description TEXT,
-        pieces DECIMAL(15,2) DEFAULT 0,
-        quantity DECIMAL(15,2) DEFAULT 0,
-        unit VARCHAR(50),
-        rate DECIMAL(20,4) DEFAULT 0,
-        gross_amount DECIMAL(15,2) DEFAULT 0,
-        discount_percent DECIMAL(15,2) DEFAULT 0,
-        discount_amount DECIMAL(15,2) DEFAULT 0,
-        sales_tax_rate DECIMAL(15,2) DEFAULT 0,
-        sales_tax_amount DECIMAL(15,2) DEFAULT 0,
-        further_tax_rate DECIMAL(15,2) DEFAULT 0,
-        further_tax_amount DECIMAL(15,2) DEFAULT 0,
-        net_amount DECIMAL(15,2) DEFAULT 0,
-        FOREIGN KEY (invoice_id) REFERENCES sale_invoices(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-    
+        $pdo->exec("CREATE TABLE IF NOT EXISTS sale_invoice_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            invoice_id INT NOT NULL,
+            item_coa_id INT NOT NULL,
+            hs_code VARCHAR(50),
+            description TEXT,
+            pieces DECIMAL(15,2) DEFAULT 0,
+            quantity DECIMAL(15,2) DEFAULT 0,
+            unit VARCHAR(50),
+            rate DECIMAL(20,4) DEFAULT 0,
+            gross_amount DECIMAL(15,2) DEFAULT 0,
+            discount_percent DECIMAL(15,2) DEFAULT 0,
+            discount_amount DECIMAL(15,2) DEFAULT 0,
+            sales_tax_rate DECIMAL(15,2) DEFAULT 0,
+            sales_tax_amount DECIMAL(15,2) DEFAULT 0,
+            further_tax_rate DECIMAL(15,2) DEFAULT 0,
+            further_tax_amount DECIMAL(15,2) DEFAULT 0,
+            net_amount DECIMAL(15,2) DEFAULT 0,
+            FOREIGN KEY (invoice_id) REFERENCES sale_invoices(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+        
         try { $pdo->exec("ALTER TABLE sale_invoice_items ADD COLUMN length_val DECIMAL(15,2) DEFAULT 0"); } catch(Exception $e) {}
-    try { $pdo->exec("ALTER TABLE sale_invoice_items ADD COLUMN weight_val DECIMAL(15,3) DEFAULT 0"); } catch(Exception $e) {}
-    try { $pdo->exec("ALTER TABLE sale_invoice_items ADD COLUMN carton_val DECIMAL(15,2) DEFAULT 0"); } catch(Exception $e) {}
-    // Add hs_code to existing table if not exists
-    try { $pdo->exec("ALTER TABLE sale_invoice_items ADD COLUMN hs_code VARCHAR(50) AFTER item_coa_id"); } catch(Exception $e) {}
-    // Update rate precision
-    try { $pdo->exec("ALTER TABLE sale_invoice_items MODIFY COLUMN rate DECIMAL(20,4) DEFAULT 0"); } catch(Exception $e) {}
-    // Add pos columns
-    try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN pos_invoice_no VARCHAR(100) AFTER serial_no"); } catch(Exception $e) {}
-    try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN pos_status VARCHAR(50) DEFAULT 'Posted'"); } catch(Exception $e) {}
-    // Add conversion tracking columns if not exist
-    try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN converted_dc_no VARCHAR(50) DEFAULT NULL"); } catch(Exception $e) {}
-    try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN converted_ogp_no VARCHAR(50) DEFAULT NULL"); } catch(Exception $e) {}
-    // Add is_posted column if not exists
-    try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN is_posted TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
-    // Ensure POS invoices have serial_no = 0 to isolate from ERP Sale Invoice serial numbers
-    try { $pdo->exec("UPDATE sale_invoices SET serial_no = 0 WHERE (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != '')) AND serial_no != 0"); } catch (Exception $e) {}
-} catch (Exception $e) {}
+        try { $pdo->exec("ALTER TABLE sale_invoice_items ADD COLUMN weight_val DECIMAL(15,3) DEFAULT 0"); } catch(Exception $e) {}
+        try { $pdo->exec("ALTER TABLE sale_invoice_items ADD COLUMN carton_val DECIMAL(15,2) DEFAULT 0"); } catch(Exception $e) {}
+        // Add hs_code to existing table if not exists
+        try { $pdo->exec("ALTER TABLE sale_invoice_items ADD COLUMN hs_code VARCHAR(50) AFTER item_coa_id"); } catch(Exception $e) {}
+        // Update rate precision
+        try { $pdo->exec("ALTER TABLE sale_invoice_items MODIFY COLUMN rate DECIMAL(20,4) DEFAULT 0"); } catch(Exception $e) {}
+        // Add pos columns
+        try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN pos_invoice_no VARCHAR(100) AFTER serial_no"); } catch(Exception $e) {}
+        try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN pos_status VARCHAR(50) DEFAULT 'Posted'"); } catch(Exception $e) {}
+        // Add conversion tracking columns if not exist
+        try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN converted_dc_no VARCHAR(50) DEFAULT NULL"); } catch(Exception $e) {}
+        try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN converted_ogp_no VARCHAR(50) DEFAULT NULL"); } catch(Exception $e) {}
+        // Add is_posted column if not exists
+        try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN is_posted TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
+        // Ensure POS invoices have serial_no = 0 to isolate from ERP Sale Invoice serial numbers
+        try { $pdo->exec("UPDATE sale_invoices SET serial_no = 0 WHERE (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != '')) AND serial_no != 0"); } catch (Exception $e) {}
+    } catch (Exception $e) {}
+}
 
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -848,13 +850,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $label = $is_tax ? 'Tax Invoice' : 'Commercial Invoice';
             $record_title = "$label #" . ($before_data['header']['serial_no'] ?? '');
 
-            $pdo->prepare("DELETE FROM sale_invoice_items WHERE invoice_id=?")->execute([$id]);
-            $stmt = $pdo->prepare("DELETE FROM sale_invoices WHERE id=? AND company_id=?");
-            $stmt->execute([$id, $company_id]);
+            try {
+                $pdo->beginTransaction();
+                $pdo->prepare("DELETE FROM sale_invoice_items WHERE invoice_id=?")->execute([$id]);
+                $stmt = $pdo->prepare("DELETE FROM sale_invoices WHERE id=? AND company_id=?");
+                $stmt->execute([$id, $company_id]);
+                $pdo->commit();
 
-            logActivity('Sale Invoice', 'DELETE', $id, $record_title, $before_data, null);
-
-            sendResponse(['status' => 'success']);
+                logActivity('Sale Invoice', 'DELETE', $id, $record_title, $before_data, null);
+                sendResponse(['status' => 'success']);
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                sendResponse(['status' => 'error', 'message' => 'Failed to delete invoice: ' . $e->getMessage()], 500);
+            }
         }
         sendResponse(['status' => 'error', 'message' => 'ID missing'], 400);
     }

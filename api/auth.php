@@ -26,31 +26,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($company) {
             $companyId = $company['id'];
             $companyName = $company['name'];
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN off_day VARCHAR(20) NULL");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN enable_geofencing TINYINT(1) DEFAULT 0");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN latitude DECIMAL(10, 8) NULL");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN longitude DECIMAL(11, 8) NULL");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN radius_meters INT DEFAULT 100");
-            } catch(Exception $e) {}
+            if (shouldRunMigration('company_branches_fields', 1)) {
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN off_day VARCHAR(20) NULL"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN enable_geofencing TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN latitude DECIMAL(10, 8) NULL"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN longitude DECIMAL(11, 8) NULL"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN radius_meters INT DEFAULT 100"); } catch(Exception $e) {}
+            }
 
             $stmt = $pdo->prepare("
                 SELECT u.*, b.branch_name, b.branch_code, b.invoice_series, b.opening_time, b.closing_time, b.off_day,
                        b.enable_geofencing, b.latitude as branch_lat, b.longitude as branch_lng, b.radius_meters
                 FROM users u 
                 LEFT JOIN company_branches b ON u.branch_id = b.id 
-                WHERE u.username = ? AND u.password = ? AND u.company_id = ?
+                WHERE u.username = ? AND u.company_id = ?
             ");
-            $stmt->execute([$username, $password, $companyId]);
-            $user = $stmt->fetch();
+            $stmt->execute([$username, $companyId]);
+            $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($candidates as $cand) {
+                if (verifyAndUpgradePassword($password, $cand['password'], $cand['id'], $pdo)) {
+                    $user = $cand;
+                    break;
+                }
+            }
         }
         
         // 3. Fallback: If company wasn't provided or user wasn't in that company (e.g. company selection hidden on login), find user by credentials
@@ -61,14 +59,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 FROM users u 
                 LEFT JOIN company_branches b ON u.branch_id = b.id 
                 LEFT JOIN companies c ON u.company_id = c.id
-                WHERE u.username = ? AND u.password = ? AND (c.status IS NULL OR c.status != 0)
-                ORDER BY u.id ASC LIMIT 1
+                WHERE u.username = ? AND (c.status IS NULL OR c.status != 0)
+                ORDER BY u.id ASC
             ");
-            $stmt->execute([$username, $password]);
-            $user = $stmt->fetch();
-            if ($user) {
-                $companyId = $user['company_id'];
-                $companyName = $user['company_name'] ?? ($company['name'] ?? 'Default Business');
+            $stmt->execute([$username]);
+            $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($candidates as $cand) {
+                if (verifyAndUpgradePassword($password, $cand['password'], $cand['id'], $pdo)) {
+                    $user = $cand;
+                    $companyId = $user['company_id'];
+                    $companyName = $user['company_name'] ?? ($company['name'] ?? 'Default Business');
+                    break;
+                }
             }
         }
         

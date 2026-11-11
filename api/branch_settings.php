@@ -246,18 +246,23 @@ try {
         // Must match an Admin's real current password. No hardcoded passwords!
         $currentUserId = $_SESSION['user_id'] ?? 0;
         $authQuery = "
-            SELECT id, username, role 
+            SELECT id, username, password, role 
             FROM users 
-            WHERE password = ? 
-              AND (
+            WHERE (
                   (company_id = ? AND (role = 'Admin' OR LOWER(role) = 'admin' OR username = 'Administrator' OR id = ?))
                   OR (role = 'Admin' OR LOWER(role) = 'admin' OR username = 'Administrator')
               )
-            LIMIT 1
         ";
         $authStmt = $pdo->prepare($authQuery);
-        $authStmt->execute([$adminPassword, $company_id, $currentUserId]);
-        $adminUser = $authStmt->fetch(PDO::FETCH_ASSOC);
+        $authStmt->execute([$company_id, $currentUserId]);
+        $adminCandidates = $authStmt->fetchAll(PDO::FETCH_ASSOC);
+        $adminUser = null;
+        foreach ($adminCandidates as $cand) {
+            if (verifyAndUpgradePassword($adminPassword, $cand['password'], $cand['id'], $pdo)) {
+                $adminUser = $cand;
+                break;
+            }
+        }
 
         if (!$adminUser) {
             echo json_encode(['error' => 'Incorrect Admin Password! Verification failed.']);

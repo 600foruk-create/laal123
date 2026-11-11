@@ -2,4 +2,10 @@ brain/
 __pycache__/
 *.pyc
 
+# Environment & Sensitive Files
+.env
+storage/
+*.log
+
+# Heavy unreferenced media
 assets/logos/logo_original.png
