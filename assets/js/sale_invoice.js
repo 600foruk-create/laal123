@@ -3277,43 +3277,58 @@ window.SIModule = {
         const serialNo = (document.getElementById('si_sn')?.value || (this.currentId ? String(this.currentId) : '')).trim();
         const date = (document.getElementById('si_date')?.value || '').trim();
         const custName = (document.getElementById('si_cust_name')?.value || '').trim();
-        const telephone = (document.getElementById('si_cust_phone')?.value || '').trim();
+        const currentPhone = (document.getElementById('si_cust_phone')?.value || '').trim();
         const netTotal = (document.getElementById('si_net_tot')?.value || '0.00').trim();
-        const paidAmount = (document.getElementById('si_paid')?.value || '0.00').trim();
         const balance = (document.getElementById('si_balance')?.value || '0.00').trim();
-        const custBalance = (document.getElementById('si_cust_balance')?.value || '').trim();
 
         if (!serialNo) {
             alert('Please select or save an invoice first before sharing on WhatsApp.');
             return;
         }
 
-        // Clean and format phone number for Pakistan / International WhatsApp
-        let phone = telephone.replace(/[^0-9]/g, '');
-        if (phone.startsWith('03')) {
-            phone = '92' + phone.substring(1);
-        } else if (phone.length === 10 && phone.startsWith('3')) {
-            phone = '92' + phone;
-        }
+        // Populate and open custom WhatsApp modal
+        const invNoEl = document.getElementById('si_wa_inv_no');
+        const dateEl = document.getElementById('si_wa_date');
+        const custEl = document.getElementById('si_wa_cust_name');
+        const netEl = document.getElementById('si_wa_net_total');
+        const balEl = document.getElementById('si_wa_balance');
+        const phoneEl = document.getElementById('si_wa_phone_input');
+        const modal = document.getElementById('siWhatsAppModal');
 
-        if (!phone) {
-            const entered = prompt(`Customer "${custName || 'Selected'}" ka WhatsApp number enter karein (maslan: 03001234567):`, '');
-            if (!entered) return;
-            const phoneField = document.getElementById('si_cust_phone');
-            if (phoneField && !phoneField.value) phoneField.value = entered.trim();
+        if (invNoEl) invNoEl.textContent = serialNo;
+        if (dateEl) dateEl.textContent = date || '-';
+        if (custEl) custEl.textContent = custName || 'Walk-in / Cash Customer';
+        if (netEl) netEl.textContent = 'Rs. ' + netTotal;
+        if (balEl) balEl.textContent = 'Rs. ' + (balance || '0.00');
+        if (phoneEl) phoneEl.value = currentPhone;
 
-            phone = entered.replace(/[^0-9]/g, '');
-            if (phone.startsWith('03')) {
-                phone = '92' + phone.substring(1);
-            } else if (phone.length === 10 && phone.startsWith('3')) {
-                phone = '92' + phone;
-            }
+        if (modal) {
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                if (phoneEl) {
+                    phoneEl.focus();
+                    if (phoneEl.value) phoneEl.select();
+                }
+            }, 80);
+        } else {
+            // Fallback if modal is not present
+            this.executeSendWhatsApp('web');
         }
+    },
 
-        if (!phone || phone.length < 10) {
-            alert('Valid WhatsApp number required (e.g. 03001234567)!');
-            return;
-        }
+    closeWhatsAppModal: function() {
+        const modal = document.getElementById('siWhatsAppModal');
+        if (modal) modal.style.display = 'none';
+    },
+
+    buildWhatsAppMessage: function() {
+        const serialNo = (document.getElementById('si_sn')?.value || (this.currentId ? String(this.currentId) : '')).trim();
+        const date = (document.getElementById('si_date')?.value || '').trim();
+        const custName = (document.getElementById('si_cust_name')?.value || '').trim();
+        const netTotal = (document.getElementById('si_net_tot')?.value || '0.00').trim();
+        const paidAmount = (document.getElementById('si_paid')?.value || '0.00').trim();
+        const balance = (document.getElementById('si_balance')?.value || '0.00').trim();
+        const custBalance = (document.getElementById('si_cust_balance')?.value || '').trim();
 
         let companyName = 'SoftifyX ERP';
         try {
@@ -3331,7 +3346,7 @@ window.SIModule = {
         if (paidAmount && parseFloat(paidAmount.replace(/,/g, '')) > 0) {
             msg += `💵 *Received:* Rs. ${paidAmount}\n`;
         }
-        if (balance && balance !== '0.00') {
+        if (balance && balance !== '0.00' && balance !== netTotal) {
             msg += `⚖️ *Invoice Balance:* Rs. ${balance}\n`;
         }
         if (custBalance && custBalance !== '0.00' && custBalance !== '0') {
@@ -3339,17 +3354,53 @@ window.SIModule = {
         }
         msg += `--------------------------------\n`;
         msg += `Thank you for your business!`;
+        return msg;
+    },
 
-        const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
-        const win = window.open(url, '_blank');
-        if (!win || win.closed || typeof win.closed === 'undefined') {
-            const a = document.createElement('a');
-            a.href = url;
-            a.target = '_blank';
-            a.rel = 'noopener noreferrer';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+    executeSendWhatsApp: function(target = 'web') {
+        const phoneInput = document.getElementById('si_wa_phone_input');
+        const rawPhone = phoneInput ? phoneInput.value.trim() : (document.getElementById('si_cust_phone')?.value || '').trim();
+        
+        let phone = rawPhone.replace(/[^0-9]/g, '');
+        if (target !== 'any') {
+            if (phone.startsWith('03')) {
+                phone = '92' + phone.substring(1);
+            } else if (phone.length === 10 && phone.startsWith('3')) {
+                phone = '92' + phone;
+            }
+        }
+
+        // Sync entered phone number to invoice form so it can be saved with invoice
+        if (rawPhone && document.getElementById('si_cust_phone')) {
+            document.getElementById('si_cust_phone').value = rawPhone;
+        }
+
+        const msg = this.buildWhatsAppMessage();
+        let url = '';
+
+        if (target === 'app') {
+            url = phone ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+        } else if (target === 'any') {
+            url = `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+        } else {
+            // Default: WhatsApp Web
+            url = phone ? `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}` : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+        }
+
+        this.closeWhatsAppModal();
+        window.open(url, '_blank');
+    },
+
+    copyWhatsAppText: function() {
+        const msg = this.buildWhatsAppMessage();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(msg).then(() => {
+                alert('Invoice details copied to clipboard!\nAap WhatsApp par ja kar Paste kar sakte hain.');
+            }).catch(() => {
+                prompt('Copy text manually:', msg);
+            });
+        } else {
+            prompt('Copy text manually:', msg);
         }
     },
 
