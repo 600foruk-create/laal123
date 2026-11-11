@@ -4047,6 +4047,7 @@ window.SIModule = {
                     <meta charset="utf-8">
                     <title>${type} - ${sn}</title>
                     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+                    <script src="assets/js/html2pdf.bundle.min.js"></script>
                     <style>
                         * { box-sizing: border-box; }
                         body {
@@ -4060,7 +4061,7 @@ window.SIModule = {
                             color-adjust: exact !important;
                         }
                         @media screen {
-                            body { max-width: 215mm; margin: 15px auto; box-shadow: 0 0 15px rgba(0,0,0,0.15); padding: 12mm; background: #fff; border-radius: 4px; }
+                            body { max-width: 215mm; margin: 55px auto 25px auto; box-shadow: 0 0 18px rgba(0,0,0,0.18); padding: 12mm; background: #fff; border-radius: 4px; }
                         }
                         @media print {
                             body { margin: 0; padding: 0; }
@@ -4102,6 +4103,91 @@ window.SIModule = {
                         .invoice-box { border: 1px solid #b8d5f8; border-radius: 6px; overflow: hidden; flex: 0.9; background: #fff; }
                         .invoice-box-header { background: #e8f1fc; color: #0b3b60; font-weight: bold; font-size: 11px; padding: 7px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #b8d5f8; text-transform: uppercase; }
                         .invoice-box-content { padding: 10px 14px; font-size: 11px; }
+
+                        .grid-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10px; border: 1px solid #b8d5f8; }
+                        .grid-table th { border: 1px solid #b8d5f8; background: #e8f1fc; color: #0b3b60; font-weight: bold; font-size: 9.5px; text-transform: uppercase; }
+                        .grid-table td { border: 1px solid #e2e8f0; font-size: 10px; }
+
+                        .lower-area { display: flex; justify-content: space-between; margin-top: 16px; gap: 16px; align-items: flex-start; }
+                        .words-box { border: 1px solid #b8d5f8; border-radius: 6px; overflow: hidden; flex: 1.1; background: #fff; }
+                        .words-box-header { background: #e8f1fc; color: #0b3b60; font-weight: bold; font-size: 11px; padding: 7px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #b8d5f8; text-transform: uppercase; }
+                        .words-box-content { padding: 12px 14px; font-size: 11px; font-weight: 600; line-height: 1.6; color: #000; }
+
+                        .summary-box { border: 1px solid #b8d5f8; border-radius: 6px; overflow: hidden; flex: 0.9; background: #fff; }
+                        .summary-box-header { background: #e8f1fc; color: #0b3b60; font-weight: bold; font-size: 11px; padding: 7px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #b8d5f8; text-transform: uppercase; }
+                        .summary-box-content { padding: 4px 0; }
+
+                        .footer-bottom-group {
+                            margin-top: auto;
+                            padding-top: 15px;
+                            width: 100%;
+                            page-break-inside: avoid;
+                        }
+
+                        .signature-container { margin-bottom: 12px; width: 170px; margin-left: 4px; }
+                        .signature-line { border-top: 1.5px solid #000; width: 150px; margin-bottom: 4px; }
+                        .signature-title { font-weight: 800; font-size: 11px; color: #000; }
+                        .signature-name { font-size: 9.5px; color: #475569; }
+
+                        .bottom-banner { border-top: 1px solid #cbd5e1; padding-top: 8px; }
+                        .bottom-banner-content { display: flex; align-items: center; justify-content: space-between; }
+                        .bottom-banner-title { font-size: 13px; font-weight: 800; color: #0b3b60; }
+                        .bottom-banner-pipe { color: #cbd5e1; margin: 0 10px; }
+                        .bottom-banner-powered { font-size: 11px; color: #475569; }
+                        .bottom-banner-bar { height: 3px; background: #ea580c; border-radius: 2px; width: 100%; margin-top: 6px; }
+                    </style>
+                </head>
+                <body>
+                    <!-- Floating Top Action Bar -->
+                    <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; background: #0f172a; color: white; padding: 8px 18px; display: flex; align-items: center; justify-content: space-between; z-index: 99999; box-shadow: 0 3px 10px rgba(0,0,0,0.3); font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="background: #1e293b; border: 1px solid #334155; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 12px; color: #38bdf8;">
+                                <i class="fas fa-file-invoice"></i> INVOICE # ${sn}
+                            </span>
+                            <span style="font-size: 12px; font-weight: 600; color: #f1f5f9;">${cleanCustomerName}</span>
+                            ${vTel ? `<span style="font-size: 11px; color: #94a3b8;"><i class="fas fa-phone-alt"></i> ${vTel}</span>` : ''}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <!-- Print Button -->
+                            <button type="button" onclick="window.print()" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+
+                            <!-- Download PDF Button -->
+                            <button type="button" onclick="downloadInvoicePdf()" style="background: #0284c7; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-file-pdf"></i> Download PDF
+                            </button>
+
+                            <!-- WhatsApp PDF Button -->
+                            <button type="button" onclick="shareInvoiceWhatsApp('app')" style="background: #25D366; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,211,102,0.3);">
+                                <i class="fab fa-whatsapp" style="font-size: 15px;"></i> Send on WhatsApp (PDF)
+                            </button>
+
+                            <!-- Close Button -->
+                            <button type="button" onclick="window.close()" style="background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Helpful Notification Banner -->
+                    <div id="wa-banner-tip" class="no-print" style="display: none; position: fixed; top: 48px; left: 0; right: 0; background: #ecfdf5; border-bottom: 2px solid #10b981; color: #065f46; padding: 9px 18px; z-index: 99998; font-size: 12px; font-weight: 600; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.06);">
+                        <i class="fab fa-whatsapp" style="color: #10b981; font-size: 16px; margin-right: 6px;"></i>
+                        Invoice PDF aapke computer ke <strong>Downloads</strong> folder mein save ho gayi hy! WhatsApp Desktop chat open ho chuki hy, wahan PDF file <strong>drag &amp; drop</strong> karein ya 📎 Paperclip icon se attach kar ke send kar dein.
+                        <button onclick="document.getElementById('wa-banner-tip').style.display='none'" style="margin-left: 12px; background: transparent; border: 1px solid #10b981; border-radius: 3px; padding: 1px 6px; cursor: pointer; color: #065f46; font-size: 11px;">✕ Dismiss</button>
+                    </div>
+
+                    <div class="page-container">
+                        <div class="main-content">
+                            ${headerSection}
+
+                            <div class="details-area">
+                                ${buyerBoxHtml}
+                                <div class="invoice-box">
+                                    <div class="invoice-box-header">
+                                        <i class="fas fa-file-invoice" style="color: #2563eb; font-size: 15px;"></i> INVOICE DETAILS
+                                    </div>
+                                    <div class="invoice-box-content">
 
                         .grid-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10px; border: 1px solid #b8d5f8; }
                         .grid-table th { border: 1px solid #b8d5f8; background: #e8f1fc; color: #0b3b60; font-weight: bold; font-size: 9.5px; text-transform: uppercase; }
@@ -4245,11 +4331,77 @@ window.SIModule = {
                         </div>
                     </div>
                     <script>
+                        function downloadInvoicePdf(callback) {
+                            var el = document.querySelector('.page-container');
+                            var safeName = '${cleanCustomerName.replace(/[^a-zA-Z0-9_-]/g, '_')}';
+                            var opt = {
+                                margin: [4, 4, 4, 4],
+                                filename: 'Sale_Invoice_${sn}_' + safeName + '.pdf',
+                                image: { type: 'jpeg', quality: 0.98 },
+                                html2canvas: { scale: 2, useCORS: true, logging: false },
+                                jsPDF: { unit: 'mm', format: '${paperSize.toLowerCase().startsWith("a5") ? "a5" : "a4"}', orientation: '${paperSize === "A5L" ? "landscape" : "portrait"}' }
+                            };
+
+                            if (window.html2pdf) {
+                                var worker = html2pdf().set(opt).from(el).save();
+                                if (callback) worker.then(callback);
+                            } else {
+                                window.print();
+                            }
+                        }
+
+                        function shareInvoiceWhatsApp(target) {
+                            target = target || 'app';
+                            
+                            // Download PDF file to Downloads folder
+                            downloadInvoicePdf();
+
+                            var phone = '${vTel}'.replace(/[^0-9]/g, '');
+                            if (phone.startsWith('03')) {
+                                phone = '92' + phone.substring(1);
+                            } else if (phone.length === 10 && phone.startsWith('3')) {
+                                phone = '92' + phone;
+                            }
+
+                            if (!phone) {
+                                var entered = prompt('Customer "${cleanCustomerName}" ka WhatsApp number enter karein (e.g. 03001234567):', '');
+                                if (entered) {
+                                    phone = entered.replace(/[^0-9]/g, '');
+                                    if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+                                    else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+                                }
+                            }
+
+                            var msg = "*${coName.toUpperCase()}*\\n" +
+                                      "*TAX INVOICE # ${sn}*\\n" +
+                                      "--------------------------------\\n" +
+                                      "📄 *Invoice #:* ${sn}\\n" +
+                                      "📅 *Date:* ${date}\\n" +
+                                      "👤 *Customer:* ${cleanCustomerName}\\n" +
+                                      "💰 *Net Total:* Rs. ${formatAmt(netTot)}\\n" +
+                                      "${invoiceBalance > 0 ? `⚖️ *Invoice Balance:* Rs. ${formatAmt(invoiceBalance)}\\n` : ''}" +
+                                      "${currentBalance ? `📊 *Ledger Balance:* Rs. ${formatBal(currentBalance)}\\n` : ''}" +
+                                      "--------------------------------\\n" +
+                                      "📎 *Tax Invoice PDF file is attached below.*\\n" +
+                                      "Thank you for your business!";
+
+                            var appUrl = phone ? "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(msg) : "whatsapp://send?text=" + encodeURIComponent(msg);
+                            
+                            var a = document.createElement('a');
+                            a.href = appUrl;
+                            document.body.appendChild(a);
+                            a.click();
+                            setTimeout(function() { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+
+                            var banner = document.getElementById('wa-banner-tip');
+                            if (banner) banner.style.display = 'block';
+                        }
+
                         window.onload = function() {
                             setTimeout(function() {
                                 window.focus();
                                 window.print();
-                            }, 350);
+                            }, 400);
                         };
                     </script>
                 </body>
