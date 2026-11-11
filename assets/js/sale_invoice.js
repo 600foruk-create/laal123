@@ -3273,6 +3273,47 @@ window.SIModule = {
         }
     },
 
+    shareWhatsApp: function() {
+        const serialNo = (document.getElementById('si_serial_no')?.value || '').trim();
+        const date = (document.getElementById('si_date')?.value || '').trim();
+        const custTitle = (document.getElementById('si_cust_title')?.value || '').trim();
+        const telephone = (document.getElementById('si_cust_telephone')?.value || '').trim();
+        const netTotal = (document.getElementById('si_net_total')?.value || '0.00').trim();
+
+        if (!serialNo) {
+            alert('Please select or save an invoice first before sharing on WhatsApp.');
+            return;
+        }
+
+        // Clean and format phone number for Pakistan / International WhatsApp
+        let phone = telephone.replace(/[^0-9]/g, '');
+        if (phone.startsWith('03')) {
+            phone = '92' + phone.substring(1);
+        } else if (phone.length === 10 && phone.startsWith('3')) {
+            phone = '92' + phone;
+        }
+
+        if (!phone) {
+            const entered = prompt('Customer mobile number not found. Enter customer WhatsApp number (e.g. 03001234567):', '');
+            if (!entered) return;
+            phone = entered.replace(/[^0-9]/g, '');
+            if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+        }
+
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const companyName = session.company_name || 'SoftifyX ERP';
+        const msg = `*${companyName.toUpperCase()}*\n` +
+                    `*SALE INVOICE SUMMARY*\n\n` +
+                    `📄 *Invoice #:* ${serialNo}\n` +
+                    `📅 *Date:* ${date}\n` +
+                    `👤 *Customer:* ${custTitle}\n` +
+                    `💰 *Net Total:* Rs. ${netTotal}\n\n` +
+                    `Thank you for your valued business!`;
+
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
+    },
+
     printInvoiceFromModal: async function() {
         await this.savePrintSettings(true);
         this.printInvoice('print');

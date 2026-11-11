@@ -1,3 +1,33 @@
+# ========================================================
+# SoftifyX ERP Apache & Security Configuration
+# ========================================================
+
+# 1. Block access to sensitive and environment files (.env, .git, .sql, etc.)
+<IfModule mod_authz_core.c>
+  <FilesMatch "(\.env|\.env\.example|\.git|\.sql|\.log|\.ini|\.sh)$">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+  <FilesMatch "(\.env|\.env\.example|\.git|\.sql|\.log|\.ini|\.sh)$">
+    Order allow,deny
+    Deny from all
+  </FilesMatch>
+</IfModule>
+
+# Prevent directory browsing
+Options -Indexes
+
+# 2. Security Headers (Clickjacking, MIME Sniffing, XSS protection)
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-XSS-Protection "1; mode=block"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# 3. Cache-Control for static assets
 <FilesMatch "\.(html|htm|js|css)$">
   FileETag None
   <IfModule mod_headers.c>
