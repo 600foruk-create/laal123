@@ -72,83 +72,85 @@ if (!function_exists('normalizePosDate')) {
 $siCols = [];
 $siiCols = [];
 $custCols = [];
-try {
-    // 1. Check existing sale_invoices columns
-    $siCols = $pdo->query("SHOW COLUMNS FROM sale_invoices")->fetchAll(PDO::FETCH_COLUMN);
-    $required_si_cols = [
-        'pos_invoice_no' => 'VARCHAR(100) NULL',
-        'pos_status' => 'VARCHAR(50) DEFAULT "Posted"',
-        'fbr_status' => 'VARCHAR(50) DEFAULT "Not Submitted"',
-        'fbr_invoice_number' => 'VARCHAR(100) NULL',
-        'fbr_qr_code' => 'TEXT NULL',
-        'fbr_response' => 'TEXT NULL',
-        'fbr_submitted_at' => 'DATETIME NULL',
-        'cancel_reason' => 'VARCHAR(500) NULL',
-        'cancelled_by' => 'INT NULL',
-        'cancelled_at' => 'DATETIME NULL',
-        'print_count' => 'INT DEFAULT 0',
-        'last_printed_at' => 'DATETIME NULL',
-        'customer_address' => 'VARCHAR(500) DEFAULT NULL',
-        'customer_telephone' => 'VARCHAR(100) DEFAULT NULL',
-        'customer_ntn' => 'VARCHAR(100) DEFAULT NULL',
-        'customer_gst' => 'VARCHAR(100) DEFAULT NULL',
-        'customer_tax_rate' => 'DECIMAL(10,2) DEFAULT 0',
-        'customer_tax_amount' => 'DECIMAL(15,2) DEFAULT 0',
-        'customer_wht_type' => 'VARCHAR(50) DEFAULT NULL',
-        'additional_discount' => 'DECIMAL(15,2) DEFAULT 0',
-        'carriage_freight' => 'DECIMAL(15,2) DEFAULT 0',
-        'gross_amount' => 'DECIMAL(15,2) DEFAULT 0',
-        'net_total' => 'DECIMAL(15,2) DEFAULT 0',
-        'amount_received' => 'DECIMAL(15,2) DEFAULT 0',
-        'is_cancelled' => 'TINYINT DEFAULT 0',
-        'is_posted' => 'TINYINT DEFAULT 1',
-        'inventory_location_id' => 'INT NULL',
-        'customer_coa_id' => 'INT NULL',
-        'invoice_type' => 'VARCHAR(50) DEFAULT "POS"',
-        'invoice_date' => 'DATE NULL',
-        'serial_no' => 'INT NOT NULL DEFAULT 0'
-    ];
-    $missing_si = [];
-    foreach ($required_si_cols as $col => $def) {
-        if (!in_array($col, $siCols)) {
-            $missing_si[] = "ADD COLUMN `$col` $def";
+if (shouldRunMigration('pos_sale_register_schema', 1)) {
+    try {
+        // 1. Check existing sale_invoices columns
+        $siCols = $pdo->query("SHOW COLUMNS FROM sale_invoices")->fetchAll(PDO::FETCH_COLUMN);
+        $required_si_cols = [
+            'pos_invoice_no' => 'VARCHAR(100) NULL',
+            'pos_status' => 'VARCHAR(50) DEFAULT "Posted"',
+            'fbr_status' => 'VARCHAR(50) DEFAULT "Not Submitted"',
+            'fbr_invoice_number' => 'VARCHAR(100) NULL',
+            'fbr_qr_code' => 'TEXT NULL',
+            'fbr_response' => 'TEXT NULL',
+            'fbr_submitted_at' => 'DATETIME NULL',
+            'cancel_reason' => 'VARCHAR(500) NULL',
+            'cancelled_by' => 'INT NULL',
+            'cancelled_at' => 'DATETIME NULL',
+            'print_count' => 'INT DEFAULT 0',
+            'last_printed_at' => 'DATETIME NULL',
+            'customer_address' => 'VARCHAR(500) DEFAULT NULL',
+            'customer_telephone' => 'VARCHAR(100) DEFAULT NULL',
+            'customer_ntn' => 'VARCHAR(100) DEFAULT NULL',
+            'customer_gst' => 'VARCHAR(100) DEFAULT NULL',
+            'customer_tax_rate' => 'DECIMAL(10,2) DEFAULT 0',
+            'customer_tax_amount' => 'DECIMAL(15,2) DEFAULT 0',
+            'customer_wht_type' => 'VARCHAR(50) DEFAULT NULL',
+            'additional_discount' => 'DECIMAL(15,2) DEFAULT 0',
+            'carriage_freight' => 'DECIMAL(15,2) DEFAULT 0',
+            'gross_amount' => 'DECIMAL(15,2) DEFAULT 0',
+            'net_total' => 'DECIMAL(15,2) DEFAULT 0',
+            'amount_received' => 'DECIMAL(15,2) DEFAULT 0',
+            'is_cancelled' => 'TINYINT DEFAULT 0',
+            'is_posted' => 'TINYINT DEFAULT 1',
+            'inventory_location_id' => 'INT NULL',
+            'customer_coa_id' => 'INT NULL',
+            'invoice_type' => 'VARCHAR(50) DEFAULT "POS"',
+            'invoice_date' => 'DATE NULL',
+            'serial_no' => 'INT NOT NULL DEFAULT 0'
+        ];
+        $missing_si = [];
+        foreach ($required_si_cols as $col => $def) {
+            if (!in_array($col, $siCols)) {
+                $missing_si[] = "ADD COLUMN `$col` $def";
+            }
         }
-    }
-    if (!empty($missing_si)) {
-        try {
-            $pdo->exec("ALTER TABLE sale_invoices " . implode(', ', $missing_si));
-            $siCols = $pdo->query("SHOW COLUMNS FROM sale_invoices")->fetchAll(PDO::FETCH_COLUMN);
-        } catch (Throwable $e) {}
-    }
-
-    // 2. Check existing sale_invoice_items columns
-    $siiCols = $pdo->query("SHOW COLUMNS FROM sale_invoice_items")->fetchAll(PDO::FETCH_COLUMN);
-    $required_sii_cols = [
-        'gross_amount' => 'DECIMAL(15,2) DEFAULT 0',
-        'discount_amount' => 'DECIMAL(15,2) DEFAULT 0',
-        'sales_tax_amount' => 'DECIMAL(15,2) DEFAULT 0',
-        'further_tax_amount' => 'DECIMAL(15,2) DEFAULT 0',
-        'net_amount' => 'DECIMAL(15,2) DEFAULT 0',
-        'rate' => 'DECIMAL(20,4) DEFAULT 0',
-        'quantity' => 'DECIMAL(15,2) DEFAULT 0'
-    ];
-    $missing_sii = [];
-    foreach ($required_sii_cols as $col => $def) {
-        if (!in_array($col, $siiCols)) {
-            $missing_sii[] = "ADD COLUMN `$col` $def";
+        if (!empty($missing_si)) {
+            try {
+                $pdo->exec("ALTER TABLE sale_invoices " . implode(', ', $missing_si));
+                $siCols = $pdo->query("SHOW COLUMNS FROM sale_invoices")->fetchAll(PDO::FETCH_COLUMN);
+            } catch (Throwable $e) {}
         }
-    }
-    if (!empty($missing_sii)) {
-        try {
-            $pdo->exec("ALTER TABLE sale_invoice_items " . implode(', ', $missing_sii));
-            $siiCols = $pdo->query("SHOW COLUMNS FROM sale_invoice_items")->fetchAll(PDO::FETCH_COLUMN);
-        } catch (Throwable $e) {}
-    }
 
-    // 3. Check customers table columns
-    $custCols = $pdo->query("SHOW COLUMNS FROM customers")->fetchAll(PDO::FETCH_COLUMN);
+        // 2. Check existing sale_invoice_items columns
+        $siiCols = $pdo->query("SHOW COLUMNS FROM sale_invoice_items")->fetchAll(PDO::FETCH_COLUMN);
+        $required_sii_cols = [
+            'gross_amount' => 'DECIMAL(15,2) DEFAULT 0',
+            'discount_amount' => 'DECIMAL(15,2) DEFAULT 0',
+            'sales_tax_amount' => 'DECIMAL(15,2) DEFAULT 0',
+            'further_tax_amount' => 'DECIMAL(15,2) DEFAULT 0',
+            'net_amount' => 'DECIMAL(15,2) DEFAULT 0',
+            'rate' => 'DECIMAL(20,4) DEFAULT 0',
+            'quantity' => 'DECIMAL(15,2) DEFAULT 0'
+        ];
+        $missing_sii = [];
+        foreach ($required_sii_cols as $col => $def) {
+            if (!in_array($col, $siiCols)) {
+                $missing_sii[] = "ADD COLUMN `$col` $def";
+            }
+        }
+        if (!empty($missing_sii)) {
+            try {
+                $pdo->exec("ALTER TABLE sale_invoice_items " . implode(', ', $missing_sii));
+                $siiCols = $pdo->query("SHOW COLUMNS FROM sale_invoice_items")->fetchAll(PDO::FETCH_COLUMN);
+            } catch (Throwable $e) {}
+        }
 
-} catch (Throwable $e) {}
+        // 3. Check customers table columns
+        $custCols = $pdo->query("SHOW COLUMNS FROM customers")->fetchAll(PDO::FETCH_COLUMN);
+
+    } catch (Throwable $e) {}
+}
 
 try {
     // -------------------------------------------------------------

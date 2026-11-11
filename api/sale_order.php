@@ -6,71 +6,73 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $company_id = $_GET['company_id'] ?? $_POST['company_id'] ?? 1;
 
 // MIGRATION: Ensure Sale Order tables exist
-if (!in_array($action, ['get_all_items', 'get_customers_and_vendors'])) {
-    // Create or migrate tables
-try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS sale_orders (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        company_id INT NOT NULL,
-        serial_no INT NOT NULL,
-        date DATE,
-        customer_coa_id INT,
-        customer_order_ref VARCHAR(100),
-        delivery_date DATE,
-        terms_of_payment TEXT,
-        job_id INT,
-        employee_id INT,
-        total_pieces DECIMAL(15,2) DEFAULT 0.00,
-        total_qty DECIMAL(15,2) DEFAULT 0.00,
-        total_excl_tax DECIMAL(15,2) DEFAULT 0.00,
-        total_tax_amount DECIMAL(15,2) DEFAULT 0.00,
-        total_further_tax DECIMAL(15,2) DEFAULT 0.00,
-        total_amount DECIMAL(15,2) DEFAULT 0.00,
-        remarks TEXT,
-        is_cancelled TINYINT DEFAULT 0,
-        converted_to_dc INT DEFAULT 0,
-        converted_to_invtax INT DEFAULT 0,
-        converted_to_invnontax INT DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX (company_id),
-        INDEX (customer_coa_id),
-        INDEX (serial_no)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+if (shouldRunMigration('sale_orders_schema', 1)) {
+    if (!in_array($action, ['get_all_items', 'get_customers_and_vendors'])) {
+        // Create or migrate tables
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS sale_orders (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                company_id INT NOT NULL,
+                serial_no INT NOT NULL,
+                date DATE,
+                customer_coa_id INT,
+                customer_order_ref VARCHAR(100),
+                delivery_date DATE,
+                terms_of_payment TEXT,
+                job_id INT,
+                employee_id INT,
+                total_pieces DECIMAL(15,2) DEFAULT 0.00,
+                total_qty DECIMAL(15,2) DEFAULT 0.00,
+                total_excl_tax DECIMAL(15,2) DEFAULT 0.00,
+                total_tax_amount DECIMAL(15,2) DEFAULT 0.00,
+                total_further_tax DECIMAL(15,2) DEFAULT 0.00,
+                total_amount DECIMAL(15,2) DEFAULT 0.00,
+                remarks TEXT,
+                is_cancelled TINYINT DEFAULT 0,
+                converted_to_dc INT DEFAULT 0,
+                converted_to_invtax INT DEFAULT 0,
+                converted_to_invnontax INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX (company_id),
+                INDEX (customer_coa_id),
+                INDEX (serial_no)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-    $soCols = $pdo->query("SHOW COLUMNS FROM sale_orders")->fetchAll(PDO::FETCH_COLUMN);
-    $soNewCols = [
-        'converted_to_dc' => 'INT DEFAULT 0',
-        'converted_to_invtax' => 'INT DEFAULT 0',
-        'converted_to_invnontax' => 'INT DEFAULT 0',
-        'customer_address' => 'VARCHAR(500) DEFAULT ""',
-        'customer_telephone' => 'VARCHAR(100) DEFAULT ""',
-        'customer_ntn' => 'VARCHAR(100) DEFAULT ""',
-        'customer_gst' => 'VARCHAR(100) DEFAULT ""'
-    ];
-    foreach ($soNewCols as $col => $def) {
-        if (!in_array($col, $soCols)) {
-            $pdo->exec("ALTER TABLE sale_orders ADD COLUMN $col $def");
-        }
+            $soCols = $pdo->query("SHOW COLUMNS FROM sale_orders")->fetchAll(PDO::FETCH_COLUMN);
+            $soNewCols = [
+                'converted_to_dc' => 'INT DEFAULT 0',
+                'converted_to_invtax' => 'INT DEFAULT 0',
+                'converted_to_invnontax' => 'INT DEFAULT 0',
+                'customer_address' => 'VARCHAR(500) DEFAULT ""',
+                'customer_telephone' => 'VARCHAR(100) DEFAULT ""',
+                'customer_ntn' => 'VARCHAR(100) DEFAULT ""',
+                'customer_gst' => 'VARCHAR(100) DEFAULT ""'
+            ];
+            foreach ($soNewCols as $col => $def) {
+                if (!in_array($col, $soCols)) {
+                    $pdo->exec("ALTER TABLE sale_orders ADD COLUMN $col $def");
+                }
+            }
+
+            $pdo->exec("CREATE TABLE IF NOT EXISTS sale_order_items (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    sale_order_id INT NOT NULL,
+                    item_id INT NOT NULL,
+                    item_type ENUM('inventory', 'service') DEFAULT 'inventory',
+                    pieces DECIMAL(15,2) DEFAULT 0.00,
+                    qty DECIMAL(15,2) DEFAULT 0.00,
+                    rate DECIMAL(15,2) DEFAULT 0.00,
+                    val_excl_tax DECIMAL(15,2) DEFAULT 0.00,
+                    tax_rate DECIMAL(15,2) DEFAULT 0.00,
+                    tax_amount DECIMAL(15,2) DEFAULT 0.00,
+                    further_tax_rate DECIMAL(15,2) DEFAULT 0.00,
+                    further_tax_amount DECIMAL(15,2) DEFAULT 0.00,
+                    val_incl_tax DECIMAL(15,2) DEFAULT 0.00,
+                    FOREIGN KEY (sale_order_id) REFERENCES sale_orders(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+        } catch (Exception $e) {}
     }
-
-    $pdo->exec("CREATE TABLE IF NOT EXISTS sale_order_items (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            sale_order_id INT NOT NULL,
-            item_id INT NOT NULL,
-            item_type ENUM('inventory', 'service') DEFAULT 'inventory',
-            pieces DECIMAL(15,2) DEFAULT 0.00,
-            qty DECIMAL(15,2) DEFAULT 0.00,
-            rate DECIMAL(15,2) DEFAULT 0.00,
-            val_excl_tax DECIMAL(15,2) DEFAULT 0.00,
-            tax_rate DECIMAL(15,2) DEFAULT 0.00,
-            tax_amount DECIMAL(15,2) DEFAULT 0.00,
-            further_tax_rate DECIMAL(15,2) DEFAULT 0.00,
-            further_tax_amount DECIMAL(15,2) DEFAULT 0.00,
-            val_incl_tax DECIMAL(15,2) DEFAULT 0.00,
-            FOREIGN KEY (sale_order_id) REFERENCES sale_orders(id) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    } catch (Exception $e) {}
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {

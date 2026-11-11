@@ -6,102 +6,104 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $company_id = $_GET['company_id'] ?? $_POST['company_id'] ?? 1;
 
 // MIGRATION: Ensure Quotation tables exist
-if (!in_array($action, ['get_all_inventory', 'get_customers_and_vendors'])) {
-    try {
-        $pdo->exec("CREATE TABLE IF NOT EXISTS quotations (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            company_id INT NOT NULL,
-            serial_no INT NOT NULL,
-            date DATE,
-            valid_till DATE,
-            subject_line VARCHAR(255) DEFAULT 'QUOTATION',
-            customer_coa_id INT,
-            job_id INT,
-            employee_id INT,
-            terms_of_payment TEXT,
-            total_pieces DECIMAL(15,2) DEFAULT 0.00,
-            total_qty DECIMAL(15,2) DEFAULT 0.00,
-            total_excl_tax DECIMAL(15,2) DEFAULT 0.00,
-            total_tax_amount DECIMAL(15,2) DEFAULT 0.00,
-            total_further_tax DECIMAL(15,2) DEFAULT 0.00,
-            total_amount DECIMAL(15,2) DEFAULT 0.00,
-            remarks TEXT,
-            terms_conditions TEXT,
-            is_cancelled TINYINT DEFAULT 0,
-            is_converted TINYINT DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX (company_id),
-            INDEX (customer_coa_id),
-            INDEX (serial_no)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+if (shouldRunMigration('quotations_schema', 1)) {
+    if (!in_array($action, ['get_all_inventory', 'get_customers_and_vendors'])) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS quotations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                company_id INT NOT NULL,
+                serial_no INT NOT NULL,
+                date DATE,
+                valid_till DATE,
+                subject_line VARCHAR(255) DEFAULT 'QUOTATION',
+                customer_coa_id INT,
+                job_id INT,
+                employee_id INT,
+                terms_of_payment TEXT,
+                total_pieces DECIMAL(15,2) DEFAULT 0.00,
+                total_qty DECIMAL(15,2) DEFAULT 0.00,
+                total_excl_tax DECIMAL(15,2) DEFAULT 0.00,
+                total_tax_amount DECIMAL(15,2) DEFAULT 0.00,
+                total_further_tax DECIMAL(15,2) DEFAULT 0.00,
+                total_amount DECIMAL(15,2) DEFAULT 0.00,
+                remarks TEXT,
+                terms_conditions TEXT,
+                is_cancelled TINYINT DEFAULT 0,
+                is_converted TINYINT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX (company_id),
+                INDEX (customer_coa_id),
+                INDEX (serial_no)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-        // Ensure table exists
-        $pdo->exec("CREATE TABLE IF NOT EXISTS quotation_items (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            quotation_id INT NOT NULL,
-            item_coa_id INT NOT NULL,
-            pieces DECIMAL(15,2) DEFAULT 0.00,
-            qty DECIMAL(15,2) DEFAULT 0.00,
-            rate DECIMAL(15,2) DEFAULT 0.00,
-            val_excl_tax DECIMAL(15,2) DEFAULT 0.00,
-            tax_rate DECIMAL(15,2) DEFAULT 0.00,
-            tax_amount DECIMAL(15,2) DEFAULT 0.00,
-            further_tax_rate DECIMAL(15,2) DEFAULT 0.00,
-            further_tax_amount DECIMAL(15,2) DEFAULT 0.00,
-            val_incl_tax DECIMAL(15,2) DEFAULT 0.00,
-            FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            // Ensure table exists
+            $pdo->exec("CREATE TABLE IF NOT EXISTS quotation_items (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                quotation_id INT NOT NULL,
+                item_coa_id INT NOT NULL,
+                pieces DECIMAL(15,2) DEFAULT 0.00,
+                qty DECIMAL(15,2) DEFAULT 0.00,
+                rate DECIMAL(15,2) DEFAULT 0.00,
+                val_excl_tax DECIMAL(15,2) DEFAULT 0.00,
+                tax_rate DECIMAL(15,2) DEFAULT 0.00,
+                tax_amount DECIMAL(15,2) DEFAULT 0.00,
+                further_tax_rate DECIMAL(15,2) DEFAULT 0.00,
+                further_tax_amount DECIMAL(15,2) DEFAULT 0.00,
+                val_incl_tax DECIMAL(15,2) DEFAULT 0.00,
+                FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-        // Advanced Migration: Check and Add missing columns
-        $cols = $pdo->query("SHOW COLUMNS FROM quotation_items")->fetchAll(PDO::FETCH_COLUMN);
-        
-        if (!in_array('item_coa_id', $cols)) {
-            if (in_array('inventory_id', $cols)) {
-                $pdo->exec("ALTER TABLE quotation_items CHANGE COLUMN inventory_id item_coa_id INT NOT NULL");
-            } else {
-                $pdo->exec("ALTER TABLE quotation_items ADD COLUMN item_coa_id INT NOT NULL AFTER quotation_id");
+            // Advanced Migration: Check and Add missing columns
+            $cols = $pdo->query("SHOW COLUMNS FROM quotation_items")->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!in_array('item_coa_id', $cols)) {
+                if (in_array('inventory_id', $cols)) {
+                    $pdo->exec("ALTER TABLE quotation_items CHANGE COLUMN inventory_id item_coa_id INT NOT NULL");
+                } else {
+                    $pdo->exec("ALTER TABLE quotation_items ADD COLUMN item_coa_id INT NOT NULL AFTER quotation_id");
+                }
             }
-        }
-        
-        $qCols = $pdo->query("SHOW COLUMNS FROM quotations")->fetchAll(PDO::FETCH_COLUMN);
-        $newCols = ['converted_to_so', 'converted_to_dc', 'converted_to_inv_tax', 'converted_to_inv_nontax'];
-        foreach ($newCols as $col) {
-            if (!in_array($col, $qCols)) {
-                $pdo->exec("ALTER TABLE quotations ADD COLUMN $col INT DEFAULT 0");
+            
+            $qCols = $pdo->query("SHOW COLUMNS FROM quotations")->fetchAll(PDO::FETCH_COLUMN);
+            $newCols = ['converted_to_so', 'converted_to_dc', 'converted_to_inv_tax', 'converted_to_inv_nontax'];
+            foreach ($newCols as $col) {
+                if (!in_array($col, $qCols)) {
+                    $pdo->exec("ALTER TABLE quotations ADD COLUMN $col INT DEFAULT 0");
+                }
             }
-        }
-        if (!in_array('customer_address', $qCols)) {
-            $pdo->exec("ALTER TABLE quotations ADD COLUMN customer_address VARCHAR(500) DEFAULT ''");
-        }
-        if (!in_array('customer_telephone', $qCols)) {
-            $pdo->exec("ALTER TABLE quotations ADD COLUMN customer_telephone VARCHAR(100) DEFAULT ''");
-        }
-        if (!in_array('contact_person', $qCols)) {
-            $pdo->exec("ALTER TABLE quotations ADD COLUMN contact_person VARCHAR(255) DEFAULT ''");
-        }
-        
-        if (!in_array('pieces', $cols)) {
-            $pdo->exec("ALTER TABLE quotation_items ADD COLUMN pieces DECIMAL(15,2) DEFAULT 0.00 AFTER item_coa_id");
-        }
-        
-        // Ensure other needed columns exist (fallback)
-        $needed = [
-            'qty' => 'DECIMAL(15,2) DEFAULT 0.00',
-            'rate' => 'DECIMAL(15,2) DEFAULT 0.00',
-            'val_excl_tax' => 'DECIMAL(15,2) DEFAULT 0.00',
-            'tax_rate' => 'DECIMAL(15,2) DEFAULT 0.00',
-            'tax_amount' => 'DECIMAL(15,2) DEFAULT 0.00',
-            'further_tax_rate' => 'DECIMAL(15,2) DEFAULT 0.00',
-            'further_tax_amount' => 'DECIMAL(15,2) DEFAULT 0.00',
-            'val_incl_tax' => 'DECIMAL(15,2) DEFAULT 0.00'
-        ];
-        foreach ($needed as $col => $def) {
-            if (!in_array($col, $cols)) {
-                $pdo->exec("ALTER TABLE quotation_items ADD COLUMN $col $def");
+            if (!in_array('customer_address', $qCols)) {
+                $pdo->exec("ALTER TABLE quotations ADD COLUMN customer_address VARCHAR(500) DEFAULT ''");
             }
-        }
+            if (!in_array('customer_telephone', $qCols)) {
+                $pdo->exec("ALTER TABLE quotations ADD COLUMN customer_telephone VARCHAR(100) DEFAULT ''");
+            }
+            if (!in_array('contact_person', $qCols)) {
+                $pdo->exec("ALTER TABLE quotations ADD COLUMN contact_person VARCHAR(255) DEFAULT ''");
+            }
+            
+            if (!in_array('pieces', $cols)) {
+                $pdo->exec("ALTER TABLE quotation_items ADD COLUMN pieces DECIMAL(15,2) DEFAULT 0.00 AFTER item_coa_id");
+            }
+            
+            // Ensure other needed columns exist (fallback)
+            $needed = [
+                'qty' => 'DECIMAL(15,2) DEFAULT 0.00',
+                'rate' => 'DECIMAL(15,2) DEFAULT 0.00',
+                'val_excl_tax' => 'DECIMAL(15,2) DEFAULT 0.00',
+                'tax_rate' => 'DECIMAL(15,2) DEFAULT 0.00',
+                'tax_amount' => 'DECIMAL(15,2) DEFAULT 0.00',
+                'further_tax_rate' => 'DECIMAL(15,2) DEFAULT 0.00',
+                'further_tax_amount' => 'DECIMAL(15,2) DEFAULT 0.00',
+                'val_incl_tax' => 'DECIMAL(15,2) DEFAULT 0.00'
+            ];
+            foreach ($needed as $col => $def) {
+                if (!in_array($col, $cols)) {
+                    $pdo->exec("ALTER TABLE quotation_items ADD COLUMN $col $def");
+                }
+            }
 
-    } catch (Exception $e) {}
+        } catch (Exception $e) {}
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {

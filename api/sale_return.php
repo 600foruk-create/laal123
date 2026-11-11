@@ -6,121 +6,123 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json');
 require_once 'db_config.php';
 
-// MIGRATION: Ensure Sale Invoice tables exist
-try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS sale_returns (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        company_id INT NOT NULL,
-        serial_no INT NOT NULL,
-        is_tax_return TINYINT(1) DEFAULT 0,
-        return_date DATE,
-        return_type VARCHAR(50),
-        sale_invoice_no VARCHAR(100),
-        sale_invoice_date DATE,
-        nature_of_credit_note VARCHAR(100),
-        dummy_field DATE,
-        payment_terms VARCHAR(255),
-        income_account VARCHAR(50),
-        customer_coa_id INT NOT NULL,
-        inventory_location_id INT,
-        job_no VARCHAR(100),
-        employee_ref VARCHAR(100),
-        amount_in_words VARCHAR(255),
-        remarks TEXT,
-        carriage_freight DECIMAL(15,2) DEFAULT 0,
-        additional_discount DECIMAL(15,2) DEFAULT 0,
-        net_total DECIMAL(15,2) DEFAULT 0,
-        amount_paid DECIMAL(15,2) DEFAULT 0,
-        is_cancelled TINYINT DEFAULT 0,
-        is_posted TINYINT(1) DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX (company_id),
-        INDEX (serial_no),
-        INDEX (is_tax_return)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+// MIGRATION: Ensure Sale Return tables exist
+if (shouldRunMigration('sale_returns_schema', 1)) {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS sale_returns (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_id INT NOT NULL,
+            serial_no INT NOT NULL,
+            is_tax_return TINYINT(1) DEFAULT 0,
+            return_date DATE,
+            return_type VARCHAR(50),
+            sale_invoice_no VARCHAR(100),
+            sale_invoice_date DATE,
+            nature_of_credit_note VARCHAR(100),
+            dummy_field DATE,
+            payment_terms VARCHAR(255),
+            income_account VARCHAR(50),
+            customer_coa_id INT NOT NULL,
+            inventory_location_id INT,
+            job_no VARCHAR(100),
+            employee_ref VARCHAR(100),
+            amount_in_words VARCHAR(255),
+            remarks TEXT,
+            carriage_freight DECIMAL(15,2) DEFAULT 0,
+            additional_discount DECIMAL(15,2) DEFAULT 0,
+            net_total DECIMAL(15,2) DEFAULT 0,
+            amount_paid DECIMAL(15,2) DEFAULT 0,
+            is_cancelled TINYINT DEFAULT 0,
+            is_posted TINYINT(1) DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX (company_id),
+            INDEX (serial_no),
+            INDEX (is_tax_return)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-    $pdo->exec("CREATE TABLE IF NOT EXISTS sale_return_items (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        return_id INT NOT NULL,
-        item_coa_id INT NOT NULL,
-        description TEXT,
-        pieces DECIMAL(15,2) DEFAULT 0,
-        quantity DECIMAL(15,2) DEFAULT 0,
-        unit VARCHAR(50),
-        rate DECIMAL(15,2) DEFAULT 0,
-        gross_amount DECIMAL(15,2) DEFAULT 0,
-        discount_percent DECIMAL(15,2) DEFAULT 0,
-        discount_amount DECIMAL(15,2) DEFAULT 0,
-        sales_tax_rate DECIMAL(15,2) DEFAULT 0,
-        sales_tax_amount DECIMAL(15,2) DEFAULT 0,
-        further_tax_rate DECIMAL(15,2) DEFAULT 0,
-        further_tax_amount DECIMAL(15,2) DEFAULT 0,
-        net_amount DECIMAL(15,2) DEFAULT 0,
-        FOREIGN KEY (return_id) REFERENCES sale_returns(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS sale_return_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            return_id INT NOT NULL,
+            item_coa_id INT NOT NULL,
+            description TEXT,
+            pieces DECIMAL(15,2) DEFAULT 0,
+            quantity DECIMAL(15,2) DEFAULT 0,
+            unit VARCHAR(50),
+            rate DECIMAL(15,2) DEFAULT 0,
+            gross_amount DECIMAL(15,2) DEFAULT 0,
+            discount_percent DECIMAL(15,2) DEFAULT 0,
+            discount_amount DECIMAL(15,2) DEFAULT 0,
+            sales_tax_rate DECIMAL(15,2) DEFAULT 0,
+            sales_tax_amount DECIMAL(15,2) DEFAULT 0,
+            further_tax_rate DECIMAL(15,2) DEFAULT 0,
+            further_tax_amount DECIMAL(15,2) DEFAULT 0,
+            net_amount DECIMAL(15,2) DEFAULT 0,
+            FOREIGN KEY (return_id) REFERENCES sale_returns(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-    // Idempotent column checks/additions for existing sale_returns table
-    $columns_returns = [
-        'company_id' => "INT NOT NULL",
-        'serial_no' => "INT NOT NULL",
-        'is_tax_return' => "TINYINT(1) DEFAULT 0",
-        'return_date' => "DATE",
-        'return_type' => "VARCHAR(50)",
-        'sale_invoice_no' => "VARCHAR(100)",
-        'sale_invoice_date' => "DATE",
-        'nature_of_credit_note' => "VARCHAR(100)",
-        'dummy_field' => "DATE",
-        'payment_terms' => "VARCHAR(255)",
-        'income_account' => "VARCHAR(50)",
-        'customer_coa_id' => "INT NOT NULL",
-        'inventory_location_id' => "INT",
-        'job_no' => "VARCHAR(100)",
-        'employee_ref' => "VARCHAR(100)",
-        'amount_in_words' => "VARCHAR(255)",
-        'remarks' => "TEXT",
-        'carriage_freight' => "DECIMAL(15,2) DEFAULT 0",
-        'additional_discount' => "DECIMAL(15,2) DEFAULT 0",
-        'net_total' => "DECIMAL(15,2) DEFAULT 0",
-        'amount_paid' => "DECIMAL(15,2) DEFAULT 0",
-        'is_cancelled' => "TINYINT DEFAULT 0",
-        'is_posted' => "TINYINT(1) DEFAULT 0",
-        'customer_address' => "TEXT",
-        'customer_telephone' => "VARCHAR(100)",
-        'customer_ntn' => "VARCHAR(100)",
-        'customer_gst' => "VARCHAR(100)"
-    ];
-    $srCols = $pdo->query("SHOW COLUMNS FROM sale_returns")->fetchAll(PDO::FETCH_COLUMN);
-    foreach ($columns_returns as $col => $definition) {
-        if (!in_array($col, $srCols)) {
-            $pdo->exec("ALTER TABLE sale_returns ADD COLUMN `$col` $definition");
+        // Idempotent column checks/additions for existing sale_returns table
+        $columns_returns = [
+            'company_id' => "INT NOT NULL",
+            'serial_no' => "INT NOT NULL",
+            'is_tax_return' => "TINYINT(1) DEFAULT 0",
+            'return_date' => "DATE",
+            'return_type' => "VARCHAR(50)",
+            'sale_invoice_no' => "VARCHAR(100)",
+            'sale_invoice_date' => "DATE",
+            'nature_of_credit_note' => "VARCHAR(100)",
+            'dummy_field' => "DATE",
+            'payment_terms' => "VARCHAR(255)",
+            'income_account' => "VARCHAR(50)",
+            'customer_coa_id' => "INT NOT NULL",
+            'inventory_location_id' => "INT",
+            'job_no' => "VARCHAR(100)",
+            'employee_ref' => "VARCHAR(100)",
+            'amount_in_words' => "VARCHAR(255)",
+            'remarks' => "TEXT",
+            'carriage_freight' => "DECIMAL(15,2) DEFAULT 0",
+            'additional_discount' => "DECIMAL(15,2) DEFAULT 0",
+            'net_total' => "DECIMAL(15,2) DEFAULT 0",
+            'amount_paid' => "DECIMAL(15,2) DEFAULT 0",
+            'is_cancelled' => "TINYINT DEFAULT 0",
+            'is_posted' => "TINYINT(1) DEFAULT 0",
+            'customer_address' => "TEXT",
+            'customer_telephone' => "VARCHAR(100)",
+            'customer_ntn' => "VARCHAR(100)",
+            'customer_gst' => "VARCHAR(100)"
+        ];
+        $srCols = $pdo->query("SHOW COLUMNS FROM sale_returns")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($columns_returns as $col => $definition) {
+            if (!in_array($col, $srCols)) {
+                $pdo->exec("ALTER TABLE sale_returns ADD COLUMN `$col` $definition");
+            }
         }
-    }
 
-    // Idempotent column checks/additions for existing sale_return_items table
-    $columns_items = [
-        'return_id' => "INT NOT NULL",
-        'item_coa_id' => "INT NOT NULL",
-        'description' => "TEXT",
-        'pieces' => "DECIMAL(15,2) DEFAULT 0",
-        'quantity' => "DECIMAL(15,2) DEFAULT 0",
-        'unit' => "VARCHAR(50)",
-        'rate' => "DECIMAL(15,2) DEFAULT 0",
-        'gross_amount' => "DECIMAL(15,2) DEFAULT 0",
-        'discount_percent' => "DECIMAL(15,2) DEFAULT 0",
-        'discount_amount' => "DECIMAL(15,2) DEFAULT 0",
-        'sales_tax_rate' => "DECIMAL(15,2) DEFAULT 0",
-        'sales_tax_amount' => "DECIMAL(15,2) DEFAULT 0",
-        'further_tax_rate' => "DECIMAL(15,2) DEFAULT 0",
-        'further_tax_amount' => "DECIMAL(15,2) DEFAULT 0",
-        'net_amount' => "DECIMAL(15,2) DEFAULT 0"
-    ];
-    $sriCols = $pdo->query("SHOW COLUMNS FROM sale_return_items")->fetchAll(PDO::FETCH_COLUMN);
-    foreach ($columns_items as $col => $definition) {
-        if (!in_array($col, $sriCols)) {
-            $pdo->exec("ALTER TABLE sale_return_items ADD COLUMN `$col` $definition");
+        // Idempotent column checks/additions for existing sale_return_items table
+        $columns_items = [
+            'return_id' => "INT NOT NULL",
+            'item_coa_id' => "INT NOT NULL",
+            'description' => "TEXT",
+            'pieces' => "DECIMAL(15,2) DEFAULT 0",
+            'quantity' => "DECIMAL(15,2) DEFAULT 0",
+            'unit' => "VARCHAR(50)",
+            'rate' => "DECIMAL(15,2) DEFAULT 0",
+            'gross_amount' => "DECIMAL(15,2) DEFAULT 0",
+            'discount_percent' => "DECIMAL(15,2) DEFAULT 0",
+            'discount_amount' => "DECIMAL(15,2) DEFAULT 0",
+            'sales_tax_rate' => "DECIMAL(15,2) DEFAULT 0",
+            'sales_tax_amount' => "DECIMAL(15,2) DEFAULT 0",
+            'further_tax_rate' => "DECIMAL(15,2) DEFAULT 0",
+            'further_tax_amount' => "DECIMAL(15,2) DEFAULT 0",
+            'net_amount' => "DECIMAL(15,2) DEFAULT 0"
+        ];
+        $sriCols = $pdo->query("SHOW COLUMNS FROM sale_return_items")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($columns_items as $col => $definition) {
+            if (!in_array($col, $sriCols)) {
+                $pdo->exec("ALTER TABLE sale_return_items ADD COLUMN `$col` $definition");
+            }
         }
-    }
-} catch (Exception $e) {}
+    } catch (Exception $e) {}
+}
 
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';

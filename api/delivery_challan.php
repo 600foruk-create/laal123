@@ -6,60 +6,64 @@ $action = $_GET['action'] ?? '';
 $company_id = $_SESSION['company_id'] ?? 1;
 
 // Initialize Tables
-$pdo->exec("CREATE TABLE IF NOT EXISTS delivery_challans (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    company_id INT NOT NULL,
-    serial_no INT NOT NULL,
-    date DATE NOT NULL,
-    customer_coa_id INT,
-    purchase_order_no VARCHAR(100),
-    purchase_order_date DATE,
-    job_id INT,
-    inventory_location_id INT,
-    vehicle_description TEXT,
-    driver_name VARCHAR(100),
-    time_of_supply TIME,
-    remarks TEXT,
-    total_pieces DECIMAL(15,2) DEFAULT 0,
-    total_qty DECIMAL(15,2) DEFAULT 0,
-    is_cancelled TINYINT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX (company_id, serial_no)
-) ENGINE=InnoDB");
+if (shouldRunMigration('delivery_challans_schema', 1)) {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS delivery_challans (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_id INT NOT NULL,
+            serial_no INT NOT NULL,
+            date DATE NOT NULL,
+            customer_coa_id INT,
+            purchase_order_no VARCHAR(100),
+            purchase_order_date DATE,
+            job_id INT,
+            inventory_location_id INT,
+            vehicle_description TEXT,
+            driver_name VARCHAR(100),
+            time_of_supply TIME,
+            remarks TEXT,
+            total_pieces DECIMAL(15,2) DEFAULT 0,
+            total_qty DECIMAL(15,2) DEFAULT 0,
+            is_cancelled TINYINT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX (company_id, serial_no)
+        ) ENGINE=InnoDB");
 
-$pdo->exec("CREATE TABLE IF NOT EXISTS delivery_challan_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    challan_id INT NOT NULL,
-    item_id INT NOT NULL,
-    pieces DECIMAL(15,2) DEFAULT 0,
-    qty DECIMAL(15,2) DEFAULT 0,
-    packing_detail TEXT,
-    sort_order INT DEFAULT 0,
-    FOREIGN KEY (challan_id) REFERENCES delivery_challans(id) ON DELETE CASCADE
-) ENGINE=InnoDB");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS delivery_challan_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            challan_id INT NOT NULL,
+            item_id INT NOT NULL,
+            pieces DECIMAL(15,2) DEFAULT 0,
+            qty DECIMAL(15,2) DEFAULT 0,
+            packing_detail TEXT,
+            sort_order INT DEFAULT 0,
+            FOREIGN KEY (challan_id) REFERENCES delivery_challans(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB");
 
-    $dcCols = $pdo->query("SHOW COLUMNS FROM delivery_challans")->fetchAll(PDO::FETCH_COLUMN);
-    if (!in_array('customer_address', $dcCols)) {
-        $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN customer_address VARCHAR(500) DEFAULT ''");
-    }
-    if (!in_array('customer_telephone', $dcCols)) {
-        $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN customer_telephone VARCHAR(100) DEFAULT ''");
-    }
-    if (!in_array('is_stn', $dcCols)) {
-        $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN is_stn TINYINT DEFAULT 0");
-    }
-    if (!in_array('driver_cnic', $dcCols)) {
-        $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN driver_cnic VARCHAR(50) DEFAULT ''");
-    }
-    if (!in_array('stn_no', $dcCols)) {
-        $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN stn_no VARCHAR(50) DEFAULT ''");
-    }
-    if (!in_array('total_value', $dcCols)) {
-        $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN total_value DECIMAL(15,2) DEFAULT 0");
-    }
-    if (!in_array('driver_mobile', $dcCols)) {
-        $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN driver_mobile VARCHAR(50) DEFAULT ''");
-    }
+        $dcCols = $pdo->query("SHOW COLUMNS FROM delivery_challans")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('customer_address', $dcCols)) {
+            $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN customer_address VARCHAR(500) DEFAULT ''");
+        }
+        if (!in_array('customer_telephone', $dcCols)) {
+            $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN customer_telephone VARCHAR(100) DEFAULT ''");
+        }
+        if (!in_array('is_stn', $dcCols)) {
+            $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN is_stn TINYINT DEFAULT 0");
+        }
+        if (!in_array('driver_cnic', $dcCols)) {
+            $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN driver_cnic VARCHAR(50) DEFAULT ''");
+        }
+        if (!in_array('stn_no', $dcCols)) {
+            $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN stn_no VARCHAR(50) DEFAULT ''");
+        }
+        if (!in_array('total_value', $dcCols)) {
+            $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN total_value DECIMAL(15,2) DEFAULT 0");
+        }
+        if (!in_array('driver_mobile', $dcCols)) {
+            $pdo->exec("ALTER TABLE delivery_challans ADD COLUMN driver_mobile VARCHAR(50) DEFAULT ''");
+        }
+    } catch (Exception $e) {}
+}
 
 switch ($action) {
     case 'get_next_serial_no':
