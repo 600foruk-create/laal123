@@ -950,24 +950,24 @@
                     </label>
                     <div style="display: flex; gap: 6px;">
                         <span style="display: flex; align-items: center; justify-content: center; background: #e2e8f0; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-weight: bold; color: #475569; font-size: 13px;">+92</span>
-                        <input type="text" id="si_wa_phone_input" placeholder="03001234567 ya 3001234567" onkeydown="if(event.key === 'Enter') window.SIModule.executeSendWhatsApp('web');" style="flex: 1; height: 36px; padding: 0 10px; border: 1px solid #94a3b8; border-radius: 4px; font-size: 14px; font-weight: 600; outline: none;">
+                        <input type="text" id="si_wa_phone_input" placeholder="03001234567 ya 3001234567" onkeydown="if(event.key === 'Enter') window.SIModule.executeSendWhatsApp('app');" style="flex: 1; height: 36px; padding: 0 10px; border: 1px solid #94a3b8; border-radius: 4px; font-size: 14px; font-weight: 600; outline: none;">
                     </div>
                     <div style="color: #64748b; font-size: 11px; margin-top: 4px;">
-                        Tip: Number enter karke Enter dabayein ya direct button click karein.
+                        Tip: Number enter karke <strong>Enter</strong> dabayein ya direct button click karein.
                     </div>
                 </div>
 
                 <!-- Action Buttons -->
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
-                    <button type="button" onclick="window.SIModule.executeSendWhatsApp('web')" style="background: #25D366; color: white; border: none; height: 38px; border-radius: 5px; font-weight: bold; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 4px rgba(37,211,102,0.3);">
-                        <i class="fab fa-whatsapp" style="font-size: 18px;"></i> Open in WhatsApp Web
+                    <button type="button" onclick="window.SIModule.executeSendWhatsApp('app')" style="background: #25D366; color: white; border: none; height: 42px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(37,211,102,0.35);">
+                        <i class="fab fa-whatsapp" style="font-size: 20px;"></i> Open in WhatsApp Desktop App (Computer)
                     </button>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" onclick="window.SIModule.executeSendWhatsApp('app')" style="flex: 1; background: #075E54; color: white; border: none; height: 34px; border-radius: 5px; font-weight: 600; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                            <i class="fas fa-external-link-alt"></i> WhatsApp App
+                        <button type="button" onclick="window.SIModule.executeSendWhatsApp('any')" style="flex: 1; background: #075E54; color: white; border: none; height: 34px; border-radius: 5px; font-weight: 600; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <i class="fas fa-users"></i> App: Pick Contact
                         </button>
-                        <button type="button" onclick="window.SIModule.executeSendWhatsApp('any')" style="flex: 1; background: #0284c7; color: white; border: none; height: 34px; border-radius: 5px; font-weight: 600; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                            <i class="fas fa-users"></i> Pick Contact
+                        <button type="button" onclick="window.SIModule.executeSendWhatsApp('web')" style="flex: 1; background: #0284c7; color: white; border: none; height: 34px; border-radius: 5px; font-weight: 600; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <i class="fas fa-globe"></i> WhatsApp Web
                         </button>
                         <button type="button" onclick="window.SIModule.copyWhatsAppText()" style="background: #475569; color: white; border: none; height: 34px; padding: 0 14px; border-radius: 5px; font-weight: 600; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
                             <i class="fas fa-copy"></i> Copy

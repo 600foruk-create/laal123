@@ -3357,7 +3357,7 @@ window.SIModule = {
         return msg;
     },
 
-    executeSendWhatsApp: function(target = 'web') {
+    executeSendWhatsApp: function(target = 'app') {
         const phoneInput = document.getElementById('si_wa_phone_input');
         const rawPhone = phoneInput ? phoneInput.value.trim() : (document.getElementById('si_cust_phone')?.value || '').trim();
         
@@ -3376,19 +3376,36 @@ window.SIModule = {
         }
 
         const msg = this.buildWhatsAppMessage();
-        let url = '';
+        this.closeWhatsAppModal();
 
         if (target === 'app') {
-            url = phone ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+            // Direct launch of Windows WhatsApp Desktop application
+            const appUrl = phone 
+                ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}` 
+                : `whatsapp://send?text=${encodeURIComponent(msg)}`;
+            
+            const a = document.createElement('a');
+            a.href = appUrl;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+            return;
         } else if (target === 'any') {
-            url = `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+            // Pick contact in WhatsApp Desktop App
+            const appUrl = `whatsapp://send?text=${encodeURIComponent(msg)}`;
+            const a = document.createElement('a');
+            a.href = appUrl;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+            return;
         } else {
-            // Default: WhatsApp Web
-            url = phone ? `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}` : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+            // Web browser WhatsApp
+            const webUrl = phone 
+                ? `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}` 
+                : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+            window.open(webUrl, '_blank');
         }
-
-        this.closeWhatsAppModal();
-        window.open(url, '_blank');
     },
 
     copyWhatsAppText: function() {
