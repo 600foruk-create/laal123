@@ -3274,11 +3274,14 @@ window.SIModule = {
     },
 
     shareWhatsApp: function() {
-        const serialNo = (document.getElementById('si_serial_no')?.value || '').trim();
+        const serialNo = (document.getElementById('si_sn')?.value || (this.currentId ? String(this.currentId) : '')).trim();
         const date = (document.getElementById('si_date')?.value || '').trim();
-        const custTitle = (document.getElementById('si_cust_title')?.value || '').trim();
-        const telephone = (document.getElementById('si_cust_telephone')?.value || '').trim();
-        const netTotal = (document.getElementById('si_net_total')?.value || '0.00').trim();
+        const custName = (document.getElementById('si_cust_name')?.value || '').trim();
+        const telephone = (document.getElementById('si_cust_phone')?.value || '').trim();
+        const netTotal = (document.getElementById('si_net_tot')?.value || '0.00').trim();
+        const paidAmount = (document.getElementById('si_paid')?.value || '0.00').trim();
+        const balance = (document.getElementById('si_balance')?.value || '0.00').trim();
+        const custBalance = (document.getElementById('si_cust_balance')?.value || '').trim();
 
         if (!serialNo) {
             alert('Please select or save an invoice first before sharing on WhatsApp.');
@@ -3294,24 +3297,60 @@ window.SIModule = {
         }
 
         if (!phone) {
-            const entered = prompt('Customer mobile number not found. Enter customer WhatsApp number (e.g. 03001234567):', '');
+            const entered = prompt(`Customer "${custName || 'Selected'}" ka WhatsApp number enter karein (maslan: 03001234567):`, '');
             if (!entered) return;
+            const phoneField = document.getElementById('si_cust_phone');
+            if (phoneField && !phoneField.value) phoneField.value = entered.trim();
+
             phone = entered.replace(/[^0-9]/g, '');
-            if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+            if (phone.startsWith('03')) {
+                phone = '92' + phone.substring(1);
+            } else if (phone.length === 10 && phone.startsWith('3')) {
+                phone = '92' + phone;
+            }
         }
 
-        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
-        const companyName = session.company_name || 'SoftifyX ERP';
-        const msg = `*${companyName.toUpperCase()}*\n` +
-                    `*SALE INVOICE SUMMARY*\n\n` +
-                    `📄 *Invoice #:* ${serialNo}\n` +
-                    `📅 *Date:* ${date}\n` +
-                    `👤 *Customer:* ${custTitle}\n` +
-                    `💰 *Net Total:* Rs. ${netTotal}\n\n` +
-                    `Thank you for your valued business!`;
+        if (!phone || phone.length < 10) {
+            alert('Valid WhatsApp number required (e.g. 03001234567)!');
+            return;
+        }
 
-        const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
+        let companyName = 'SoftifyX ERP';
+        try {
+            const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            if (session.company_name) companyName = session.company_name;
+        } catch(e) {}
+
+        let msg = `*${companyName.toUpperCase()}*\n`;
+        msg += `*SALE INVOICE SUMMARY*\n`;
+        msg += `--------------------------------\n`;
+        msg += `📄 *Invoice #:* ${serialNo}\n`;
+        if (date) msg += `📅 *Date:* ${date}\n`;
+        if (custName) msg += `👤 *Customer:* ${custName}\n`;
+        msg += `💰 *Net Total:* Rs. ${netTotal}\n`;
+        if (paidAmount && parseFloat(paidAmount.replace(/,/g, '')) > 0) {
+            msg += `💵 *Received:* Rs. ${paidAmount}\n`;
+        }
+        if (balance && balance !== '0.00') {
+            msg += `⚖️ *Invoice Balance:* Rs. ${balance}\n`;
+        }
+        if (custBalance && custBalance !== '0.00' && custBalance !== '0') {
+            msg += `📊 *Total Ledger Balance:* Rs. ${custBalance}\n`;
+        }
+        msg += `--------------------------------\n`;
+        msg += `Thank you for your business!`;
+
+        const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+        const win = window.open(url, '_blank');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
     },
 
     printInvoiceFromModal: async function() {
