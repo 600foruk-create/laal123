@@ -3302,6 +3302,8 @@ window.SIModule = {
         if (balEl) balEl.textContent = 'Rs. ' + (balance || '0.00');
         if (phoneEl) phoneEl.value = currentPhone;
 
+        this.updateWhatsAppLinks();
+
         if (modal) {
             modal.style.display = 'flex';
             setTimeout(() => {
@@ -3312,8 +3314,46 @@ window.SIModule = {
             }, 80);
         } else {
             // Fallback if modal is not present
-            this.executeSendWhatsApp('web');
+            this.executeSendWhatsApp('app');
         }
+    },
+
+    updateWhatsAppLinks: function() {
+        const phoneInput = document.getElementById('si_wa_phone_input');
+        const rawPhone = phoneInput ? phoneInput.value.trim() : (document.getElementById('si_cust_phone')?.value || '').trim();
+
+        let phone = rawPhone.replace(/[^0-9]/g, '');
+        if (phone.startsWith('0092')) phone = phone.substring(2);
+        if (phone.startsWith('9203')) phone = '92' + phone.substring(3);
+        if (phone.startsWith('03')) {
+            phone = '92' + phone.substring(1);
+        } else if (phone.length === 10 && phone.startsWith('3')) {
+            phone = '92' + phone;
+        }
+
+        // Sync entered phone number to invoice form so it can be saved with invoice
+        if (rawPhone && document.getElementById('si_cust_phone')) {
+            document.getElementById('si_cust_phone').value = rawPhone;
+        }
+
+        const msg = this.buildWhatsAppMessage();
+        const appUrl = phone 
+            ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}` 
+            : `whatsapp://send?text=${encodeURIComponent(msg)}`;
+
+        const webUrl = phone 
+            ? `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}` 
+            : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+        const contactAppUrl = `whatsapp://send?text=${encodeURIComponent(msg)}`;
+
+        const desktopBtn = document.getElementById('si_wa_desktop_btn');
+        const webBtn = document.getElementById('si_wa_web_btn');
+        const contactBtn = document.getElementById('si_wa_contact_btn');
+
+        if (desktopBtn) desktopBtn.href = appUrl;
+        if (webBtn) webBtn.href = webUrl;
+        if (contactBtn) contactBtn.href = contactAppUrl;
     },
 
     closeWhatsAppModal: function() {
@@ -3358,53 +3398,29 @@ window.SIModule = {
     },
 
     executeSendWhatsApp: function(target = 'app') {
-        const phoneInput = document.getElementById('si_wa_phone_input');
-        const rawPhone = phoneInput ? phoneInput.value.trim() : (document.getElementById('si_cust_phone')?.value || '').trim();
-        
-        let phone = rawPhone.replace(/[^0-9]/g, '');
-        if (target !== 'any') {
-            if (phone.startsWith('03')) {
-                phone = '92' + phone.substring(1);
-            } else if (phone.length === 10 && phone.startsWith('3')) {
-                phone = '92' + phone;
-            }
-        }
+        this.updateWhatsAppLinks();
 
-        // Sync entered phone number to invoice form so it can be saved with invoice
-        if (rawPhone && document.getElementById('si_cust_phone')) {
-            document.getElementById('si_cust_phone').value = rawPhone;
-        }
-
-        const msg = this.buildWhatsAppMessage();
-        this.closeWhatsAppModal();
+        const desktopBtn = document.getElementById('si_wa_desktop_btn');
+        const webBtn = document.getElementById('si_wa_web_btn');
+        const contactBtn = document.getElementById('si_wa_contact_btn');
 
         if (target === 'app') {
-            // Direct launch of Windows WhatsApp Desktop application
-            const appUrl = phone 
-                ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}` 
-                : `whatsapp://send?text=${encodeURIComponent(msg)}`;
-            
-            const a = document.createElement('a');
-            a.href = appUrl;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+            if (desktopBtn && desktopBtn.href && desktopBtn.href !== '#') {
+                window.location.href = desktopBtn.href;
+            }
+            setTimeout(() => this.closeWhatsAppModal(), 400);
             return;
         } else if (target === 'any') {
-            // Pick contact in WhatsApp Desktop App
-            const appUrl = `whatsapp://send?text=${encodeURIComponent(msg)}`;
-            const a = document.createElement('a');
-            a.href = appUrl;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+            if (contactBtn && contactBtn.href && contactBtn.href !== '#') {
+                window.location.href = contactBtn.href;
+            }
+            setTimeout(() => this.closeWhatsAppModal(), 400);
             return;
         } else {
-            // Web browser WhatsApp
-            const webUrl = phone 
-                ? `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}` 
-                : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
-            window.open(webUrl, '_blank');
+            if (webBtn && webBtn.href && webBtn.href !== '#') {
+                window.open(webBtn.href, '_blank');
+            }
+            this.closeWhatsAppModal();
         }
     },
 
