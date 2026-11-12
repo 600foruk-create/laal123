@@ -1071,6 +1071,11 @@ document.addEventListener('click', function(e) {
                 if (modals.length === 0) return;
                 const activeModal = modals[modals.length - 1]; // topmost modal
                 
+                // If this modal is Journal Report or Account Ledger, bypass global listener so their dedicated handlers run smoothly
+                if (activeModal.querySelector('#journal-table-body, #ledger-table-body')) {
+                    return;
+                }
+
                 // If focus is in an input or select, don't interfere with their native arrow key behavior
                 const activeEl = document.activeElement;
                 if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA')) {
@@ -1081,7 +1086,7 @@ document.addEventListener('click', function(e) {
                     }
                 }
 
-                const selectedRow = activeModal.querySelector('tbody tr.selected');
+                const selectedRow = activeModal.querySelector('tbody tr.selected, tbody tr.selected-row');
                 if (selectedRow) {
                     e.preventDefault();
                     e.stopPropagation();
