@@ -18,12 +18,20 @@
                     Securely export your latest application data. It is recommended to perform this daily and store the backup in a safe location like an external drive. Remember, your data is irreplaceable if lost without a backup.
                 </p>
             </div>
-            <button class="btn btn-primary" onclick="executeBackup()" 
-                style="background-color: #1f4668; color: #fff; border: none; border-radius: 6px; padding: 12px 20px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.2s; width: 100%;"
-                onmouseover="this.style.backgroundColor='#163854'; this.style.transform='translateY(-1px)'" 
-                onmouseout="this.style.backgroundColor='#1f4668'; this.style.transform='translateY(0)'">
-                <i class="fas fa-download"></i> Start Back-Up
-            </button>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-primary" onclick="executeBackup()" 
+                    style="background-color: #1f4668; color: #fff; border: none; border-radius: 6px; padding: 11px 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; width: 100%; font-size: 13px;"
+                    onmouseover="this.style.backgroundColor='#163854'; this.style.transform='translateY(-1px)'" 
+                    onmouseout="this.style.backgroundColor='#1f4668'; this.style.transform='translateY(0)'">
+                    <i class="fas fa-file-code"></i> Application Backup (.JSON)
+                </button>
+                <a href="api/backup.php?format=sql" download
+                    style="background-color: #28a745; color: #fff; text-decoration: none; border: none; border-radius: 6px; padding: 11px 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; width: 100%; box-sizing: border-box; font-size: 13px;"
+                    onmouseover="this.style.backgroundColor='#218838'; this.style.transform='translateY(-1px)'" 
+                    onmouseout="this.style.backgroundColor='#28a745'; this.style.transform='translateY(0)'">
+                    <i class="fas fa-database"></i> Direct MySQL Dump (.SQL)
+                </a>
+            </div>
         </div>
 
         <!-- Card 2: Restore -->

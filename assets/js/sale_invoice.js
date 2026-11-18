@@ -3317,6 +3317,170 @@ window.SIModule = {
         } catch (e) { alert("Failed."); }
     },
 
+    shareWhatsApp: function() {
+        const serialNo = (document.getElementById('si_sn')?.value || (this.currentId ? String(this.currentId) : '')).trim();
+        const date = (document.getElementById('si_date')?.value || '').trim();
+        const custName = (document.getElementById('si_cust_name')?.value || '').trim();
+        const currentPhone = (document.getElementById('si_cust_phone')?.value || '').trim();
+        const netTotal = (document.getElementById('si_net_tot')?.value || '0.00').trim();
+        const balance = (document.getElementById('si_balance')?.value || '0.00').trim();
+
+        if (!serialNo) {
+            alert('Please select or save an invoice first before sharing on WhatsApp.');
+            return;
+        }
+
+        // Populate and open custom WhatsApp modal
+        const invNoEl = document.getElementById('si_wa_inv_no');
+        const dateEl = document.getElementById('si_wa_date');
+        const custEl = document.getElementById('si_wa_cust_name');
+        const netEl = document.getElementById('si_wa_net_total');
+        const balEl = document.getElementById('si_wa_balance');
+        const phoneEl = document.getElementById('si_wa_phone_input');
+        const modal = document.getElementById('siWhatsAppModal');
+
+        if (invNoEl) invNoEl.textContent = serialNo;
+        if (dateEl) dateEl.textContent = date || '-';
+        if (custEl) custEl.textContent = custName || 'Walk-in / Cash Customer';
+        if (netEl) netEl.textContent = 'Rs. ' + netTotal;
+        if (balEl) balEl.textContent = 'Rs. ' + (balance || '0.00');
+        if (phoneEl) phoneEl.value = currentPhone;
+
+        this.updateWhatsAppLinks();
+
+        if (modal) {
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                if (phoneEl) {
+                    phoneEl.focus();
+                    if (phoneEl.value) phoneEl.select();
+                }
+            }, 80);
+        } else {
+            // Fallback if modal is not present
+            this.executeSendWhatsApp('app');
+        }
+    },
+
+    updateWhatsAppLinks: function() {
+        const phoneInput = document.getElementById('si_wa_phone_input');
+        const rawPhone = phoneInput ? phoneInput.value.trim() : (document.getElementById('si_cust_phone')?.value || '').trim();
+
+        let phone = rawPhone.replace(/[^0-9]/g, '');
+        if (phone.startsWith('0092')) phone = phone.substring(2);
+        if (phone.startsWith('9203')) phone = '92' + phone.substring(3);
+        if (phone.startsWith('03')) {
+            phone = '92' + phone.substring(1);
+        } else if (phone.length === 10 && phone.startsWith('3')) {
+            phone = '92' + phone;
+        }
+
+        // Sync entered phone number to invoice form so it can be saved with invoice
+        if (rawPhone && document.getElementById('si_cust_phone')) {
+            document.getElementById('si_cust_phone').value = rawPhone;
+        }
+
+        const msg = this.buildWhatsAppMessage();
+        const appUrl = phone 
+            ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}` 
+            : `whatsapp://send?text=${encodeURIComponent(msg)}`;
+
+        const webUrl = phone 
+            ? `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}` 
+            : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+        const contactAppUrl = `whatsapp://send?text=${encodeURIComponent(msg)}`;
+
+        const desktopBtn = document.getElementById('si_wa_desktop_btn');
+        const webBtn = document.getElementById('si_wa_web_btn');
+        const contactBtn = document.getElementById('si_wa_contact_btn');
+
+        if (desktopBtn) desktopBtn.href = appUrl;
+        if (webBtn) webBtn.href = webUrl;
+        if (contactBtn) contactBtn.href = contactAppUrl;
+    },
+
+    closeWhatsAppModal: function() {
+        const modal = document.getElementById('siWhatsAppModal');
+        if (modal) modal.style.display = 'none';
+    },
+
+    buildWhatsAppMessage: function() {
+        const serialNo = (document.getElementById('si_sn')?.value || (this.currentId ? String(this.currentId) : '')).trim();
+        const date = (document.getElementById('si_date')?.value || '').trim();
+        const custName = (document.getElementById('si_cust_name')?.value || '').trim();
+        const netTotal = (document.getElementById('si_net_tot')?.value || '0.00').trim();
+        const paidAmount = (document.getElementById('si_paid')?.value || '0.00').trim();
+        const balance = (document.getElementById('si_balance')?.value || '0.00').trim();
+        const custBalance = (document.getElementById('si_cust_balance')?.value || '').trim();
+
+        let companyName = 'SoftifyX ERP';
+        try {
+            const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            if (session.company_name) companyName = session.company_name;
+        } catch(e) {}
+
+        let msg = `*${companyName.toUpperCase()}*\n`;
+        msg += `*SALE INVOICE SUMMARY*\n`;
+        msg += `--------------------------------\n`;
+        msg += `📄 *Invoice #:* ${serialNo}\n`;
+        if (date) msg += `📅 *Date:* ${date}\n`;
+        if (custName) msg += `👤 *Customer:* ${custName}\n`;
+        msg += `💰 *Net Total:* Rs. ${netTotal}\n`;
+        if (paidAmount && parseFloat(paidAmount.replace(/,/g, '')) > 0) {
+            msg += `💵 *Received:* Rs. ${paidAmount}\n`;
+        }
+        if (balance && balance !== '0.00' && balance !== netTotal) {
+            msg += `⚖️ *Invoice Balance:* Rs. ${balance}\n`;
+        }
+        if (custBalance && custBalance !== '0.00' && custBalance !== '0') {
+            msg += `📊 *Total Ledger Balance:* Rs. ${custBalance}\n`;
+        }
+        msg += `--------------------------------\n`;
+        msg += `Thank you for your business!`;
+        return msg;
+    },
+
+    executeSendWhatsApp: function(target = 'app') {
+        this.updateWhatsAppLinks();
+
+        const desktopBtn = document.getElementById('si_wa_desktop_btn');
+        const webBtn = document.getElementById('si_wa_web_btn');
+        const contactBtn = document.getElementById('si_wa_contact_btn');
+
+        if (target === 'app') {
+            if (desktopBtn && desktopBtn.href && desktopBtn.href !== '#') {
+                window.location.href = desktopBtn.href;
+            }
+            setTimeout(() => this.closeWhatsAppModal(), 400);
+            return;
+        } else if (target === 'any') {
+            if (contactBtn && contactBtn.href && contactBtn.href !== '#') {
+                window.location.href = contactBtn.href;
+            }
+            setTimeout(() => this.closeWhatsAppModal(), 400);
+            return;
+        } else {
+            if (webBtn && webBtn.href && webBtn.href !== '#') {
+                window.open(webBtn.href, '_blank');
+            }
+            this.closeWhatsAppModal();
+        }
+    },
+
+    copyWhatsAppText: function() {
+        const msg = this.buildWhatsAppMessage();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(msg).then(() => {
+                alert('Invoice details copied to clipboard!\nAap WhatsApp par ja kar Paste kar sakte hain.');
+            }).catch(() => {
+                prompt('Copy text manually:', msg);
+            });
+        } else {
+            prompt('Copy text manually:', msg);
+        }
+    },
+
     getDefaultPrintSettings: function() {
         return {
             paper: 'A4',
@@ -4242,6 +4406,7 @@ window.SIModule = {
                     <meta charset="utf-8">
                     <title>${type} - ${sn}</title>
                     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+                    <script src="assets/js/html2pdf.bundle.min.js"></script>
                     <style>
                         * { box-sizing: border-box; }
                         body {
@@ -4255,7 +4420,7 @@ window.SIModule = {
                             color-adjust: exact !important;
                         }
                         @media screen {
-                            body { max-width: 215mm; margin: 15px auto; box-shadow: 0 0 15px rgba(0,0,0,0.15); padding: 12mm; background: #fff; border-radius: 4px; }
+                            body { max-width: 215mm; margin: 55px auto 25px auto; box-shadow: 0 0 18px rgba(0,0,0,0.18); padding: 12mm; background: #fff; border-radius: 4px; }
                         }
                         @media print {
                             body { margin: 0; padding: 0; }
@@ -4332,6 +4497,45 @@ window.SIModule = {
                     </style>
                 </head>
                 <body>
+                    <!-- Floating Top Action Bar -->
+                    <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; background: #0f172a; color: white; padding: 8px 18px; display: flex; align-items: center; justify-content: space-between; z-index: 99999; box-shadow: 0 3px 10px rgba(0,0,0,0.3); font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="background: #1e293b; border: 1px solid #334155; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 12px; color: #38bdf8;">
+                                <i class="fas fa-file-invoice"></i> INVOICE # ${sn}
+                            </span>
+                            <span style="font-size: 12px; font-weight: 600; color: #f1f5f9;">${cleanCustomerName}</span>
+                            ${vTel ? `<span style="font-size: 11px; color: #94a3b8;"><i class="fas fa-phone-alt"></i> ${vTel}</span>` : ''}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <!-- Print Button -->
+                            <button type="button" onclick="window.print()" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+
+                            <!-- Download PDF Button -->
+                            <button type="button" onclick="downloadInvoicePdf()" style="background: #0284c7; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-file-pdf"></i> Download PDF
+                            </button>
+
+                            <!-- WhatsApp PDF Button -->
+                            <button type="button" onclick="shareInvoiceWhatsApp('app')" style="background: #25D366; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,211,102,0.3);">
+                                <i class="fab fa-whatsapp" style="font-size: 15px;"></i> Send on WhatsApp (PDF)
+                            </button>
+
+                            <!-- Close Button -->
+                            <button type="button" onclick="window.close()" style="background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Helpful Notification Banner -->
+                    <div id="wa-banner-tip" class="no-print" style="display: none; position: fixed; top: 48px; left: 0; right: 0; background: #ecfdf5; border-bottom: 2px solid #10b981; color: #065f46; padding: 9px 18px; z-index: 99998; font-size: 12px; font-weight: 600; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.06);">
+                        <i class="fab fa-whatsapp" style="color: #10b981; font-size: 16px; margin-right: 6px;"></i>
+                        Invoice PDF aapke computer ke <strong>Downloads</strong> folder mein save ho gayi hy! WhatsApp Desktop chat open ho chuki hy, wahan PDF file <strong>drag &amp; drop</strong> karein ya 📎 Paperclip icon se attach kar ke send kar dein.
+                        <button onclick="document.getElementById('wa-banner-tip').style.display='none'" style="margin-left: 12px; background: transparent; border: 1px solid #10b981; border-radius: 3px; padding: 1px 6px; cursor: pointer; color: #065f46; font-size: 11px;">✕ Dismiss</button>
+                    </div>
+
                     <div class="page-container">
                         <div class="main-content">
                             ${headerSection}
@@ -4440,11 +4644,77 @@ window.SIModule = {
                         </div>
                     </div>
                     <script>
+                        function downloadInvoicePdf(callback) {
+                            var el = document.querySelector('.page-container');
+                            var safeName = '${cleanCustomerName.replace(/[^a-zA-Z0-9_-]/g, '_')}';
+                            var opt = {
+                                margin: [4, 4, 4, 4],
+                                filename: 'Sale_Invoice_${sn}_' + safeName + '.pdf',
+                                image: { type: 'jpeg', quality: 0.98 },
+                                html2canvas: { scale: 2, useCORS: true, logging: false },
+                                jsPDF: { unit: 'mm', format: '${paperSize.toLowerCase().startsWith("a5") ? "a5" : "a4"}', orientation: '${paperSize === "A5L" ? "landscape" : "portrait"}' }
+                            };
+
+                            if (window.html2pdf) {
+                                var worker = html2pdf().set(opt).from(el).save();
+                                if (callback) worker.then(callback);
+                            } else {
+                                window.print();
+                            }
+                        }
+
+                        function shareInvoiceWhatsApp(target) {
+                            target = target || 'app';
+                            
+                            // Download PDF file to Downloads folder
+                            downloadInvoicePdf();
+
+                            var phone = '${vTel}'.replace(/[^0-9]/g, '');
+                            if (phone.startsWith('03')) {
+                                phone = '92' + phone.substring(1);
+                            } else if (phone.length === 10 && phone.startsWith('3')) {
+                                phone = '92' + phone;
+                            }
+
+                            if (!phone) {
+                                var entered = prompt('Customer "${cleanCustomerName}" ka WhatsApp number enter karein (e.g. 03001234567):', '');
+                                if (entered) {
+                                    phone = entered.replace(/[^0-9]/g, '');
+                                    if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+                                    else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+                                }
+                            }
+
+                            var msg = "*${coName.toUpperCase()}*\\n" +
+                                      "*TAX INVOICE # ${sn}*\\n" +
+                                      "--------------------------------\\n" +
+                                      "📄 *Invoice #:* ${sn}\\n" +
+                                      "📅 *Date:* ${date}\\n" +
+                                      "👤 *Customer:* ${cleanCustomerName}\\n" +
+                                      "💰 *Net Total:* Rs. ${formatAmt(netTot)}\\n" +
+                                      "${invoiceBalance > 0 ? `⚖️ *Invoice Balance:* Rs. ${formatAmt(invoiceBalance)}\\n` : ''}" +
+                                      "${currentBalance ? `📊 *Ledger Balance:* Rs. ${formatBal(currentBalance)}\\n` : ''}" +
+                                      "--------------------------------\\n" +
+                                      "📎 *Tax Invoice PDF file is attached below.*\\n" +
+                                      "Thank you for your business!";
+
+                            var appUrl = phone ? "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(msg) : "whatsapp://send?text=" + encodeURIComponent(msg);
+                            
+                            var a = document.createElement('a');
+                            a.href = appUrl;
+                            document.body.appendChild(a);
+                            a.click();
+                            setTimeout(function() { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+
+                            var banner = document.getElementById('wa-banner-tip');
+                            if (banner) banner.style.display = 'block';
+                        }
+
                         window.onload = function() {
                             setTimeout(function() {
                                 window.focus();
                                 window.print();
-                            }, 350);
+                            }, 400);
                         };
                     </script>
                 </body>

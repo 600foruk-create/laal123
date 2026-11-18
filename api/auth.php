@@ -26,21 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($company) {
             $companyId = $company['id'];
             $companyName = $company['name'];
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN off_day VARCHAR(20) NULL");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN enable_geofencing TINYINT(1) DEFAULT 0");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN latitude DECIMAL(10, 8) NULL");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN longitude DECIMAL(11, 8) NULL");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN radius_meters INT DEFAULT 100");
-            } catch(Exception $e) {}
+            if (shouldRunMigration('company_branches_fields', 1)) {
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN off_day VARCHAR(20) NULL"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN enable_geofencing TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN latitude DECIMAL(10, 8) NULL"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN longitude DECIMAL(11, 8) NULL"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN radius_meters INT DEFAULT 100"); } catch(Exception $e) {}
+            }
 
             $stmt = $pdo->prepare("
                 SELECT u.*, b.branch_name, b.branch_code, b.invoice_series, b.opening_time, b.closing_time, b.off_day,
@@ -48,11 +40,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 FROM users u 
                 LEFT JOIN company_branches b ON u.branch_id = b.id 
                 WHERE (TRIM(u.username) = ? OR LOWER(TRIM(u.username)) = LOWER(?)) 
-                  AND (TRIM(u.password) = ? OR u.password = ?) 
                   AND u.company_id = ?
             ");
-            $stmt->execute([$username, $username, $password, $password, $companyId]);
-            $user = $stmt->fetch();
+            $stmt->execute([$username, $username, $companyId]);
+            $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($candidates as $cand) {
+                if (verifyAndUpgradePassword($password, $cand['password'], $cand['id'], $pdo)) {
+                    $user = $cand;
+                    break;
+                }
+            }
         }
         
         // 3. Fallback: If company wasn't provided or user wasn't in that company (e.g. company selection hidden on login), find user by credentials
@@ -64,21 +61,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 LEFT JOIN company_branches b ON u.branch_id = b.id 
                 LEFT JOIN companies c ON u.company_id = c.id
                 WHERE (TRIM(u.username) = ? OR LOWER(TRIM(u.username)) = LOWER(?)) 
-                  AND (TRIM(u.password) = ? OR u.password = ?) 
                   AND (c.status IS NULL OR c.status != 0 OR u.role = 'Admin' OR u.username = 'Administrator' OR u.id = 1)
-                ORDER BY (u.username = 'Administrator' OR u.id = 1) DESC, u.id ASC LIMIT 1
+                ORDER BY (u.username = 'Administrator' OR u.id = 1) DESC, u.id ASC
             ");
-            $stmt->execute([$username, $username, $password, $password]);
-            $user = $stmt->fetch();
-            if ($user) {
-                $userRoleUpper = strtoupper(trim($user['role'] ?? ''));
-                $isAdmin = ($userRoleUpper === 'ADMIN' || $userRoleUpper === 'ADMINISTRATOR' || intval($user['id']) === 1);
-                if ($isAdmin && $company) {
-                    $companyId = $company['id'];
-                    $companyName = $company['name'];
-                } else {
-                    $companyId = $user['company_id'];
-                    $companyName = $user['company_name'] ?? ($company['name'] ?? 'Default Business');
+            $stmt->execute([$username, $username]);
+            $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($candidates as $cand) {
+                if (verifyAndUpgradePassword($password, $cand['password'], $cand['id'], $pdo)) {
+                    $user = $cand;
+                    $userRoleUpper = strtoupper(trim($user['role'] ?? ''));
+                    $isAdmin = ($userRoleUpper === 'ADMIN' || $userRoleUpper === 'ADMINISTRATOR' || intval($user['id']) === 1);
+                    if ($isAdmin && $company) {
+                        $companyId = $company['id'];
+                        $companyName = $company['name'];
+                    } else {
+                        $companyId = $user['company_id'];
+                        $companyName = $user['company_name'] ?? ($company['name'] ?? 'Default Business');
+                    }
+                    break;
                 }
             }
         }
