@@ -87,11 +87,23 @@ function detectItemGroup($item) {
 
     // 2. RAW MATERIAL
     if ($catType === 'RAW MATERIAL' ||
+        strpos($catType, 'RAW') !== false ||
+        strpos($mainName, 'RAW') !== false ||
+        strpos($subName, 'RAW') !== false ||
         strpos($combined, 'RAW') !== false ||
         strpos($combined, 'MATERIAL') !== false ||
         strpos($combined, 'RESIN') !== false ||
-        strpos($combined, 'COMPOUND') !== false ||
+        strpos($combined, 'CALCIUM') !== false ||
+        strpos($combined, 'CARBONATE') !== false ||
         strpos($combined, 'STABILIZER') !== false ||
+        strpos($combined, 'TITANIUM') !== false ||
+        strpos($combined, 'LUBRICANT') !== false ||
+        strpos($combined, 'COMPOUND') !== false ||
+        strpos($combined, 'PIGMENT') !== false ||
+        strpos($combined, 'WAX') !== false ||
+        strpos($combined, 'CHEMICAL') !== false ||
+        strpos($combined, 'POLYMER') !== false ||
+        strpos($combined, 'MASTERBATCH') !== false ||
         strpos($combined, 'AU60') !== false ||
         strpos($combined, 'AU67') !== false ||
         strpos($itemUnit, 'BAG') !== false) {
@@ -154,6 +166,7 @@ if ($action === 'get_alerts') {
         $rawBags = 0.0;
         $rawKg = 0.0;
         $rawValuation = 0.0;
+        $rawMaterialItemList = [];
 
         $pipesPcs = 0.0;
         $pipesKg = 0.0;
@@ -201,15 +214,28 @@ if ($action === 'get_alerts') {
             // Categorize into Raw Material or Finished Goods (Pipes / Fittings)
             $grp = detectItemGroup($it);
             if ($grp === 'Raw Material') {
-                $weightPerBag = floatval($it['unit_weight'] ?: 25.0);
-                if (stripos($it['unit'], 'BAG') !== false) {
+                $unitStr = strtoupper(trim($it['unit'] ?: 'KG'));
+                $weightPerBag = floatval($it['unit_weight'] ?: ($it['qty_per_piece'] ?: 25.0));
+
+                $itemKg = 0.0;
+                if (stripos($unitStr, 'BAG') !== false) {
+                    $itemKg = ($bal * $weightPerBag);
                     $rawBags += $bal;
-                    $rawKg += ($bal * $weightPerBag);
                 } else {
-                    $rawKg += $bal;
+                    $itemKg = $bal;
                     $rawBags += ($weightPerBag > 0 ? ($bal / $weightPerBag) : $bal);
                 }
-                if ($bal > 0) $rawValuation += ($bal * $cost);
+                $rawKg += $itemKg;
+                if ($itemKg > 0) $rawValuation += ($itemKg * $cost);
+
+                $rawMaterialItemList[] = [
+                    'id' => (int)$it['item_id'],
+                    'code' => $it['item_code'],
+                    'name' => $it['item_name'],
+                    'stock_kg' => round($itemKg, 1),
+                    'cost' => round($cost, 2),
+                    'is_low' => ($itemKg <= 0 || ($reorder > 0 && $itemKg <= $reorder))
+                ];
             } elseif ($grp === 'PVC Pipes') {
                 $pipesPcs += $bal;
                 $pWeight = floatval($it['unit_weight'] ?: ($it['qty_per_piece'] ?: 0));
@@ -226,6 +252,11 @@ if ($action === 'get_alerts') {
                 if ($bal > 0) $fgValuation += ($bal * $cost);
             }
         }
+
+        // Sort Raw Materials alphabetically
+        usort($rawMaterialItemList, function($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
 
         // Today's Activity (Issued & Produced)
         $todayStr = date('Y-m-d');
@@ -286,10 +317,11 @@ if ($action === 'get_alerts') {
                 'out_of_stock_count' => $outOfStockCount,
                 'total_stock_value' => round($totalStockValue, 2),
                 'raw_material' => [
-                    'bags' => round($rawBags, 0),
+                    'total_kg' => round($rawKg, 1),
                     'kg' => round($rawKg, 1),
-                    'today_issued' => round($todayRawIssued, 0),
-                    'valuation' => round($rawValuation, 2)
+                    'today_issued_kg' => round($todayRawIssued, 1),
+                    'valuation' => round($rawValuation, 2),
+                    'items' => $rawMaterialItemList
                 ],
                 'finished_goods' => [
                     'pipes_pcs' => round($pipesPcs, 0),
@@ -299,13 +331,6 @@ if ($action === 'get_alerts') {
                     'today_produced' => round($todayFgProduced, 0),
                     'valuation' => round($fgValuation, 2)
                 ]
-            ],
-            'items' => $alertItems
-        ]);
-                'low_stock_count' => $lowStockCount,
-                'reorder_count' => $reorderCount,
-                'out_of_stock_count' => $outOfStockCount,
-                'total_stock_value' => round($totalStockValue, 2)
             ],
             'items' => $alertItems
         ]);

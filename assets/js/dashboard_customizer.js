@@ -556,18 +556,46 @@
 
             if (allowed.includes('raw_material_activity')) {
                 const s = (window._cachedInventoryAlertSummary && window._cachedInventoryAlertSummary.raw_material) || {};
-                const bagsText = s.bags !== undefined ? (s.bags + ' Bags') : '0 Bags';
-                const kgText = s.kg !== undefined ? (s.kg + ' Kg') : '0 Kg';
-                const issuedText = s.today_issued !== undefined ? (s.today_issued + ' Bags') : '0 Bags';
+                const kgText = s.total_kg !== undefined ? (s.total_kg + ' Kg') : (s.kg !== undefined ? (s.kg + ' Kg') : '0 Kg');
+                const issuedText = s.today_issued_kg !== undefined ? (s.today_issued_kg + ' Kg') : (s.today_issued !== undefined ? (s.today_issued + ' Kg') : '0 Kg');
                 const currency = (window.globalCurrencySymbol || 'Rs.') + ' ';
                 const valText = s.valuation !== undefined ? (currency + parseFloat(s.valuation).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : 'Rs. 0';
+                
+                let rawListHtml = '';
+                if (s.items && Array.isArray(s.items) && s.items.length > 0) {
+                    s.items.forEach(it => {
+                        const isLow = it.is_low || it.stock_kg <= 0;
+                        const color = isLow ? '#dc2626' : '#d97706';
+                        rawListHtml += `
+                            <div class="raw-item-row" onclick="window.openRawMaterialReport()" style="display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; cursor: pointer;" title="Click to view ledger">
+                                <span style="font-weight: 600; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${it.name}</span>
+                                <span style="font-weight: 700; color: ${color}; font-size: 11px; white-space: nowrap;">${Number(it.stock_kg).toLocaleString('en-US')} Kg</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    rawListHtml = `<div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 15px 0;">Loading Raw Materials...</div>`;
+                }
+
                 html += `
-                    <div class="summary-card" id="rawMaterialCard" data-summary-id="raw_material_activity" onclick="window.openRawMaterialReport()" style="cursor: pointer;" title="Click to view Raw Material stock ledger">
-                        <h4><i class="fas fa-cubes" style="color:#d97706;"></i> Raw Material Activity</h4>
-                        <div class="summary-row"><span>In-Hand Stock:</span> <span class="value" id="summaryRawStockBags">${bagsText}</span></div>
-                        <div class="summary-row"><span>Total Weight:</span> <span class="value" id="summaryRawStockKg">${kgText}</span></div>
-                        <div class="summary-row"><span>Today Issued:</span> <span class="value" id="summaryRawIssuedToday">${issuedText}</span></div>
-                        <div class="summary-row"><span>Raw Valuation:</span> <span class="value money" id="summaryRawValuation">${valText}</span></div>
+                    <div class="summary-card" id="rawMaterialCard" data-summary-id="raw_material_activity" style="cursor: default;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="window.openRawMaterialReport()" title="Click to open Raw Material report">
+                                <i class="fas fa-cubes" style="color:#d97706;"></i> Raw Material
+                            </h4>
+                            <span class="alert-badge" id="summaryRawStockKg" style="background: #fef3c7; color: #b45309; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px; cursor: pointer;" onclick="window.openRawMaterialReport()">${kgText}</span>
+                        </div>
+                        <div id="summaryRawItemList" style="max-height: 125px; min-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin: 4px 0; border: 1px solid #f1f5f9; border-radius: 6px; padding: 4px 6px; background: #fafafa;">
+                            ${rawListHtml}
+                        </div>
+                        <div class="summary-row" style="font-size: 11px; padding-top: 3px; border-top: 1px dashed #e2e8f0;">
+                            <span>Today Issued:</span>
+                            <span class="value" id="summaryRawIssuedToday" style="font-weight: 700; color: #0284c7;">${issuedText}</span>
+                        </div>
+                        <div class="summary-row" style="font-size: 11px;">
+                            <span>Valuation:</span>
+                            <span class="value money" id="summaryRawValuation" style="font-weight: 700; color: #15803d;">${valText}</span>
+                        </div>
                     </div>
                 `;
             }
@@ -739,14 +767,32 @@
                 // Update Raw Material Activity Card
                 if (s.raw_material) {
                     const rm = s.raw_material;
-                    const rBags = document.getElementById('summaryRawStockBags');
-                    if (rBags) rBags.textContent = (rm.bags || 0) + ' Bags';
                     const rKg = document.getElementById('summaryRawStockKg');
-                    if (rKg) rKg.textContent = (rm.kg || 0) + ' Kg';
+                    if (rKg) rKg.textContent = (rm.total_kg !== undefined ? rm.total_kg : (rm.kg || 0)) + ' Kg';
                     const rIss = document.getElementById('summaryRawIssuedToday');
-                    if (rIss) rIss.textContent = (rm.today_issued || 0) + ' Bags';
+                    if (rIss) rIss.textContent = (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0)) + ' Kg';
                     const rVal = document.getElementById('summaryRawValuation');
                     if (rVal) rVal.textContent = fmt(rm.valuation || 0);
+
+                    const listCont = document.getElementById('summaryRawItemList');
+                    if (listCont && rm.items && Array.isArray(rm.items)) {
+                        if (rm.items.length === 0) {
+                            listCont.innerHTML = `<div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 15px 0;">No raw materials recorded</div>`;
+                        } else {
+                            let rows = '';
+                            rm.items.forEach(it => {
+                                const isLow = it.is_low || it.stock_kg <= 0;
+                                const color = isLow ? '#dc2626' : '#d97706';
+                                rows += `
+                                    <div class="raw-item-row" onclick="window.openRawMaterialReport()" style="display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; cursor: pointer;" title="Click to view ledger">
+                                        <span style="font-weight: 600; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${it.name}</span>
+                                        <span style="font-weight: 700; color: ${color}; font-size: 11px; white-space: nowrap;">${Number(it.stock_kg).toLocaleString('en-US')} Kg</span>
+                                    </div>
+                                `;
+                            });
+                            listCont.innerHTML = rows;
+                        }
+                    }
                 }
 
                 // Update Finished Goods Activity Card

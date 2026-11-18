@@ -273,12 +273,24 @@
                                 id="summaryOutstanding">Rs. 0</span></div>
                     </div>
 
-                    <div class="summary-card" id="rawMaterialCard" onclick="window.openRawMaterialReport()" style="cursor: pointer;" title="Click to view Raw Material stock ledger">
-                        <h4><i class="fas fa-cubes" style="color:#d97706;"></i> Raw Material Activity</h4>
-                        <div class="summary-row"><span>In-Hand Stock:</span> <span class="value" id="summaryRawStockBags">0 Bags</span></div>
-                        <div class="summary-row"><span>Total Weight:</span> <span class="value" id="summaryRawStockKg">0 Kg</span></div>
-                        <div class="summary-row"><span>Today Issued:</span> <span class="value" id="summaryRawIssuedToday">0 Bags</span></div>
-                        <div class="summary-row"><span>Raw Valuation:</span> <span class="value money" id="summaryRawValuation">Rs. 0</span></div>
+                    <div class="summary-card" id="rawMaterialCard" style="cursor: default;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="window.openRawMaterialReport()" title="Click to open Raw Material report">
+                                <i class="fas fa-cubes" style="color:#d97706;"></i> Raw Material
+                            </h4>
+                            <span class="alert-badge" id="summaryRawStockKg" style="background: #fef3c7; color: #b45309; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px; cursor: pointer;" onclick="window.openRawMaterialReport()">0 Kg</span>
+                        </div>
+                        <div id="summaryRawItemList" style="max-height: 125px; min-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin: 4px 0; border: 1px solid #f1f5f9; border-radius: 6px; padding: 4px 6px; background: #fafafa;">
+                            <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 15px 0;">Loading Raw Materials...</div>
+                        </div>
+                        <div class="summary-row" style="font-size: 11px; padding-top: 3px; border-top: 1px dashed #e2e8f0;">
+                            <span>Today Issued:</span>
+                            <span class="value" id="summaryRawIssuedToday" style="font-weight: 700; color: #0284c7;">0 Kg</span>
+                        </div>
+                        <div class="summary-row" style="font-size: 11px;">
+                            <span>Valuation:</span>
+                            <span class="value money" id="summaryRawValuation" style="font-weight: 700; color: #15803d;">Rs. 0</span>
+                        </div>
                     </div>
 
                     <div class="summary-card" id="finishedGoodsCard" onclick="window.openFinishedGoodsReport()" style="cursor: pointer;" title="Click to view Finished Goods stock ledger">
@@ -312,14 +324,14 @@
         <div id="window-manager"></div>
     </div>
 
-    <script src="assets/js/app_v128.js?v=v67-rm-fg-cards"></script>
+    <script src="assets/js/app_v128.js?v=v68-rm-kg-items"></script>
     <script src="assets/js/inventory_price_settings.js?v=10"></script>
     <script src="assets/js/inventory_tax_rates.js?v=4"></script>
     <script src="assets/js/inventory_reorder_levels.js?v=3"></script>
     <script src="assets/js/inventory_cost_method.js?v=4"></script>
     <script src="assets/js/chart_of_services.js?v=8"></script>
-    <script src="assets/js/dashboard_customizer.js?v=7-rm-fg-cards"></script>
-    <script src="assets/js/app_v2.js?v=v168-rm-fg-cards"></script>
+    <script src="assets/js/dashboard_customizer.js?v=8-rm-kg-items"></script>
+    <script src="assets/js/app_v2.js?v=v169-rm-kg-items"></script>
     <script src="assets/js/voucher_preferences.js?v=1"></script>
     <script src="assets/js/inventory_movement_settings.js?v=2"></script>
     <script src="assets/js/jobs.js?v=6"></script>

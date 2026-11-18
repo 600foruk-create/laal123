@@ -581,16 +581,34 @@ document.addEventListener('click', function(e) {
             // Raw Material Activity Card
             if (summary.raw_material) {
                 const rm = summary.raw_material;
-                const rBags = document.getElementById('summaryRawStockBags');
-                if (rBags) rBags.textContent = (rm.bags || 0) + ' Bags';
                 const rKg = document.getElementById('summaryRawStockKg');
-                if (rKg) rKg.textContent = (rm.kg || 0) + ' Kg';
+                if (rKg) rKg.textContent = (rm.total_kg !== undefined ? rm.total_kg : (rm.kg || 0)) + ' Kg';
                 const rIss = document.getElementById('summaryRawIssuedToday');
-                if (rIss) rIss.textContent = (rm.today_issued || 0) + ' Bags';
+                if (rIss) rIss.textContent = (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0)) + ' Kg';
                 const rVal = document.getElementById('summaryRawValuation');
                 if (rVal) rVal.textContent = curr + parseFloat(rm.valuation || 0).toLocaleString('en-US', {
                     minimumFractionDigits: 2, maximumFractionDigits: 2
                 });
+
+                const listCont = document.getElementById('summaryRawItemList');
+                if (listCont && rm.items && Array.isArray(rm.items)) {
+                    if (rm.items.length === 0) {
+                        listCont.innerHTML = `<div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 15px 0;">No raw materials recorded</div>`;
+                    } else {
+                        let rows = '';
+                        rm.items.forEach(it => {
+                            const isLow = it.is_low || it.stock_kg <= 0;
+                            const color = isLow ? '#dc2626' : '#d97706';
+                            rows += `
+                                <div class="raw-item-row" onclick="window.openRawMaterialReport()" style="display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; cursor: pointer;" title="Click to view ledger">
+                                    <span style="font-weight: 600; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${it.name}</span>
+                                    <span style="font-weight: 700; color: ${color}; font-size: 11px; white-space: nowrap;">${Number(it.stock_kg).toLocaleString('en-US')} Kg</span>
+                                </div>
+                            `;
+                        });
+                        listCont.innerHTML = rows;
+                    }
+                }
             }
 
             // Finished Goods Activity Card
