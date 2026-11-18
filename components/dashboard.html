@@ -1,0 +1,212 @@
+<!-- Dashboard Live Data Loading Overlay (Shields interface during cloud sync & prevents erratic misclicks) -->
+<div id="dashboardSyncOverlay" class="dashboard-sync-overlay" style="display: none;">
+    <div style="background: #ffffff; padding: 32px 42px; border-radius: 14px; box-shadow: 0 12px 36px rgba(15, 23, 42, 0.12); border: 1px solid #e2e8f0; max-width: 440px; width: 90%; text-align: center; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #1F4E79, #3b82f6, #10b981);"></div>
+        <div style="width: 58px; height: 58px; margin: 4px auto 14px; background: #eff6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(31,78,121,0.12);">
+            <i class="fas fa-chart-line" style="font-size: 26px; color: #1F4E79; animation: erpPulse 1.8s infinite ease-in-out;"></i>
+        </div>
+        <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: #1F4E79; margin-bottom: 4px;">Softifyx Financials</div>
+        <h3 id="overlayCompanyName" style="margin: 0 0 6px; color: #0f172a; font-size: 17px; font-weight: 800; line-height: 1.3;">Loading Company Data...</h3>
+        <p id="overlaySyncStatus" style="margin: 0 0 16px; color: #64748b; font-size: 13px;">Syncing live financial records & balances...</p>
+        <div style="width: 100%; height: 5px; background: #e2e8f0; border-radius: 6px; overflow: hidden; position: relative; margin-bottom: 12px;">
+            <div style="width: 45%; height: 100%; background: linear-gradient(90deg, #1F4E79, #3b82f6); border-radius: 6px; animation: erpInitLoadBar 1.2s infinite ease-in-out;"></div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; color: #94a3b8; font-size: 12px;">
+            <i class="fas fa-spinner fa-spin" style="color: #3b82f6;"></i>
+            <span>Please wait, fetching live data...</span>
+        </div>
+    </div>
+</div>
+
+<div class="welcome-card">
+    <img src="assets/logos/logo.png?v=2" id="dashLogo" class="dashboard-logo" alt="Softifyx Logo"
+        onerror="this.style.display='none'">
+    <div class="welcome-header">
+        <div class="softifyx-title">SOFTIFYX</div>
+    </div>
+    <div class="licensed-text">LICENSED TO</div>
+    <div class="company-badge" id="dashboardCompanyName"></div>
+</div>
+<script>
+    (function() {
+        try {
+            const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const coId = s.company_id || 1;
+            const c = JSON.parse(localStorage.getItem('softifyx_cached_company_' + coId) || '{}');
+            const name = (window.companyData && window.companyData.name) || c.name || s.company_name || 'My Company';
+            
+            const el = document.getElementById('dashboardCompanyName');
+            if (el) el.textContent = name;
+            const oName = document.getElementById('overlayCompanyName');
+            if (oName) oName.textContent = name;
+            const titleEl = document.getElementById('titleCompanyName');
+            if (titleEl) titleEl.textContent = '- ' + name;
+            document.title = 'Softifyx - ' + name;
+
+            const overlay = document.getElementById('dashboardSyncOverlay');
+            if (overlay) {
+                if (window.isInitialSyncing === true) {
+                    overlay.style.display = 'flex';
+                    overlay.style.opacity = '1';
+                } else {
+                    overlay.style.display = 'none';
+                }
+            }
+
+            if (window.DashboardCustomizer && typeof window.DashboardCustomizer.applyAll === 'function') {
+                window.DashboardCustomizer.applyAll();
+            }
+
+            if (typeof updateDashboardSummary === 'function') {
+                updateDashboardSummary();
+            }
+        } catch(e) {}
+    })();
+</script>
+
+<div class="search-date-bar">
+    <div class="search-wrapper">
+        <i class="fas fa-search"></i>
+        <input type="text" class="search-input" id="globalSearch"
+            placeholder="Search Item (Overall Inventory Search...)">
+        <button class="search-btn" id="searchBtn"><i class="fas fa-search"></i> Search</button>
+    </div>
+    <div class="date-wrapper">
+        <i class="fas fa-calendar-alt"></i>
+        <span>Daily Report</span>
+        <input type="date" id="dailyReportDate" value="2026-03-13">
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-header">
+            <i class="fas fa-chart-simple"></i>
+            <span>Sales</span>
+        </div>
+        <div class="stat-value money" id="salesValue">₹0</div>
+        <span class="stat-badge">NIL</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <i class="fas fa-wallet"></i>
+            <span>Cash in Hand</span>
+        </div>
+        <div class="stat-value money" id="cashValue">₹0</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <i class="fas fa-building-columns"></i>
+            <span>Bank Balance</span>
+        </div>
+        <div class="stat-value money" id="bankValue">₹0</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <i class="fas fa-chart-pie"></i>
+            <span>Total Receivables</span>
+        </div>
+        <div class="stat-value money" id="receivablesValue">₹0</div>
+    </div>
+</div>
+
+<div class="financial-grid">
+    <div class="financial-card">
+        <h3><i class="fas fa-coins"></i> Cash & Banks</h3>
+        <div class="financial-row">
+            <span class="label">Opening Balance</span>
+            <span class="value money" id="cashOpening">₹0</span>
+        </div>
+        <div class="financial-row">
+            <span class="label">Receipts</span>
+            <span class="value money" id="cashReceipts">₹0</span>
+        </div>
+        <div class="financial-row">
+            <span class="label">Payments</span>
+            <span class="value money" id="cashPayments">₹0</span>
+        </div>
+        <div class="financial-row highlight-row">
+            <span class="label">Current Balance</span>
+            <span class="value money" id="cashCurrent">₹0</span>
+        </div>
+    </div>
+    <div class="financial-card">
+        <h3><i class="fas fa-user-tie"></i> Receivables / Customers</h3>
+        <div class="financial-row">
+            <span class="label">Opening Balance</span>
+            <span class="value money" id="recOpening">₹0</span>
+        </div>
+        <div class="financial-row">
+            <span class="label">Sales (Debits)</span>
+            <span class="value money" id="recSales">₹0</span>
+        </div>
+        <div class="financial-row">
+            <span class="label">Receipts (Credits)</span>
+            <span class="value money" id="recReceipts">₹0</span>
+        </div>
+        <div class="financial-row highlight-row">
+            <span class="label">Current Balance</span>
+            <span class="value money" id="recCurrent">₹0</span>
+        </div>
+    </div>
+    <div class="financial-card">
+        <h3><i class="fas fa-truck"></i> Payables / Vendors</h3>
+        <div class="financial-row">
+            <span class="label">Opening Balance</span>
+            <span class="value money" id="payOpening">₹0</span>
+        </div>
+        <div class="financial-row">
+            <span class="label">Purchases (Credits)</span>
+            <span class="value money" id="payPurchases">₹0</span>
+        </div>
+        <div class="financial-row">
+            <span class="label">Payments (Debits)</span>
+            <span class="value money" id="payPayments">₹0</span>
+        </div>
+        <div class="financial-row highlight-row">
+            <span class="label">Current Balance</span>
+            <span class="value money" id="payCurrent">₹0</span>
+        </div>
+    </div>
+</div>
+
+<div class="widgets-grid">
+    <div class="widget-card">
+        <div class="widget-title">
+            <i class="fas fa-chart-line"></i>
+            Weekly Sales Trend
+        </div>
+        <div class="graph-bars">
+            <div class="bar-container">
+                <div class="bar" style="height: 40px;"></div><span class="bar-label">Mon</span>
+            </div>
+            <div class="bar-container">
+                <div class="bar" style="height: 60px;"></div><span class="bar-label">Tue</span>
+            </div>
+            <div class="bar-container">
+                <div class="bar" style="height: 30px;"></div><span class="bar-label">Wed</span>
+            </div>
+            <div class="bar-container">
+                <div class="bar" style="height: 80px;"></div><span class="bar-label">Thu</span>
+            </div>
+            <div class="bar-container">
+                <div class="bar" style="height: 55px;"></div><span class="bar-label">Fri</span>
+            </div>
+            <div class="bar-container">
+                <div class="bar" style="height: 65px;"></div><span class="bar-label">Sat</span>
+            </div>
+        </div>
+    </div>
+    <div class="widget-card">
+        <div class="widget-title">
+            <i class="fas fa-pen"></i>
+            My Notes
+        </div>
+        <textarea class="notes-textarea" id="notesText"
+            placeholder="Write your notes here...">Meeting with suppliers tomorrow at 10 AM. Follow up with ABC Traders for payment.</textarea>
+        <div class="notes-actions">
+            <button class="btn btn-primary" id="saveNoteBtn"><i class="fas fa-save"></i> Save</button>
+            <button class="btn btn-secondary" id="clearNoteBtn"><i class="fas fa-times"></i> Clear</button>
+        </div>
+    </div>
+</div>

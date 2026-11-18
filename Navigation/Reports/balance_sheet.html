@@ -1,0 +1,72 @@
+<style>
+    .bs-btn {
+        background-color: #2a5879;
+        border: 1px solid #1a3c5c;
+        color: white;
+        padding: 4px 0;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 11px;
+        cursor: pointer;
+        border-radius: 2px;
+        font-weight: bold;
+        box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2);
+        white-space: nowrap;
+        width: 80px;
+    }
+</style>
+<div style="background: #ffffff; display: flex; flex-direction: column; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; margin: 0; min-height: 250px; height: 100%;">
+    
+    <!-- Title and View Button Bar -->
+    <div style="display: flex; justify-content: flex-end; align-items: center; padding-bottom: 15px;">
+        <button id="btn_view_balance_sheet" class="bs-btn" style="height: 25px;">View</button>
+    </div>
+
+    <!-- Filter Section -->
+    <div style="background: #F0F0F0; border: 1px solid #999; padding: 25px 30px; display: flex; flex-direction: column; gap: 15px; flex-grow: 1;">
+        
+        <!-- To date -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: bold; font-style: italic; color: #555; width: 120px;">
+                <input type="radio" name="bs_date_filter" id="bs_filter_to_date" value="to_date" checked style="margin: 0;"> 
+                <span style="border-bottom: 1px dotted #888;">To date</span>
+            </label>
+        </div>
+
+        <!-- On Date -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: bold; font-style: italic; color: #555; width: 120px;">
+                <input type="radio" name="bs_date_filter" id="bs_filter_on_date" value="on_date" style="margin: 0;"> 
+                <span style="border-bottom: 1px dotted #888;">On Date</span>
+            </label>
+            <input type="date" id="bs_on_date" style="width: 120px; border: 1px solid #999; padding: 2px;" disabled>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Ensure module gets initialized via img onload hack -->
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+    if(!window.BalanceSheet) {
+        let s = document.createElement('script');
+        s.src = 'assets/js/balance_sheet.js?v=' + Date.now();
+        s.onload = () => {
+            const checkDOM = setInterval(() => {
+                if (document.getElementById('btn_view_balance_sheet')) {
+                    clearInterval(checkDOM);
+                    window.BalanceSheet.init();
+                }
+            }, 50);
+        };
+        document.body.appendChild(s);
+    } else {
+        const checkDOM = setInterval(() => {
+            if (document.getElementById('btn_view_balance_sheet')) {
+                clearInterval(checkDOM);
+                window.BalanceSheet.init();
+            }
+        }, 50);
+    }
+">

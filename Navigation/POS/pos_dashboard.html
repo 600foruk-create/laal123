@@ -1,0 +1,713 @@
+<style>
+    .pos-branch-login-item:hover {
+        background-color: #f0fdf4 !important;
+    }
+    .pos-branch-login-item:hover button {
+        background-color: #10b981 !important;
+        color: #ffffff !important;
+        border-color: #10b981 !important;
+    }
+</style>
+<div class="pos-top-bar" style="background: #fff; padding: 12px 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;">
+    <div class="pos-menus" style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+        <button class="btn btn-primary pos-admin-only" style="padding: 6px 10px; font-size: 12px;" onclick="if(typeof window.hideDashboardLoader==='function') window.hideDashboardLoader(); window.loadView('components/dashboard.html')"><i class="fas fa-home"></i> Main Dashboard</button>
+        <button class="btn btn-primary" style="padding: 6px 10px; font-size: 12px;" onclick="window.openModularPopup('Navigation/POS/pos_sale.html', 'fa-cash-register', 'POS Sale', () => { if(window.POSModule) window.POSModule.init(); }, 'POS Sale', true, true)"><i class="fas fa-cart-plus"></i> Sale</button>
+        <button class="btn btn-primary" style="padding: 6px 10px; font-size: 12px;" onclick="window.openModularPopup('Navigation/POS/pos_sale_register.html', 'fa-list', 'Sales Register', () => { if(window.POSRegisterModule) window.POSRegisterModule.init(); }, 'POS Sales Register', true, true)"><i class="fas fa-list"></i> Sales Register</button>
+        <button class="btn btn-primary" style="padding: 6px 10px; font-size: 12px;" onclick="window.openModularPopup('Navigation/POS/pos_sale_return.html', 'fa-undo', 'POS Sales Return', () => { if(window.POSReturnModule) window.POSReturnModule.init(); }, 'POS Sales Return', true, true)"><i class="fas fa-undo"></i> Sales Return</button>
+        <button class="btn btn-primary" style="padding: 6px 10px; font-size: 12px;" onclick="window.openModularPopup('Navigation/POS/pos_hold_register.html', 'fa-pause-circle', 'POS Hold / Recall Register', () => { if(window.POSHoldRegisterModule) window.POSHoldRegisterModule.init(); }, 'POS Hold / Recall Register', true, true)"><i class="fas fa-pause-circle"></i> Hold / Recall</button>
+        <button class="btn btn-primary" style="padding: 6px 10px; font-size: 12px;" onclick="window.openModularPopup('Navigation/POS/pos_day_closing.html', 'fa-door-closed', 'POS Day Closing', () => { if(window.POSDayClosingModule) window.POSDayClosingModule.init(); }, 'POS Day Closing', true, true)"><i class="fas fa-door-closed"></i> Day Closing</button>
+        <button class="btn btn-primary" style="padding: 6px 10px; font-size: 12px;" onclick="window.openModularPopup('Navigation/POS/pos_reports.html', 'fa-chart-line', 'POS Reports', () => { if(window.POSReportsModule) window.POSReportsModule.init(); }, 'POS Reports', true, true)"><i class="fas fa-chart-bar"></i> Reports</button>
+        <button class="btn btn-primary pos-admin-only" style="padding: 6px 10px; font-size: 12px; background-color: #34495e; border-color: #2c3e50;" onclick="if(window.openSystemSettingsTab){window.openSystemSettingsTab('sys_tab_pos');}else{window.openModularPopup('Navigation/Administrator/system_settings.html', 'fa-cog', 'System Settings', () => { if(window.switchSystemTab) window.switchSystemTab('sys_tab_pos'); if(window.loadSystemSettings) window.loadSystemSettings(); }, 'System Settings', true, false);}"><i class="fas fa-cog"></i> Settings</button>
+        <button type="button" class="btn btn-primary" id="btnPosDashRefresh" onclick="window.refreshPosDashboard(this)" style="padding: 6px 12px; font-size: 12px; font-weight: 600; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border-color: #0369a1; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 5px rgba(2,132,199,0.25); transition: all 0.2s;" title="Refresh POS Dashboard"><i class="fas fa-sync-alt" id="iconPosDashRefresh"></i> Refresh</button>
+    </div>
+
+    <!-- Admin POS Branch Quick-Login & Switched Banner Controls (Yellow Highlight Area) -->
+    <div id="posAdminBranchControlWrapper" style="display: none; align-items: center; gap: 8px; margin-left: auto;">
+        <!-- Branch Quick-Login Dropdown for Admin -->
+        <div id="posBranchLoginDropdownArea" style="position: relative;">
+            <button type="button" id="posBranchLoginDropdownBtn" onclick="window.togglePosBranchLoginMenu(event)" class="btn" style="padding: 6px 13px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border: 1px solid #059669; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 7px; box-shadow: 0 2px 6px rgba(16,185,129,0.25); transition: all 0.2s;" title="Click to view POS branches and login without password">
+                <i class="fas fa-store-alt" style="font-size: 13px;"></i>
+                <span id="posBranchLoginBtnLabel">Login to Branch</span>
+                <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: 2px;"></i>
+            </button>
+            <div id="posBranchLoginMenu" style="display: none; position: absolute; right: 0; top: calc(100% + 6px); background: #ffffff; min-width: 290px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid #cbd5e1; z-index: 10000; overflow: hidden;">
+                <div style="padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fas fa-bolt" style="color: #f59e0b;"></i> Select Branch to Login
+                    </span>
+                    <span style="font-size: 10px; background: #dcfce7; color: #166534; font-weight: 700; padding: 2px 7px; border-radius: 10px;">No Password</span>
+                </div>
+                <div id="posBranchLoginList" style="max-height: 280px; overflow-y: auto;">
+                    <div style="padding: 15px; text-align: center; color: #94a3b8; font-size: 12px;"><i class="fas fa-spinner fa-spin"></i> Loading branches...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Switched Branch Status & Exit to Main Dashboard Controls -->
+        <div id="posBranchSwitchedArea" style="display: none; align-items: center; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px; background: #fef3c7; border: 1.5px solid #fde68a; padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #92400e; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <i class="fas fa-store" style="color: #d97706; font-size: 13px;"></i>
+                <span>Branch:</span>
+                <span id="posSwitchedBranchBadgeName" style="color: #b45309; font-weight: 800;">--</span>
+                <span style="font-size: 10px; background: #fbbf24; color: #78350f; padding: 1px 6px; border-radius: 4px; margin-left: 4px; font-weight: 700;">Active Login</span>
+            </div>
+            <!-- Switch directly to another branch -->
+            <button type="button" onclick="window.togglePosBranchLoginMenu(event)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; background: #3b82f6; color: #fff; border: 1px solid #2563eb; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Switch directly to another branch without re-logging">
+                <i class="fas fa-exchange-alt"></i> Switch
+            </button>
+            <!-- Exit to Main Dashboard / Logout -->
+            <button type="button" onclick="window.returnToAdminDashboard()" class="btn" style="padding: 5px 12px; font-size: 12px; font-weight: 700; background: #dc2626; color: #fff; border: 1px solid #b91c1c; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(220,38,38,0.25);" title="Log out from this branch and return to Main Admin Dashboard">
+                <i class="fas fa-sign-out-alt"></i> Exit to Main Dashboard
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Branch & Date Range Filter Bar -->
+<div id="posDashboardFilterBar" style="background: #ffffff; padding: 12px 18px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; display: flex; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <!-- Branch Selector (Admin only) -->
+    <div id="posBranchFilterWrapper" class="pos-admin-only" style="display: flex; align-items: center; gap: 6px;">
+        <label style="font-size: 12px; font-weight: 600; color: #4a5568; margin: 0; display: flex; align-items: center; gap: 5px;">
+            <i class="fas fa-store-alt" style="color: #3498db;"></i> Branch:
+        </label>
+        <select id="pos_dash_branch_select" onchange="window.onPosDashBranchChange(this.value)" style="height: 34px; padding: 4px 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 12px; color: #2d3748; background: #fff; font-weight: 600; min-width: 220px; cursor: pointer; outline: none;">
+            <option value="all">🏢 All Branches (Consolidated)</option>
+        </select>
+    </div>
+
+    <!-- Branch Indicator (POS User locked) -->
+    <div id="posUserBranchBadge" style="display: none; align-items: center; gap: 6px; background: #eff6ff; padding: 6px 12px; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 12px; font-weight: 600; color: #1e40af;">
+        <i class="fas fa-store-alt" style="color: #2563eb;"></i>
+        <span>Branch:</span>
+        <span id="posUserBranchName" style="color: #1e3a8a; font-weight: 700;">My Branch</span>
+        <i class="fas fa-lock" style="color: #3b82f6; font-size: 11px; margin-left: 3px;" title="Locked to your assigned branch"></i>
+    </div>
+
+    <!-- Date Preset Dropdown -->
+    <div style="display: flex; align-items: center; gap: 6px;">
+        <label style="font-size: 12px; font-weight: 600; color: #4a5568; margin: 0; display: flex; align-items: center; gap: 5px;">
+            <i class="fas fa-clock" style="color: #e67e22;"></i> Period:
+        </label>
+        <select id="pos_dash_preset_select" onchange="window.onPosDashPresetChange(this.value)" style="height: 34px; padding: 4px 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 12px; color: #2d3748; background: #fff; font-weight: 600; min-width: 130px; cursor: pointer; outline: none;">
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="this_week">This Week</option>
+            <option value="this_month">This Month</option>
+            <option value="custom">Custom Range</option>
+        </select>
+    </div>
+
+    <!-- Date Range: From Date -->
+    <div style="display: flex; align-items: center; gap: 6px;">
+        <label style="font-size: 12px; font-weight: 600; color: #4a5568; margin: 0; display: flex; align-items: center; gap: 5px;">
+            <i class="fas fa-calendar-day" style="color: #3b82f6;"></i> From:
+        </label>
+        <input type="date" id="pos_dash_from_date" onchange="window.onPosDashCustomDateChange()" style="height: 34px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 12px; color: #2d3748; background: #fff; font-weight: 600; outline: none;">
+    </div>
+
+    <!-- Date Range: To Date -->
+    <div style="display: flex; align-items: center; gap: 6px;">
+        <label style="font-size: 12px; font-weight: 600; color: #4a5568; margin: 0; display: flex; align-items: center; gap: 5px;">
+            <i class="fas fa-calendar-check" style="color: #10b981;"></i> To:
+        </label>
+        <input type="date" id="pos_dash_to_date" onchange="window.onPosDashCustomDateChange()" style="height: 34px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 12px; color: #2d3748; background: #fff; font-weight: 600; outline: none;">
+    </div>
+
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card" style="transition: transform 0.2s, box-shadow 0.2s;">
+        <div class="stat-header">
+            <i class="fas fa-chart-line" style="color: #3498db;"></i>
+            <span id="posSaleCardLabel">Today's Sale</span>
+        </div>
+        <div class="stat-value money" id="posTodaySale">Rs. 0</div>
+    </div>
+    <div class="stat-card" style="transition: transform 0.2s, box-shadow 0.2s;">
+        <div class="stat-header">
+            <i class="fas fa-file-invoice" style="color: #2ecc71;"></i>
+            <span>Total Invoices</span>
+        </div>
+        <div class="stat-value" id="posTotalInvoices">0</div>
+    </div>
+    <div class="stat-card" style="transition: transform 0.2s, box-shadow 0.2s;">
+        <div class="stat-header">
+            <i class="fas fa-money-bill-wave" style="color: #f1c40f;"></i>
+            <span>Cash Received</span>
+        </div>
+        <div class="stat-value money" id="posCashReceived">Rs. 0</div>
+    </div>
+    <div class="stat-card" style="transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;" onclick="window.openModularPopup('Navigation/POS/pos_sale_register.html', 'fa-list', 'Sales Register', () => { if(window.POSRegisterModule) { window.POSRegisterModule.init(); window.POSRegisterModule.setFilter('fbr_status', 'Pending'); } }, 'POS Sales Register', true, true)" title="Click to view pending FBR invoices in register">
+        <div class="stat-header">
+            <i class="fas fa-cloud-upload-alt" style="color: #e74c3c;"></i>
+            <span>FBR Pending</span>
+        </div>
+        <div class="stat-value" id="posFbrPending">0</div>
+        <span class="stat-badge" style="background: #e74c3c; color: white;">Attention</span>
+    </div>
+</div>
+
+<div class="financial-card" style="margin-top: 20px; width: 100%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <h3 style="margin: 0; font-size: 16px; color: #2c3e50;"><i class="fas fa-receipt" style="color: #3498db;"></i> Recent Invoices</h3>
+            <span id="posRecentInvoicesScopeTag" style="font-size: 11px; padding: 2px 7px; background: #f1f5f9; color: #475569; border-radius: 4px; font-weight: 600;">Showing Today</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="window.openModularPopup('Navigation/POS/pos_sale_register.html', 'fa-list-alt', 'POS Sales Register', () => { if(window.POSRegisterModule) window.POSRegisterModule.init(); }, 'POS Sales Register', true, true)">
+            <i class="fas fa-external-link-alt"></i> View Full Register
+        </button>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="user-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+                <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #4a5568;">
+                    <th style="padding: 10px; text-align: left;">Invoice No</th>
+                    <th style="padding: 10px; text-align: left;">Branch</th>
+                    <th style="padding: 10px; text-align: left;">Date</th>
+                    <th style="padding: 10px; text-align: left;">Customer Name</th>
+                    <th style="padding: 10px; text-align: right;">Total Amount</th>
+                    <th style="padding: 10px; text-align: center;">FBR Status</th>
+                    <th style="padding: 10px; text-align: center;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="posRecentInvoicesTable">
+                <tr><td colspan="7" style="padding: 25px; text-align: center; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading recent invoices...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // State management for POS Dashboard
+    (function() {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+        window.posDashState = window.posDashState || {
+            branch: 'all',
+            preset: 'today',
+            from_date: todayStr,
+            to_date: todayStr,
+            branchesLoaded: false
+        };
+    })();
+
+    window.getPosDashPresetDates = function(preset) {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const toYMD = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const todayStr = toYMD(now);
+
+        if (preset === 'today') {
+            return { from: todayStr, to: todayStr };
+        }
+        if (preset === 'yesterday') {
+            const yest = new Date(now);
+            yest.setDate(yest.getDate() - 1);
+            const yestStr = toYMD(yest);
+            return { from: yestStr, to: yestStr };
+        }
+        if (preset === 'this_week') {
+            const d = new Date(now);
+            const day = d.getDay(); // 0 is Sun, 1 is Mon...
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+            const startOfWeek = new Date(d.setDate(diff));
+            return { from: toYMD(startOfWeek), to: todayStr };
+        }
+        if (preset === 'this_month') {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            return { from: toYMD(startOfMonth), to: todayStr };
+        }
+        return null;
+    };
+
+    window.onPosDashPresetChange = function(presetVal) {
+        window.posDashState.preset = presetVal;
+        if (presetVal !== 'custom') {
+            const dates = window.getPosDashPresetDates(presetVal);
+            if (dates) {
+                window.posDashState.from_date = dates.from;
+                window.posDashState.to_date = dates.to;
+                const fromInput = document.getElementById('pos_dash_from_date');
+                const toInput = document.getElementById('pos_dash_to_date');
+                if (fromInput) fromInput.value = dates.from;
+                if (toInput) toInput.value = dates.to;
+            }
+        }
+        window.loadPosDashboard();
+    };
+
+    window.onPosDashCustomDateChange = function() {
+        const fromInput = document.getElementById('pos_dash_from_date');
+        const toInput = document.getElementById('pos_dash_to_date');
+        if (fromInput && fromInput.value) window.posDashState.from_date = fromInput.value;
+        if (toInput && toInput.value) window.posDashState.to_date = toInput.value;
+        
+        const presetSelect = document.getElementById('pos_dash_preset_select');
+        if (presetSelect) {
+            const f = window.posDashState.from_date;
+            const t = window.posDashState.to_date;
+            const pToday = window.getPosDashPresetDates('today');
+            const pYest = window.getPosDashPresetDates('yesterday');
+            const pWeek = window.getPosDashPresetDates('this_week');
+            const pMonth = window.getPosDashPresetDates('this_month');
+
+            if (f === pToday.from && t === pToday.to) {
+                presetSelect.value = 'today';
+                window.posDashState.preset = 'today';
+            } else if (f === pYest.from && t === pYest.to) {
+                presetSelect.value = 'yesterday';
+                window.posDashState.preset = 'yesterday';
+            } else if (f === pWeek.from && t === pWeek.to) {
+                presetSelect.value = 'this_week';
+                window.posDashState.preset = 'this_week';
+            } else if (f === pMonth.from && t === pMonth.to) {
+                presetSelect.value = 'this_month';
+                window.posDashState.preset = 'this_month';
+            } else {
+                presetSelect.value = 'custom';
+                window.posDashState.preset = 'custom';
+            }
+        }
+        window.loadPosDashboard();
+    };
+
+    window.onPosDashBranchChange = function(branchVal) {
+        window.posDashState.branch = branchVal;
+        window.loadPosDashboard();
+    };
+
+    window.openPosInvoiceInRegister = function(invNo) {
+        window.openModularPopup('Navigation/POS/pos_sale_register.html', 'fa-list-alt', 'POS Sales Register', () => {
+            setTimeout(() => {
+                const searchInput = document.getElementById('pos_filter_search');
+                if (searchInput && invNo) {
+                    searchInput.value = invNo;
+                    if (window.POSRegisterModule && typeof window.POSRegisterModule.applyFilters === 'function') {
+                        window.POSRegisterModule.applyFilters();
+                    }
+                } else if (window.POSRegisterModule && typeof window.POSRegisterModule.init === 'function') {
+                    window.POSRegisterModule.init();
+                }
+            }, 150);
+        }, 'POS Sales Register', true, true);
+    };
+
+    window.togglePosBranchLoginMenu = function(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        const menu = document.getElementById('posBranchLoginMenu');
+        if (menu) {
+            const isShown = (menu.style.display === 'block');
+            menu.style.display = isShown ? 'none' : 'block';
+        }
+    };
+
+    window.renderPosBranchQuickLoginList = function(branches) {
+        const listEl = document.getElementById('posBranchLoginList');
+        if (!listEl) return;
+        if (!branches || branches.length === 0) {
+            listEl.innerHTML = '<div style="padding: 15px; text-align: center; color: #94a3b8; font-size: 12px;">No branches found.</div>';
+            return;
+        }
+        
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const currentBranchId = session.branch_id;
+        
+        let html = '';
+        branches.forEach(b => {
+            const isCurrent = (currentBranchId && String(currentBranchId) === String(b.id));
+            const activeBadge = isCurrent ? '<span style="font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Current</span>' : '';
+            const seriesInfo = b.invoice_series ? `Series: <strong>${b.invoice_series}</strong>` : (b.branch_code ? `Code: <strong>${b.branch_code}</strong>` : '');
+            
+            html += `
+                <div class="pos-branch-login-item" onclick="window.loginToBranchDirect('${b.id}', '${encodeURIComponent(b.branch_name)}', '${b.branch_code || ''}', '${b.invoice_series || ''}')" style="padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid #f1f5f9; ${isCurrent ? 'background: #f0fdf4;' : ''}">
+                    <div>
+                        <div style="font-weight: 700; font-size: 12px; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-store-alt" style="color: ${isCurrent ? '#16a34a' : '#3b82f6'}; font-size: 12px;"></i>
+                            <span>${b.branch_name}</span>
+                            ${activeBadge}
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                            ${seriesInfo}
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm" style="padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; border: 1px solid ${isCurrent ? '#16a34a' : '#10b981'}; background: ${isCurrent ? '#16a34a' : '#ecfdf5'}; color: ${isCurrent ? '#fff' : '#059669'}; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                        ${isCurrent ? '<i class="fas fa-check"></i> Active' : 'Login <i class="fas fa-arrow-right" style="font-size: 9px;"></i>'}
+                    </button>
+                </div>
+            `;
+        });
+        listEl.innerHTML = html;
+    };
+
+    window.loginToBranchDirect = async function(branchId, branchNameEnc, branchCode, invoiceSeries) {
+        const branchName = decodeURIComponent(branchNameEnc);
+        try {
+            const curSession = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const companyId = curSession.company_id || 1;
+            
+            // Backup the original admin session if not already backed up
+            if (!localStorage.getItem('softifyx_admin_backup_session')) {
+                localStorage.setItem('softifyx_admin_backup_session', JSON.stringify(curSession));
+            }
+
+            // Call backend to authenticate/switch session
+            const res = await fetch(`api/pos.php?action=login_to_branch&company_id=${companyId}&branch_id=${branchId}`);
+            const data = await res.json();
+            
+            let newUserId = curSession.user_id;
+            let newUsername = curSession.username;
+            if (data && data.status === 'success' && data.pos_user) {
+                newUserId = data.pos_user.id;
+                newUsername = data.pos_user.username;
+            }
+
+            const newSession = {
+                ...curSession,
+                user_id: newUserId,
+                username: newUsername,
+                role: 'POS',
+                branch_id: parseInt(branchId),
+                branch_name: branchName,
+                branch_code: branchCode || '',
+                invoice_series: invoiceSeries || (branchCode ? branchCode + '-POS-' : 'POS-INV-'),
+                switched_by_admin: true
+            };
+
+            localStorage.setItem('softifyx_session', JSON.stringify(newSession));
+            localStorage.setItem('softifyx_is_locked', 'false');
+
+            // Reload so that index.html boots directly into the chosen branch's POS session
+            window.location.reload();
+        } catch(err) {
+            console.error('Failed to login to branch:', err);
+            alert('Failed to login to branch: ' + err.message);
+        }
+    };
+
+    window.returnToAdminDashboard = async function() {
+        const backupStr = localStorage.getItem('softifyx_admin_backup_session');
+        if (!backupStr) {
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        try {
+            const adminSession = JSON.parse(backupStr);
+            const companyId = adminSession.company_id || 1;
+            const userId = adminSession.user_id || 1;
+            
+            // Notify backend to restore PHP $_SESSION
+            await fetch(`api/pos.php?action=restore_admin_session&company_id=${companyId}&user_id=${userId}`);
+            
+            // Restore localStorage session
+            localStorage.setItem('softifyx_session', backupStr);
+            localStorage.removeItem('softifyx_admin_backup_session');
+            
+            // Remove pos-only class from document
+            document.documentElement.classList.remove('pos-only');
+            document.body.classList.remove('pos-only');
+            
+            // Navigate to index.html (Main Dashboard as Admin)
+            window.location.href = 'index.html';
+        } catch(err) {
+            console.error('Failed to restore admin session:', err);
+            localStorage.setItem('softifyx_session', backupStr);
+            localStorage.removeItem('softifyx_admin_backup_session');
+            window.location.href = 'index.html';
+        }
+    };
+
+    // Close branch dropdown on click outside
+    if (!window._posBranchClickOutsideAttached) {
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('posBranchLoginMenu');
+            if (menu && menu.style.display === 'block') {
+                if (!e.target.closest('#posBranchLoginDropdownBtn') && !e.target.closest('#posBranchLoginMenu') && !e.target.closest('button[title*="Switch"]')) {
+                    menu.style.display = 'none';
+                }
+            }
+        });
+        window._posBranchClickOutsideAttached = true;
+    }
+
+    window.loadPosDashboard = async function() {
+        try {
+            const sessionData = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const companyId = sessionData.company_id || window.selectedCompanyId || 1;
+            if (!companyId) return;
+
+            const userRole = String(sessionData.role || '').trim().toUpperCase();
+            const username = String(sessionData.username || '').trim().toUpperCase();
+            const userId = sessionData.user_id;
+            const sessionBranchId = sessionData.branch_id || '';
+
+            const isAdmin = (userRole === 'ADMIN' || userRole === 'ADMINISTRATOR' || username === 'ADMIN' || username === 'ADMINISTRATOR' || userId == 1);
+            const adminBackup = localStorage.getItem('softifyx_admin_backup_session');
+            const isSwitchedByAdmin = !!adminBackup;
+            const isActuallyAdmin = isAdmin || isSwitchedByAdmin;
+
+            // Update Top-Right Branch Control Area (Yellow Highlight Area)
+            const controlWrapper = document.getElementById('posAdminBranchControlWrapper');
+            const loginDropdownArea = document.getElementById('posBranchLoginDropdownArea');
+            const switchedArea = document.getElementById('posBranchSwitchedArea');
+            const switchedBadgeName = document.getElementById('posSwitchedBranchBadgeName');
+
+            if (isActuallyAdmin) {
+                if (controlWrapper) controlWrapper.style.display = 'flex';
+                if (isSwitchedByAdmin) {
+                    if (switchedArea) switchedArea.style.display = 'flex';
+                    if (loginDropdownArea) loginDropdownArea.style.display = 'none';
+                    if (switchedBadgeName) switchedBadgeName.textContent = sessionData.branch_name || 'Assigned Branch';
+                } else {
+                    if (switchedArea) switchedArea.style.display = 'none';
+                    if (loginDropdownArea) loginDropdownArea.style.display = 'block';
+                }
+            } else {
+                if (controlWrapper) controlWrapper.style.display = 'none';
+            }
+
+            // For non-admin POS users (and not switched by admin), strictly lock branch to their assigned branch
+            if (!isAdmin) {
+                window.posDashState.branch = sessionBranchId ? String(sessionBranchId) : '';
+            } else if (!window.posDashState.branch) {
+                window.posDashState.branch = 'all';
+            }
+
+            // Branch filter wrapper: Visible for Admin (dropdown) or POS user (locked badge)
+            const branchWrapper = document.getElementById('posBranchFilterWrapper');
+            const userBranchBadge = document.getElementById('posUserBranchBadge');
+            const userBranchNameEl = document.getElementById('posUserBranchName');
+            
+            if (isAdmin) {
+                if (branchWrapper) branchWrapper.style.display = 'flex';
+                if (userBranchBadge) userBranchBadge.style.display = 'none';
+            } else {
+                if (branchWrapper) branchWrapper.style.display = 'none';
+                if (userBranchBadge) {
+                    userBranchBadge.style.display = 'inline-flex';
+                    if (userBranchNameEl) userBranchNameEl.textContent = sessionData.branch_name || 'My Branch';
+                }
+            }
+
+            // Sync inputs with current state
+            const fromInput = document.getElementById('pos_dash_from_date');
+            const toInput = document.getElementById('pos_dash_to_date');
+            const presetSelect = document.getElementById('pos_dash_preset_select');
+
+            if (fromInput) {
+                if (!fromInput.value) fromInput.value = window.posDashState.from_date;
+                else window.posDashState.from_date = fromInput.value;
+            }
+            if (toInput) {
+                if (!toInput.value) toInput.value = window.posDashState.to_date;
+                else window.posDashState.to_date = toInput.value;
+            }
+            if (presetSelect && window.posDashState.preset) {
+                presetSelect.value = window.posDashState.preset;
+            }
+
+            const currentBranch = window.posDashState.branch || 'all';
+            const fromDate = window.posDashState.from_date;
+            const toDate = window.posDashState.to_date;
+
+            const cb = `_cb=${Date.now()}`;
+            const url = `api/pos.php?action=get_pos_dashboard&company_id=${companyId}&branch_id=${encodeURIComponent(currentBranch)}&from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}&role=${encodeURIComponent(userRole)}&session_branch_id=${encodeURIComponent(sessionBranchId)}&user_id=${encodeURIComponent(userId || '')}&${cb}`;
+
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.status === 'success') {
+                    const currencySymbol = (window.globalCurrencySymbol || 'Rs.') + ' ';
+                    
+                    // 1. Populate Branches Dropdown (Admin only)
+                    const branchSelect = document.getElementById('pos_dash_branch_select');
+                    if (branchSelect && data.branches && isAdmin) {
+                        let opts = '<option value="all">🏢 All Branches (Consolidated)</option>';
+                        data.branches.forEach(b => {
+                            opts += `<option value="${b.id}">${b.branch_name}</option>`;
+                        });
+                        branchSelect.innerHTML = opts;
+                        branchSelect.value = String(currentBranch);
+                        branchSelect.disabled = false;
+                        branchSelect.style.background = '#fff';
+                        branchSelect.style.cursor = 'pointer';
+                        branchSelect.title = "Select branch to filter or view all branches";
+                    }
+
+                    // Populate Top-Bar Branch Quick Login Menu
+                    if (data.branches && (isAdmin || isSwitchedByAdmin)) {
+                        window.renderPosBranchQuickLoginList(data.branches);
+                    }
+
+                    // 2. Update Card Label and Scope Tag
+                    const labelEl = document.getElementById('posSaleCardLabel');
+                    const scopeTagEl = document.getElementById('posRecentInvoicesScopeTag');
+
+                    const now = new Date();
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+                    const yest = new Date(now);
+                    yest.setDate(yest.getDate() - 1);
+                    const yestStr = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
+
+                    if (labelEl) {
+                        if (fromDate === toDate) {
+                            if (fromDate === todayStr) {
+                                labelEl.textContent = "Today's Sale";
+                            } else if (fromDate === yestStr) {
+                                labelEl.textContent = "Yesterday's Sale";
+                            } else {
+                                labelEl.textContent = `Sale on ${fromDate}`;
+                            }
+                        } else {
+                            labelEl.textContent = `Sale (${fromDate} to ${toDate})`;
+                        }
+                    }
+
+                    let branchNameDisplay = "All Branches";
+                    if (currentBranch !== 'all' && currentBranch !== '') {
+                        const matched = (data.branches || []).find(b => String(b.id) === String(currentBranch));
+                        if (matched) {
+                            branchNameDisplay = matched.branch_name;
+                        } else if (sessionData.branch_name) {
+                            branchNameDisplay = sessionData.branch_name;
+                        }
+                    } else if (!isAdmin && sessionData.branch_name) {
+                        branchNameDisplay = sessionData.branch_name;
+                    }
+
+                    if (scopeTagEl) {
+                        if (fromDate === toDate) {
+                            if (fromDate === todayStr) {
+                                scopeTagEl.textContent = `Showing Today (${branchNameDisplay})`;
+                            } else if (fromDate === yestStr) {
+                                scopeTagEl.textContent = `Showing Yesterday (${branchNameDisplay})`;
+                            } else {
+                                scopeTagEl.textContent = `Showing ${fromDate} (${branchNameDisplay})`;
+                            }
+                        } else {
+                            scopeTagEl.textContent = `Showing ${fromDate} to ${toDate} (${branchNameDisplay})`;
+                        }
+                    }
+
+                    // 3. Update Metric Cards
+                    const saleEl = document.getElementById('posTodaySale');
+                    if (saleEl) saleEl.textContent = currencySymbol + (parseFloat(data.today_sale || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    
+                    const invEl = document.getElementById('posTotalInvoices');
+                    if (invEl) invEl.textContent = data.total_invoices || 0;
+                    
+                    const cashEl = document.getElementById('posCashReceived');
+                    if (cashEl) cashEl.textContent = currencySymbol + (parseFloat(data.cash_received || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    
+                    const pendingEl = document.getElementById('posFbrPending');
+                    if (pendingEl) pendingEl.textContent = data.fbr_pending || 0;
+
+                    // 4. Render Recent Invoices Table
+                    const tbody = document.getElementById('posRecentInvoicesTable');
+                    if (tbody) {
+                        if (data.recent_invoices && data.recent_invoices.length > 0) {
+                            let html = '';
+                            data.recent_invoices.forEach(inv => {
+                                let statusBadge = '';
+                                const st = (inv.fbr_status || 'Not Submitted').trim();
+                                if (st === 'Submitted') {
+                                    statusBadge = '<span style="background: #e6fffa; color: #234e52; border: 1px solid #b2f5ea; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;"><i class="fas fa-check-circle"></i> Submitted</span>';
+                                } else if (st === 'Failed' || st === 'Rejected') {
+                                    statusBadge = '<span style="background: #fff5f5; color: #9b2c2c; border: 1px solid #fed7d7; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;"><i class="fas fa-exclamation-circle"></i> ' + st + '</span>';
+                                } else {
+                                    statusBadge = '<span style="background: #fffaf0; color: #c05621; border: 1px solid #feebc8; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;"><i class="fas fa-clock"></i> Pending</span>';
+                                }
+
+                                const branchTag = `<span style="background: #f8fafc; color: #334155; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;"><i class="fas fa-store-alt" style="color: #3b82f6;"></i> ${inv.branch_name || 'Main Branch'}</span>`;
+
+                                html += `
+                                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s;">
+                                        <td style="padding: 10px; font-weight: 700; color: #1e293b;">${inv.invoice_no}</td>
+                                        <td style="padding: 10px;">${branchTag}</td>
+                                        <td style="padding: 10px; color: #64748b;">
+                                            <div>${inv.invoice_date}</div>
+                                        </td>
+                                        <td style="padding: 10px; font-weight: 500; color: #334155;">${inv.customer_name || 'Walk-in Customer'}</td>
+                                        <td style="padding: 10px; text-align: right; font-weight: 700; color: #0f172a;">${currencySymbol}${parseFloat(inv.net_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td style="padding: 10px; text-align: center;">${statusBadge}</td>
+                                        <td style="padding: 10px; text-align: center;">
+                                            <button class="btn btn-light btn-sm" onclick="window.openPosInvoiceInRegister('${inv.invoice_no}')" title="View in Sales Register" style="padding: 3px 8px; font-size: 11px; border: 1px solid #cbd5e0; border-radius: 4px; background: #fff; cursor: pointer;">
+                                                <i class="fas fa-eye" style="color: #3b82f6;"></i> View
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+                            tbody.innerHTML = html;
+                        } else {
+                            tbody.innerHTML = '<tr><td colspan="7" style="padding: 30px; text-align: center; color: #94a3b8;"><i class="fas fa-inbox" style="font-size: 24px; margin-bottom: 6px; display: block; color: #cbd5e1;"></i>No invoices found for the selected branch and criteria.</td></tr>';
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Failed to load POS Dashboard", err);
+            const tbody = document.getElementById('posRecentInvoicesTable');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: #e74c3c;">Failed to load data. Please change filters to try again.</td></tr>';
+            }
+        }
+    };
+
+    window.refreshPosDashboard = async function(btn) {
+        const icon = btn ? btn.querySelector('i') : document.getElementById('iconPosDashRefresh');
+        if (icon) icon.classList.add('fa-spin');
+        if (btn) btn.disabled = true;
+        try {
+            if (typeof window.loadPosDashboard === 'function') {
+                await window.loadPosDashboard();
+            }
+        } catch(e) {
+            console.error(e);
+        } finally {
+            setTimeout(() => {
+                if (icon) icon.classList.remove('fa-spin');
+                if (btn) btn.disabled = false;
+            }, 500);
+        }
+    };
+
+    // Auto-update dashboard every 20 seconds while dashboard is open on screen
+    if (window._posDashAutoRefreshInterval) {
+        clearInterval(window._posDashAutoRefreshInterval);
+    }
+    window._posDashAutoRefreshInterval = setInterval(() => {
+        const isDashActive = document.getElementById('pos_dash_branch_select') || document.getElementById('posRecentInvoicesTable');
+        if (isDashActive && document.visibilityState === 'visible') {
+            if (typeof window.loadPosDashboard === 'function') {
+                window.loadPosDashboard();
+            }
+        } else if (!isDashActive) {
+            clearInterval(window._posDashAutoRefreshInterval);
+            window._posDashAutoRefreshInterval = null;
+        }
+    }, 20000);
+
+    // Auto-refresh when user switches back to this browser tab
+    if (!window._posDashFocusListenerSet) {
+        window.addEventListener('focus', () => {
+            const isDashActive = document.getElementById('pos_dash_branch_select') || document.getElementById('posRecentInvoicesTable');
+            if (isDashActive && typeof window.loadPosDashboard === 'function') {
+                window.loadPosDashboard();
+            }
+        });
+        window._posDashFocusListenerSet = true;
+    }
+
+    // Initialize immediately
+    if (typeof window.loadPosDashboard === 'function') {
+        window.loadPosDashboard();
+    }
+</script>
+<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E" style="display:none;" onload="if(typeof window.loadPosDashboard === 'function') window.loadPosDashboard();" onerror="if(typeof window.loadPosDashboard === 'function') window.loadPosDashboard();">

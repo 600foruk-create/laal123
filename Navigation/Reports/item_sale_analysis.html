@@ -1,0 +1,223 @@
+<div class="sr-container" style="display: flex; flex-direction: column; min-height: 85vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fdfdfd;">
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .gj-btn-info:hover { background: #3b6998 !important; }
+        
+        #isa_tbody tr { border-bottom: 1px solid #eee; cursor: pointer; }
+        #isa_tbody tr:focus { outline: none; }
+        #isa_tbody tr.selected td { background-color: #1F4E79 !important; color: white; }
+        #isa_tbody td { padding: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-right: 1px solid #e0e0e0; }
+        #isa_tbody td:last-child { border-right: none; }
+
+        .sr-suggest-box {
+            display: none;
+            position: absolute;
+            width: 100%;
+            background: white;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+            top: 100%; /* Position right below the input */
+            left: 0;
+            font-size: 11px;
+        }
+        .sr-suggest-box div { padding: 4px; cursor: pointer; }
+        .sr-suggest-box div:hover, .sr-suggest-box div.active { background-color: #1F4E79; color: white; }
+        
+        .sr-row-pointer {
+            visibility: hidden;
+            color: #333;
+        }
+        .sr-row-selected .sr-row-pointer {
+            visibility: visible;
+            color: #fff;
+        }
+    </style>
+    <div class="sr-filters" style="background: #eee; padding: 10px; margin-bottom: 5px; border: 1px solid #ccc; position: relative;">
+        <!-- Top Action Buttons -->
+        <div style="position: absolute; right: 10px; top: 10px; display: flex; gap: 5px;">
+            <button type="button" id="isa_btn_display" class="gj-tool-btn gj-btn-info" onclick="if(window.ItemSaleAnalysisModule) window.ItemSaleAnalysisModule.display()" style="width: 80px;">Display</button>
+            <button type="button" id="isa_btn_print" class="gj-tool-btn gj-btn-info" onclick="if(window.ItemSaleAnalysisModule) window.ItemSaleAnalysisModule.printReport()" style="width: 80px;">Print</button>
+            <button type="button" id="isa_btn_excel" class="gj-tool-btn gj-btn-info" onclick="if(window.ItemSaleAnalysisModule) window.ItemSaleAnalysisModule.exportExcel()" style="width: 80px;">Excel</button>
+        </div>
+
+        <table style="width: 550px; border-collapse: separate; border-spacing: 2px 4px; font-size: 11px;">
+            <!-- Select Item (Mandatory, No Checkbox) -->
+            <tr>
+                <td style="width: 110px; font-weight: bold; font-style: italic;">Select Item</td>
+                <td style="position: relative;">
+                    <div style="display: flex;">
+                        <input type="text" id="isa_item_code" style="width: 120px; border: 1px solid #999; padding: 1px; border-right: none;" placeholder="Code">
+                        <input type="text" id="isa_item_name" style="flex: 1; border: 1px solid #999; padding: 1px;" placeholder="Item Name">
+                    </div>
+                    <input type="hidden" id="isa_item_id">
+                    <div id="isa_item_suggest" class="sr-suggest-box"></div>
+                </td>
+            </tr>
+
+            <!-- Customer -->
+            <tr>
+                <td>
+                    <label style="font-weight: bold; font-style: italic; display: flex; align-items: center; gap: 5px; margin: 0; cursor: pointer;">
+                        <input type="checkbox" id="isa_use_customer"> Customer
+                    </label>
+                </td>
+                <td style="position: relative;">
+                    <div style="display: flex;">
+                        <input type="text" id="isa_customer_code" style="width: 120px; border: 1px solid #999; padding: 1px; border-right: none;" disabled placeholder="Code">
+                        <input type="text" id="isa_customer_name" style="flex: 1; border: 1px solid #999; padding: 1px;" disabled placeholder="Customer Name">
+                    </div>
+                    <input type="hidden" id="isa_customer_id">
+                    <div id="isa_customer_suggest" class="sr-suggest-box"></div>
+                </td>
+            </tr>
+
+            <!-- Main Region -->
+            <tr>
+                <td>
+                    <label style="font-weight: bold; font-style: italic; display: flex; align-items: center; gap: 5px; margin: 0; cursor: pointer;">
+                        <input type="checkbox" id="isa_use_region"> Main Region
+                    </label>
+                </td>
+                <td>
+                    <select id="isa_region" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Main Region...</option>
+                    </select>
+                </td>
+            </tr>
+
+            <!-- Sub Region -->
+            <tr>
+                <td>
+                    <label style="font-style: italic; display: flex; align-items: center; gap: 5px; margin: 0; cursor: pointer; color: #888;">
+                        <input type="checkbox" id="isa_use_sub_region"> Sub Region
+                    </label>
+                </td>
+                <td>
+                    <select id="isa_sub_region" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Sub Region...</option>
+                    </select>
+                </td>
+            </tr>
+
+            <!-- Business Sector -->
+            <tr>
+                <td>
+                    <label style="font-weight: bold; font-style: italic; display: flex; align-items: center; gap: 5px; margin: 0; cursor: pointer;">
+                        <input type="checkbox" id="isa_use_business"> Business Sector
+                    </label>
+                </td>
+                <td>
+                    <select id="isa_business" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Business Sector...</option>
+                    </select>
+                </td>
+            </tr>
+
+            <!-- Department -->
+            <tr>
+                <td>
+                    <label style="font-weight: bold; font-style: italic; display: flex; align-items: center; gap: 5px; margin: 0; cursor: pointer;">
+                        <input type="checkbox" id="isa_use_dept"> Department
+                    </label>
+                </td>
+                <td>
+                    <select id="isa_dept" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Department...</option>
+                    </select>
+                </td>
+            </tr>
+
+            <!-- Employee -->
+            <tr>
+                <td>
+                    <label style="font-weight: bold; font-style: italic; display: flex; align-items: center; gap: 5px; margin: 0; cursor: pointer;">
+                        <input type="checkbox" id="isa_use_emp"> Employee
+                    </label>
+                </td>
+                <td>
+                    <select id="isa_emp" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Employee...</option>
+                    </select>
+                </td>
+            </tr>
+
+            <!-- Period From / To -->
+            <tr>
+                <td>
+                    <label style="font-weight: bold; font-style: italic; display: flex; align-items: center; gap: 5px; margin: 0; cursor: pointer;">
+                        <input type="checkbox" id="isa_use_date"> Period From
+                    </label>
+                </td>
+                <td style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" id="isa_date_from" style="width: 100px; border: 1px solid #999; padding: 1px;" disabled placeholder="dd-M-y">
+                    <span style="font-weight: bold; font-size: 11px;">To</span>
+                    <input type="text" id="isa_date_to" style="width: 100px; border: 1px solid #999; padding: 1px;" disabled placeholder="dd-M-y">
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Data Grid Container -->
+    <div style="flex: 1; border: 1px solid #999; background: #fff; overflow: auto; display: flex; flex-direction: column; min-height: 250px;">
+        <table id="isa_table" style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <thead style="position: sticky; top: 0; background: #f9f9f9; z-index: 1;">
+                <tr>
+                    <th style="border: 1px solid #ccc; padding: 3px; width: 25px;"></th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: left; width: 60px;">Tran. No.</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: left; width: 70px;">Date</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: left;">Customer</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: right; width: 60px;">Pieces</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: right; width: 60px;">Quantity</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: left; width: 40px;">Unit</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: right; width: 60px;">Rate</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: right; width: 75px;">Gross Amount</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: right; width: 60px;">Discount</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: right; width: 80px;">Amt. Excl. Tax</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: right; width: 60px;">Sales Tax</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: right; width: 50px;">Fur. Tax</th>
+                    <th style="border: 1px solid #ccc; padding: 3px; font-style: italic; text-align: right; width: 80px;">Amt. Incl. Tax</th>
+                </tr>
+            </thead>
+            <tbody id="isa_tbody">
+                <!-- Data populated here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Totals Footer -->
+    <div style="background: #ddd; border: 1px solid #999; border-top: none; padding: 2px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-weight: bold;">
+            <tr>
+                <td style="text-align: right; padding-right: 10px; font-style: italic;">Totals Rs.</td>
+                <td style="width: 60px; text-align: right; background: #fff; border: 1px solid #ccc; padding: 2px;" id="isa_tot_pieces">0.00</td>
+                <td style="width: 60px; text-align: right; background: #fff; border: 1px solid #ccc; padding: 2px;" id="isa_tot_qty">0.00</td>
+                <td style="width: 40px;"></td> <!-- Unit -->
+                <td style="width: 60px;"></td> <!-- Rate -->
+                <td style="width: 75px; text-align: right; background: #fff; border: 1px solid #ccc; padding: 2px;" id="isa_tot_gross">0.00</td>
+                <td style="width: 60px; text-align: right; background: #fff; border: 1px solid #ccc; padding: 2px;" id="isa_tot_disc">0.00</td>
+                <td style="width: 80px; text-align: right; background: #fff; border: 1px solid #ccc; padding: 2px;" id="isa_tot_excl">0.00</td>
+                <td style="width: 60px; text-align: right; background: #fff; border: 1px solid #ccc; padding: 2px;" id="isa_tot_stax">0.00</td>
+                <td style="width: 50px; text-align: right; background: #fff; border: 1px solid #ccc; padding: 2px;" id="isa_tot_ftax">0.00</td>
+                <td style="width: 80px; text-align: right; background: #fff; border: 1px solid #ccc; padding: 2px;" id="isa_tot_incl">0.00</td>
+            </tr>
+        </table>
+    </div>
+</div>

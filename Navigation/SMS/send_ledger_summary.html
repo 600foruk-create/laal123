@@ -1,0 +1,228 @@
+<div id="ledgerSummarySMSContainer" data-module="Send Ledger Summary" style="min-height: 590px; display: flex; flex-direction: column; gap: 8px; background: white; padding: 12px; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 4px; width: 930px; position: relative;">
+    
+    <!-- Top Row: Search & Selection -->
+    <div style="display: flex; gap: 15px; border: 1px solid #e2e8f0; padding: 12px; border-radius: 4px; background: #f8fafc;">
+        <div style="display: flex; flex-direction: column; gap: 4px; width: 140px;">
+            <label class="sms-label">Party Type</label>
+            <select id="lsPartyType" class="sms-input" onchange="window.SendLedgerSummaryModule.handlePartyTypeChange()">
+                <option value="customer">Customer</option>
+                <option value="vendor">Vendor</option>
+            </select>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; position: relative;">
+            <label class="sms-label">Search Party (Code / Name)</label>
+            <input type="text" id="lsPartySearch" class="sms-input" placeholder="Type to search customer or vendor..." autocomplete="off">
+            <div id="lsPartySuggest" class="sms-suggest" style="width: 100%;"></div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px; width: 180px;">
+            <label class="sms-label">Mobile Number</label>
+            <input type="text" id="lsMobileNo" class="sms-input" placeholder="e.g. 923001234567">
+        </div>
+    </div>
+
+    <!-- Middle Section: Ledger Details & Message Preview -->
+    <div style="display: flex; gap: 15px; flex: 1;">
+        <!-- Left Side: Ledger Summary Details -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; border-radius: 4px; padding: 12px; background: white; display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-size: 12px; font-weight: 700; color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 3px; text-transform: uppercase;">
+                Ledger Balance Details
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 130px 1fr; gap: 8px; font-size: 12px;">
+                <span style="color: #64748b;">Code:</span>
+                <strong id="lsCode">-</strong>
+
+                <span style="color: #64748b;">Name:</span>
+                <strong id="lsName">-</strong>
+
+                <span style="color: #64748b;">Contact Person:</span>
+                <span id="lsContactPerson">-</span>
+
+                <span style="color: #64748b;">Opening Balance:</span>
+                <strong id="lsOpening" class="money">0.00</strong>
+
+                <span style="color: #64748b;">Total Debit:</span>
+                <span id="lsDebit" class="money" style="color: #16a34a; font-weight: 600;">0.00</span>
+
+                <span style="color: #64748b;">Total Credit:</span>
+                <span id="lsCredit" class="money" style="color: #dc2626; font-weight: 600;">0.00</span>
+
+                <span style="color: #64748b; font-size: 13px; font-weight: 700;">Net Balance:</span>
+                <strong id="lsNetBalance" class="money" style="font-size: 14px; color: #1e3a8a;">0.00</strong>
+            </div>
+            
+            <button class="sms-btn" onclick="window.SendLedgerSummaryModule.printLedger()" style="margin-top: auto; width: 100%; height: 30px; background: #0284c7; color: white; border: none; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <i class="fas fa-file-pdf"></i> View & Print Ledger PDF
+            </button>
+        </div>
+
+        <!-- Right Side: Template Selection & Composer -->
+        <div style="flex: 1.2; border: 1px solid #cbd5e0; border-radius: 4px; padding: 12px; background: white; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 12px; font-weight: 700; color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 3px; text-transform: uppercase;">
+                SMS Composer
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="sms-label">Choose SMS Template</label>
+                <select id="lsTemplateSelect" class="sms-input" onchange="window.SendLedgerSummaryModule.applyTemplate()">
+                    <option value="">-- Custom Message (No Template) --</option>
+                </select>
+                
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+                    <input type="checkbox" id="lsAttachPDF" onchange="window.SendLedgerSummaryModule.togglePDFAttachment()" style="width: 15px; height: 15px; cursor: pointer;">
+                    <label for="lsAttachPDF" class="sms-label" style="cursor: pointer; color: #0284c7; font-weight: 700; display: flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-paperclip"></i> Attach Customer Account Ledger PDF File
+                    </label>
+                </div>
+
+                <!-- PDF Date Range Selection Panel -->
+                <div id="lsPdfDateRangeContainer" style="display: none; background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; padding: 8px 10px; margin-top: 4px; font-size: 11px;">
+                    <div style="font-weight: 700; color: #166534; margin-bottom: 5px; display: flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-calendar-alt" style="color: #15803d;"></i> Select Statement Date Range:
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 6px;">
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: #1e293b; font-weight: 600;">
+                            <input type="radio" name="lsDateOption" id="lsDateAll" value="all" checked onchange="window.SendLedgerSummaryModule.toggleDateInputs()"> All Dates (Complete Ledger)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: #1e293b; font-weight: 600;">
+                            <input type="radio" name="lsDateOption" id="lsDateCustom" value="custom" onchange="window.SendLedgerSummaryModule.toggleDateInputs()"> Specific Date Range
+                        </label>
+                    </div>
+                    <div id="lsCustomDateRow" style="display: none; gap: 8px; align-items: center;">
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <label style="font-size: 10px; color: #475569; font-weight: 600;">From Date:</label>
+                            <input type="date" id="lsFromDate" class="sms-input" style="height: 24px; padding: 2px 5px; font-size: 11px; width: 125px;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <label style="font-size: 10px; color: #475569; font-weight: 600;">To Date:</label>
+                            <input type="date" id="lsToDate" class="sms-input" style="height: 24px; padding: 2px 5px; font-size: 11px; width: 125px;">
+                        </div>
+                    </div>
+                    <div style="font-size: 10px; color: #15803d; margin-top: 5px; display: flex; align-items: center; gap: 4px;">
+                        <i class="fas fa-file-pdf" style="color: #dc2626;"></i> The real ledger PDF file will be generated and sent directly to WhatsApp.
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                <label class="sms-label">Message Text</label>
+                <textarea id="lsMessageText" class="sms-input" style="flex: 1; min-height: 100px; resize: none; padding: 6px; font-family: monospace; font-size: 12px;" placeholder="Select template or write custom message..."></textarea>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; margin-top: 2px;">
+                    <span id="lsCharCounter">0 characters / 0 SMS Parts</span>
+                    <button class="sms-btn sms-save" id="btnSendLS" onclick="window.SendLedgerSummaryModule.sendSMS()" style="height: 28px; width: 100px; color: white; background: #1F4E79; border: none; font-weight: 700;">
+                        <i class="fas fa-paper-plane"></i> Send SMS
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Row: Recent SMS Logs -->
+    <div style="height: 180px; display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px; background: #f8fafc; margin-top: 5px;">
+        <div style="font-size: 11px; font-weight: 700; color: #1F4E79; margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid #1F4E79; padding-bottom: 2px;">
+            Recent Send Logs (Ledger Summary)
+        </div>
+        <div style="flex: 1; background: white; border: 1px solid #cbd5e0; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                <thead style="position: sticky; top: 0; background: #1F4E79; color: white;">
+                    <tr>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0; width: 130px;">Sent Time</th>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0; width: 120px;">Recipient</th>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0; width: 100px;">Mobile No</th>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0;">Message Details</th>
+                        <th style="padding: 3px 6px; text-align: center; border: 1px solid #cbd5e0; width: 70px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="lsLogsBody">
+                    <!-- Logs list -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Simulated SMS Mobile Screen Modal -->
+    <div id="simulatedPhoneModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; border-radius: 4px;">
+        <div class="phone-wrapper" style="width: 280px; height: 500px; background: #000; border-radius: 36px; padding: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 4px solid #333; display: flex; flex-direction: column; position: relative;">
+            <div class="phone-notch" style="width: 100px; height: 18px; background: #000; border-radius: 0 0 12px 12px; margin: 0 auto; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10;"></div>
+            <div class="phone-screen" style="flex: 1; background: #e5ddd5; border-radius: 28px; overflow: hidden; display: flex; flex-direction: column; position: relative; font-family: sans-serif;">
+                <!-- Phone Header -->
+                <div style="background: #075e54; color: white; padding: 22px 10px 10px 10px; display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 32px; height: 32px; background: #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: #333;">
+                        💬
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; font-weight: bold;" id="phoneRecipientName">Naimat Traders</div>
+                        <div style="font-size: 9px; color: #cfd8dc;">Online</div>
+                    </div>
+                </div>
+                <!-- Chat Area -->
+                <div style="flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;">
+                    <div style="align-self: flex-end; background: #dcf8c6; padding: 8px 12px; border-radius: 8px 0 8px 8px; font-size: 11px; max-width: 85%; box-shadow: 0 1px 1px rgba(0,0,0,0.1); line-height: 1.4; word-wrap: break-word;" id="phoneMessageText">
+                        Dear Customer, outstanding balance is 12,000.
+                    </div>
+                </div>
+                <!-- Success Popup Overlay inside phone -->
+                <div id="phoneSuccessBadge" style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; border: 2px solid #4caf50; text-align: center; width: 80%; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
+                    <div style="font-size: 32px; color: #4caf50; margin-bottom: 5px;"><i class="fas fa-check-circle"></i></div>
+                    <div style="font-size: 12px; font-weight: bold; color: #2e7d32;">SMS SENT SUCCESS!</div>
+                    <div style="font-size: 9px; color: #666; margin-top: 4px;">Simulated gateway response code: 200 OK</div>
+                </div>
+                <!-- Phone Footer -->
+                <div style="background: #eee; padding: 8px; display: flex; align-items: center; justify-content: center;">
+                    <button onclick="document.getElementById('simulatedPhoneModal').style.display='none'" style="border: none; background: #075e54; color: white; border-radius: 15px; padding: 4px 15px; font-size: 10px; font-weight: bold; cursor: pointer;">Close Preview</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .sms-btn {
+            height: 28px;
+            min-width: 70px;
+            padding: 0 12px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #cbd5e0;
+            background: white;
+            transition: all 0.2s;
+        }
+        .sms-btn:hover { background: #f8fafc; }
+        .sms-label { font-size: 11px; font-weight: 600; color: #334155; }
+        .sms-input {
+            height: 24px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            padding: 0 6px;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+        .sms-input:focus { border-color: #1e3a8a; }
+        
+        .sms-suggest {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #cbd5e0;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .sms-suggest div:hover {
+            background: #f1f5f9;
+        }
+        
+        #lsLogsBody tr { border-bottom: 1px solid #f1f5f9; }
+        #lsLogsBody tr:hover { background: #f8fafc; }
+        #lsLogsBody td { padding: 4px 6px; border: 1px solid #e2e8f0; }
+    </style>
+</div>

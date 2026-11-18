@@ -1,0 +1,183 @@
+<div id="jobsContainer" data-module="Jobs" style="height: 100%; width: 100%; display: flex; flex-direction: column; gap: 4px; background: white; padding: 0px 6px 6px 6px; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; border-radius: 4px; position: relative;">
+
+    <!-- Section 1: Top List of Jobs -->
+    <div style="flex: 1.5; display: flex; flex-direction: column; min-height: 200px; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px; background: #f8fafc;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px;">
+            Job List
+        </div>
+        <div style="flex: 1; background: white; border: 1px solid #cbd5e0; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead style="position: sticky; top: 0; background: #1F4E79; color: white;">
+                    <tr>
+                        <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0;">Job No</th>
+                        <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0;">Date</th>
+                        <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0;">Description</th>
+                        <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0;">Customer</th>
+                        <th style="padding: 4px; text-align: right; border: 1px solid #cbd5e0;">Value</th>
+                        <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0;">Comp. Date</th>
+                        <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="jobListBody">
+                    <!-- Loaded via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 2: Bottom Form Details -->
+    <div style="flex: 1; border: 1px solid #e2e8f0; padding: 12px; border-radius: 4px; background: white; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="jobs-btn jobs-add" onclick="window.JobsModule.resetForm(true)">Add</button>
+            <button class="jobs-btn jobs-save" onclick="window.JobsModule.saveJob()">Save</button>
+            <button class="jobs-btn jobs-cancel" onclick="window.JobsModule.resetForm()">Cancel</button>
+            <button class="jobs-btn jobs-print" onclick="window.JobsModule.printJob()">Job Card</button>
+            <button class="jobs-btn jobs-delete" onclick="window.JobsModule.deleteJob()" style="margin-left: 20px;">Delete</button>
+        </div>
+
+        <div style="display: flex; gap: 20px;">
+            <!-- Left Side: Job Info -->
+            <div style="flex: 1; display: grid; grid-template-columns: 120px 1fr 60px 1fr; gap: 8px 10px; align-content: start; margin-top: 24px;">
+                <label class="jobs-label">Job No</label>
+                <input type="text" id="jobNo" class="jobs-input" style="color: blue; font-weight: 700;">
+                
+                <label class="jobs-label" style="text-align: right;">Date</label>
+                <input type="date" id="jobDate" class="jobs-input">
+
+                <label class="jobs-label">Job Description</label>
+                <textarea id="jobDescription" class="jobs-input" style="grid-column: span 3; height: 50px; resize: none;"></textarea>
+
+                <label class="jobs-label">Order No. & Date</label>
+                <input type="text" id="jobOrderRef" class="jobs-input" style="grid-column: span 3;">
+
+                <label class="jobs-label">Exp. Delivery Date</label>
+                <input type="date" id="jobExpDate" class="jobs-input" style="grid-column: span 3;">
+
+                <label class="jobs-label">Job Incharge</label>
+                <select id="jobIncharge" class="jobs-input" style="grid-column: span 3;">
+                    <option value="">Select Incharge</option>
+                </select>
+
+                <label class="jobs-label">Estimated Cost</label>
+                <input type="number" id="jobEstCost" class="jobs-input" value="0">
+                
+                <label class="jobs-label" style="text-align: right;">Value of Job</label>
+                <input type="number" id="jobValue" class="jobs-input" value="0">
+
+                <label class="jobs-label">Job Completed</label>
+                <input type="checkbox" id="jobIsCompleted" style="width: 16px; height: 16px; cursor: pointer; align-self: center;">
+                
+                <label class="jobs-label" style="text-align: right;">Completion Date</label>
+                <input type="date" id="jobCompDate" class="jobs-input">
+
+                <label class="jobs-label">Delivery Ref. & Dt</label>
+                <input type="text" id="jobDelRef" class="jobs-input" style="grid-column: span 3;">
+            </div>
+
+            <!-- Right Side: Customer Info -->
+            <div style="width: 350px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-size: 11px; font-weight: 800; color: #1e3a8a; border-bottom: 1px solid #1e3a8a; padding-bottom: 2px; text-transform: uppercase;">Customer Information</div>
+                <div style="display: grid; grid-template-columns: 80px 1fr; gap: 8px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px;">
+                    <label class="jobs-label">Code</label>
+                    <div style="position: relative;">
+                        <input type="text" id="jobCustCode" class="jobs-input" placeholder="Search by Code or Name..." autocomplete="off">
+                        <div id="jobCustSuggest" class="jobs-suggest"></div>
+                    </div>
+
+                    <label class="jobs-label">Name</label>
+                    <input type="text" id="jobCustName" class="jobs-input">
+
+                    <label class="jobs-label">Contact</label>
+                    <input type="text" id="jobCustContact" class="jobs-input">
+
+                    <label class="jobs-label">Address</label>
+                    <textarea id="jobCustAddress" class="jobs-input" style="height: 60px; resize: none;"></textarea>
+
+                    <label class="jobs-label">Telephone</label>
+                    <input type="text" id="jobCustPhone" class="jobs-input">
+                </div>
+
+                <label class="jobs-label" style="margin-top: 5px;">Remarks</label>
+                <textarea id="jobRemarks" class="jobs-input" style="height: 45px; resize: none;"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .jobs-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 5px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .jobs-btn:hover:not(:disabled) { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .jobs-btn:active:not(:disabled) { transform: translateY(1px); }
+        .jobs-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #f8fafc !important; border-color: #cbd5e0 !important; color: #94a3b8 !important; }
+
+        .jobs-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .jobs-add:hover:not(:disabled) { background: #3b6998 !important; }
+        .jobs-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .jobs-save:hover:not(:disabled) { background: #3b6998 !important; }
+        .jobs-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .jobs-cancel:hover:not(:disabled) { background: #3b6998 !important; }
+        .jobs-print { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: 60px; }
+        .jobs-print:hover:not(:disabled) { background: #3b6998 !important; }
+        .jobs-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .jobs-delete:hover:not(:disabled) { background: #c82333 !important; }
+
+        .jobs-label { font-size: 11px; font-weight: bold; color: #000000; font-family: Tahoma, Arial, sans-serif; display: flex; align-items: center; }
+        .jobs-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            transition: border 0.2s;
+        }
+        .jobs-input:focus:not(:disabled) { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .jobs-input:disabled { background-color: #f8fafc; color: #64748b; }
+        
+        textarea.jobs-input { height: auto; min-height: 40px; padding-top: 4px; }
+
+        #jobListBody tr { cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+        #jobListBody tr:hover { background: #f8fafc; }
+        #jobListBody tr.active { background: var(--theme-primary, #1F4E79); color: white; font-weight: 700; }
+        #jobListBody td { padding: 5px 8px; border: 1px solid #e2e8f0; }
+
+        .jobs-suggest {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border: 1px solid #cbd5e0;
+            border-radius: 0 0 4px 4px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .jobs-suggest div {
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .jobs-suggest div:hover { background: #f1f5f9; }
+    </style>
+</div>

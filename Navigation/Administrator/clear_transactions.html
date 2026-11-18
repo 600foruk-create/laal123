@@ -1,0 +1,58 @@
+<div data-module="Clear Transactions" style="padding: 10px 20px; font-family: Segoe UI, Tahoma, sans-serif;">
+    
+    <!-- Warning Message Panel to match the screenshot text -->
+    <div style="background: #fff9e6; color: #856404; padding: 10px 15px; border-left: 4px solid #F5A623; border-radius: 4px; margin-bottom: 10px; font-size: 14.5px; line-height: 1.6; border-top: 1px solid #ffeeba; border-right: 1px solid #ffeeba; border-bottom: 1px solid #ffeeba;">
+        <p style="margin-top: 0; margin-bottom: 8px;">You can use this utility to clear all the transactions in your software. This will let you start your software from scratch.</p>
+        <p style="margin-bottom: 8px; color: #d63031; font-weight: 600;">It is strongly advised that you take back-up of your latest data, to save yourself from any mis-happenings.</p>
+        <p style="margin-bottom: 0;">To speed-up your database, this is recommended that you use "Compact & Repair Data" from your back-up utility.</p>
+    </div>
+
+
+    <!-- Data Clearing Options -->
+    <div style="background: #fdfdfd; padding: 10px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 10px;">
+        <div style="font-weight: 600; color: #1f4668; margin-bottom: 8px;">Select Clearing Option:</div>
+        <div style="margin-bottom: 8px;">
+            <label style="cursor: pointer; display: flex; align-items: flex-start; margin-bottom: 0;">
+                <input type="radio" name="clear_option" value="3" checked style="margin-top: 3px; margin-right: 8px;">
+                <span style="font-size: 14px;"><b>Clear Transactions Only</b><br><small style="color: #666;">Keep Master Data (Accounts, Items, Customers) and Opening Balances.</small></span>
+            </label>
+        </div>
+        <div style="margin-bottom: 8px;">
+            <label style="cursor: pointer; display: flex; align-items: flex-start; margin-bottom: 0;">
+                <input type="radio" name="clear_option" value="2" style="margin-top: 3px; margin-right: 8px;">
+                <span style="font-size: 14px;"><b>Clear Transactions & Opening Balances</b><br><small style="color: #666;">Keep Master Data, but reset all opening balances and transactions to zero.</small></span>
+            </label>
+        </div>
+        <div style="margin-bottom: 8px;">
+            <label style="cursor: pointer; display: flex; align-items: flex-start; margin-bottom: 0;">
+                <input type="radio" name="clear_option" value="4" style="margin-top: 3px; margin-right: 8px;">
+                <span style="font-size: 14px;"><b>Clear Transactions & Chart of Inventory</b><br><small style="color: #666;">Keep Accounts Master Data, but clear all transactions and inventory items.</small></span>
+            </label>
+        </div>
+        <div>
+            <label style="cursor: pointer; display: flex; align-items: flex-start; margin-bottom: 0;">
+                <input type="radio" name="clear_option" value="1" style="margin-top: 3px; margin-right: 8px;">
+                <span style="font-size: 14px; color: #d63031;"><b>Clear ALL Data (Reset Company)</b><br><small style="color: #d63031;">Start from scratch. Deletes everything except the basic Chart of Accounts structure.</small></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Security Authorization Panel -->
+    <div style="background: #fdfdfd; padding: 10px; border-radius: 4px; border: 1px dashed #d63031; margin-bottom: 10px;">
+        <div class="form-group" style="display: flex; align-items: center; margin-bottom: 0; flex-wrap: wrap;">
+            <label style="width: 220px; font-weight: 600; color: #1f4668; margin-bottom: 5px;"><i class="fas fa-lock" style="color: #d63031; margin-right: 5px;"></i> Admin Authorization</label>
+            <div style="flex: 1; min-width: 200px; max-width: 250px; position: relative;">
+                <input type="password" class="form-control" id="clearTxPassword" style="width: 100%; border: 1px solid #d63031; padding-right: 30px;" placeholder="Enter Login Password" autocomplete="new-password">
+                <i class="fas fa-eye" onclick="togglePasswordVisibility('clearTxPassword', this)" style="position: absolute; right: 10px; top: 11px; cursor: pointer; color: #888;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div id="clearTxErrorMsg" style="color: #d63031; font-weight: 600; font-size: 13px; height: 18px; text-align: right; margin-bottom: 15px;"></div>
+
+    <!-- Actions -->
+    <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal()"><i class="fas fa-times"></i> Cancel</button>
+        <button class="btn btn-primary" onclick="executeClearTransactions()" style="background: #d63031; border-color: #d63031;"><i class="fas fa-trash-alt"></i> Clear Transactions</button>
+    </div>
+</div>

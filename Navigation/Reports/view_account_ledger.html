@@ -1,0 +1,316 @@
+<style>
+/* Smart Search Box */
+.ledger-search-wrapper {
+    position: relative;
+    flex: 1;
+}
+.ledger-search-input {
+    width: 100%;
+    height: 22px;
+    border: 1px solid #000;
+    border-radius: 0;
+    font-size: 13px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    background: #fff;
+}
+.ledger-search-input:focus {
+    outline: none;
+    border-color: #1f4668;
+}
+.ledger-dropdown-list {
+    display: none;
+    position: absolute;
+    top: 22px;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #999;
+    border-top: none;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 99999;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+.ledger-dropdown-list.active { display: block; }
+.ledger-dropdown-item {
+    padding: 5px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    color: #333;
+}
+.ledger-dropdown-item:hover,
+.ledger-dropdown-item.highlighted {
+    background-color: #1f4668;
+    color: #fff;
+}
+.ledger-dropdown-item .item-code {
+    font-weight: bold;
+    margin-right: 5px;
+    color: #e67e22;
+}
+.ledger-dropdown-item:hover .item-code,
+.ledger-dropdown-item.highlighted .item-code { color: #ffd580; }
+
+.al-btn {
+    background: #4a789c;
+    border: 1px solid #4a789c;
+    padding: 2px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 4px;
+    color: #ffffff;
+    transition: all 0.2s;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: normal;
+    line-height: 1.1;
+    text-align: center;
+    width: 75px;
+    min-width: 75px;
+    word-wrap: break-word;
+}
+.al-btn:hover { background: #3b6998; border-color: #3b6998; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+</style>
+
+<div class="ledger-container" style="display: flex; flex-direction: column; height: 100%; background-color: #f0f0f0;">
+    <!-- Filter Section -->
+    <div class="filter-section" style="background-color: #f8f9fa; padding: 10px; border: 1px solid #1f4668; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin: 10px; display: flex; align-items: flex-end; gap: 15px;">
+        
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+            <!-- Select Account Row: Code Box + Name Box -->
+            <div style="display: flex; align-items: center;">
+                <label style="width: 95px; display: inline-block; text-align: right; margin-right: 10px; font-size: 13px; color: #333; flex-shrink:0;">Select Account</label>
+
+                <!-- Code Box & Name Box Wrapper (for full-width dropdown) -->
+                <div class="ledger-search-wrapper" style="display: flex; flex: 1; gap: 5px; position: relative;">
+                    <input type="text" id="ledger-account-search" style="width: 110px; flex-shrink: 0; height: 22px; border: 1px solid #000; border-radius: 0; font-size: 13px; font-weight: bold; padding: 0 8px; box-sizing: border-box; background: #fff;" placeholder="Code" autocomplete="off"
+                        onclick="this.select()"
+                        oninput="window.AccountLedgerModule.filterAccounts(this.value)"
+                        onkeydown="window.AccountLedgerModule.handleSearchKey(event)">
+                    <input type="hidden" id="ledger-account-id" value="">
+                    
+                    <!-- Name Box (read-only display) -->
+                    <input type="text" id="ledger-account-name-display" readonly
+                        style="width: 335px; height:22px; border:1px solid #000; font-size:13px; font-weight:bold; padding:0 8px; box-sizing:border-box; background:#f5f5f5; color:#333; cursor:default;"
+                        placeholder="Account Name">
+                        
+                    <div id="ledger-account-dropdown" class="ledger-dropdown-list" style="width: 100%; top: 22px;"></div>
+                </div>
+            </div>
+
+
+            <!-- Period Row -->
+            <div style="display: flex; align-items: center; margin-top: 3px;">
+                <div style="width: 95px; margin-right: 10px; flex-shrink:0;"></div>
+                
+                <div style="display: flex; align-items: center; gap: 5px; width: 110px; margin-right: 5px; flex-shrink:0; white-space: nowrap;">
+                    <input type="checkbox" id="ledger-period-checkbox" onchange="window.AccountLedgerModule.toggleDates()">
+                    <label for="ledger-period-checkbox" style="font-style: italic; font-size: 13px; color: #333; margin: 0; cursor: pointer;">Period From</label>
+                </div>
+                
+                <input type="date" id="ledger-from-date" class="form-control" style="width: 115px; border: 1px solid #000; border-radius: 0; height: 22px; font-size: 13px; flex-shrink:0;" disabled>
+                
+                <div style="width: 75px; margin-left: 10px; margin-right: 5px; text-align: right; padding-right: 5px; box-sizing: border-box; font-style: italic; font-size: 13px; flex-shrink: 0; color:#333;">To</div>
+                
+                <input type="date" id="ledger-to-date" class="form-control" style="width: 130px; border: 1px solid #000; border-radius: 0; height: 22px; font-size: 13px;" disabled>
+            </div>
+
+            <!-- Filters Row -->
+            <div style="display: flex; align-items: center; margin-top: 5px;">
+                <div style="width: 95px; margin-right: 10px; flex-shrink:0;"></div>
+                
+                <!-- Tax Filter -->
+                <div style="display: flex; align-items: center; gap: 5px; width: 110px; margin-right: 5px; flex-shrink:0; white-space: nowrap;">
+                    <input type="checkbox" id="ledger-tax-checkbox" onchange="window.AccountLedgerModule.toggleTaxFilter()">
+                    <label for="ledger-tax-checkbox" style="font-style: italic; font-size: 13px; color: #333; margin: 0; cursor: pointer;">Tax Type</label>
+                </div>
+                <select id="ledger-tax-filter" style="width: 115px; border: 1px solid #000; border-radius: 0; height: 22px; font-size: 13px;" disabled>
+                    <option value="All">All</option>
+                    <option value="Sales Tax">Sales Tax</option>
+                    <option value="Further Tax">Further Tax</option>
+                    <option value="236 G">236 G</option>
+                    <option value="236 H">236 H</option>
+                </select>
+
+                <!-- Invoice Type Filter -->
+                <div style="display: flex; align-items: center; gap: 5px; width: 75px; margin-left: 10px; margin-right: 5px; flex-shrink:0; white-space: nowrap;">
+                    <input type="checkbox" id="ledger-inv-checkbox" onchange="window.AccountLedgerModule.toggleInvFilter()">
+                    <label for="ledger-inv-checkbox" style="font-style: italic; font-size: 13px; color: #333; margin: 0; cursor: pointer;">Inv Type</label>
+                </div>
+                <select id="ledger-inv-filter" style="width: 130px; border: 1px solid #000; border-radius: 0; height: 22px; font-size: 13px;" disabled>
+                    <option value="Sale Invoice">Sale Invoice</option>
+                    <option value="Sale Service Invoice">Sale Service Invoice</option>
+                    <option value="Purchase Invoice">Purchase Invoice</option>
+                    <option value="Purchase Service Invoice">Purchase Service Invoice</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="al-btn" onclick="window.AccountLedgerModule.fetchLedger()">Display</button>
+            <button class="al-btn" onclick="window.AccountLedgerModule.printLedger()">Print</button>
+            <button class="al-btn" onclick="window.AccountLedgerModule.exportExcel()">Excel</button>
+            <button class="al-btn" onclick="window.AccountLedgerModule.showMultipleLedgersModal()">Print Multiple Ledgers</button>
+        </div>
+    </div>
+
+    <!-- Data Grid -->
+    <div style="flex: 1; overflow-y: auto; background-color: #fff; border: 1px solid #000; border-top: none;">
+        <table id="ledger-table" style="width: 100%; height: 100%; border-collapse: collapse; font-size: 12px; font-family: 'Segoe UI', Tahoma, sans-serif;">
+            <thead style="position: sticky; top: 0; background-color: #f5f5f5; z-index: 1;">
+                <tr>
+                    <th style="border: 1px solid #000; padding: 4px; font-weight: bold; font-style: italic; text-align: left; width: 25px; background:#e8e8e8;"></th>
+                    <th style="border: 1px solid #000; padding: 4px; font-weight: bold; font-style: italic; text-align: left; width: 80px; background:#e8e8e8;">Date</th>
+                    <th style="border: 1px solid #000; padding: 4px; font-weight: bold; font-style: italic; text-align: left; width: 90px; background:#e8e8e8;">Tran. No.</th>
+                    <th style="border: 1px solid #000; padding: 4px; font-weight: bold; font-style: italic; text-align: left; width: 90px; background:#e8e8e8;">Reference No.</th>
+                    <th style="border: 1px solid #000; padding: 4px; font-weight: bold; font-style: italic; text-align: left; background:#e8e8e8;">Description</th>
+                    <th style="border: 1px solid #000; padding: 4px; font-weight: bold; font-style: italic; text-align: right; width: 100px; background:#e8e8e8;">Debit</th>
+                    <th style="border: 1px solid #000; padding: 4px; font-weight: bold; font-style: italic; text-align: right; width: 100px; background:#e8e8e8;">Credit</th>
+                    <th style="border: 1px solid #000; padding: 4px; font-weight: bold; font-style: italic; text-align: right; width: 110px; background:#e8e8e8;">Balance</th>
+                    <th style="border: 1px solid #000; padding: 4px; font-weight: bold; font-style: italic; text-align: center; width: 55px; background:#e8e8e8;">Status</th>
+                </tr>
+            </thead>
+            <tbody id="ledger-table-body">
+                <tr><td colspan="9" style="text-align:center; padding:30px; color:#999; font-style:italic;">Select an account and click Display to view ledger</td></tr>
+            </tbody>
+            <!-- Spacer tbody to push footer down -->
+            <tbody style="height: 100%;">
+                <tr><td colspan="9" style="border: none; padding: 0;"></td></tr>
+            </tbody>
+            <tfoot id="ledger-table-footer" style="position: sticky; bottom: -1px; background-color: #e4e4e4; z-index: 10; box-shadow: 0 -2px 5px rgba(0,0,0,0.1);">
+                <tr>
+                    <td colspan="5" style="border: none; padding: 5px; font-weight: bold; font-size: 13px; color: #333; border-top: 2px solid #aaa;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span id="ledger-account-code-label" style="color: #004d99;"></span>
+                            <span>Totals Rs.</span>
+                        </div>
+                    </td>
+                    <td style="border: none; padding: 2px; border-top: 2px solid #aaa;"><input type="text" id="ledger-total-debit" style="width: 100%; border: 1px solid #000; border-radius: 0; height: 22px; font-size: 12px; text-align: right; background-color: #fff; box-sizing: border-box;" readonly></td>
+                    <td style="border: none; padding: 2px; border-top: 2px solid #aaa;"><input type="text" id="ledger-total-credit" style="width: 100%; border: 1px solid #000; border-radius: 0; height: 22px; font-size: 12px; text-align: right; background-color: #fff; box-sizing: border-box;" readonly></td>
+                    <td style="border: none; padding: 2px; border-top: 2px solid #aaa;"><input type="text" id="ledger-final-balance" style="width: 100%; border: 1px solid #000; border-radius: 0; height: 22px; font-size: 12px; text-align: right; background-color: #fff; box-sizing: border-box;" readonly></td>
+                    <td style="border: none; padding: 2px; border-top: 2px solid #aaa;"><input type="text" id="ledger-final-status" style="width: 100%; border: 1px solid #000; border-radius: 0; height: 22px; font-size: 12px; text-align: center; background-color: #fff; box-sizing: border-box;" readonly></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<!-- Print Multiple Ledgers Modal -->
+<div id="multiple-ledgers-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100000; align-items: center; justify-content: center;">
+    <div style="background: #e4e4e4; border: 2px solid #888; width: 620px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+        <!-- Modal Header -->
+        <div style="background: linear-gradient(to right, #1f4668, #2d6494); padding: 8px 15px; border-bottom: 2px solid #F5A623; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-layer-group" style="color:#F5A623; font-size:16px;"></i>
+                <h3 style="margin: 0; font-size: 15px; color: #fff; font-weight:600;">Print Accounts Ledgers</h3>
+            </div>
+            <button onclick="document.getElementById('multiple-ledgers-modal').style.display='none'" style="border: none; background: transparent; cursor: pointer; color: #fff; font-size: 18px; line-height:1;">&times;</button>
+        </div>
+        
+        <!-- Modal Body -->
+        <div style="padding: 20px; background: #e4e4e4; margin: 12px; border: none;">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                
+                <!-- All Accounts -->
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 160px; display: flex; align-items: center; gap: 5px;">
+                        <input type="radio" name="multi_ledger_type" id="multi_type_all" value="all" checked onchange="window.AccountLedgerModule.toggleMultiLedgerTypes()" style="margin: 0;">
+                        <label for="multi_type_all" style="font-weight: bold; font-style: italic; font-size: 13px; color: #333; cursor: pointer; margin:0;">All Accounts</label>
+                    </div>
+                </div>
+
+                <!-- Main Account Type -->
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 160px; display: flex; align-items: center; gap: 5px;">
+                        <input type="radio" name="multi_ledger_type" id="multi_type_main" value="main" onchange="window.AccountLedgerModule.toggleMultiLedgerTypes()" style="margin: 0;">
+                        <label for="multi_type_main" style="font-weight: bold; font-style: italic; font-size: 13px; color: #333; cursor: pointer; margin:0;">Main Account Type</label>
+                    </div>
+                    <select id="multi_main_account" style="flex: 1; border: 1px solid #000; height: 24px; font-size: 12px; background:#fff;" disabled onchange="window.AccountLedgerModule.loadSubAccounts()">
+                        <option value="">-- Select Main Account --</option>
+                    </select>
+                </div>
+                
+                <!-- Sub Type -->
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 160px; display: flex; align-items: center; justify-content: flex-end; gap: 5px; padding-right: 15px; box-sizing: border-box;">
+                        <input type="checkbox" id="multi_sub_type" disabled onchange="window.AccountLedgerModule.toggleSubAccount()" style="margin: 0;">
+                        <label for="multi_sub_type" style="font-style: italic; font-size: 13px; color: #555; margin:0; cursor: pointer;">Sub Type</label>
+                    </div>
+                    <select id="multi_sub_account" style="flex: 1; border: 1px solid #000; height: 24px; font-size: 12px; background:#fff;" disabled>
+                        <option value="">-- Select Sub Account --</option>
+                    </select>
+                </div>
+
+                <!-- Range From -->
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 160px; display: flex; align-items: center; gap: 5px;">
+                        <input type="radio" name="multi_ledger_type" id="multi_type_range" value="range" onchange="window.AccountLedgerModule.toggleMultiLedgerTypes()" style="margin: 0;">
+                        <label for="multi_type_range" style="font-weight: bold; font-style: italic; font-size: 13px; color: #333; cursor: pointer; margin:0;">Range</label>
+                        <div style="flex: 1; text-align: right; padding-right: 15px; font-weight: bold; font-size: 12px; color: #555;">From</div>
+                    </div>
+                    <div style="display: flex; flex: 1; gap: 8px;">
+                        <input type="text" id="multi_range_from_code" placeholder="Code" style="width: 80px; border: 1px solid #000; height: 24px; font-size: 12px; padding: 0 5px;" disabled>
+                        <input type="text" id="multi_range_from_name" placeholder="Account Name" style="flex: 1; border: 1px solid #000; height: 24px; font-size: 12px; padding: 0 5px;" disabled>
+                    </div>
+                </div>
+
+                <!-- Range To -->
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 160px; text-align: right; padding-right: 15px; box-sizing: border-box; font-weight: bold; font-size: 12px; color: #555;">To</div>
+                    <div style="display: flex; flex: 1; gap: 8px;">
+                        <input type="text" id="multi_range_to_code" placeholder="Code" style="width: 80px; border: 1px solid #000; height: 24px; font-size: 12px; padding: 0 5px;" disabled>
+                        <input type="text" id="multi_range_to_name" placeholder="Account Name" style="flex: 1; border: 1px solid #000; height: 24px; font-size: 12px; padding: 0 5px;" disabled>
+                    </div>
+                </div>
+
+                <!-- Spacer -->
+                <div style="height: 15px;"></div>
+
+                <!-- Period -->
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 160px;"></div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="multi_period_check" onchange="window.AccountLedgerModule.toggleMultiDates()" style="margin: 0;">
+                        <label for="multi_period_check" style="font-weight: bold; font-style: italic; font-size: 13px; color: #333; cursor: pointer; margin:0;">For Period From</label>
+                        <input type="date" id="multi_from_date" style="width: 130px; border: 1px solid #000; height: 24px; font-size: 12px;" disabled>
+                        <span style="font-weight: bold; font-size: 13px; color: #444;">To</span>
+                        <input type="date" id="multi_to_date" style="width: 130px; border: 1px solid #000; height: 24px; font-size: 12px;" disabled>
+                    </div>
+                </div>
+
+                <!-- New Page Checkbox -->
+                <div style="display: flex; align-items: center; margin-top: 5px;">
+                    <div style="width: 160px;"></div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="multi_new_page_check" checked style="margin: 0;">
+                        <label for="multi_new_page_check" style="font-style: italic; font-size: 13px; color: #444; cursor: pointer; margin:0;">Start Printing of Every Ledger on New Page</label>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="padding: 8px 12px; border-top: 1px solid #000; display: flex; justify-content: flex-end; gap: 8px;">
+            <button style="padding: 6px 20px; border: 1px solid #000; background: linear-gradient(to bottom, #fff, #e4e4e4); font-size: 12px; cursor: pointer; border-radius: 2px; font-weight: bold;" onclick="window.AccountLedgerModule.executePrintMultiple()">Print</button>
+            <button style="padding: 6px 20px; border: 1px solid #000; background: linear-gradient(to bottom, #fff, #e4e4e4); font-size: 12px; cursor: pointer; border-radius: 2px;" onclick="document.getElementById('multiple-ledgers-modal').style.display='none'">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const wrapper = document.getElementById('ledger-account-search')?.closest('.ledger-search-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+        const dd = document.getElementById('ledger-account-dropdown');
+        if (dd) dd.classList.remove('active');
+    }
+});
+</script>

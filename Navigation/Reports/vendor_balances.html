@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vendor Balances</title>
+    <style>
+        .vub-container {
+            padding: 10px;
+            background: #f0f0f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .vub-top-bar {
+            background: #EFEFEF;
+            border: 1px solid #777;
+            padding: 5px 10px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            margin-bottom: 5px;
+            gap: 15px;
+        }
+
+        .vub-filters {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .vub-filter-row {
+            display: flex;
+            align-items: center;
+        }
+
+        .vub-filter-row label {
+            width: 120px;
+            font-weight: normal;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .vub-filter-row select, .vub-filter-row input[type="date"] {
+            flex: 1;
+            border: 1px solid #000;
+            border-radius: 0;
+            padding: 0 5px;
+            height: 22px;
+            font-size: 13px;
+            box-sizing: border-box;
+            background: #fff;
+        }
+
+        .vub-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 2px;
+        }
+
+        .vub-btn {
+            background: #4a789c;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #ffffff;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1.1;
+            text-align: center;
+            width: 75px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        
+        .vub-btn:hover { background: #3b6998; border-color: #3b6998; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        .vub-table-container {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #999;
+            overflow: auto;
+            position: relative;
+        }
+
+        .vub-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .vub-table th {
+            background: #F0F0F0;
+            border: 1px solid #ccc;
+            padding: 4px 6px;
+            font-weight: bold;
+            font-style: italic;
+            color: #333;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .vub-table td {
+            border: 1px solid #ccc;
+            padding: 2px 4px;
+            white-space: nowrap;
+        }
+        
+        .vub-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .vub-table tbody tr:focus {
+            outline: none;
+        }
+        
+        .vub-table tbody tr.selected {
+            background-color: #1F4E79 !important;
+            color: #ffffff !important;
+            outline: none;
+        }
+        .vub-table tbody tr.selected td {
+            color: #ffffff !important;
+        }
+        
+        .text-right { text-align: right !important; }
+        .text-center { text-align: center !important; }
+
+        .vub-bottom-bar {
+            background: #EFEFEF;
+            border: 1px solid #777;
+            padding: 5px;
+            margin-top: 5px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-weight: bold;
+            padding: 4px 0; border: none; border-top: 1px solid #000; background: #E0E0E0; font-size: 11px; gap: 0;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="vub-container">
+        
+        <div class="vub-top-bar" style="justify-content: flex-start; align-items: flex-start; position: relative;">
+            <div class="vub-filters">
+                <div class="vub-filter-row">
+                    <label><input type="checkbox" id="vub_chk_vendor_type"> Vendor Type</label>
+                    <select id="vub_sel_vendor_type" disabled></select>
+                </div>
+                <div class="vub-filter-row" style="margin-top: 3px;">
+                    <label style="justify-content: flex-end; padding-right: 5px;">For Period From</label>
+                    <div style="display: flex; flex: 1; align-items: center; gap: 5px;">
+                        <input type="date" id="vub_from_date" style="flex: 1;">
+                        <span style="font-weight: normal; color: #333;">To</span>
+                        <input type="date" id="vub_to_date" style="flex: 1;">
+                    </div>
+                </div>
+            </div>
+            
+            <div style="position: absolute; right: 15px; top: 15px; display: flex; flex-direction: row; align-items: center; gap: 15px;">
+                <label style="font-size: 11px; cursor: pointer; color: #333; margin: 0;"><input type="checkbox" id="vub_chk_zero_balance" checked> Show 0 Balance Accounts</label>
+                <div class="vub-controls" style="display: flex; flex-direction: row; gap: 5px; margin: 0;">
+                    <button class="vub-btn" id="vub_btn_display">Display</button>
+                    <button class="vub-btn" id="vub_btn_print">Print</button>
+                    <button class="vub-btn" id="vub_btn_excel">Excel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="vub-table-container" id="vub_table_container" tabindex="0">
+            <table class="vub-table" id="vub_table">
+                <thead>
+                    <tr>
+                        <th style="width: 25px;"></th>
+                        <th style="width: 100px;">Account Code</th>
+                        <th>Account Name</th>
+                        <th class="text-right" style="width: 120px;">Opening Balance</th>
+                        <th class="text-center" style="width: 70px;">Status</th>
+                        <th class="text-right" style="width: 120px;">Debit</th>
+                        <th class="text-right" style="width: 120px;">Credit</th>
+                        <th class="text-right" style="width: 120px;">Closing Balance</th>
+                        <th class="text-center" style="width: 70px;">Status</th>
+                        <th style="width: 15px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="vub_tbody">
+                    <!-- Rows rendered here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="vub-bottom-bar" style="justify-content: flex-start; padding: 4px 0; border: none; border-top: 1px solid #000; background: #E0E0E0; font-size: 11px; gap: 0;">
+            <div id="vub_tot_label" style="text-align: right; padding-right: 5px; box-sizing: border-box;">Totals Rs.</div>
+            <div id="vub_tot_ob_wrap" style="box-sizing: border-box; text-align: right; padding: 0 1px;"><div id="vub_tot_ob" style="background: #fff; border: 1px solid #999; padding: 2px 4px; display: inline-block; width: 100%; box-sizing: border-box;">0.00</div></div>
+            <div id="vub_tot_obs_wrap" style="box-sizing: border-box; padding: 0 1px;"></div>
+            <div id="vub_tot_dr_wrap" style="box-sizing: border-box; text-align: right; padding: 0 1px;"><div id="vub_tot_dr" style="background: #fff; border: 1px solid #999; padding: 2px 4px; display: inline-block; width: 100%; box-sizing: border-box;">0.00</div></div>
+            <div id="vub_tot_cr_wrap" style="box-sizing: border-box; text-align: right; padding: 0 1px;"><div id="vub_tot_cr" style="background: #fff; border: 1px solid #999; padding: 2px 4px; display: inline-block; width: 100%; box-sizing: border-box;">0.00</div></div>
+            <div id="vub_tot_cb_wrap" style="box-sizing: border-box; text-align: right; padding: 0 1px;"><div id="vub_tot_cb" style="background: #fff; border: 1px solid #999; padding: 2px 4px; display: inline-block; width: 100%; box-sizing: border-box;">0.00</div></div>
+            <div id="vub_tot_cbs_wrap" style="box-sizing: border-box; padding: 0 1px;"></div>
+            <div id="vub_tot_end_wrap" style="box-sizing: border-box;"></div>
+        </div>
+
+    </div>
+
+    <!-- Ensure module gets initialized -->
+    <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+        if(!window.VendorBalancesModule) {
+            let s = document.createElement('script');
+            s.src = 'assets/js/vendor_balances.js?v=' + Date.now();
+            s.onload = () => {
+                const checkDOM = setInterval(() => {
+                    if (document.getElementById('vub_btn_display')) {
+                        clearInterval(checkDOM);
+                        window.VendorBalancesModule.init();
+                    }
+                }, 50);
+            };
+            document.body.appendChild(s);
+        } else {
+            window.VendorBalancesModule.init();
+        }
+    ">
+</body>
+</html>

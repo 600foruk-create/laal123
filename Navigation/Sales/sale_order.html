@@ -1,0 +1,716 @@
+<!-- 
+    Sale Orders Module 
+    Size: Width 950px, Height 520px 
+-->
+<script src="assets/js/sale_order.js?v=v41"></script>
+<div id="saleOrderContainer" data-module="Sale Orders" style="width: 100%; height: 100%; min-width: 950px; min-height: 520px; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden !important; overflow-y: hidden; border: 1px solid #cbd5e0; border-radius: 4px; position: relative; box-sizing: border-box;">
+    
+    <div id="so_cancelled_stamp" class="cancelled-stamp">CANCELLED</div>
+
+    <!-- Top Toolbar -->
+    <div style="background: #e2e8f0; padding: 2px; display: flex; gap: 2px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: auto;">
+        <button class="so-tool-btn so-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/customers.html', 'fa-user-tie', 'Customers/Suppliers', window.initCustomersView, 'Customers', true)">New Customer</button>
+        <button class="so-tool-btn so-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/chart_of_inventory.html', 'fa-boxes', 'Chart Of Inventory', window.initChartOfInventoryView, 'Chart of Inventory', true)">New Item</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="so-tool-btn so-btn-add" onclick="window.SaleOrderModule.resetForm(true)">Add</button>
+        <button class="so-tool-btn so-btn-save" onclick="window.SaleOrderModule.saveSO()">Save (Ctrl+S)</button>
+        <button class="so-tool-btn so-btn-cancel" onclick="window.SaleOrderModule.resetForm()">Cancel</button>
+        <button class="so-tool-btn so-btn-delete" onclick="window.SaleOrderModule.deleteSO()">Delete</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="so-tool-btn so-btn-info" onclick="window.SaleOrderModule.convertDC()">Convert D.C.</button>
+        <button class="so-tool-btn so-btn-info" onclick="window.SaleOrderModule.convertInvoice(true)">Convert Invoice (Tax)</button>
+        <button class="so-tool-btn so-btn-info" onclick="window.SaleOrderModule.convertInvoice(false)">Convert Invoice</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="so-tool-btn so-btn-info" onclick="window.SaleOrderModule.showFindModal()">Find</button>
+        <button class="so-tool-btn so-btn-info" onclick="window.SaleOrderModule.navigate('last')">Retrieve Last Saved</button>
+        <button class="so-tool-btn so-btn-info" onclick="window.SaleOrderModule.openPrintSettings()">Print Set.</button>
+        <button class="so-tool-btn so-btn-save" onclick="window.SaleOrderModule.printSO()">Print</button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 6px; background: white; overflow: hidden;">
+        
+        <!-- Header Info Rows -->
+        <div style="display: flex; gap: 10px; align-items: stretch; position: relative; z-index: 50; flex-shrink: 0;">
+            <!-- Left Side: Order Details -->
+            <div style="flex: 1; min-width: 480px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-start;">
+                <!-- Top Group -->
+                <div style="display: grid; grid-template-columns: 135px 1fr; gap: 4px; align-items: center; align-content: start;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-right: 4px;">
+                        <label class="so-label">Serial No</label>
+                        <button class="so-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.SaleOrderModule.navigate('prev')">&lt;&lt;</button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+                        <input type="text" id="so_sn" class="so-input" style="width: 120px; text-align: center; color: blue; font-weight: 800; font-size: 16px;">
+                        <button class="so-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.SaleOrderModule.navigate('next')">&gt;&gt;</button>
+                        <div style="display: flex; flex-direction: column; position: absolute; left: 160px; top: -2px; z-index: 10;">
+                            <label style="margin-left: 10px; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 3px; color: #c00;">
+                                <input type="checkbox" id="so_is_cancelled"> Cancel
+                            </label>
+                            <div id="so_converted_text_container" style="color: #dc3545; font-size: 10px; font-weight: bold; margin-left: 10px; margin-top: 2px; font-style: italic; white-space: nowrap; pointer-events: none;">
+                                <div id="so_converted_dc_text" style="display: none;">Converted To D.C. No. <span id="so_converted_dc_no"></span></div>
+                                <div id="so_converted_invtax_text" style="display: none;">Converted To Invoice (Tax) No. <span id="so_converted_invtax_no"></span></div>
+                                <div id="so_converted_invnontax_text" style="display: none;">Converted To Invoice No. <span id="so_converted_invnontax_no"></span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <label class="so-label">Date</label>
+                    <input type="date" id="so_date" class="so-input" style="width: 120px;">
+                </div>
+
+                <!-- Bottom Group -->
+                <div style="display: grid; grid-template-columns: 135px 1fr; gap: 4px; align-items: center; align-content: start; margin-top: auto;">
+                    <label class="so-label">Customer Order Ref.</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <input type="text" id="so_customer_order_ref" class="so-input" style="width: 120px;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label class="so-label" style="white-space: nowrap;">Delivery Date</label>
+                            <input type="date" id="so_delivery_date" class="so-input" style="width: 120px;">
+                        </div>
+                    </div>
+                    <label class="so-label">Terms of Payment</label>
+                    <input type="text" id="so_payment_terms" class="so-input">
+
+                    <label class="so-label">Job No & Description</label>
+                    <div id="so_job_wrapper" style="position: relative; width: 100%; z-index: 20;">
+                        <div id="so_job_display" class="so-input" tabindex="0" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;">
+                            <span id="so_job_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Job</span>
+                            <span style="font-size: 8px; color: #475569;">▼</span>
+                        </div>
+                        <input type="hidden" id="so_job_ref">
+                        <div id="so_job_dropdown" class="custom-select-dropdown"></div>
+                    </div>
+
+                    <label class="so-label">Employee Reference</label>
+                    <div id="so_employee_wrapper" style="position: relative; width: 100%; z-index: 10;">
+                        <div id="so_employee_display" class="so-input" tabindex="0" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;">
+                            <span id="so_employee_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Employee</span>
+                            <span style="font-size: 8px; color: #475569;">▼</span>
+                        </div>
+                        <input type="hidden" id="so_employee_ref">
+                        <div id="so_employee_dropdown" class="custom-select-dropdown"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Customer Info -->
+            <fieldset style="width: 420px; min-width: 420px; max-width: 420px; flex-shrink: 0; border: 1px solid #94a3b8; padding: 6px 12px 10px 12px; margin: 0; border-radius: 4px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: start; height: 100%;">
+                <legend style="font-size: 11px; font-weight: 700; color: #000000; padding: 0 4px; font-style: italic;">Customer</legend>
+                <div style="display: grid; grid-template-columns: 75px 1fr; gap: 4px 6px; align-items: center;">
+                    <label class="so-label">Code</label>
+                    <div style="display: flex; gap: 3px; align-items: center; position: relative;">
+                        <input type="text" id="customer_code" class="so-input" placeholder="Search customer..." autocomplete="off" onclick="this.select()" onfocus="this.select()" style="flex: 1; font-weight: bold;">
+                        <label class="so-label" style="min-width: 45px; text-align: center;">Balance</label>
+                        <input type="text" id="customer_balance" class="so-input" style="flex: 1; text-align: right; font-weight: bold;" readonly>
+                        <div id="customer_suggest" class="so-suggest" style="width: 100%; left: 0; right: 0; max-width: 100%; box-sizing: border-box; z-index: 999999;"></div>
+                    </div>
+
+                    <label class="so-label">Name</label>
+                    <input type="text" id="customer_name" class="so-input" autocomplete="off">
+
+                    <label class="so-label">Address</label>
+                    <textarea id="customer_address" class="so-input" style="height: 24px; resize: none;"></textarea>
+
+                    <label class="so-label">Telephone</label>
+                    <input type="text" id="customer_tel" class="so-input">
+
+                    <label class="so-label">GST Reg. No.</label>
+                    <div style="display: flex; gap: 3px; align-items: center;">
+                        <div style="position: relative; flex: 1;">
+                            <input type="text" id="customer_gst" class="so-input">
+                        </div>
+                        <label class="so-label" style="min-width: 45px; text-align: center;">NTN</label>
+                        <input type="text" id="customer_ntn" class="so-input" style="flex: 1;">
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #cbd5e0; margin: 2px 0;">
+
+        <!-- Grid Table Section -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; display: flex; flex-direction: column; background: #fff; min-height: 210px; margin-top: 2px;">
+            <div style="flex: 1; overflow-y: auto;">
+                <table id="soGrid" style="width: 100%; border-collapse: collapse; background: white; table-layout: fixed;">
+                    <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 10;">
+                        <tr>
+                            <th style="width: 20px; border: 1px solid #cbd5e0; background: #e2e8f0;"></th>
+                            <th style="width: 85px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Item Code</th>
+                            <th style="width: 65px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">HS Code</th>
+                            <th style="width: auto; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Description</th>
+                            <th style="width: 45px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Pieces</th>
+                            <th style="width: 55px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Quantity</th>
+                            <th style="width: 40px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Unit</th>
+                            <th style="width: 60px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Rate</th>
+                            <th style="width: 75px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Value Excl. Tax</th>
+                            <th style="width: 45px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Sales Tax Rate</th>
+                            <th style="width: 65px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Sales Tax Amount</th>
+                            <th style="width: 45px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Further Tax Rate</th>
+                            <th style="width: 65px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Further Tax Amount</th>
+                            <th style="width: 80px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Value Incl. Tax</th>
+                        </tr>
+                    </thead>
+                    <tbody id="soGridBody">
+                        <!-- Rows will be added dynamically -->
+                    </tbody>
+                    <tfoot style="position: sticky; bottom: 0; background: #e2e8f0; z-index: 10;">
+                        <tr>
+                            <td colspan="4" style="text-align: right; padding-right: 12px; font-weight: 700; font-size: 9px; color: #475569; border: 1px solid #cbd5e0;">TOTALS</td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="tot_pieces" class="so-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="tot_qty" class="so-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="tot_excl" class="so-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="tot_tax" class="so-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="tot_further" class="so-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="tot_incl" class="so-total-input" value="0.00" readonly></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #cbd5e0; margin: 2px 0;">
+
+        <!-- Footer Section -->
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 2px;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <label class="so-label" style="min-width: 75px;">Amt Words:</label>
+                <span id="so_amt_words" style="font-size: 11px; font-weight: 700; color: #1e3a8a;">Rupees zero and 00/100 only.</span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+                    <label class="so-label">Terms &amp; Conditions</label>
+                    <textarea id="so_terms" class="so-input" style="height: 40px; resize: none; font-size: 11px;"></textarea>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+                    <label class="so-label">Remarks</label>
+                    <textarea id="so_remarks" class="so-input" style="height: 40px; resize: none; font-size: 11px;"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .so-tool-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            flex: 1;
+            height: 38px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .so-tool-btn:hover {
+            background: #f1f5f9;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .so-btn-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .so-btn-add:hover { background: #3b6998 !important; }
+
+        .so-btn-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .so-btn-save:hover { background: #3b6998 !important; }
+
+        .so-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .so-btn-cancel:hover { background: #3b6998 !important; }
+
+        .so-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .so-btn-delete:hover { background: #c82333 !important; }
+
+        .so-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto; }
+        .so-btn-info:hover { background: #3b6998 !important; }
+
+        .so-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; display: flex; align-items: center; justify-content: flex-start; text-align: left; white-space: nowrap; }
+
+        .so-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            font-weight: normal;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border 0.2s;
+        }
+
+        .so-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .so-input:disabled { background: #ffffff; color: #000000; border-color: #000000; }
+
+        select.so-input option {
+            padding: 4px;
+            font-size: 11px;
+            color: #000000;
+        }
+        select.so-input option:checked, select.so-input option:hover {
+            background-color: #1F4E79;
+            color: white;
+        }
+
+        .so-nav-btn {
+            height: 22px;
+            padding: 0 6px;
+            background: white;
+            border: 1px solid #000000;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 900;
+            color: #000000;
+            border-radius: 2px;
+        }
+        .so-nav-btn:hover { background: #f1f5f9; }
+
+        .so-total-input {
+            width: 100%;
+            height: 22px;
+            background: #fff;
+            border: 1px solid #000000;
+            text-align: right;
+            font-weight: bold;
+            font-size: 11px;
+            color: #1e3a8a;
+            padding: 0 4px;
+        }
+
+        .so-small-btn {
+            background: #e2e8f0;
+            border: 1px solid #cbd5e0;
+            padding: 1px 6px;
+            font-size: 9px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 2px;
+            align-self: flex-start;
+        }
+
+        #soGrid th {
+            background: #e2e8f0;
+            border: 1px solid #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            color: #334155;
+            padding: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            height: 22px;
+        }
+
+        .grid-input {
+            border: none;
+            width: 100%;
+            height: 100%;
+            padding: 0 4px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #000000;
+            outline: none;
+            background: transparent;
+            display: block;
+        }
+
+        .grid-input:focus { background: #eff6ff; }
+        .grid-input.num { text-align: right; }
+
+        .modal-container:has(#saleOrderContainer), .modal-container:has(#saleOrderContainer) .modal-body, #saleOrderContainer { overflow-x: hidden !important; }
+        .so-suggest { position: absolute; top: 100%; left: 0; right: 0; width: 100%; max-width: 100%; background: white; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; overflow-x: hidden; z-index: 999999; display: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); box-sizing: border-box; }
+        .so-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .so-suggest div:hover, .so-suggest div.active { background: #1F4E79; color: white; }
+        
+        .grid-suggest { position: fixed !important; width: 450px; background: #ffffff !important; border: 1px solid #1F4E79 !important; max-height: 250px; overflow-y: auto !important; z-index: 999999999 !important; display: none; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); border-radius: 4px; }
+        .grid-suggest div, .grid-suggest .suggest-item, .grid-suggest .so-suggest-item { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .grid-suggest div:hover, .grid-suggest div.active, .grid-suggest .suggest-item:hover, .grid-suggest .suggest-item.active { background: #1F4E79 !important; color: white !important; }
+        .grid-suggest div:hover *, .grid-suggest div.active *, .grid-suggest .suggest-item:hover *, .grid-suggest .suggest-item.active * { color: white !important; }
+
+        .custom-select-dropdown { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #94a3b8; max-height: 200px; overflow-y: auto; z-index: 9999; display: none; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
+        .custom-select-dropdown div { padding: 2px 4px; cursor: pointer; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .custom-select-dropdown div:hover, .custom-select-dropdown div.active { background: #1F4E79; color: white; }
+
+        #soGrid td {
+            border: 1px solid #cbd5e0;
+            padding: 0;
+            height: 20px;
+            position: relative;
+            overflow: visible; /* Important for suggestion boxes */
+        }
+        
+        #soGrid tr.selected-row td:not(.row-selector) {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        #soGrid tr.selected-row td:not(.row-selector) input {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        
+        .row-selector {
+            cursor: pointer;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border-top: 1px solid #ffffff !important;
+            border-left: 1px solid #ffffff !important;
+            border-bottom: 1px solid #808080 !important;
+            border-right: 1px solid #808080 !important;
+            text-align: center;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            width: 20px;
+        }
+
+        .cancelled-stamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 35px;
+            font-weight: bold;
+            color: rgba(220, 53, 69, 0.1);
+            border: 4px solid rgba(220, 53, 69, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+    
+.legacy-find-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+        }
+        .legacy-find-modal .modal-content {
+            background: #f0f0f0;
+            border: 2px solid #fff;
+            border-bottom-color: #808080;
+            border-right-color: #808080;
+            width: 1050px;
+            max-width: 95vw;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        .legacy-find-modal .modal-header {
+            background: #1e3e6b;
+            color: #fff;
+            padding: 3px 5px;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            margin: 0;
+            border-radius: 0;
+        }
+        .legacy-find-modal .modal-header .icon { margin-right: 5px; }
+        .legacy-find-modal .modal-header .title { flex: 1; }
+        .legacy-find-modal .modal-header .close-btn {
+            background: #c0c0c0;
+            border: 1px solid #fff;
+            border-bottom-color: #808080;
+            border-right-color: #808080;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        
+        .legacy-find-modal .modal-toolbar {
+            background: #e0e0e0;
+            border-bottom: 2px solid #fff;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .legacy-find-modal .toolbar-title {
+            font-size: 18px;
+            font-weight: bold;
+            font-style: italic;
+            color: #555;
+            text-shadow: 1px 1px 0 #fff;
+            border: 1px solid #a0a0a0;
+            padding: 2px 40px;
+            background: linear-gradient(to bottom, #f5f5f5, #d0d0d0);
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .legacy-find-modal .toolbar-search {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legacy-find-modal .toolbar-search label { font-style: italic; }
+        .legacy-find-modal .toolbar-search input, .legacy-find-modal .toolbar-search select {
+            border: 1px solid #a0a0a0;
+            padding: 2px;
+        }
+        .legacy-find-modal .toolbar-search button {
+            background: #f0f0f0;
+            border: 1px solid #fff;
+            border-bottom-color: #808080;
+            border-right-color: #808080;
+            padding: 2px 15px;
+            cursor: pointer;
+        }
+        
+        .legacy-find-modal .modal-subtitle {
+            padding: 5px 10px;
+            font-style: italic;
+            color: #666;
+            background: #fff;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .legacy-find-modal .modal-grid-container {
+            flex: 1;
+            background: #fff;
+            overflow-y: auto;
+            border: 1px solid #a0a0a0;
+            margin: 5px;
+        }
+        .legacy-find-modal .legacy-grid {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .legacy-find-modal .legacy-grid th {
+            background: #f0f0f0;
+            border: 1px solid #fff;
+            border-bottom-color: #808080;
+            border-right-color: #808080;
+            padding: 3px;
+            font-weight: normal;
+            font-style: italic;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .legacy-find-modal .legacy-grid td {
+            border: 1px solid #e0e0e0;
+            border-bottom: 0;
+            border-top: 0;
+            padding: 2px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .legacy-find-modal .legacy-grid tr {
+            cursor: pointer;
+        }
+        .legacy-find-modal .legacy-grid tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .legacy-find-modal .legacy-grid tr.selected {
+            background-color: #000 !important;
+            color: #fff !important;
+        }
+        .legacy-find-modal .legacy-grid td.row-indicator {
+            background: #e0e0e0;
+            border-right: 1px solid #a0a0a0;
+            text-align: center;
+        }
+        .legacy-find-modal .legacy-grid tr.selected td.row-indicator {
+            background: #e0e0e0;
+            color: #000;
+        }
+
+        .legacy-find-modal .modal-footer {
+            background: #e0e0e0;
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #fff;
+        }
+        .legacy-find-modal .audit-box {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legacy-find-modal .audit-box label {
+            font-style: italic;
+        }
+        .legacy-find-modal .audit-box input {
+            border: 1px solid #a0a0a0;
+            background: #fff;
+            padding: 2px 4px;
+            width: 130px;
+            text-align: center;
+        }
+    
+</style>
+
+        <!-- Print Settings Modal -->
+    <div id="soPrintSettingsModal" class="legacy-find-modal" style="display:none;" tabindex="-1">
+        <div class="modal-content" style="width: 450px; height: auto; background: #fff;">
+            <div class="modal-header">
+                <span class="icon">&#9881;</span>
+                <span class="title">Sale Orders Settings</span>
+                <button class="close-btn" onclick="document.getElementById('soPrintSettingsModal').style.display='none'">&times;</button>
+            </div>
+            
+            <div style="padding: 20px; display: flex; flex-direction: column; gap: 20px; flex: 1;">
+                
+
+
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-left: 40px;">
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="so_print_paper" id="so_sett_paper_a4" value="A4" checked>
+                        A4 Size Print
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="so_print_paper" id="so_sett_paper_a5l" value="A5L">
+                        A5 Size Print (Half of A4 Size) Landscape
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="so_print_paper" id="so_sett_paper_a5p" value="A5P">
+                        A5 Size Print (Half of A4 Size) Portrait
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="so_print_paper" id="so_sett_paper_pos" value="POS">
+                        Point of Sale Invoice (80mm)
+                    </label>
+                </div>
+                
+                <div style="border-bottom: 1px solid #ccc; margin: 5px 40px;"></div>
+                
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-left: 40px;">
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="so_print_tax" id="so_sett_print_tax" value="1">
+                        Print Sales Tax Columns
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="so_print_tax" id="so_sett_no_print_tax" value="0" checked>
+                        Do Not Print Sales Tax Columns
+                    </label>
+                </div>
+                
+                <div style="border-bottom: 1px solid #ccc; margin: 5px 40px;"></div>
+
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-left: 40px;">
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="so_print_hs_code_mode" id="so_sett_print_hs" value="1">
+                        Print HS Code
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="so_print_hs_code_mode" id="so_sett_no_print_hs" value="0" checked>
+                        Do Not Print HS Code
+                    </label>
+                </div>
+
+                <div style="border-bottom: 1px solid blue; margin: 10px 40px;"></div>
+
+                <div style="margin-left: 40px; margin-bottom: 20px;">
+                    <label style="font-style: italic; color: #d00; display: flex; align-items: center; gap: 8px; font-weight: bold;">
+                        <input type="checkbox" id="so_sett_no_header">
+                        Do not show headers. I want to print on my own letterhead.
+                    </label>
+                </div>
+
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; padding: 15px 20px; gap: 10px; background: #fff; border-top: 1px solid #ccc;">
+                <button onclick="window.SaleOrderModule.savePrintSettings()" style="width: 80px; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f0f0f0; border: 1px solid #fff; border-bottom-color: #808080; border-right-color: #808080; cursor: pointer;">
+                    <span style="color: green; font-size: 16px; font-weight: bold;">&#10004;</span>
+                    <span style="font-size: 11px;">Save</span>
+                </button>
+                <button onclick="document.getElementById('soPrintSettingsModal').style.display='none'" style="width: 80px; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f0f0f0; border: 1px solid #fff; border-bottom-color: #808080; border-right-color: #808080; cursor: pointer;">
+                    <span style="color: red; font-size: 16px; font-weight: bold;">&#10006;</span>
+                    <span style="font-size: 11px;">Cancel</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Find Sale Orders Modal (Legacy Style) -->
+    <div id="soFindModal" class="legacy-find-modal" style="display:none;" tabindex="-1">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="icon">&#128269;</span>
+                <span class="title">Find Sale Orders</span>
+                <button class="close-btn" onclick="document.getElementById('soFindModal').style.display='none'">&times;</button>
+            </div>
+            
+            <div class="modal-toolbar">
+                <div class="toolbar-title">Sale Orders</div>
+                <div class="toolbar-search">
+                    <label>Find</label>
+                    <select id="soFindField">
+                        <option value="serial_no">Serial No.</option>
+                        <option value="customer_name">Customer Name</option>
+                        <option value="date">Date</option>
+                        <option value="status">Status</option>
+                    </select>
+                    <label>Value</label>
+                    <input type="text" id="soFindValue" onkeyup="if(event.key==='Enter') window.SaleOrderModule.filterFindGrid()" autocomplete="off">
+                    <button onclick="window.SaleOrderModule.filterFindGrid()">Find</button>
+                    <button onclick="window.SaleOrderModule.refreshFindGrid()">Refresh</button>
+                </div>
+            </div>
+
+            <div class="modal-subtitle">
+                Click on column header to sort by serial or date.
+            </div>
+
+            <div class="modal-grid-container">
+                <table class="legacy-grid" id="soFindGrid">
+                    <thead>
+                        <tr>
+                            <th style="width: 20px;"></th>
+                            <th style="width: 80px;" onclick="window.SaleOrderModule.sortFindGrid('serial_no')">Serial No.</th>
+                            <th style="width: 90px;" onclick="window.SaleOrderModule.sortFindGrid('date')">Date</th>
+                            <th style="width: 150px;">Customer Order Ref. No.</th>
+                            <th style="width: 120px;">Date To Be Delivered</th>
+                            <th style="width: 250px;">Customer</th>
+                            <th style="width: 120px;">Terms of Payment</th>
+                            <th style="width: 100px;">Amount</th>
+                            <th style="width: 80px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="soFindGridBody">
+                        <!-- Rows populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="modal-footer">
+                <div class="audit-box">
+                    <label>Added By User</label>
+                    <input type="text" id="soFindAddedBy" readonly>
+                    <label>On</label>
+                    <input type="text" id="soFindAddedOn" readonly>
+                    <label>Edited By User</label>
+                    <input type="text" id="soFindEditedBy" readonly>
+                    <label>On</label>
+                    <input type="text" id="soFindEditedOn" readonly>
+                </div>
+            </div>
+        </div>
+    </div>

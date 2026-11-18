@@ -1,0 +1,145 @@
+<div style="display: flex; flex-direction: column; height: 100%; background: #ffffff; padding: 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px;">
+    
+    <!-- Top Bar with Print Button -->
+    <div style="background: #F9F9F9; padding: 10px; border: 1px solid #999; margin-bottom: 5px; display: flex; justify-content: flex-end; align-items: center; position: relative;">
+        <button id="pal_btn_print" style="background: #2D5881; color: #fff; border: 1px solid #1A3C5C; padding: 6px 20px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2); border-radius: 2px;">
+            Print
+        </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="flex: 1;">
+        <!-- Inset Border Box -->
+        <div style="background: #EBEBEB; border: 1px inset #ddd; padding: 30px; position: relative; height: 100%; box-sizing: border-box;">
+            
+            <div style="display: flex; flex-direction: column; gap: 25px; max-width: 650px; margin: 0 auto; margin-top: 10px;">
+                
+                <!-- All Accounts -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="radio" name="pal_type" id="pal_type_all" value="all" checked style="margin: 0;">
+                    <label for="pal_type_all" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer;">All Accounts</label>
+                </div>
+                
+                <!-- Main Account Type -->
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <input type="radio" name="pal_type" id="pal_type_main" value="main" style="margin: 0; margin-top: 4px;">
+                    <label for="pal_type_main" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer; width: 130px; margin-top: 2px;">Main Account Type</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; max-width: 450px;">
+                        <div style="position: relative; width: 100%;">
+                            <input type="hidden" id="pal_main_acc_val">
+                            <input type="text" id="pal_main_acc" style="width: 100%; border: 1px solid #999; padding: 2px; background: #fff; cursor: pointer; box-sizing: border-box;" placeholder="Select Main Account..." readonly disabled>
+                            <div id="pal_main_acc_suggest" class="pal-suggest" style="width: 100%;"></div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="pal_use_sub" style="margin: 0;" disabled>
+                            <label for="pal_use_sub" style="font-style: italic; color: #888; cursor: pointer; width: 110px;">Sub Type</label>
+                            <div style="position: relative; flex: 1;">
+                                <input type="hidden" id="pal_sub_acc_val">
+                                <input type="text" id="pal_sub_acc" style="width: 100%; border: 1px solid #999; padding: 2px; background: #fff; cursor: pointer; box-sizing: border-box;" placeholder="Select Sub Account..." readonly disabled>
+                                <div id="pal_sub_acc_suggest" class="pal-suggest" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Range -->
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <input type="radio" name="pal_type" id="pal_type_range" value="range" style="margin: 0; margin-top: 4px;">
+                    <label for="pal_type_range" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer; width: 60px; margin-top: 2px;">Range</label>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; max-width: 520px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-weight: bold; font-style: italic; color: #555; width: 45px; text-align: right;">From</span>
+                            <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                                <input type="text" id="pal_from_code" style="width: 120px; border: 1px solid #999; padding: 2px;" autocomplete="off" disabled>
+                                <input type="text" id="pal_from_name" style="flex: 1; border: 1px solid #ccc; padding: 2px; background: #f9f9f9;" disabled>
+                                <div id="pal_from_suggest" class="pal-suggest" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-weight: bold; font-style: italic; color: #555; width: 45px; text-align: right;">To</span>
+                            <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                                <input type="text" id="pal_to_code" style="width: 120px; border: 1px solid #999; padding: 2px;" autocomplete="off" disabled>
+                                <input type="text" id="pal_to_name" style="flex: 1; border: 1px solid #ccc; padding: 2px; background: #f9f9f9;" disabled>
+                                <div id="pal_to_suggest" class="pal-suggest" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Space before bottom checkboxes -->
+                <div style="height: 15px;"></div>
+                
+                <!-- Period From -->
+                <div style="display: flex; align-items: center; gap: 10px; margin-left: 170px;">
+                    <input type="checkbox" id="pal_use_period" style="margin: 0;">
+                    <label for="pal_use_period" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer; width: 95px;">For Period From</label>
+                    <input type="date" id="pal_from_date" style="width: 110px; border: 1px solid #999; padding: 2px; background: #fff;" disabled>
+                    <span style="font-weight: bold; font-style: italic; color: #555;">To</span>
+                    <input type="date" id="pal_to_date" style="width: 110px; border: 1px solid #999; padding: 2px; background: #fff;" disabled>
+                </div>
+                
+                <div style="height: 10px;"></div>
+
+                <!-- New Page -->
+                <div style="display: flex; align-items: center; gap: 10px; margin-left: 170px;">
+                    <input type="checkbox" id="pal_new_page" style="margin: 0;">
+                    <label for="pal_new_page" style="font-weight: bold; font-style: italic; color: #555; cursor: pointer;">Start Printing of Every Ledger on New Page</label>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <style>
+        .pal-suggest {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #000;
+            z-index: 10000;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            font-size: 11px;
+            margin-top: 1px;
+        }
+        .pal-suggest div { 
+            padding: 3px 6px; 
+            cursor: pointer; 
+            color: #000; 
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pal-suggest div:hover, .pal-suggest div.active { 
+            background-color: #1F4E79; 
+            color: white; 
+        }
+    </style>
+    
+    <!-- Force load script reliably -->
+    <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+        if(!window.PrintAccountsLedgersModule) {
+            let s = document.createElement('script');
+            s.src = 'assets/js/print_accounts_ledgers.js?v=' + Date.now();
+            s.onload = () => { 
+                setTimeout(() => {
+                    if(window.PrintAccountsLedgersModule) window.PrintAccountsLedgersModule.init(); 
+                }, 50);
+            };
+            document.head.appendChild(s);
+        } else {
+            setTimeout(() => {
+                if(window.PrintAccountsLedgersModule.init) {
+                    window.PrintAccountsLedgersModule.init();
+                }
+            }, 50);
+        }
+    ">
+</div>

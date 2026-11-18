@@ -1,0 +1,63 @@
+<style>
+    .listbox-item {
+        padding: 6px 12px;
+        font-size: 14px;
+        color: #333;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f1f1;
+        transition: background 0.1s;
+    }
+    .listbox-item:hover {
+        background: #f8f9fa;
+    }
+    .listbox-item.active {
+        background: #4a90e2;
+        color: #fff;
+    }
+</style>
+<div data-module="Financial Year" style="padding: 10px 20px; font-family: Segoe UI, Tahoma, sans-serif;">
+    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+        
+        <!-- Left Side: List of Financial Years -->
+        <div style="flex: 1; border: 1px solid #ccc; border-radius: 4px; overflow-y: auto; height: 160px; background: #fff; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);" id="fyListBox">
+            <!-- Populated via JS -->
+        </div>
+
+        <!-- Right Side: Form Fields -->
+        <div style="flex: 1.5;">
+            <div class="form-group" style="display: flex; align-items: center; margin-bottom: 12px;">
+                <label style="width: 140px; font-weight: 600; color: #1f4668;">Starting Date</label>
+                <input type="date" class="form-control" id="fyStartDate" style="flex: 1; border: 1px solid #ccc;">
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; margin-bottom: 12px;">
+                <label style="width: 140px; font-weight: 600; color: #1f4668;">Ending Date</label>
+                <input type="date" class="form-control" id="fyEndDate" style="flex: 1; border: 1px solid #ccc;">
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; margin-bottom: 12px;">
+                <label style="width: 140px; font-weight: 600; color: #1f4668;">Abbreviation</label>
+                <input type="text" class="form-control" id="fyAbbreviation" style="flex: 1; border: 1px solid #ccc; background-color: #f8f9fa;" readonly placeholder="Auto-generated">
+            </div>
+            
+            <!-- Hidden ID field to track edit mode -->
+            <input type="hidden" id="fyEditId" value="">
+            
+            <div id="fyErrorMsg" style="color: #d63031; font-weight: 500; font-size: 13px; height: 18px; text-align: right; margin-bottom: 5px;"></div>
+        </div>
+    </div>
+
+    <!-- Actions matching consistency -->
+    <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="addFinancialYear()"><i class="fas fa-plus"></i> Add</button>
+        <button class="btn btn-primary" onclick="saveFinancialYear(event)"><i class="fas fa-check"></i> Save</button>
+        <button class="btn btn-secondary" onclick="closeModal()"><i class="fas fa-times"></i> Cancel</button>
+    </div>
+    
+    <script>
+        // Ensure the list renders when the module is loaded
+        if (typeof renderFinancialYearList === 'function') {
+            renderFinancialYearList();
+        }
+    </script>
+</div>

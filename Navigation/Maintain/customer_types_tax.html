@@ -1,0 +1,84 @@
+<div id="customerTypeTaxMaintenanceContainer" data-module="Customer Types & Rates" style="width: 700px; height: 320px; background: white; display: flex; flex-direction: column; padding: 0px 15px 15px 15px; font-family: 'Segoe UI', sans-serif; border-radius: 8px;">
+    
+    <!-- Top Row: Buttons (Right) -->
+    <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 20px;">
+        <div style="display: flex; gap: 6px; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 5px; width: 100%; justify-content: flex-end;">
+            <button class="ob-btn" onclick="resetCustomerTypeTaxForm(true)">Add<br>New</button>
+            <button class="ob-btn" onclick="saveCustomerTypeTax()">Save<br>(Ctrl+S)</button>
+            <button class="ob-btn ob-delete" onclick="deleteCustomerTypeTax()">Delete</button>
+            <button class="ob-btn" onclick="resetCustomerTypeTaxForm(false)">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Bottom Row: List (Left) and Input (Right) -->
+    <div style="display: flex; gap: 20px; flex: 1;">
+        <!-- Navigation Listbox -->
+        <div style="width: 280px; display: flex; flex-direction: column;">
+            <select id="custTypeTaxList" size="2" style="width: 100%; height: 100%; border: 1px solid black; outline: none; border-radius: 4px; font-size: 13px; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2);" onchange="onCustTypeTaxSelect(this.value)"></select>
+        </div>
+        
+        <!-- Input Area -->
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding-bottom: 20px; gap: 15px;">
+            <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
+                <label style="font-size: 14px; font-weight: 600; font-style: italic; color: #475569; white-space: nowrap; width: 125px; text-align: right;">Customer Type</label>
+                <input type="text" id="custTypeTaxName" autocomplete="off" style="flex: 1; height: 32px; border: 1px solid black; outline: none; padding: 0 12px; font-size: 14px; border-radius: 4px; box-shadow: inset 1px 1px 2px rgba(0,0,0,0.05);" disabled>
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
+                <label style="font-size: 12px; font-weight: 600; font-style: italic; color: #475569; white-space: nowrap; width: 125px; text-align: right;">W.H Income Tax Type</label>
+                <select id="custTypeTaxWht" style="flex: 1; height: 32px; border: 1px solid black; outline: none; padding: 0 12px; font-size: 14px; border-radius: 4px; box-shadow: inset 1px 1px 2px rgba(0,0,0,0.05);" disabled>
+                    <option value="">None</option>
+                    <option value="236 G">236 G</option>
+                    <option value="236 H">236 H</option>
+                </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
+                <label style="font-size: 14px; font-weight: 600; font-style: italic; color: #475569; white-space: nowrap; width: 125px; text-align: right;">Tax Rate (%)</label>
+                <input type="number" step="0.01" id="custTypeTaxRate" autocomplete="off" style="flex: 1; height: 32px; border: 1px solid black; outline: none; padding: 0 12px; font-size: 14px; border-radius: 4px; box-shadow: inset 1px 1px 2px rgba(0,0,0,0.05);" disabled>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        #customerTypeTaxMaintenanceContainer .ob-btn {
+            background: #4a789c;
+            border: 1px solid #4a789c;
+            padding: 2px;
+            font-size: 11px;
+            line-height: 1.2;
+            letter-spacing: -0.2px;
+            text-align: center;
+            white-space: normal;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        #customerTypeTaxMaintenanceContainer .ob-btn:hover { background: #3b6282; }
+        #customerTypeTaxMaintenanceContainer .ob-delete { background: #dc3545 !important; border-color: #dc3545 !important; }
+        #customerTypeTaxMaintenanceContainer .ob-delete:hover { background: #c82333 !important; }
+        
+        #custTypeTaxList option { padding: 2px 8px; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
+        #custTypeTaxList option:checked { 
+            background: var(--theme-primary, #1F4E79) !important; 
+            color: white !important; 
+            box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important; -webkit-box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+        }
+        #custTypeTaxList::-webkit-scrollbar {
+            display: none;
+        }
+        #custTypeTaxList {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        
+        #customerTypeTaxMaintenanceContainer {
+            overflow: hidden !important;
+        }
+    </style>
+</div>

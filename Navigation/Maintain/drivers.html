@@ -1,0 +1,287 @@
+<div id="driverMaintenanceContainer" data-module="Drivers" style="width: 830px; height: 330px; background: white; display: flex; flex-direction: column; padding: 10px 15px 15px 15px; font-family: 'Segoe UI', sans-serif; border-radius: 0 0 8px 8px; box-sizing: border-box; overflow: hidden;">
+    
+    <!-- Top Row: Action Buttons -->
+    <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 12px;">
+        <div style="display: flex; gap: 6px; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 5px; width: 100%; justify-content: flex-end;">
+            <button class="ob-btn" onclick="resetDriverForm(true)" title="Add New Driver">Add<br>New</button>
+            <button class="ob-btn" onclick="saveDriver()" title="Save Driver (Ctrl+S)">Save<br>(Ctrl+S)</button>
+            <button class="ob-btn ob-delete" onclick="deleteDriver()" title="Delete Driver">Delete</button>
+            <button class="ob-btn" onclick="resetDriverForm(false)" title="Cancel">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Bottom Row: Drivers List (Left) and Input Fields (Right) -->
+    <div style="display: flex; gap: 20px; flex: 1; min-height: 0; overflow: hidden;">
+        <!-- Drivers Listbox -->
+        <div style="width: 270px; display: flex; flex-direction: column;">
+            <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">Drivers List</div>
+            <select id="driverMaintList" size="10" style="width: 100%; flex: 1; border: 1px solid black; outline: none; border-radius: 4px; font-size: 12.5px; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.15);" onchange="onDriverMaintSelect(this.value)"></select>
+        </div>
+        
+        <!-- Input Area -->
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding-bottom: 5px;">
+            <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                <label style="font-size: 13px; font-weight: 600; font-style: italic; color: #334155; white-space: nowrap; width: 105px; text-align: right;">Driver Name *</label>
+                <input type="text" id="driverMaintName" autocomplete="off" style="flex: 1; height: 28px; border: 1px solid black; outline: none; padding: 0 10px; font-size: 13px; border-radius: 4px; box-sizing: border-box;" disabled placeholder="Driver Full Name">
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                <label style="font-size: 13px; font-weight: 600; font-style: italic; color: #334155; white-space: nowrap; width: 105px; text-align: right;">CNIC</label>
+                <input type="text" id="driverMaintCnic" autocomplete="off" style="flex: 1; height: 28px; border: 1px solid black; outline: none; padding: 0 10px; font-size: 13px; border-radius: 4px; box-sizing: border-box;" disabled placeholder="13 digits without dashes">
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                <label style="font-size: 13px; font-weight: 600; font-style: italic; color: #334155; white-space: nowrap; width: 105px; text-align: right;">Mobile Number</label>
+                <input type="text" id="driverMaintMobile" autocomplete="off" style="flex: 1; height: 28px; border: 1px solid black; outline: none; padding: 0 10px; font-size: 13px; border-radius: 4px; box-sizing: border-box;" disabled placeholder="03xx-xxxxxxx">
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                <label style="font-size: 13px; font-weight: 600; font-style: italic; color: #334155; white-space: nowrap; width: 105px; text-align: right;">Vehicle Detail</label>
+                <input type="text" id="driverMaintVehicle" autocomplete="off" style="flex: 1; height: 28px; border: 1px solid black; outline: none; padding: 0 10px; font-size: 13px; border-radius: 4px; box-sizing: border-box;" disabled placeholder="e.g. Mazda Truck / Reg # LES-1234">
+            </div>
+        </div>
+    </div>
+
+    <style>
+        #driverMaintenanceContainer .ob-btn:not(.ob-delete) {
+            background: var(--theme-primary, #1F4E79) !important;
+            border: 1px solid var(--theme-primary, #1F4E79) !important;
+            padding: 2px;
+            font-size: 11px;
+            line-height: 1.2;
+            letter-spacing: -0.2px;
+            text-align: center;
+            white-space: normal;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        #driverMaintenanceContainer .ob-btn:not(.ob-delete):hover {
+            background: var(--theme-btn-hover, #153550) !important;
+            border-color: var(--theme-btn-hover, #153550) !important;
+        }
+        #driverMaintenanceContainer .ob-delete {
+            background: #dc3545 !important;
+            border: 1px solid #dc3545 !important;
+            padding: 2px;
+            font-size: 11px;
+            line-height: 1.2;
+            letter-spacing: -0.2px;
+            text-align: center;
+            white-space: normal;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        #driverMaintenanceContainer .ob-delete:hover {
+            background: #c82333 !important;
+            border-color: #c82333 !important;
+        }
+        
+        #driverMaintList option { padding: 4px 8px; font-size: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+        #driverMaintList option:checked { 
+            background: var(--theme-primary, #1F4E79) !important; 
+            color: white !important; 
+            box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+            -webkit-box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+        }
+    </style>
+
+    <script>
+        (function() {
+            let driversData = [];
+            let selectedDriverId = null;
+
+            async function loadDriversForMaintenance(selectIdToPick = null) {
+                try {
+                    const res = await fetch('api/drivers.php?action=get_drivers');
+                    if (!res.ok) return;
+                    driversData = await res.json() || [];
+                    const list = document.getElementById('driverMaintList');
+                    if (!list) return;
+
+                    list.innerHTML = '';
+                    if (!driversData || driversData.length === 0) {
+                        list.innerHTML = '<option disabled style="color:#94a3b8; font-style:italic;">No drivers saved yet</option>';
+                        resetDriverForm(false);
+                        return;
+                    }
+
+                    driversData.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d.id;
+                        opt.textContent = d.name + (d.vehicle_desc ? ` (${d.vehicle_desc})` : '');
+                        list.appendChild(opt);
+                    });
+
+                    if (selectIdToPick) {
+                        list.value = selectIdToPick;
+                        onDriverMaintSelect(selectIdToPick);
+                    } else if (driversData.length > 0) {
+                        list.value = driversData[0].id;
+                        onDriverMaintSelect(driversData[0].id);
+                    }
+                } catch (e) {
+                    console.error('Error loading drivers:', e);
+                }
+            }
+
+            function onDriverMaintSelect(id) {
+                selectedDriverId = id;
+                const d = (driversData || []).find(item => item.id == id);
+                if (!d) return;
+
+                const nameInput = document.getElementById('driverMaintName');
+                const cnicInput = document.getElementById('driverMaintCnic');
+                const mobileInput = document.getElementById('driverMaintMobile');
+                const vehicleInput = document.getElementById('driverMaintVehicle');
+
+                if (nameInput) { nameInput.value = d.name || ''; nameInput.disabled = false; }
+                if (cnicInput) { cnicInput.value = d.cnic || ''; cnicInput.disabled = false; }
+                if (mobileInput) { mobileInput.value = d.mobile || ''; mobileInput.disabled = false; }
+                if (vehicleInput) { vehicleInput.value = d.vehicle_desc || ''; vehicleInput.disabled = false; }
+            }
+
+            function resetDriverForm(generate = false) {
+                selectedDriverId = generate ? null : selectedDriverId;
+                const list = document.getElementById('driverMaintList');
+                if (generate && list) list.value = '';
+
+                const nameInput = document.getElementById('driverMaintName');
+                const cnicInput = document.getElementById('driverMaintCnic');
+                const mobileInput = document.getElementById('driverMaintMobile');
+                const vehicleInput = document.getElementById('driverMaintVehicle');
+
+                if (generate) {
+                    if (nameInput) { nameInput.value = ''; nameInput.disabled = false; }
+                    if (cnicInput) { cnicInput.value = ''; cnicInput.disabled = false; }
+                    if (mobileInput) { mobileInput.value = ''; mobileInput.disabled = false; }
+                    if (vehicleInput) { vehicleInput.value = ''; vehicleInput.disabled = false; }
+                    setTimeout(() => { if (nameInput) nameInput.focus(); }, 50);
+                } else {
+                    if (selectedDriverId && (driversData || []).some(d => d.id == selectedDriverId)) {
+                        onDriverMaintSelect(selectedDriverId);
+                    } else if (driversData && driversData.length > 0) {
+                        onDriverMaintSelect(driversData[0].id);
+                    } else {
+                        if (nameInput) { nameInput.value = ''; nameInput.disabled = true; }
+                        if (cnicInput) { cnicInput.value = ''; cnicInput.disabled = true; }
+                        if (mobileInput) { mobileInput.value = ''; mobileInput.disabled = true; }
+                        if (vehicleInput) { vehicleInput.value = ''; vehicleInput.disabled = true; }
+                    }
+                }
+            }
+
+            async function saveDriver() {
+                const name = document.getElementById('driverMaintName')?.value.trim();
+                const cnic = document.getElementById('driverMaintCnic')?.value.trim();
+                const mobile = document.getElementById('driverMaintMobile')?.value.trim();
+                const vehicle = document.getElementById('driverMaintVehicle')?.value.trim();
+
+                if (!name) {
+                    alert('Please enter Driver Name.');
+                    document.getElementById('driverMaintName')?.focus();
+                    return;
+                }
+
+                try {
+                    const res = await fetch('api/drivers.php?action=save_driver', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: selectedDriverId,
+                            name: name,
+                            cnic: cnic,
+                            mobile: mobile,
+                            vehicle_desc: vehicle
+                        })
+                    });
+                    const result = await res.json();
+                    if (result.status === 'success') {
+                        alert(result.message || 'Driver saved successfully!');
+                        selectedDriverId = result.id;
+                        await loadDriversForMaintenance(result.id);
+                        if (window.DeliveryChallanModule && typeof window.DeliveryChallanModule.loadDrivers === 'function') {
+                            window.DeliveryChallanModule.loadDrivers(result.id);
+                        }
+                    } else {
+                        alert(result.message || 'Error saving driver.');
+                    }
+                } catch (e) {
+                    alert('Error saving driver: ' + (e.message || e));
+                }
+            }
+
+            async function deleteDriver() {
+                if (!selectedDriverId) {
+                    alert('Please select a driver to delete.');
+                    return;
+                }
+                if (!confirm('Are you sure you want to delete this driver?')) return;
+
+                try {
+                    const res = await fetch(`api/drivers.php?action=delete_driver&id=${selectedDriverId}`);
+                    const result = await res.json();
+                    if (result.status === 'success') {
+                        alert('Driver deleted.');
+                        selectedDriverId = null;
+                        await loadDriversForMaintenance();
+                        if (window.DeliveryChallanModule && typeof window.DeliveryChallanModule.loadDrivers === 'function') {
+                            window.DeliveryChallanModule.loadDrivers();
+                        }
+                    } else {
+                        alert(result.message || 'Failed to delete driver.');
+                    }
+                } catch (e) {
+                    alert('Error deleting driver.');
+                }
+            }
+
+            // Keyboard shortcut Ctrl+S
+            const container = document.getElementById('driverMaintenanceContainer');
+            if (container) {
+                container.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+                        e.preventDefault();
+                        saveDriver();
+                    }
+                });
+            }
+
+            // Expose globally
+            window.loadDriversForMaintenance = loadDriversForMaintenance;
+            window.onDriverMaintSelect = onDriverMaintSelect;
+            window.resetDriverForm = resetDriverForm;
+            window.saveDriver = saveDriver;
+            window.deleteDriver = deleteDriver;
+
+            // Auto load on open
+            loadDriversForMaintenance();
+
+            if (window.applyERPThemeToElement && window.getCurrentERPTheme) {
+                const curTheme = window.getCurrentERPTheme();
+                const containerEl = document.getElementById('driverMaintenanceContainer');
+                const modalContainer = containerEl ? containerEl.closest('.modal-container') : null;
+                if (modalContainer) {
+                    window.applyERPThemeToElement(modalContainer, curTheme);
+                } else if (containerEl) {
+                    window.applyERPThemeToElement(containerEl, curTheme);
+                }
+            }
+        })();
+    </script>
+</div>

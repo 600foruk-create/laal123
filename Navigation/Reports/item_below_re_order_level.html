@@ -1,0 +1,75 @@
+<div style="display: flex; flex-direction: column; height: 100%; background-color: white;">
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+            min-width: 60px;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info   { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .gj-btn-info:hover   { background: #3b6998 !important; }
+
+        #ibr_table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        #ibr_table th { background: #e2e8f0; border: 1px solid #94a3b8; font-size: 9px; font-weight: 700; color: #334155; padding: 2px; text-transform: uppercase; text-align: center; height: 22px; }
+        #ibr_table tbody td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+    
+    <!-- Top Header Bar -->
+    <div class="filter-section" style="background-color: #f8f9fa; padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: flex-end; align-items: flex-end; gap: 15px;">
+        
+        <!-- Controls -->
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button onclick="window.ItemsBelowReorder.toggleShowAll()" id="btn_ibr_show_all" class="gj-tool-btn gj-btn-info">Show All Items</button>
+            <button onclick="window.ItemsBelowReorder.toggleHideZero()" id="btn_ibr_hide_zero" class="gj-tool-btn gj-btn-info">Do Not Show Items With Zero (0) Re-Order Level Quantity</button>
+            <button onclick="window.ItemsBelowReorder.printReport()" class="gj-tool-btn gj-btn-info">
+                <i class="fas fa-print" style="margin-right: 5px;"></i> Print
+            </button>
+        </div>
+    </div>
+
+    <!-- Data Grid -->
+    <div style="flex: 1; overflow-y: auto; background-color: #fff; border: 1px solid #ccc; border-top: none; position: relative;">
+        <table id="ibr_table">
+            <thead style="position: sticky; top: 0; background-color: #e2e8f0; z-index: 10;">
+                <tr>
+                    <th style="width: 25px;"></th>
+                    <th style="width: 120px; text-align: left;">Item Code</th>
+                    <th style="text-align: left;">Item Name</th>
+                    <th style="width: 80px; text-align: left;">Unit</th>
+                    <th style="width: 150px; text-align: right;">Re-Order Level Quantity</th>
+                    <th style="width: 150px; text-align: right;">Balance in Hand</th>
+                </tr>
+            </thead>
+            <tbody id="ibr_tbody">
+                <!-- Data will be populated here -->
+            </tbody>
+        </table>
+        
+        <div id="ibr_loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 16px; color: #333;">
+            <i class="fas fa-spinner fa-spin"></i> Loading...
+        </div>
+        
+        <div id="ibr_empty" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; color: #d9534f; font-weight: bold;">
+            No items found matching the criteria.
+        </div>
+    </div>
+</div>
+

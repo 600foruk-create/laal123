@@ -1,0 +1,343 @@
+<div class="pc-container" id="pcMainContainer" data-module="Production Costing & WIP Statement" style="width: 100%; height: 100%; min-width: 950px; min-height: 520px; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; background: #f8fafc; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 11px; color: #1e293b; padding: 6px 10px; gap: 5px;">
+
+    <!-- Filter Panel: Compact 2-Row Design (No Empty Spaces) -->
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex-shrink: 0;">
+        
+        <!-- Row 1: Primary Date Filters, View Switch, Product & Action Buttons -->
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
+            
+            <div style="background: var(--theme-primary, #1F4E79); color: white; padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                <i class="fas fa-filter" style="color: var(--theme-accent, #F5A623);"></i> Filters
+            </div>
+
+            <!-- Date Range -->
+            <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                <label class="pc-label">From:</label>
+                <input type="date" id="pcFromDate" class="pc-input" style="width: 112px; font-weight: 600;" onchange="window.ProductionCostingModule.onDateInputChange()">
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                <label class="pc-label">To:</label>
+                <input type="date" id="pcToDate" class="pc-input" style="width: 112px; font-weight: 600;" onchange="window.ProductionCostingModule.onDateInputChange()">
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                <label class="pc-label">Preset:</label>
+                <select id="pcDatePreset" class="pc-input" style="width: 95px; font-weight: 600;" onchange="window.ProductionCostingModule.applyDatePreset()">
+                    <option value="this_month" selected>This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="this_quarter">Quarter</option>
+                    <option value="this_year">Year</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+
+            <!-- View Mode Switch -->
+            <div style="display: flex; align-items: center; gap: 3px; background: #e2e8f0; border-radius: 3px; padding: 1.5px 3px; flex-shrink: 0;">
+                <button type="button" id="pcBtnViewMonthly" class="pc-tab-btn active" onclick="window.ProductionCostingModule.switchViewMode('monthly')">
+                    <i class="fas fa-file-invoice-dollar"></i> Monthly Cost Sheet
+                </button>
+                <button type="button" id="pcBtnViewDaily" class="pc-tab-btn" onclick="window.ProductionCostingModule.switchViewMode('daily')">
+                    <i class="fas fa-calendar-day"></i> Daily WIP Flow
+                </button>
+            </div>
+
+            <!-- Category / Brand Filter -->
+            <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                <label class="pc-label"><i class="fas fa-tags" style="color: var(--theme-primary, #1F4E79);"></i> Brand / Category:</label>
+                <select id="pcProductFilter" class="pc-input" style="width: 165px; font-weight: 600;" onchange="window.ProductionCostingModule.loadReport()">
+                    <option value="all">All Categories / Brands</option>
+                </select>
+            </div>
+
+            <!-- Action Buttons on Right -->
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
+                <button type="button" class="pc-btn pc-btn-primary" onclick="window.ProductionCostingModule.loadReport()">
+                    <i class="fas fa-sync-alt"></i> Generate
+                </button>
+                
+                <div style="position: relative; display: inline-block;">
+                    <button type="button" class="pc-btn pc-btn-success" onclick="window.ProductionCostingModule.toggleExportDropdown(event)">
+                        <i class="fas fa-download"></i> Export <i class="fas fa-caret-down"></i>
+                    </button>
+                    <div id="pcExportDropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 2px; background: white; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 50; min-width: 120px;">
+                        <a href="javascript:void(0)" onclick="window.ProductionCostingModule.exportExcel()" style="display: block; padding: 5px 10px; color: #1e293b; text-decoration: none; font-size: 10.5px;"><i class="far fa-file-excel" style="color: #16a34a; width: 14px;"></i> Excel (.xls)</a>
+                        <a href="javascript:void(0)" onclick="window.ProductionCostingModule.exportPDF()" style="display: block; padding: 5px 10px; color: #1e293b; text-decoration: none; font-size: 10.5px;"><i class="far fa-file-pdf" style="color: #dc2626; width: 14px;"></i> Export PDF</a>
+                    </div>
+                </div>
+
+                <button type="button" class="pc-btn pc-btn-secondary" onclick="window.ProductionCostingModule.printReport()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+
+                <button type="button" class="pc-btn pc-btn-light" onclick="window.ProductionCostingModule.resetFilters()">
+                    <i class="fas fa-redo"></i> Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Row 2: Overheads Entry, Current Period Badge & Lock WIP Button -->
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; padding-top: 4px; border-top: 1px dashed #e2e8f0; font-size: 10px;">
+            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                <label class="pc-label" style="color: var(--theme-primary, #1F4E79);"><i class="fas fa-sliders-h"></i> Overheads:</label>
+                <select id="pcExpenseMode" class="pc-input" style="width: 125px; font-weight: 600;" onchange="window.ProductionCostingModule.onExpenseModeChange()">
+                    <option value="auto" selected>Auto-Fetch Accounts</option>
+                    <option value="manual">Manual Input</option>
+                </select>
+            </div>
+
+            <!-- Live Overheads Inputs -->
+            <div id="pcExpenseInputsRow" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 3px;">
+                    <span style="color: #0284c7; font-weight: 700;"><i class="fas fa-bolt"></i> Electricity:</span>
+                    <input type="number" id="pcInputElectricity" class="pc-input" style="width: 80px; text-align: right;" placeholder="0" onchange="window.ProductionCostingModule.loadReport()">
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 3px;">
+                    <span style="color: #059669; font-weight: 700;"><i class="fas fa-users"></i> Labor/Wages:</span>
+                    <input type="number" id="pcInputLabor" class="pc-input" style="width: 75px; text-align: right;" placeholder="0" onchange="window.ProductionCostingModule.loadReport()">
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 3px;">
+                    <span style="color: #b45309; font-weight: 700;"><i class="fas fa-tools"></i> Overheads:</span>
+                    <input type="number" id="pcInputOverheads" class="pc-input" style="width: 75px; text-align: right;" placeholder="0" onchange="window.ProductionCostingModule.loadReport()">
+                </div>
+            </div>
+
+            <!-- Active Period Badge -->
+            <div style="display: flex; align-items: center; gap: 5px; color: #475569; font-weight: 600; font-size: 10.5px; margin-left: 5px; flex-shrink: 0;">
+                <i class="far fa-calendar-alt" style="color: var(--theme-primary, #1F4E79);"></i> <span id="pcHeaderPeriodDisplay">Loading Period...</span>
+            </div>
+
+            <!-- Lock Month WIP Button on Right -->
+            <div style="margin-left: auto; flex-shrink: 0;">
+                <button type="button" class="pc-btn" style="background: #fef08a; border-color: #facc15; color: #854d0e; font-weight: 700; height: 22px; padding: 0 7px; font-size: 10px;" onclick="window.ProductionCostingModule.saveAndLockWip()">
+                    <i class="fas fa-lock"></i> Lock Month-End WIP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Report Data Table Section (Half Row Height for Maximum Visibility) -->
+    <div style="flex: 1; min-height: 200px; background: white; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+        
+        <div style="flex: 1; overflow: auto; position: relative;" id="pcTableScrollArea">
+            
+            <!-- Table 1: Monthly Product-Wise Costing View -->
+            <table id="pcMonthlyTable" class="pc-data-table" style="width: 100%; border-collapse: separate; border-spacing: 0; text-align: left;">
+                <thead style="position: sticky; top: 0; z-index: 10; background: var(--theme-primary, #1F4E79); color: white;">
+                    <tr>
+                        <th style="width: 35px; text-align: center;">Sr.</th>
+                        <th style="width: 85px;">Code</th>
+                        <th style="min-width: 180px;">Brand / Finished Category</th>
+                        <th style="width: 50px; text-align: center;">Unit</th>
+                        <th style="width: 75px; text-align: right;">Output Qty</th>
+                        <th style="width: 70px; text-align: right;">Pieces</th>
+                        <th style="width: 90px; text-align: right; background: rgba(0,0,0,0.15);">Weight (KG)</th>
+                        <th style="width: 55px; text-align: right;">Share %</th>
+                        <th style="width: 105px; text-align: right;">Material Cost</th>
+                        <th style="width: 95px; text-align: right;">Overheads</th>
+                        <th style="width: 110px; text-align: right; background: #0f3456;">Total Cost (PKR)</th>
+                        <th style="width: 90px; text-align: right; color: var(--theme-accent, #F5A623);">Cost / Piece</th>
+                        <th style="width: 90px; text-align: right; font-weight: 800; background: #0c2b48;">Cost / KG</th>
+                    </tr>
+                </thead>
+                <tbody id="pcMonthlyTableBody">
+                    <tr>
+                        <td colspan="13" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">
+                            Loading Manufacturing Costing & Production data...
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot id="pcMonthlyTableFoot" style="position: sticky; bottom: 0; background: #f8fafc; font-weight: 700; border-top: 2px solid var(--theme-primary, #1F4E79); z-index: 5;">
+                </tfoot>
+            </table>
+
+            <!-- Table 2: Daily WIP Flow Breakdown View (Initially Hidden) -->
+            <table id="pcDailyTable" class="pc-data-table" style="display: none; width: 100%; border-collapse: separate; border-spacing: 0; text-align: left;">
+                <thead style="position: sticky; top: 0; z-index: 10; background: var(--theme-primary, #1F4E79); color: white;">
+                    <tr>
+                        <th style="width: 35px; text-align: center;">Sr.</th>
+                        <th style="width: 125px;">Date</th>
+                        <th style="width: 110px; text-align: right; background: #0f3456;">Opening WIP (KG)</th>
+                        <th style="width: 120px; text-align: right;">(+) Issued Store (KG)</th>
+                        <th style="width: 120px; text-align: right;">Material Value (PKR)</th>
+                        <th style="width: 120px; text-align: right; color: #86efac;">(-) Output (KG)</th>
+                        <th style="width: 120px; text-align: right; background: #0c2b48; font-weight: 800;">(=) Closing WIP (KG)</th>
+                        <th style="width: 75px; text-align: center;">Yield %</th>
+                        <th style="width: 90px; text-align: center;">Floor Status</th>
+                    </tr>
+                </thead>
+                <tbody id="pcDailyTableBody">
+                </tbody>
+                <tfoot id="pcDailyTableFoot" style="position: sticky; bottom: 0; background: #f8fafc; font-weight: 700; border-top: 2px solid var(--theme-primary, #1F4E79); z-index: 5;">
+                </tfoot>
+            </table>
+
+        </div>
+    </div>
+
+    <!-- Bottom Section: Three Responsive Cards -->
+    <div style="display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap;">
+        
+        <!-- Card 1: Material & WIP Reconciliation Meezan (KG Analysis) -->
+        <div style="flex: 1; min-width: 300px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column;">
+            <div style="background: var(--theme-primary, #1F4E79); border-bottom: 2px solid var(--theme-accent, #F5A623); color: white; padding: 4px 8px; font-size: 10.5px; font-weight: 700; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fas fa-balance-scale" style="color: var(--theme-accent, #F5A623);"></i> Material & WIP Meezan (Reconciliation)</span>
+                <span style="font-size: 9px; opacity: 0.9;">Quantities in KG</span>
+            </div>
+            <div style="padding: 6px 8px; display: flex; flex-direction: column; gap: 3.5px; font-size: 10px;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 2px;">
+                    <span style="color: #475569;">Opening Floor WIP (<span id="pcRecPrevMonth">Prev Closing</span>):</span>
+                    <strong style="color: #854d0e;" id="pcRecOpeningWip">0 KG</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 2px;">
+                    <span style="color: #475569;">(+) Raw Material Issued from Store:</span>
+                    <strong style="color: #0369a1;" id="pcRecMaterialIssued">0 KG</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 2px;">
+                    <span style="color: #475569;">(-) Finished Goods Produced:</span>
+                    <strong style="color: #15803d;" id="pcRecFinishedGoods">0 KG</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 4px 6px; background: #f0fdf4; border-radius: 3px; font-weight: 800;">
+                    <span style="color: #15803d;">(=) Closing WIP (<span id="pcRecCurMonth">Floor Balance</span>):</span>
+                    <strong style="color: #15803d; font-size: 11px;" id="pcRecClosingWip">0 KG</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 2px; font-size: 9px; color: #64748b;">
+                    <span>Floor Utilization: <strong style="color: #0f766e;" id="pcRecYieldPct">100%</strong></span>
+                    <span style="color: #64748b; font-style: italic;">*Scrap reground (miller) into WIP</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Production Cost Sheet (Rupay / Per-KG Breakdown) -->
+        <div style="flex: 1.1; min-width: 320px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column;">
+            <div style="background: var(--theme-primary, #1F4E79); border-bottom: 2px solid var(--theme-accent, #F5A623); color: white; padding: 4px 8px; font-size: 10.5px; font-weight: 700; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fas fa-file-invoice-dollar" style="color: var(--theme-accent, #F5A623);"></i> Manufacturing Cost Sheet</span>
+                <span style="font-size: 9px; opacity: 0.9;">Total & Per-KG Cost</span>
+            </div>
+            <div style="padding: 5px 8px; display: flex; flex-direction: column; gap: 2.5px; font-size: 9.5px;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 1.5px;">
+                    <span style="color: #475569;">Raw Material Consumed (<span id="pcCostMatPct">85%</span>):</span>
+                    <span><strong id="pcCostMatTotal">Rs. 0</strong> &bull; <span style="color: #0369a1; font-weight: 700;" id="pcCostMatPerKg">Rs. 0/KG</span></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 1.5px;">
+                    <span style="color: #475569;">Factory Electricity / Power (<span id="pcCostElecPct">8%</span>):</span>
+                    <span><strong id="pcCostElecTotal">Rs. 0</strong> &bull; <span style="color: #0284c7; font-weight: 700;" id="pcCostElecPerKg">Rs. 0/KG</span></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 1.5px;">
+                    <span style="color: #475569;">Direct Labor & Factory Wages (<span id="pcCostLaborPct">4%</span>):</span>
+                    <span><strong id="pcCostLaborTotal">Rs. 0</strong> &bull; <span style="color: #059669; font-weight: 700;" id="pcCostLaborPerKg">Rs. 0/KG</span></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 1.5px;">
+                    <span style="color: #475569;">Factory Maintenance & Overheads (<span id="pcCostOvhPct">3%</span>):</span>
+                    <span><strong id="pcCostOvhTotal">Rs. 0</strong> &bull; <span style="color: #b45309; font-weight: 700;" id="pcCostOvhPerKg">Rs. 0/KG</span></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 3px 5px; background: #eff6ff; border-radius: 3px; border-top: 1px solid #bfdbfe; font-weight: 800; font-size: 10.5px;">
+                    <span style="color: #1e40af;">TOTAL COST:</span>
+                    <span><strong style="color: #1e40af;" id="pcCostGrandTotal">Rs. 0</strong> &bull; <span style="color: #dc2626; font-size: 11.5px; font-weight: 900;" id="pcCostGrandPerKg">Rs. 0.00 / KG</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Month-to-Month Work in Process Auto-Roll Chain -->
+        <div style="flex: 1.2; min-width: 330px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column;">
+            <div style="background: var(--theme-primary, #1F4E79); border-bottom: 2px solid var(--theme-accent, #F5A623); color: white; padding: 4px 8px; font-size: 10.5px; font-weight: 700; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fas fa-check-circle" style="color: var(--theme-accent, #F5A623);"></i> WIP Continuous Auto-Roll Chain</span>
+                <span style="font-size: 9px; opacity: 0.9;">Continuous Rolling</span>
+            </div>
+            <div style="padding: 6px 4px; flex: 1; display: flex; align-items: center; justify-content: space-around; gap: 3px;">
+                
+                <!-- Box 1: Previous Closing -->
+                <div style="background: #fef9c3; border: 1px solid #fde047; border-radius: 3px; padding: 4px 6px; text-align: center; min-width: 72px;">
+                    <div style="font-size: 9px; font-weight: 700; color: #854d0e;" id="pcBoxPrevClosingLabel">Prev Closing</div>
+                    <div style="font-size: 10px; font-weight: 800; color: #1e293b; margin-top: 1px;" id="pcBoxPrevClosingQty">0 KG</div>
+                    <div style="font-size: 9px; color: #854d0e; font-weight: 600;" id="pcBoxPrevClosingVal">Rs. 0</div>
+                </div>
+
+                <div style="color: var(--theme-primary, #1F4E79); font-size: 11px; font-weight: bold;">&rarr;</div>
+
+                <!-- Box 2: Current Opening -->
+                <div style="background: #dbeafe; border: 1px solid #bfdbfe; border-radius: 3px; padding: 4px 6px; text-align: center; min-width: 72px;">
+                    <div style="font-size: 9px; font-weight: 700; color: #1d4ed8;" id="pcBoxCurOpeningLabel">Period Opening</div>
+                    <div style="font-size: 10px; font-weight: 800; color: #1e293b; margin-top: 1px;" id="pcBoxCurOpeningQty">0 KG</div>
+                    <div style="font-size: 9px; color: #1d4ed8; font-weight: 600;" id="pcBoxCurOpeningVal">Rs. 0</div>
+                </div>
+
+                <div style="color: #94a3b8; font-size: 9px;">••• &rarr;</div>
+
+                <!-- Box 3: Current Closing -->
+                <div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 3px; padding: 4px 6px; text-align: center; min-width: 72px;">
+                    <div style="font-size: 9px; font-weight: 700; color: #15803d;" id="pcBoxCurClosingLabel">Period Closing</div>
+                    <div style="font-size: 10px; font-weight: 800; color: #1e293b; margin-top: 1px;" id="pcBoxCurClosingQty">0 KG</div>
+                    <div style="font-size: 9px; color: #15803d; font-weight: 600;" id="pcBoxCurClosingVal">Rs. 0</div>
+                </div>
+
+                <div style="color: var(--theme-primary, #1F4E79); font-size: 11px; font-weight: bold;">&rarr;</div>
+
+                <!-- Box 4: Next Opening -->
+                <div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 3px; padding: 4px 6px; text-align: center; min-width: 72px;">
+                    <div style="font-size: 9px; font-weight: 700; color: #0284c7;" id="pcBoxNextOpeningLabel">Next Opening</div>
+                    <div style="font-size: 10px; font-weight: 800; color: #1e293b; margin-top: 1px;" id="pcBoxNextOpeningQty">0 KG</div>
+                    <div style="font-size: 9px; color: #0284c7; font-weight: 600;" id="pcBoxNextOpeningVal">Rs. 0</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Scoped Compact Styles -->
+    <style>
+        .pc-container * { box-sizing: border-box; }
+        .pc-label { font-size: 10px; font-weight: 600; color: #334155; white-space: nowrap; }
+        .pc-input { height: 23px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 5px; font-size: 10.5px; color: #1e293b; background: white; outline: none; transition: border-color 0.15s ease; }
+        .pc-input:focus { border-color: var(--theme-primary, #1F4E79); box-shadow: 0 0 0 1px var(--theme-primary, #1F4E79); }
+        .pc-btn { height: 23px; padding: 0 8px; font-size: 10px; font-weight: 700; border-radius: 3px; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease; white-space: nowrap; }
+        .pc-btn-primary { background: var(--theme-primary, #1F4E79); color: white; border-color: var(--theme-primary, #1F4E79); }
+        .pc-btn-primary:hover { background: var(--theme-btn-hover, #153550); border-color: var(--theme-btn-hover, #153550); }
+        .pc-btn-success { background: #16a34a; color: white; border-color: #15803d; }
+        .pc-btn-success:hover { background: #15803d; }
+        .pc-btn-secondary { background: #1e293b; color: white; border-color: #0f172a; }
+        .pc-btn-secondary:hover { background: #0f172a; }
+        .pc-btn-light { background: white; color: #475569; border-color: #cbd5e1; }
+        .pc-btn-light:hover { background: #f1f5f9; }
+        
+        .pc-tab-btn { height: 21px; padding: 0 7px; font-size: 10px; font-weight: 700; border-radius: 3px; border: none; background: transparent; color: #475569; cursor: pointer; transition: all 0.15s ease; }
+        .pc-tab-btn.active { background: var(--theme-primary, #1F4E79); color: white; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+        /* Comfortable Balanced Table Rows & Themed Selection */
+        .pc-data-table { font-size: 10.5px !important; }
+        .pc-data-table th { padding: 4px 6px !important; font-size: 10.5px !important; border: 1px solid rgba(255,255,255,0.2) !important; font-weight: 700 !important; }
+        .pc-data-table td { padding: 3px 6px !important; font-size: 10.5px !important; line-height: 1.35 !important; border: 1px solid #cbd5e1 !important; }
+        .pc-data-table tfoot td { padding: 3.5px 6px !important; font-size: 10.5px !important; font-weight: 800 !important; }
+        .pc-data-table tbody tr { border-bottom: 1px solid #e2e8f0; height: 23px !important; cursor: pointer; user-select: none; transition: background-color 0.1s ease; }
+        .pc-data-table tbody tr:hover { background-color: #f1f5f9; }
+
+        /* Themed Selected Row */
+        .pc-data-table tbody tr.selected-row,
+        .pc-data-table tbody tr.selected-row:hover {
+            background-color: var(--theme-primary, #1F4E79) !important;
+            background: var(--theme-primary, #1F4E79) !important;
+            color: #ffffff !important;
+        }
+        .pc-data-table tbody tr.selected-row td {
+            background-color: transparent !important;
+            background: transparent !important;
+            color: #ffffff !important;
+        }
+        .pc-data-table tbody tr.selected-row td * {
+            color: #ffffff !important;
+        }
+        .pc-data-table tbody tr.selected-row td span[style*="background"] {
+            background: rgba(255, 255, 255, 0.25) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        }
+    </style>
+
+    <script>
+        if (window.ProductionCostingModule && typeof window.ProductionCostingModule.init === 'function') {
+            window.ProductionCostingModule.init();
+        }
+    </script>
+</div>
