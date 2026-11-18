@@ -396,6 +396,47 @@
         });
     };
 
+    window.applyValueColor = function(el, val) {
+        if (!el) return;
+        let isNeg = false;
+        if (typeof val === 'number') {
+            isNeg = val < 0;
+        } else if (val !== null && val !== undefined) {
+            const str = String(val).trim();
+            // Don't flag date strings (e.g. 18-Nov-2026, 2026-11-18)
+            if (!/^\d{1,2}-[A-Za-z]{3}-\d{2,4}/.test(str) && !/^\d{4}-\d{2}-\d{2}/.test(str)) {
+                const clean = str.replace(/[^\d.-]/g, '');
+                const parsed = parseFloat(clean);
+                if (!isNaN(parsed) && parsed < 0) {
+                    isNeg = true;
+                } else if (/-\s*\d/.test(str) || /^\(.*\d+.*\)$/.test(str)) {
+                    isNeg = true;
+                }
+            }
+        }
+
+        if (isNeg) {
+            el.classList.add('is-negative');
+            el.setAttribute('data-is-negative', 'true');
+            el.style.setProperty('color', '#dc2626', 'important');
+        } else {
+            el.classList.remove('is-negative');
+            el.removeAttribute('data-is-negative');
+            el.style.removeProperty('color');
+        }
+    };
+
+    window.highlightAllNegativeValues = function(container) {
+        const root = container || document;
+        const els = root.querySelectorAll('.stat-value, .financial-row .value, .summary-row .value, .money, .highlight-value, [data-metric] .stat-value');
+        els.forEach(el => {
+            const txt = (el.innerText || el.textContent || '').trim();
+            if (txt) {
+                window.applyValueColor(el, txt);
+            }
+        });
+    };
+
     function setupERPThemeObserver() {
         if (window._erpThemeObserverSetup) return;
         window._erpThemeObserverSetup = true;
@@ -692,8 +733,12 @@
                 .search-input:focus {
                     border-color: ${primary} !important;
                 }
-                .stat-value, .financial-card h3, .widget-title, .summary-title, .summary-card h4, .financial-row .value, .summary-row .value {
+                .stat-value:not(.is-negative), .financial-card h3, .widget-title, .summary-title, .summary-card h4, .financial-row .value:not(.is-negative), .summary-row .value:not(.is-negative) {
                     color: ${primary} !important;
+                }
+                .is-negative, .stat-value.is-negative, .financial-row .value.is-negative, .summary-row .value.is-negative, .highlight-value.is-negative, [data-is-negative="true"], .text-negative {
+                    color: #dc2626 !important;
+                    font-weight: 700 !important;
                 }
                 .financial-card h3, .summary-title {
                     border-bottom-color: ${accent} !important;
@@ -1120,6 +1165,22 @@
         if (prevBtn) {
             prevBtn.style.backgroundColor = primary;
             prevBtn.style.borderColor = primary;
+        }
+
+        if (typeof window.highlightAllNegativeValues === 'function') {
+            window.highlightAllNegativeValues();
+        }
+
+        if (!window._negativeValuesObserverBound && document.body) {
+            window._negativeValuesObserverBound = true;
+            let _negDebounce = null;
+            const negObs = new MutationObserver(function() {
+                if (_negDebounce) clearTimeout(_negDebounce);
+                _negDebounce = setTimeout(function() {
+                    window.highlightAllNegativeValues();
+                }, 40);
+            });
+            negObs.observe(document.body, { childList: true, subtree: true, characterData: true });
         }
     };
 

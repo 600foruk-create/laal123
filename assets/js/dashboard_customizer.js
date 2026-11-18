@@ -700,16 +700,16 @@
             const digitalSales = dailySummary.digitalSales || 0;
 
             const map = {
-                'sales': { val: fmt(sales), id: 'salesValue' },
-                'cash_hand': { val: fmt(cashHand), id: 'cashValue' },
-                'bank_bal': { val: fmt(bankBal), id: 'bankValue' },
-                'rec_total': { val: fmt(recTotal), id: 'receivablesValue' },
-                'pay_total': { val: fmt(payTotal), id: 'dash_kpi_val_pay_total' },
-                'purchases': { val: fmt(purchases), id: 'dash_kpi_val_purchases' },
-                'pos_sales': { val: fmt(posSales), id: 'dash_kpi_val_pos_sales' },
-                'digital_sales': { val: fmt(digitalSales), id: 'dash_kpi_val_digital_sales' },
-                'net_cash_bank': { val: fmt(netCashBank), id: 'dash_kpi_val_net_cash_bank' },
-                'invoices_count': { val: String(invoicesCount), id: 'dash_kpi_val_invoices_count' }
+                'sales': { val: fmt(sales), id: 'salesValue', raw: sales },
+                'cash_hand': { val: fmt(cashHand), id: 'cashValue', raw: cashHand },
+                'bank_bal': { val: fmt(bankBal), id: 'bankValue', raw: bankBal },
+                'rec_total': { val: fmt(recTotal), id: 'receivablesValue', raw: recTotal },
+                'pay_total': { val: fmt(payTotal), id: 'dash_kpi_val_pay_total', raw: payTotal },
+                'purchases': { val: fmt(purchases), id: 'dash_kpi_val_purchases', raw: purchases },
+                'pos_sales': { val: fmt(posSales), id: 'dash_kpi_val_pos_sales', raw: posSales },
+                'digital_sales': { val: fmt(digitalSales), id: 'dash_kpi_val_digital_sales', raw: digitalSales },
+                'net_cash_bank': { val: fmt(netCashBank), id: 'dash_kpi_val_net_cash_bank', raw: netCashBank },
+                'invoices_count': { val: String(invoicesCount), id: 'dash_kpi_val_invoices_count', raw: invoicesCount }
             };
 
             // Update each stat card
@@ -718,6 +718,9 @@
                 const valEl = card.querySelector('.stat-value');
                 if (valEl && map[metric]) {
                     valEl.textContent = map[metric].val;
+                    if (typeof window.applyValueColor === 'function') {
+                        window.applyValueColor(valEl, map[metric].raw !== undefined ? map[metric].raw : map[metric].val);
+                    }
                 }
             });
 
@@ -725,16 +728,20 @@
             const posInvEl = document.getElementById('posTodayInvoices');
             if (posInvEl) posInvEl.textContent = String(dailySummary.posInvoices !== undefined ? dailySummary.posInvoices : (dailySummary.pos_invoices || 0));
             const posCashEl = document.getElementById('posCashSales');
-            if (posCashEl) posCashEl.textContent = fmt(dailySummary.posCashSales !== undefined ? dailySummary.posCashSales : (dailySummary.pos_cash_sales || 0));
+            const posCashVal = dailySummary.posCashSales !== undefined ? dailySummary.posCashSales : (dailySummary.pos_cash_sales || 0);
+            if (posCashEl) { posCashEl.textContent = fmt(posCashVal); if (typeof window.applyValueColor === 'function') window.applyValueColor(posCashEl, posCashVal); }
             const posCardEl = document.getElementById('posCardSales');
-            if (posCardEl) posCardEl.textContent = fmt(dailySummary.posCardSales !== undefined ? dailySummary.posCardSales : (dailySummary.pos_card_sales || 0));
+            const posCardVal = dailySummary.posCardSales !== undefined ? dailySummary.posCardSales : (dailySummary.pos_card_sales || 0);
+            if (posCardEl) { posCardEl.textContent = fmt(posCardVal); if (typeof window.applyValueColor === 'function') window.applyValueColor(posCardEl, posCardVal); }
             const posNetEl = document.getElementById('posNetTotal');
-            if (posNetEl) posNetEl.textContent = fmt(dailySummary.posNetTotal !== undefined ? dailySummary.posNetTotal : (dailySummary.pos_net_total || dailySummary.posSales || 0));
+            const posNetVal = dailySummary.posNetTotal !== undefined ? dailySummary.posNetTotal : (dailySummary.pos_net_total || dailySummary.posSales || 0);
+            if (posNetEl) { posNetEl.textContent = fmt(posNetVal); if (typeof window.applyValueColor === 'function') window.applyValueColor(posNetEl, posNetVal); }
 
             const fbrInvEl = document.getElementById('fbrActiveInvoices');
             if (fbrInvEl) fbrInvEl.textContent = String(dailySummary.digitalInvoices !== undefined ? dailySummary.digitalInvoices : (dailySummary.digital_invoices || 0));
             const fbrTaxEl = document.getElementById('fbrTaxTotal');
-            if (fbrTaxEl) fbrTaxEl.textContent = fmt(dailySummary.digitalTax !== undefined ? dailySummary.digitalTax : (dailySummary.digital_tax || 0));
+            const fbrTaxVal = dailySummary.digitalTax !== undefined ? dailySummary.digitalTax : (dailySummary.digital_tax || 0);
+            if (fbrTaxEl) { fbrTaxEl.textContent = fmt(fbrTaxVal); if (typeof window.applyValueColor === 'function') window.applyValueColor(fbrTaxEl, fbrTaxVal); }
             const fbrNotesEl = document.getElementById('fbrNotesCount');
             if (fbrNotesEl) fbrNotesEl.textContent = String(dailySummary.digitalNotes !== undefined ? dailySummary.digitalNotes : (dailySummary.digital_notes || 0));
 
@@ -762,17 +769,33 @@
                 if (invTotalEl) invTotalEl.textContent = (s.total_items || 0) + ' Items';
                 if (invLowEl) invLowEl.textContent = String(s.low_stock_count !== undefined ? s.low_stock_count : 0);
                 if (invReorderEl) invReorderEl.textContent = String(s.reorder_count !== undefined ? s.reorder_count : 0);
-                if (invStockValEl) invStockValEl.textContent = fmt(s.total_stock_value || 0);
+                if (invStockValEl) {
+                    const stVal = s.total_stock_value || 0;
+                    invStockValEl.textContent = fmt(stVal);
+                    if (typeof window.applyValueColor === 'function') window.applyValueColor(invStockValEl, stVal);
+                }
 
                 // Update Raw Material Activity Card
                 if (s.raw_material) {
                     const rm = s.raw_material;
                     const rKg = document.getElementById('summaryRawStockKg');
-                    if (rKg) rKg.textContent = (rm.total_kg !== undefined ? rm.total_kg : (rm.kg || 0)) + ' Kg';
+                    if (rKg) {
+                        const totKg = (rm.total_kg !== undefined ? rm.total_kg : (rm.kg || 0));
+                        rKg.textContent = totKg + ' Kg';
+                        if (typeof window.applyValueColor === 'function') window.applyValueColor(rKg, totKg);
+                    }
                     const rIss = document.getElementById('summaryRawIssuedToday');
-                    if (rIss) rIss.textContent = (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0)) + ' Kg';
+                    if (rIss) {
+                        const issKg = (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0));
+                        rIss.textContent = issKg + ' Kg';
+                        if (typeof window.applyValueColor === 'function') window.applyValueColor(rIss, issKg);
+                    }
                     const rVal = document.getElementById('summaryRawValuation');
-                    if (rVal) rVal.textContent = fmt(rm.valuation || 0);
+                    if (rVal) {
+                        const rmVal = rm.valuation || 0;
+                        rVal.textContent = fmt(rmVal);
+                        if (typeof window.applyValueColor === 'function') window.applyValueColor(rVal, rmVal);
+                    }
 
                     const listCont = document.getElementById('summaryRawItemList');
                     if (listCont && rm.items && Array.isArray(rm.items)) {
@@ -781,12 +804,13 @@
                         } else {
                             let rows = '';
                             rm.items.forEach(it => {
-                                const isLow = it.is_low || it.stock_kg <= 0;
-                                const color = isLow ? '#dc2626' : '#d97706';
+                                const isNeg = Number(it.stock_kg) < 0;
+                                const isLow = it.is_low || Number(it.stock_kg) === 0;
+                                const color = isNeg ? '#dc2626' : (isLow ? '#d97706' : '#1e293b');
                                 rows += `
                                     <div class="raw-item-row" onclick="window.openRawMaterialReport()" style="display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; cursor: pointer;" title="Click to view ledger">
                                         <span style="font-weight: 600; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${it.name}</span>
-                                        <span style="font-weight: 700; color: ${color}; font-size: 11px; white-space: nowrap;">${Number(it.stock_kg).toLocaleString('en-US')} Kg</span>
+                                        <span class="${isNeg ? 'is-negative' : ''}" style="font-weight: 700; color: ${color}; font-size: 11px; white-space: nowrap;">${Number(it.stock_kg).toLocaleString('en-US')} Kg</span>
                                     </div>
                                 `;
                             });
@@ -805,7 +829,11 @@
                     const fgProd = document.getElementById('summaryFgProducedToday');
                     if (fgProd) fgProd.textContent = (fg.today_produced || 0) + ' Pcs';
                     const fgVal = document.getElementById('summaryFgValuation');
-                    if (fgVal) fgVal.textContent = fmt(fg.valuation || 0);
+                    if (fgVal) {
+                        const fgv = fg.valuation || 0;
+                        fgVal.textContent = fmt(fgv);
+                        if (typeof window.applyValueColor === 'function') window.applyValueColor(fgVal, fgv);
+                    }
                 }
             } else if (typeof window.loadInventoryAlerts === 'function') {
                 window.loadInventoryAlerts();
@@ -815,9 +843,17 @@
             const posBillsEl = document.getElementById('summaryPosBills');
             if (posBillsEl) posBillsEl.textContent = String(dailySummary.posInvoices !== undefined ? dailySummary.posInvoices : (dailySummary.pos_invoices || 0));
             const posCashSummaryEl = document.getElementById('summaryPosCash');
-            if (posCashSummaryEl) posCashSummaryEl.textContent = fmt(dailySummary.posCashSales !== undefined ? dailySummary.posCashSales : (dailySummary.pos_cash_sales || 0));
+            if (posCashSummaryEl) {
+                const pCash = dailySummary.posCashSales !== undefined ? dailySummary.posCashSales : (dailySummary.pos_cash_sales || 0);
+                posCashSummaryEl.textContent = fmt(pCash);
+                if (typeof window.applyValueColor === 'function') window.applyValueColor(posCashSummaryEl, pCash);
+            }
             const posReturnsSummaryEl = document.getElementById('summaryPosReturns');
-            if (posReturnsSummaryEl) posReturnsSummaryEl.textContent = fmt(dailySummary.posReturns !== undefined ? dailySummary.posReturns : (dailySummary.pos_returns || 0));
+            if (posReturnsSummaryEl) {
+                const pRet = dailySummary.posReturns !== undefined ? dailySummary.posReturns : (dailySummary.pos_returns || 0);
+                posReturnsSummaryEl.textContent = fmt(pRet);
+                if (typeof window.applyValueColor === 'function') window.applyValueColor(posReturnsSummaryEl, pRet);
+            }
 
             const fbrSyncBadge = document.getElementById('summaryFbrSyncBadge');
             if (fbrSyncBadge) {
@@ -834,9 +870,17 @@
                 }
             }
             const fbrTaxSummaryEl = document.getElementById('summaryFbrTax');
-            if (fbrTaxSummaryEl) fbrTaxSummaryEl.textContent = fmt(dailySummary.digitalTaxUploaded !== undefined ? dailySummary.digitalTaxUploaded : (dailySummary.digital_tax_uploaded || 0));
+            if (fbrTaxSummaryEl) {
+                const ftTax = dailySummary.digitalTaxUploaded !== undefined ? dailySummary.digitalTaxUploaded : (dailySummary.digital_tax_uploaded || 0);
+                fbrTaxSummaryEl.textContent = fmt(ftTax);
+                if (typeof window.applyValueColor === 'function') window.applyValueColor(fbrTaxSummaryEl, ftTax);
+            }
             const fbrCountSummaryEl = document.getElementById('summaryFbrCount');
             if (fbrCountSummaryEl) fbrCountSummaryEl.textContent = String(dailySummary.digitalSubmittedCount !== undefined ? dailySummary.digitalSubmittedCount : (dailySummary.digital_submitted_count || dailySummary.digitalInvoices || dailySummary.digital_invoices || 0));
+
+            if (typeof window.highlightAllNegativeValues === 'function') {
+                window.highlightAllNegativeValues();
+            }
         },
 
         // --- FORM BINDINGS FOR SYSTEM SETTINGS MODAL ---

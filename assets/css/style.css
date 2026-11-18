@@ -763,6 +763,18 @@
             font-weight: 700;
         }
 
+        /* Dynamic Negative Value Styling: Red for negatives, Theme color for non-negatives */
+        .is-negative,
+        .stat-value.is-negative,
+        .financial-row .value.is-negative,
+        .summary-row .value.is-negative,
+        .highlight-value.is-negative,
+        [data-is-negative="true"],
+        .text-negative {
+            color: #dc2626 !important;
+            font-weight: 700 !important;
+        }
+
         .alert-badge {
             background: #ffd700;
             color: #1f4668;
