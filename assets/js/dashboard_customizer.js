@@ -45,25 +45,28 @@
             { id: 'v_cb', label: "Customers' Balances", icon: 'fas fa-user-tie', target: 'Navigation/Reports/customer_balances.html', module: 'Customer Balances' },
             { id: 'v_il', label: 'Inventory Ledgers', icon: 'fas fa-boxes', target: 'Navigation/Reports/view_inventory_ledgers.html', module: 'View Inventory Ledgers' },
             { id: 'v_ib', label: 'Inventory Balance', icon: 'fas fa-cubes', target: 'Navigation/Reports/inventory_balances.html', module: 'Inventory Balances' },
-            { id: 'v_al', label: "Accounts' Ledgers", icon: 'fas fa-book', action: "openModularPopup('Navigation/Reports/view_account_ledger.html', 'fa-book', 'Accounts\\' Ledgers', () => { if(window.AccountLedgerModule) window.AccountLedgerModule.init(); }, 'View Account Ledger', true, true)" },
+            { id: 'v_al', label: "Accounts' Ledgers", icon: 'fas fa-book', action: "openModularPopup('Navigation/Reports/view_account_ledger.html', 'fa-book', 'Accounts Ledgers', () => { if(window.AccountLedgerModule) window.AccountLedgerModule.init(); }, 'View Account Ledger', true, true)" },
             { id: 'v_tb', label: 'Trial Balance', icon: 'fas fa-scale-balanced', target: 'Navigation/Reports/trial_balance.html', module: 'Trial Balance' },
             { id: 'v_is', label: 'Income Statement', icon: 'fas fa-receipt', target: 'Navigation/Reports/income_statement.html', module: 'Income Statement' },
             { id: 'v_bs', label: 'Balance Sheet', icon: 'fas fa-balance-scale', target: 'Navigation/Reports/balance_sheet.html', module: 'Balance Sheet' },
             { id: 'v_fbr_reg', label: 'Digital Invoice Sales Register', icon: 'fas fa-list-alt', action: "openModularPopup('Navigation/DigitalInvoicing/digital_sale_register.html', 'fa-list-alt', 'Digital Invoice Sales Register', () => { if(window.DigitalSaleRegisterModule) window.DigitalSaleRegisterModule.init(); }, 'Digital Invoice Sales Register', true, true)" },
             { id: 'v_pos_reg', label: 'POS Sales Register', icon: 'fas fa-list-alt', action: "openModularPopup('Navigation/POS/pos_sale_register.html', 'fa-list-alt', 'POS Sales Register', () => { if(window.POSRegisterModule) window.POSRegisterModule.init(); }, 'POS Sales Register', true, true)" },
-            { id: 'v_pos_rep', label: 'POS Reports', icon: 'fas fa-chart-line', action: "openModularPopup('Navigation/POS/pos_reports.html', 'fa-chart-line', 'POS Reports', () => { if(window.POSReportsModule) window.POSReportsModule.init(); }, 'POS Reports', true, true)" }
+            { id: 'v_pos_rep', label: 'POS Reports', icon: 'fas fa-chart-line', action: "openModularPopup('Navigation/POS/pos_reports.html', 'fa-chart-line', 'POS Reports', () => { if(window.POSReportsModule) window.POSReportsModule.init(); }, 'POS Reports', true, true)" },
+            { id: 'v_prod_cost', label: 'Production Costing Statement', icon: 'fas fa-calculator', action: "openModularPopup('Navigation/Reports/production_costing_statement.html', 'fa-calculator', 'Production Costing & WIP Statement', () => { if(window.ProductionCostingModule) window.ProductionCostingModule.init(); }, 'Production Costing Statement', true, true)" },
+            { id: 'v_raw_flow', label: 'Raw Material Flow Statement', icon: 'fas fa-stream', action: "openModularPopup('Navigation/Reports/raw_material_flow_statement.html', 'fa-stream', 'Raw Material Flow at Average Cost', () => { if(window.RawMaterialFlowModule) window.RawMaterialFlowModule.init(); }, 'Raw Material Flow Statement', true, true)" },
+            { id: 'v_price_list', label: 'Price List & Revision', icon: 'fas fa-tags', action: "openModularPopup('Navigation/Reports/price_list_management.html', 'fa-tags', 'Price List Management & Price Revision', () => { if(window.PriceListManagementModule) window.PriceListManagementModule.init(); }, 'Price List Management', true, true)" }
         ],
         kpi_metrics: [
-            { id: 'sales', label: 'Daily Sales', icon: 'fas fa-chart-simple', defaultBadge: 'NIL' },
-            { id: 'cash_hand', label: 'Cash in Hand', icon: 'fas fa-wallet' },
-            { id: 'bank_bal', label: 'Bank Balance', icon: 'fas fa-building-columns' },
-            { id: 'rec_total', label: 'Total Receivables (Customers)', icon: 'fas fa-chart-pie' },
-            { id: 'pay_total', label: 'Total Payables (Vendors)', icon: 'fas fa-hand-holding-dollar' },
-            { id: 'purchases', label: 'Daily Purchases', icon: 'fas fa-shopping-cart' },
-            { id: 'pos_sales', label: 'POS Sales Today', icon: 'fas fa-cash-register' },
-            { id: 'digital_sales', label: 'Digital Invoicing (FBR)', icon: 'fas fa-file-invoice' },
-            { id: 'net_cash_bank', label: 'Net Cash & Bank', icon: 'fas fa-coins' },
-            { id: 'invoices_count', label: 'Total Invoices Count', icon: 'fas fa-receipt' }
+            { id: 'sales', label: 'Daily Sales', icon: 'fas fa-chart-simple', defaultBadge: 'NIL', defaultId: 'salesValue' },
+            { id: 'cash_hand', label: 'Cash in Hand', icon: 'fas fa-wallet', defaultId: 'cashValue' },
+            { id: 'bank_bal', label: 'Bank Balance', icon: 'fas fa-building-columns', defaultId: 'bankValue' },
+            { id: 'rec_total', label: 'Total Receivables (Customers)', icon: 'fas fa-chart-pie', defaultId: 'receivablesValue' },
+            { id: 'pay_total', label: 'Total Payables (Vendors)', icon: 'fas fa-hand-holding-dollar', defaultId: 'dash_kpi_val_pay_total' },
+            { id: 'purchases', label: 'Daily Purchases', icon: 'fas fa-shopping-cart', defaultId: 'dash_kpi_val_purchases' },
+            { id: 'pos_sales', label: 'POS Sales Today', icon: 'fas fa-cash-register', defaultId: 'dash_kpi_val_pos_sales' },
+            { id: 'digital_sales', label: 'Digital Invoicing (FBR)', icon: 'fas fa-file-invoice', defaultId: 'dash_kpi_val_digital_sales' },
+            { id: 'net_cash_bank', label: 'Net Cash & Bank', icon: 'fas fa-coins', defaultId: 'dash_kpi_val_net_cash_bank' },
+            { id: 'invoices_count', label: 'Total Invoices Count', icon: 'fas fa-receipt', defaultId: 'dash_kpi_val_invoices_count' }
         ],
         middle_cards: [
             { id: 'cash_banks', label: 'Cash & Banks' },
@@ -266,7 +269,7 @@
             let html = '';
             cards.forEach((metricId, idx) => {
                 const m = CATALOG.kpi_metrics.find(x => x.id === metricId) || CATALOG.kpi_metrics[0];
-                const valueId = `dash_kpi_val_${m.id}`;
+                const valueId = m.defaultId || `dash_kpi_val_${m.id}`;
                 const badgeHtml = m.id === 'sales' ? '<span class="stat-badge">NIL</span>' : '';
 
                 html += `
@@ -275,7 +278,7 @@
                             <i class="${m.icon}"></i>
                             <span>${m.label}</span>
                         </div>
-                        <div class="stat-value ${m.id === 'invoices_count' ? '' : 'money'}" id="${valueId}">${m.id === 'invoices_count' ? '0' : '₹0'}</div>
+                        <div class="stat-value ${m.id === 'invoices_count' ? '' : 'money'}" id="${valueId}">${m.id === 'invoices_count' ? '0' : 'Rs. 0'}</div>
                         ${badgeHtml}
                     </div>
                 `;
@@ -300,19 +303,19 @@
                             <h3><i class="fas fa-coins"></i> Cash & Banks</h3>
                             <div class="financial-row">
                                 <span class="label">Opening Balance</span>
-                                <span class="value money" id="cashOpening">₹0</span>
+                                <span class="value money" id="cashOpening">Rs. 0</span>
                             </div>
                             <div class="financial-row">
                                 <span class="label">Receipts</span>
-                                <span class="value money" id="cashReceipts">₹0</span>
+                                <span class="value money" id="cashReceipts">Rs. 0</span>
                             </div>
                             <div class="financial-row">
                                 <span class="label">Payments</span>
-                                <span class="value money" id="cashPayments">₹0</span>
+                                <span class="value money" id="cashPayments">Rs. 0</span>
                             </div>
                             <div class="financial-row highlight-row">
                                 <span class="label">Current Balance</span>
-                                <span class="value money" id="cashCurrent">₹0</span>
+                                <span class="value money" id="cashCurrent">Rs. 0</span>
                             </div>
                         </div>
                     `;
@@ -322,19 +325,19 @@
                             <h3><i class="fas fa-user-tie"></i> Receivables / Customers</h3>
                             <div class="financial-row">
                                 <span class="label">Opening Balance</span>
-                                <span class="value money" id="recOpening">₹0</span>
+                                <span class="value money" id="recOpening">Rs. 0</span>
                             </div>
                             <div class="financial-row">
                                 <span class="label">Sales (Debits)</span>
-                                <span class="value money" id="recSales">₹0</span>
+                                <span class="value money" id="recSales">Rs. 0</span>
                             </div>
                             <div class="financial-row">
                                 <span class="label">Receipts (Credits)</span>
-                                <span class="value money" id="recReceipts">₹0</span>
+                                <span class="value money" id="recReceipts">Rs. 0</span>
                             </div>
                             <div class="financial-row highlight-row">
                                 <span class="label">Current Balance</span>
-                                <span class="value money" id="recCurrent">₹0</span>
+                                <span class="value money" id="recCurrent">Rs. 0</span>
                             </div>
                         </div>
                     `;
@@ -344,19 +347,19 @@
                             <h3><i class="fas fa-truck"></i> Payables / Vendors</h3>
                             <div class="financial-row">
                                 <span class="label">Opening Balance</span>
-                                <span class="value money" id="payOpening">₹0</span>
+                                <span class="value money" id="payOpening">Rs. 0</span>
                             </div>
                             <div class="financial-row">
                                 <span class="label">Purchases (Credits)</span>
-                                <span class="value money" id="payPurchases">₹0</span>
+                                <span class="value money" id="payPurchases">Rs. 0</span>
                             </div>
                             <div class="financial-row">
                                 <span class="label">Payments (Debits)</span>
-                                <span class="value money" id="payPayments">₹0</span>
+                                <span class="value money" id="payPayments">Rs. 0</span>
                             </div>
                             <div class="financial-row highlight-row">
                                 <span class="label">Current Balance</span>
-                                <span class="value money" id="payCurrent">₹0</span>
+                                <span class="value money" id="payCurrent">Rs. 0</span>
                             </div>
                         </div>
                     `;
@@ -370,15 +373,15 @@
                             </div>
                             <div class="financial-row">
                                 <span class="label">Cash Sales</span>
-                                <span class="value money" id="posCashSales">₹0</span>
+                                <span class="value money" id="posCashSales">Rs. 0</span>
                             </div>
                             <div class="financial-row">
                                 <span class="label">Card / Bank Sales</span>
-                                <span class="value money" id="posCardSales">₹0</span>
+                                <span class="value money" id="posCardSales">Rs. 0</span>
                             </div>
                             <div class="financial-row highlight-row">
                                 <span class="label">Net POS Total</span>
-                                <span class="value money" id="posNetTotal">₹0</span>
+                                <span class="value money" id="posNetTotal">Rs. 0</span>
                             </div>
                         </div>
                     `;
@@ -392,7 +395,7 @@
                             </div>
                             <div class="financial-row">
                                 <span class="label">Total Tax Amount</span>
-                                <span class="value money" id="fbrTaxTotal">₹0</span>
+                                <span class="value money" id="fbrTaxTotal">Rs. 0</span>
                             </div>
                             <div class="financial-row">
                                 <span class="label">Credit / Debit Notes</span>
@@ -422,7 +425,7 @@
                             </div>
                             <div class="financial-row highlight-row">
                                 <span class="label">Total Stock Value</span>
-                                <span class="value money" id="invStockValue">₹0</span>
+                                <span class="value money" id="invStockValue">Rs. 0</span>
                             </div>
                         </div>
                     `;
@@ -519,10 +522,10 @@
                 html += `
                     <div class="summary-card" data-summary-id="cash_position">
                         <h4><i class="fas fa-coins"></i> Cash Position</h4>
-                        <div class="summary-row"><span>Opening:</span> <span class="value money" id="summaryCashOpening">₹0</span></div>
-                        <div class="summary-row"><span>Receipts:</span> <span class="value money" id="summaryCashReceipts">₹0</span></div>
-                        <div class="summary-row"><span>Payments:</span> <span class="value money" id="summaryCashPayments">₹0</span></div>
-                        <div class="summary-row"><span>Net:</span> <span class="value highlight-value money" id="summaryCashNet">₹0</span></div>
+                        <div class="summary-row"><span>Opening:</span> <span class="value money" id="summaryCashOpening">Rs. 0</span></div>
+                        <div class="summary-row"><span>Receipts:</span> <span class="value money" id="summaryCashReceipts">Rs. 0</span></div>
+                        <div class="summary-row"><span>Payments:</span> <span class="value money" id="summaryCashPayments">Rs. 0</span></div>
+                        <div class="summary-row"><span>Net:</span> <span class="value highlight-value money" id="summaryCashNet">Rs. 0</span></div>
                     </div>
                 `;
             }
@@ -532,8 +535,8 @@
                     <div class="summary-card" data-summary-id="customer_activity">
                         <h4><i class="fas fa-users"></i> Customer Activity</h4>
                         <div class="summary-row"><span>New Invoices:</span> <span class="value" id="summaryNewInvoices">0</span></div>
-                        <div class="summary-row"><span>Receipts:</span> <span class="value money" id="summaryCustomerReceipts">₹0</span></div>
-                        <div class="summary-row"><span>Overdue:</span> <span class="value money" id="summaryOverdue">₹0</span></div>
+                        <div class="summary-row"><span>Receipts:</span> <span class="value money" id="summaryCustomerReceipts">Rs. 0</span></div>
+                        <div class="summary-row"><span>Overdue:</span> <span class="value money" id="summaryOverdue">Rs. 0</span></div>
                     </div>
                 `;
             }
@@ -543,8 +546,8 @@
                     <div class="summary-card" data-summary-id="vendor_activity">
                         <h4><i class="fas fa-truck"></i> Vendor Activity</h4>
                         <div class="summary-row"><span>New Purchases:</span> <span class="value" id="summaryNewPurchases">0</span></div>
-                        <div class="summary-row"><span>Payments:</span> <span class="value money" id="summaryVendorPayments">₹0</span></div>
-                        <div class="summary-row"><span>Outstanding:</span> <span class="value money" id="summaryOutstanding">₹0</span></div>
+                        <div class="summary-row"><span>Payments:</span> <span class="value money" id="summaryVendorPayments">Rs. 0</span></div>
+                        <div class="summary-row"><span>Outstanding:</span> <span class="value money" id="summaryOutstanding">Rs. 0</span></div>
                     </div>
                 `;
             }
@@ -570,8 +573,8 @@
                     <div class="summary-card" data-summary-id="pos_activity">
                         <h4><i class="fas fa-cash-register" style="color:#7c3aed;"></i> POS Activity</h4>
                         <div class="summary-row"><span>Today's Counter Bills:</span> <span class="value" id="summaryPosBills">0</span></div>
-                        <div class="summary-row"><span>POS Net Cash:</span> <span class="value money" id="summaryPosCash">₹0</span></div>
-                        <div class="summary-row"><span>POS Returns:</span> <span class="value money" id="summaryPosReturns">₹0</span></div>
+                        <div class="summary-row"><span>POS Net Cash:</span> <span class="value money" id="summaryPosCash">Rs. 0</span></div>
+                        <div class="summary-row"><span>POS Returns:</span> <span class="value money" id="summaryPosReturns">Rs. 0</span></div>
                     </div>
                 `;
             }
@@ -581,7 +584,7 @@
                     <div class="summary-card" data-summary-id="digital_activity">
                         <h4><i class="fas fa-shield-alt" style="color:#16a34a;"></i> FBR Digital Invoicing</h4>
                         <div class="summary-row"><span>Sync Status:</span> <span class="alert-badge" id="summaryFbrSyncBadge" style="background:#fee2e2; color:#b91c1c;">Not Configured</span></div>
-                        <div class="summary-row"><span>Tax Uploaded:</span> <span class="value money" id="summaryFbrTax">₹0</span></div>
+                        <div class="summary-row"><span>Tax Uploaded:</span> <span class="value money" id="summaryFbrTax">Rs. 0</span></div>
                         <div class="summary-row"><span>FBR Invoices:</span> <span class="value" id="summaryFbrCount">0</span></div>
                     </div>
                 `;

@@ -33,6 +33,7 @@
                 <div class="dropdown-item" id="userLoginsBtn" data-module="User Logins">User Logins</div>
                 <div class="dropdown-item" id="userRightsBtn" data-module="User Rights">User Rights</div>
                 <div class="dropdown-item" onclick="setTimeout(window.loadSystemSettings, 200)" data-target="Navigation/Administrator/system_settings.html" data-module="System Settings">System Settings</div>
+                <div class="dropdown-item" onclick="openModularPopup('Navigation/Administrator/system_settings.html', 'fa-cogs', 'System Settings', () => { setTimeout(() => { if(window.switchGeneralSubTab) window.switchGeneralSubTab('sub_dashboard'); }, 300); }, 'System Settings', true, true);" data-module="System Settings">Main Dashboard Customization</div>
                 <div class="dropdown-item" data-target="Navigation/Administrator/passwords.html" data-module="Passwords">Passwords</div>
                 <div class="dropdown-item" data-target="Navigation/Administrator/financial_year.html" data-module="Financial Year">Financial Year</div>
                 <div class="dropdown-item" data-target="Navigation/Administrator/clear_transactions.html" data-module="Clear Transactions">Clear Transactions</div>
