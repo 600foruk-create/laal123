@@ -553,16 +553,19 @@
             }
 
             if (allowed.includes('inventory_alerts')) {
+                const s = window._cachedInventoryAlertSummary || {};
+                const lscText = s.low_stock_count !== undefined ? (s.low_stock_count + ' Items') : '0 Items';
+                const rcText = s.reorder_count !== undefined ? (s.reorder_count + ' Items') : '0 Items';
                 html += `
-                    <div class="summary-card" id="inventoryAlertsCard" data-summary-id="inventory_alerts" style="cursor: pointer;">
+                    <div class="summary-card" id="inventoryAlertsCard" data-summary-id="inventory_alerts" onclick="if(window.showInventoryDetails) window.showInventoryDetails();" style="cursor: pointer;" title="Click to view low stock & reorder status">
                         <h4><i class="fas fa-box"></i> Inventory Alerts</h4>
                         <div class="summary-row">
                             <span>Low Stock Items:</span> 
-                            <span class="alert-badge" id="lowStockCount">3 Items</span>
+                            <span class="alert-badge" id="lowStockCount">${lscText}</span>
                         </div>
                         <div class="summary-row">
                             <span>Reorder Needed:</span> 
-                            <span class="alert-badge danger" id="reorderCount">2 Items</span>
+                            <span class="alert-badge danger" id="reorderCount">${rcText}</span>
                         </div>
                     </div>
                 `;
@@ -591,6 +594,20 @@
             }
 
             container.innerHTML = html;
+
+            // Re-bind click event & apply cached alert badges immediately
+            const invAlertCard = container.querySelector('#inventoryAlertsCard');
+            if (invAlertCard) {
+                invAlertCard.style.cursor = 'pointer';
+                invAlertCard.onclick = function() {
+                    if (typeof window.showInventoryDetails === 'function') {
+                        window.showInventoryDetails();
+                    }
+                };
+            }
+            if (window._cachedInventoryAlertSummary && typeof window.applyInventoryAlertUI === 'function') {
+                window.applyInventoryAlertUI(window._cachedInventoryAlertSummary);
+            }
         },
 
         // --- UPDATE VALUES DYNAMICALLY ---
@@ -668,8 +685,21 @@
                 }
             }
 
+            // Update Middle Cards Inventory Summary (if present)
             const invTotalEl = document.getElementById('invTotalItems');
-            if (invTotalEl && window.inventoryItems) invTotalEl.textContent = (window.inventoryItems.length || 0) + ' Items';
+            const invLowEl = document.getElementById('invLowStockVal');
+            const invReorderEl = document.getElementById('invReorderVal');
+            const invStockValEl = document.getElementById('invStockValue');
+
+            if (window._cachedInventoryAlertSummary) {
+                const s = window._cachedInventoryAlertSummary;
+                if (invTotalEl) invTotalEl.textContent = (s.total_items || 0) + ' Items';
+                if (invLowEl) invLowEl.textContent = String(s.low_stock_count !== undefined ? s.low_stock_count : 0);
+                if (invReorderEl) invReorderEl.textContent = String(s.reorder_count !== undefined ? s.reorder_count : 0);
+                if (invStockValEl) invStockValEl.textContent = fmt(s.total_stock_value || 0);
+            } else if (typeof window.loadInventoryAlerts === 'function') {
+                window.loadInventoryAlerts();
+            }
 
             // Update Right Sidebar extra cards
             const posBillsEl = document.getElementById('summaryPosBills');

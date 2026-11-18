@@ -347,6 +347,7 @@ document.addEventListener('click', function(e) {
                 displayLogo();
                 updateNames();
                 updateDashboardSummary();
+                if (typeof loadInventoryAlerts === 'function') loadInventoryAlerts();
                 if (typeof window.hideDashboardLoader === 'function') {
                     window.hideDashboardLoader();
                 }
@@ -508,9 +509,11 @@ document.addEventListener('click', function(e) {
             // --- 3. COMMON WIDGETS ---
             
             // Low Stock / Inventory Alerts
-            let lowStock = inventoryItems.filter(item => item.stock < item.reorderLevel).length;
-            const lsc = get('lowStockCount'); if(lsc) lsc.textContent = lowStock + ' Items';
-            const rc = get('reorderCount'); if(rc) rc.textContent = (lowStock > 2 ? 2 : lowStock) + ' Items';
+            if (window._cachedInventoryAlertSummary && typeof applyInventoryAlertUI === 'function') {
+                applyInventoryAlertUI(window._cachedInventoryAlertSummary);
+            } else if (typeof loadInventoryAlerts === 'function') {
+                loadInventoryAlerts();
+            }
 
             // Weekly Sales Trend (handled separately in updateWeeklyTrend)
 
@@ -521,6 +524,75 @@ document.addEventListener('click', function(e) {
             // Re-apply currency symbols after data update
             applyGlobalCurrencySymbol();
         }
+
+        function applyInventoryAlertUI(summary) {
+            if (!summary) return;
+            const lowStockCount = summary.low_stock_count !== undefined ? summary.low_stock_count : 0;
+            const reorderCount = summary.reorder_count !== undefined ? summary.reorder_count : 0;
+            const totalItems = summary.total_items !== undefined ? summary.total_items : 0;
+            const totalValue = summary.total_stock_value !== undefined ? summary.total_stock_value : 0;
+
+            const lsc = document.getElementById('lowStockCount');
+            if (lsc) lsc.textContent = lowStockCount + ' Items';
+
+            const rc = document.getElementById('reorderCount');
+            if (rc) rc.textContent = reorderCount + ' Items';
+
+            // Middle Card (if active in Dashboard Customizer)
+            const invTotalEl = document.getElementById('invTotalItems');
+            if (invTotalEl) invTotalEl.textContent = totalItems + ' Items';
+
+            const invLowEl = document.getElementById('invLowStockVal');
+            if (invLowEl) invLowEl.textContent = String(lowStockCount);
+
+            const invReorderEl = document.getElementById('invReorderVal');
+            if (invReorderEl) invReorderEl.textContent = String(reorderCount);
+
+            const invStockValEl = document.getElementById('invStockValue');
+            if (invStockValEl) {
+                const currency = (window.globalCurrencySymbol || 'Rs.') + ' ';
+                invStockValEl.textContent = currency + parseFloat(totalValue).toLocaleString('en-US', {
+                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                });
+            }
+        }
+        window.applyInventoryAlertUI = applyInventoryAlertUI;
+
+        async function loadInventoryAlerts() {
+            try {
+                const sessionData = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                const companyId = sessionData.company_id || 1;
+                
+                // 1. Instant Cache Render
+                const cached = localStorage.getItem(`softifyx_cached_inv_alerts_${companyId}`);
+                if (cached) {
+                    try {
+                        const parsed = JSON.parse(cached);
+                        window._cachedInventoryAlertSummary = parsed.summary || parsed;
+                        window._inventoryAlertItems = parsed.items || [];
+                        applyInventoryAlertUI(window._cachedInventoryAlertSummary);
+                    } catch(e) {}
+                }
+
+                // 2. Fresh Fetch from Backend
+                const res = await fetch(`api/items_below_reorder.php?action=get_alerts&company_id=${companyId}&_cb=${Date.now()}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.status === 'success') {
+                        window._cachedInventoryAlertSummary = data.summary;
+                        window._inventoryAlertItems = data.items || [];
+                        localStorage.setItem(`softifyx_cached_inv_alerts_${companyId}`, JSON.stringify(data));
+                        applyInventoryAlertUI(data.summary);
+                        if (window.DashboardCustomizer && typeof window.DashboardCustomizer.updateValues === 'function') {
+                            window.DashboardCustomizer.updateValues(window.dailySummary);
+                        }
+                    }
+                }
+            } catch(err) {
+                console.warn('loadInventoryAlerts error:', err);
+            }
+        }
+        window.loadInventoryAlerts = loadInventoryAlerts;
 
         async function saveSummary() {
             const sessionData = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
@@ -1117,49 +1189,240 @@ document.addEventListener('click', function(e) {
             }
         });
 
-        function showInventoryDetails() {
-            let lowStockItems = inventoryItems.filter(item => item.stock < item.reorderLevel);
-            let tableRows = '';
-            
-            lowStockItems.forEach(item => {
-                tableRows += `
-                    <tr>
-                        <td>${item.name}</td>
-                        <td class="low-stock">${item.stock}</td>
-                        <td>${item.reorderLevel}</td>
-                        <td><button class="btn btn-primary btn-sm" onclick="reorderItem('${item.name}')">Reorder</button></td>
-                    </tr>
-                `;
-            });
+        async function showInventoryDetails() {
+            const sessionData = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const companyId = sessionData.company_id || 1;
 
             openModal(
-                { icon: 'fa-box', text: 'Low Stock Items' },
-                `<div>
-                    <table class="inventory-table">
-                        <thead>
-                            <tr>
-                                <th>Item Name</th>
-                                <th>Current Stock</th>
-                                <th>Reorder Level</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRows || '<tr><td colspan="4" style="text-align: center; padding: 20px;">No low stock items</td></tr>'}
-                        </tbody>
-                    </table>
-                    <div class="modal-actions">
-                        <button class="btn btn-secondary" onclick="window.closeModal()">Close</button>
+                { icon: 'fa-boxes', text: 'Inventory Stock Alerts & Reorder Status' },
+                `<div id="invAlertsModalContainer" style="padding: 12px 16px; min-width: 820px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; font-family: 'Segoe UI', Tahoma, sans-serif;">
+                    <div id="invAlertsLoading" style="text-align: center; padding: 50px 20px; color: #475569;">
+                        <i class="fas fa-spinner fa-spin fa-2x" style="color: #0284c7; margin-bottom: 12px;"></i>
+                        <div style="font-weight: 600; font-size: 14px;">Fetching live stock balances and reorder alerts...</div>
                     </div>
-                </div>`
+                    <div id="invAlertsBody" style="display: none; flex-direction: column; gap: 12px;"></div>
+                </div>`,
+                true,
+                'Inventory Stock Alerts'
             );
+
+            // Fetch latest alert items
+            let items = window._inventoryAlertItems || [];
+            let summary = window._cachedInventoryAlertSummary || null;
+
+            try {
+                const res = await fetch(`api/items_below_reorder.php?action=get_alerts&company_id=${companyId}&_cb=${Date.now()}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.status === 'success') {
+                        summary = data.summary;
+                        items = data.items || [];
+                        window._cachedInventoryAlertSummary = summary;
+                        window._inventoryAlertItems = items;
+                        applyInventoryAlertUI(summary);
+                    }
+                }
+            } catch(e) {
+                console.error('Failed to fetch inventory alerts for modal:', e);
+            }
+
+            renderInventoryAlertsModal(items, summary);
         }
 
-        function reorderItem(itemName) {
-            dailySummary.newPurchases++;
-            saveSummary();
-            updateDashboardSummary();
+        function renderInventoryAlertsModal(items, summary) {
+            const loader = document.getElementById('invAlertsLoading');
+            const body = document.getElementById('invAlertsBody');
+            if (!body) return;
+            if (loader) loader.style.display = 'none';
+            body.style.display = 'flex';
+
+            summary = summary || { total_items: 0, low_stock_count: 0, reorder_count: 0, out_of_stock_count: 0, total_stock_value: 0 };
+            items = items || [];
+            window._currentModalAlertItems = items;
+
+            const currency = (window.globalCurrencySymbol || 'Rs.') + ' ';
+            const stockValFormatted = currency + (parseFloat(summary.total_stock_value || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            let rowsHtml = '';
+            if (items.length === 0) {
+                rowsHtml = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: #16a34a; font-weight: 600;"><i class="fas fa-check-circle" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>All inventory items are currently well stocked above re-order levels!</td></tr>`;
+            } else {
+                items.forEach((it, idx) => {
+                    const isOut = it.is_out_of_stock || parseFloat(it.balance) <= 0;
+                    const balPill = isOut 
+                        ? `<span style="background: #fee2e2; color: #dc2626; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 12px;">${it.balance}</span>`
+                        : `<span style="background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 12px;">${it.balance}</span>`;
+                    
+                    const statusBadge = isOut
+                        ? `<span style="background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase;">Out of Stock</span>`
+                        : `<span style="background: #fffbeb; border: 1px solid #fde68a; color: #b45309; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase;">Low Stock</span>`;
+
+                    rowsHtml += `
+                        <tr class="inv-alert-row" data-type="${isOut ? 'out_of_stock' : 'low_stock'}" data-search="${(it.code + ' ' + it.name).toLowerCase()}" style="border-bottom: 1px solid #e2e8f0; height: 36px;">
+                            <td style="text-align: center; color: #64748b; font-size: 11px;">${idx + 1}</td>
+                            <td style="font-weight: 600; color: #1e293b; font-size: 12px;">${it.code || '-'}</td>
+                            <td style="color: #334155; font-size: 12px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${it.name || ''}">${it.name || '-'}</td>
+                            <td style="text-align: center; color: #64748b; font-size: 11px;">${it.unit || 'Pcs'}</td>
+                            <td style="text-align: right; padding-right: 12px;">${balPill}</td>
+                            <td style="text-align: right; padding-right: 12px; font-weight: 600; color: #475569; font-size: 12px;">${it.reorder_level}</td>
+                            <td style="text-align: center;">${statusBadge}</td>
+                            <td style="text-align: center;">
+                                <button class="btn btn-primary btn-sm" onclick="window.createPoForItem('${it.id}', '${(it.code || '').replace(/'/g, "\\'")}', '${(it.name || '').replace(/'/g, "\\'")}')" style="padding: 2px 8px; font-size: 11px; font-weight: 600;">
+                                    <i class="fas fa-cart-plus" style="margin-right: 4px;"></i> Order
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            body.innerHTML = `
+                <!-- 1. STATS OVERVIEW CARDS -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 6px;">
+                    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-exclamation-triangle fa-2x" style="color: #d97706;"></i>
+                        <div>
+                            <div style="font-size: 11px; font-weight: 600; color: #92400e; text-transform: uppercase;">Low Stock Items</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #b45309;">${summary.low_stock_count || 0}</div>
+                        </div>
+                    </div>
+                    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-times-circle fa-2x" style="color: #dc2626;"></i>
+                        <div>
+                            <div style="font-size: 11px; font-weight: 600; color: #991b1b; text-transform: uppercase;">Reorder / Out of Stock</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #b91c1c;">${summary.reorder_count || 0}</div>
+                        </div>
+                    </div>
+                    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-boxes fa-2x" style="color: #0284c7;"></i>
+                        <div>
+                            <div style="font-size: 11px; font-weight: 600; color: #075985; text-transform: uppercase;">Total Items Monitored</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #0369a1;">${summary.total_items || 0}</div>
+                        </div>
+                    </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-coins fa-2x" style="color: #64748b;"></i>
+                        <div>
+                            <div style="font-size: 11px; font-weight: 600; color: #475569; text-transform: uppercase;">Total Stock Value</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #334155;">${stockValFormatted}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. TOOLBAR & SHORTCUTS -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; background: #f8fafc; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="position: relative;">
+                            <i class="fas fa-search" style="position: absolute; left: 10px; top: 9px; color: #94a3b8; font-size: 12px;"></i>
+                            <input type="text" id="invAlertSearchInput" placeholder="Filter by code or name..." oninput="window.filterInventoryAlertsTable(this.value)" style="padding: 6px 10px 6px 30px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 220px; outline: none;">
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                            <button id="btnInvFilterAll" class="btn btn-sm btn-info" onclick="window.filterInventoryAlertsStatus('all')" style="font-size: 11px; padding: 4px 10px;">All (${items.length})</button>
+                            <button id="btnInvFilterOut" class="btn btn-sm btn-secondary" onclick="window.filterInventoryAlertsStatus('out')" style="font-size: 11px; padding: 4px 10px;">Out of Stock (${summary.out_of_stock_count || 0})</button>
+                            <button id="btnInvFilterLow" class="btn btn-sm btn-secondary" onclick="window.filterInventoryAlertsStatus('low')" style="font-size: 11px; padding: 4px 10px;">Low Stock (${summary.low_stock_count || 0})</button>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn btn-secondary btn-sm" onclick="window.openModularPopup('Navigation/Maintain/item_pre_order_levels.html', 'fa-sliders-h', 'Item Pre-Order Levels', () => { if (window.ReorderLevelsModule) window.ReorderLevelsModule.init(); }, 'Item Pre-Order Levels', true);" style="font-size: 11px; font-weight: 600;">
+                            <i class="fas fa-sliders-h" style="margin-right: 4px;"></i> Set Re-Order Levels
+                        </button>
+                        <button class="btn btn-info btn-sm" onclick="window.openModularPopup('Navigation/Reports/item_below_re_order_level.html', 'fa-box', 'Item Below Re-Order Level', () => { if (window.ItemsBelowReorder) window.ItemsBelowReorder.init(); }, 'Item Below Re-Order Level', true, true);" style="font-size: 11px; font-weight: 600;">
+                            <i class="fas fa-list-alt" style="margin-right: 4px;"></i> Full Re-Order Report
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="window.openModularPopup('Navigation/Purchases/purchase_order.html', 'fa-file-invoice-dollar', 'Purchase Order', null, 'Purchase Order', true, true);" style="font-size: 11px; font-weight: 600;">
+                            <i class="fas fa-plus-circle" style="margin-right: 4px;"></i> New Purchase Order
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. TABLE GRID -->
+                <div style="overflow-y: auto; max-height: 48vh; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                        <thead style="position: sticky; top: 0; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; z-index: 5;">
+                            <tr>
+                                <th style="padding: 8px 6px; width: 36px; text-align: center; color: #475569; font-weight: 700; font-size: 11px; text-transform: uppercase;">#</th>
+                                <th style="padding: 8px 10px; width: 110px; color: #475569; font-weight: 700; font-size: 11px; text-transform: uppercase;">Item Code</th>
+                                <th style="padding: 8px 10px; color: #475569; font-weight: 700; font-size: 11px; text-transform: uppercase;">Item Description</th>
+                                <th style="padding: 8px 10px; width: 60px; text-align: center; color: #475569; font-weight: 700; font-size: 11px; text-transform: uppercase;">Unit</th>
+                                <th style="padding: 8px 12px; width: 120px; text-align: right; color: #475569; font-weight: 700; font-size: 11px; text-transform: uppercase;">Current Stock</th>
+                                <th style="padding: 8px 12px; width: 120px; text-align: right; color: #475569; font-weight: 700; font-size: 11px; text-transform: uppercase;">Re-Order Level</th>
+                                <th style="padding: 8px 10px; width: 110px; text-align: center; color: #475569; font-weight: 700; font-size: 11px; text-transform: uppercase;">Status</th>
+                                <th style="padding: 8px 10px; width: 90px; text-align: center; color: #475569; font-weight: 700; font-size: 11px; text-transform: uppercase;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invAlertsTableBody">
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 4. MODAL FOOTER -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #e2e8f0;">
+                    <div style="font-size: 12px; color: #64748b;" id="invAlertsCountInfo">Showing ${items.length} items requiring attention.</div>
+                    <button class="btn btn-secondary" onclick="window.closeModal()" style="font-size: 12px; padding: 6px 18px;">Close</button>
+                </div>
+            `;
         }
+
+        window.filterInventoryAlertsTable = function(query) {
+            const tbody = document.getElementById('invAlertsTableBody');
+            if (!tbody) return;
+            const q = (query || '').toLowerCase().trim();
+            const rows = tbody.querySelectorAll('.inv-alert-row');
+            let visible = 0;
+            rows.forEach(r => {
+                const text = r.getAttribute('data-search') || '';
+                const match = !q || text.includes(q);
+                r.style.display = match ? '' : 'none';
+                if (match) visible++;
+            });
+            const info = document.getElementById('invAlertsCountInfo');
+            if (info) info.textContent = `Showing ${visible} of ${rows.length} items.`;
+        };
+
+        window.filterInventoryAlertsStatus = function(type) {
+            const tbody = document.getElementById('invAlertsTableBody');
+            if (!tbody) return;
+            const rows = tbody.querySelectorAll('.inv-alert-row');
+            let visible = 0;
+            rows.forEach(r => {
+                const rType = r.getAttribute('data-type');
+                let show = true;
+                if (type === 'out') show = (rType === 'out_of_stock');
+                else if (type === 'low') show = (rType === 'low_stock');
+                r.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+
+            // Update active button styling
+            const btnAll = document.getElementById('btnInvFilterAll');
+            const btnOut = document.getElementById('btnInvFilterOut');
+            const btnLow = document.getElementById('btnInvFilterLow');
+            [btnAll, btnOut, btnLow].forEach(b => { if(b) { b.classList.remove('btn-info'); b.classList.add('btn-secondary'); } });
+            if (type === 'all' && btnAll) { btnAll.classList.remove('btn-secondary'); btnAll.classList.add('btn-info'); }
+            if (type === 'out' && btnOut) { btnOut.classList.remove('btn-secondary'); btnOut.classList.add('btn-info'); }
+            if (type === 'low' && btnLow) { btnLow.classList.remove('btn-secondary'); btnLow.classList.add('btn-info'); }
+
+            const info = document.getElementById('invAlertsCountInfo');
+            if (info) info.textContent = `Showing ${visible} of ${rows.length} items.`;
+        };
+
+        window.createPoForItem = function(itemId, itemCode, itemName) {
+            window.openModularPopup('Navigation/Purchases/purchase_order.html', 'fa-file-invoice-dollar', 'Purchase Order', () => {
+                setTimeout(() => {
+                    const searchInput = document.querySelector('.modal-body[data-module="Purchase Order"] input[type="text"]');
+                    if (searchInput) {
+                        searchInput.value = itemCode || itemName;
+                        searchInput.focus();
+                    }
+                }, 400);
+            }, 'Purchase Order', true, true);
+        };
+
+        function reorderItem(itemName) {
+            window.createPoForItem('', '', itemName);
+        }
+        window.reorderItem = reorderItem;
 
         async function getCompanyBranches(companyId) {
             try {

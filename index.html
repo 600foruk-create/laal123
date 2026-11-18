@@ -273,15 +273,15 @@
                                 id="summaryOutstanding">Rs. 0</span></div>
                     </div>
 
-                    <div class="summary-card" id="inventoryAlertsCard" style="cursor: pointer;">
+                    <div class="summary-card" id="inventoryAlertsCard" onclick="if(window.showInventoryDetails) window.showInventoryDetails();" style="cursor: pointer;" title="Click to view low stock and reorder details">
                         <h4><i class="fas fa-box"></i> Inventory Alerts</h4>
                         <div class="summary-row">
                             <span>Low Stock Items:</span>
-                            <span class="alert-badge" id="lowStockCount">3 Items</span>
+                            <span class="alert-badge" id="lowStockCount">0 Items</span>
                         </div>
                         <div class="summary-row">
                             <span>Reorder Needed:</span>
-                            <span class="alert-badge danger" id="reorderCount">2 Items</span>
+                            <span class="alert-badge danger" id="reorderCount">0 Items</span>
                         </div>
                     </div>
                 </div>
@@ -296,14 +296,14 @@
         <div id="window-manager"></div>
     </div>
 
-    <script src="assets/js/app_v128.js?v=v65-fitting-base64-db"></script>
+    <script src="assets/js/app_v128.js?v=v66-inventory-alerts-live"></script>
     <script src="assets/js/inventory_price_settings.js?v=10"></script>
     <script src="assets/js/inventory_tax_rates.js?v=4"></script>
     <script src="assets/js/inventory_reorder_levels.js?v=3"></script>
     <script src="assets/js/inventory_cost_method.js?v=4"></script>
     <script src="assets/js/chart_of_services.js?v=8"></script>
-    <script src="assets/js/dashboard_customizer.js?v=5-rs-manufacturing-sync"></script>
-    <script src="assets/js/app_v2.js?v=v166-save-inv-main"></script>
+    <script src="assets/js/dashboard_customizer.js?v=6-inventory-alerts"></script>
+    <script src="assets/js/app_v2.js?v=v167-inventory-alerts-live"></script>
     <script src="assets/js/voucher_preferences.js?v=1"></script>
     <script src="assets/js/inventory_movement_settings.js?v=2"></script>
     <script src="assets/js/jobs.js?v=6"></script>
