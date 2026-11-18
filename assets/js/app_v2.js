@@ -460,10 +460,20 @@ document.addEventListener('click', function(e) {
                     el.textContent = "Restricted";
                     el.style.color = "#bdc3c7";
                     el.style.fontSize = "14px";
+                    el.classList.remove('is-negative');
+                    el.removeAttribute('data-is-negative');
                 } else {
                     el.textContent = fmt(value);
-                    el.style.color = "";
                     el.style.fontSize = "";
+                    if (typeof window.applyValueColor === 'function') {
+                        window.applyValueColor(el, value);
+                    } else if (parseFloat(value) < 0) {
+                        el.classList.add('is-negative');
+                        el.style.setProperty('color', '#dc2626', 'important');
+                    } else {
+                        el.classList.remove('is-negative');
+                        el.style.removeProperty('color');
+                    }
                 }
             };
             
@@ -478,33 +488,33 @@ document.addEventListener('click', function(e) {
             showOrHide('cashPayments', 'Cash Payments', dailySummary.cashPayments + dailySummary.bankPayments);
             showOrHide('cashCurrent', 'Cash Payments', (dailySummary.cashOpening + dailySummary.bankOpening) + (dailySummary.cashReceipts + dailySummary.bankReceipts) - (dailySummary.cashPayments + dailySummary.bankPayments));
 
-            const rO = get('recOpening'); if(rO) rO.textContent = fmt(dailySummary.recOpening);
-            const rS = get('recSales'); if(rS) rS.textContent = fmt(dailySummary.recSales);
-            const rR = get('recReceipts'); if(rR) rR.textContent = fmt(dailySummary.recReceipts);
-            const rC = get('recCurrent'); if(rC) rC.textContent = fmt(dailySummary.recOpening + dailySummary.recSales - dailySummary.recReceipts);
+            const rO = get('recOpening'); if(rO) { rO.textContent = fmt(dailySummary.recOpening); if (typeof window.applyValueColor === 'function') window.applyValueColor(rO, dailySummary.recOpening); }
+            const rS = get('recSales'); if(rS) { rS.textContent = fmt(dailySummary.recSales); if (typeof window.applyValueColor === 'function') window.applyValueColor(rS, dailySummary.recSales); }
+            const rR = get('recReceipts'); if(rR) { rR.textContent = fmt(dailySummary.recReceipts); if (typeof window.applyValueColor === 'function') window.applyValueColor(rR, dailySummary.recReceipts); }
+            const rC = get('recCurrent'); if(rC) { const v = dailySummary.recOpening + dailySummary.recSales - dailySummary.recReceipts; rC.textContent = fmt(v); if (typeof window.applyValueColor === 'function') window.applyValueColor(rC, v); }
 
-            const pO = get('payOpening'); if(pO) pO.textContent = fmt(dailySummary.payOpening);
-            const pP = get('payPurchases'); if(pP) pP.textContent = fmt(dailySummary.payPurchases);
-            const pPa = get('payPayments'); if(pPa) pPa.textContent = fmt(dailySummary.payPayments);
-            const pC = get('payCurrent'); if(pC) pC.textContent = fmt(dailySummary.payOpening + dailySummary.payPurchases - dailySummary.payPayments);
+            const pO = get('payOpening'); if(pO) { pO.textContent = fmt(dailySummary.payOpening); if (typeof window.applyValueColor === 'function') window.applyValueColor(pO, dailySummary.payOpening); }
+            const pP = get('payPurchases'); if(pP) { pP.textContent = fmt(dailySummary.payPurchases); if (typeof window.applyValueColor === 'function') window.applyValueColor(pP, dailySummary.payPurchases); }
+            const pPa = get('payPayments'); if(pPa) { pPa.textContent = fmt(dailySummary.payPayments); if (typeof window.applyValueColor === 'function') window.applyValueColor(pPa, dailySummary.payPayments); }
+            const pC = get('payCurrent'); if(pC) { const v = dailySummary.payOpening + dailySummary.payPurchases - dailySummary.payPayments; pC.textContent = fmt(v); if (typeof window.applyValueColor === 'function') window.applyValueColor(pC, v); }
 
             // --- 2. RIGHT SIDEBAR SUMMARY (index.html) ---
             
             // Cash Position
-            const scO = get('summaryCashOpening'); if(scO) scO.textContent = fmt(dailySummary.cashOpening + dailySummary.bankOpening);
-            const scR = get('summaryCashReceipts'); if(scR) scR.textContent = fmt(dailySummary.cashReceipts + dailySummary.bankReceipts);
-            const scP = get('summaryCashPayments'); if(scP) scP.textContent = fmt(dailySummary.cashPayments + dailySummary.bankPayments);
-            const scN = get('summaryCashNet'); if(scN) scN.textContent = fmt((dailySummary.cashOpening + dailySummary.bankOpening) + (dailySummary.cashReceipts + dailySummary.bankReceipts) - (dailySummary.cashPayments + dailySummary.bankPayments));
+            const scO = get('summaryCashOpening'); if(scO) { const v = dailySummary.cashOpening + dailySummary.bankOpening; scO.textContent = fmt(v); if (typeof window.applyValueColor === 'function') window.applyValueColor(scO, v); }
+            const scR = get('summaryCashReceipts'); if(scR) { const v = dailySummary.cashReceipts + dailySummary.bankReceipts; scR.textContent = fmt(v); if (typeof window.applyValueColor === 'function') window.applyValueColor(scR, v); }
+            const scP = get('summaryCashPayments'); if(scP) { const v = dailySummary.cashPayments + dailySummary.bankPayments; scP.textContent = fmt(v); if (typeof window.applyValueColor === 'function') window.applyValueColor(scP, v); }
+            const scN = get('summaryCashNet'); if(scN) { const v = (dailySummary.cashOpening + dailySummary.bankOpening) + (dailySummary.cashReceipts + dailySummary.bankReceipts) - (dailySummary.cashPayments + dailySummary.bankPayments); scN.textContent = fmt(v); if (typeof window.applyValueColor === 'function') window.applyValueColor(scN, v); }
 
             // Customer Activity
             const snI = get('summaryNewInvoices'); if(snI) snI.textContent = checkUserRights("Sale Summary") ? dailySummary.newInvoices : "*";
-            const scr = get('summaryCustomerReceipts'); if(scr) scr.textContent = checkUserRights("Recovery/Receipts Reports") ? fmt(dailySummary.customerReceipts) : "Restricted";
-            const sod = get('summaryOverdue'); if(sod) sod.textContent = fmt(dailySummary.overdue);
+            const scr = get('summaryCustomerReceipts'); if(scr) { scr.textContent = checkUserRights("Recovery/Receipts Reports") ? fmt(dailySummary.customerReceipts) : "Restricted"; if (checkUserRights("Recovery/Receipts Reports") && typeof window.applyValueColor === 'function') window.applyValueColor(scr, dailySummary.customerReceipts); }
+            const sod = get('summaryOverdue'); if(sod) { sod.textContent = fmt(dailySummary.overdue); if (typeof window.applyValueColor === 'function') window.applyValueColor(sod, dailySummary.overdue); }
 
             // Vendor Activity
             const snP = get('summaryNewPurchases'); if(snP) snP.textContent = dailySummary.newPurchases;
-            const svp = get('summaryVendorPayments'); if(svp) svp.textContent = checkUserRights("Payments Reports") ? fmt(dailySummary.vendorPayments) : "Restricted";
-            const sou = get('summaryOutstanding'); if(sou) sou.textContent = checkUserRights("Accounts Payable Aging") ? fmt(dailySummary.outstanding) : "Restricted";
+            const svp = get('summaryVendorPayments'); if(svp) { svp.textContent = checkUserRights("Payments Reports") ? fmt(dailySummary.vendorPayments) : "Restricted"; if (checkUserRights("Payments Reports") && typeof window.applyValueColor === 'function') window.applyValueColor(svp, dailySummary.vendorPayments); }
+            const sou = get('summaryOutstanding'); if(sou) { sou.textContent = checkUserRights("Accounts Payable Aging") ? fmt(dailySummary.outstanding) : "Restricted"; if (checkUserRights("Accounts Payable Aging") && typeof window.applyValueColor === 'function') window.applyValueColor(sou, dailySummary.outstanding); }
 
             // --- 3. COMMON WIDGETS ---
             
@@ -519,6 +529,10 @@ document.addEventListener('click', function(e) {
 
             if (window.DashboardCustomizer && typeof window.DashboardCustomizer.updateValues === 'function') {
                 window.DashboardCustomizer.updateValues(dailySummary);
+            }
+
+            if (typeof window.highlightAllNegativeValues === 'function') {
+                window.highlightAllNegativeValues();
             }
 
             // Re-apply currency symbols after data update
@@ -554,6 +568,7 @@ document.addEventListener('click', function(e) {
                 invStockValEl.textContent = currency + parseFloat(totalValue).toLocaleString('en-US', {
                     minimumFractionDigits: 2, maximumFractionDigits: 2
                 });
+                if (typeof window.applyValueColor === 'function') window.applyValueColor(invStockValEl, totalValue);
             }
 
             const curr = (window.globalCurrencySymbol || 'Rs.') + ' ';
@@ -561,13 +576,24 @@ document.addEventListener('click', function(e) {
             if (summary.raw_material) {
                 const rm = summary.raw_material;
                 const rKg = document.getElementById('summaryRawStockKg');
-                if (rKg) rKg.textContent = (rm.total_kg !== undefined ? rm.total_kg : (rm.kg || 0)) + ' Kg';
+                const totKg = (rm.total_kg !== undefined ? rm.total_kg : (rm.kg || 0));
+                if (rKg) {
+                    rKg.textContent = totKg + ' Kg';
+                    if (typeof window.applyValueColor === 'function') window.applyValueColor(rKg, totKg);
+                }
                 const rIss = document.getElementById('summaryRawIssuedToday');
-                if (rIss) rIss.textContent = (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0)) + ' Kg';
+                const issKg = (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0));
+                if (rIss) {
+                    rIss.textContent = issKg + ' Kg';
+                    if (typeof window.applyValueColor === 'function') window.applyValueColor(rIss, issKg);
+                }
                 const rVal = document.getElementById('summaryRawValuation');
-                if (rVal) rVal.textContent = curr + parseFloat(rm.valuation || 0).toLocaleString('en-US', {
-                    minimumFractionDigits: 2, maximumFractionDigits: 2
-                });
+                if (rVal) {
+                    rVal.textContent = curr + parseFloat(rm.valuation || 0).toLocaleString('en-US', {
+                        minimumFractionDigits: 2, maximumFractionDigits: 2
+                    });
+                    if (typeof window.applyValueColor === 'function') window.applyValueColor(rVal, rm.valuation || 0);
+                }
 
                 const listCont = document.getElementById('summaryRawItemList');
                 if (listCont && rm.items && Array.isArray(rm.items)) {
@@ -576,12 +602,13 @@ document.addEventListener('click', function(e) {
                     } else {
                         let rows = '';
                         rm.items.forEach(it => {
-                            const isLow = it.is_low || it.stock_kg <= 0;
-                            const color = isLow ? '#dc2626' : '#d97706';
+                            const isNeg = Number(it.stock_kg) < 0;
+                            const isLow = it.is_low || Number(it.stock_kg) === 0;
+                            const color = isNeg ? '#dc2626' : (isLow ? '#d97706' : '#1e293b');
                             rows += `
                                 <div class="raw-item-row" onclick="window.openRawMaterialReport()" style="display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; cursor: pointer;" title="Click to view ledger">
                                     <span style="font-weight: 600; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${it.name}</span>
-                                    <span style="font-weight: 700; color: ${color}; font-size: 11px; white-space: nowrap;">${Number(it.stock_kg).toLocaleString('en-US')} Kg</span>
+                                    <span class="${isNeg ? 'is-negative' : ''}" style="font-weight: 700; color: ${color}; font-size: 11px; white-space: nowrap;">${Number(it.stock_kg).toLocaleString('en-US')} Kg</span>
                                 </div>
                             `;
                         });
@@ -600,9 +627,15 @@ document.addEventListener('click', function(e) {
                 const fgProd = document.getElementById('summaryFgProducedToday');
                 if (fgProd) fgProd.textContent = (fg.today_produced || 0) + ' Pcs';
                 const fgVal = document.getElementById('summaryFgValuation');
-                if (fgVal) fgVal.textContent = curr + parseFloat(fg.valuation || 0).toLocaleString('en-US', {
-                    minimumFractionDigits: 2, maximumFractionDigits: 2
-                });
+                if (fgVal) {
+                    fgVal.textContent = curr + parseFloat(fg.valuation || 0).toLocaleString('en-US', {
+                        minimumFractionDigits: 2, maximumFractionDigits: 2
+                    });
+                    if (typeof window.applyValueColor === 'function') window.applyValueColor(fgVal, fg.valuation || 0);
+                }
+            }
+            if (typeof window.highlightAllNegativeValues === 'function') {
+                window.highlightAllNegativeValues();
             }
         }
         window.applyInventoryAlertUI = applyInventoryAlertUI;
@@ -3288,6 +3321,9 @@ document.addEventListener('click', function(e) {
                     el.innerText = newSym + numberPart;
                 }
             });
+            if (typeof window.highlightAllNegativeValues === 'function') {
+                window.highlightAllNegativeValues();
+            }
         }
 
         function checkUserRights(rightName) {

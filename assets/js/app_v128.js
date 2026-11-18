@@ -3351,6 +3351,9 @@ document.addEventListener('click', function(e) {
                     el.innerText = newSym + numberPart;
                 }
             });
+            if (typeof window.highlightAllNegativeValues === 'function') {
+                window.highlightAllNegativeValues();
+            }
         }
 
         function checkUserRights(rightName) {
