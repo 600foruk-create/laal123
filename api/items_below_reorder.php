@@ -57,6 +57,58 @@ function getInventoryMovementSql($pdo, $company_id) {
     return [$balance_expr, $joins_expr];
 }
 
+// Helper: Detect Item Category Group (Raw Material, PVC Pipes, Fittings, Others)
+function detectItemGroup($item) {
+    $mainName = strtoupper(trim($item['main_category_name'] ?? ''));
+    $subName  = strtoupper(trim($item['sub_category_name'] ?? ''));
+    $catType  = strtoupper(trim($item['category_type'] ?? $item['main_category_type'] ?? ''));
+    $itemName = strtoupper(trim($item['item_name'] ?? $item['name'] ?? ''));
+    $itemUnit = strtoupper(trim($item['unit'] ?? ''));
+
+    $combined = "$mainName $subName $catType $itemName $itemUnit";
+
+    // 1. FITTINGS
+    if ($catType === 'FITTING' ||
+        strpos($mainName, 'FITTING') !== false ||
+        strpos($catType, 'FITTING') !== false ||
+        strpos($itemName, 'ELBOW') !== false ||
+        strpos($itemName, 'TEE') !== false ||
+        strpos($itemName, 'SOCKET') !== false ||
+        strpos($itemName, 'UNION') !== false ||
+        strpos($itemName, 'BEND') !== false ||
+        strpos($itemName, 'BUSH') !== false ||
+        strpos($itemName, 'REDUCER') !== false ||
+        strpos($itemName, 'PLUG') !== false ||
+        strpos($itemName, 'CAP') !== false ||
+        strpos($itemName, 'NIPPLE') !== false ||
+        strpos($combined, 'FITTING') !== false) {
+        return 'Fittings';
+    }
+
+    // 2. RAW MATERIAL
+    if ($catType === 'RAW MATERIAL' ||
+        strpos($combined, 'RAW') !== false ||
+        strpos($combined, 'MATERIAL') !== false ||
+        strpos($combined, 'RESIN') !== false ||
+        strpos($combined, 'COMPOUND') !== false ||
+        strpos($combined, 'STABILIZER') !== false ||
+        strpos($combined, 'AU60') !== false ||
+        strpos($combined, 'AU67') !== false ||
+        strpos($itemUnit, 'BAG') !== false) {
+        return 'Raw Material';
+    }
+
+    // 3. PVC PIPES
+    if ($catType === 'PIPES' ||
+        strpos($mainName, 'PIPE') !== false ||
+        strpos($combined, 'PIPE') !== false ||
+        (strpos($combined, 'PVC') !== false && strpos($combined, 'FITTING') === false)) {
+        return 'PVC Pipes';
+    }
+
+    return 'Others';
+}
+
 // 1. GET ALERTS (Summary & Alert Items for Main Dashboard)
 if ($action === 'get_alerts') {
     try {
@@ -71,8 +123,17 @@ if ($action === 'get_alerts') {
                 COALESCE(i.purchase_price, 0) as purchase_price,
                 COALESCE(i.selling_price, 0) as selling_price,
                 COALESCE(i.order_qty, 0) as re_order_qty,
+                COALESCE(i.category_type, '') as category_type,
+                COALESCE(i.carton, 0) as carton,
+                COALESCE(i.unit_weight, 0) as unit_weight,
+                COALESCE(i.qty_per_piece, 0) as qty_per_piece,
+                COALESCE(sm.name, '') as main_category_name,
+                COALESCE(sm.category_type, '') as main_category_type,
+                COALESCE(ss.name, '') as sub_category_name,
                 ($balance_expr) as balance_in_hand
             FROM inv_items i
+            LEFT JOIN inv_sub_categories ss ON i.sub_id = ss.id
+            LEFT JOIN inv_main_categories sm ON ss.main_id = sm.id
             $joins_expr
             WHERE i.company_id = $company_id AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
             ORDER BY i.code ASC
@@ -88,6 +149,17 @@ if ($action === 'get_alerts') {
         $outOfStockCount = 0;
         $totalStockValue = 0.0;
         $alertItems = [];
+
+        // Raw Material & Finished Goods Accumulators
+        $rawBags = 0.0;
+        $rawKg = 0.0;
+        $rawValuation = 0.0;
+
+        $pipesPcs = 0.0;
+        $pipesKg = 0.0;
+        $fittingsCtn = 0.0;
+        $fittingsPcs = 0.0;
+        $fgValuation = 0.0;
 
         foreach ($allItems as $it) {
             $bal = floatval($it['balance_in_hand']);
@@ -125,7 +197,78 @@ if ($action === 'get_alerts') {
                     'status' => $isOutOfStock ? 'Out of Stock' : 'Low Stock'
                 ];
             }
+
+            // Categorize into Raw Material or Finished Goods (Pipes / Fittings)
+            $grp = detectItemGroup($it);
+            if ($grp === 'Raw Material') {
+                $weightPerBag = floatval($it['unit_weight'] ?: 25.0);
+                if (stripos($it['unit'], 'BAG') !== false) {
+                    $rawBags += $bal;
+                    $rawKg += ($bal * $weightPerBag);
+                } else {
+                    $rawKg += $bal;
+                    $rawBags += ($weightPerBag > 0 ? ($bal / $weightPerBag) : $bal);
+                }
+                if ($bal > 0) $rawValuation += ($bal * $cost);
+            } elseif ($grp === 'PVC Pipes') {
+                $pipesPcs += $bal;
+                $pWeight = floatval($it['unit_weight'] ?: ($it['qty_per_piece'] ?: 0));
+                $pipesKg += ($bal * $pWeight);
+                if ($bal > 0) $fgValuation += ($bal * $cost);
+            } elseif ($grp === 'Fittings') {
+                $pcsPerCtn = floatval($it['carton'] ?: ($it['qty_per_piece'] ?: 1));
+                if ($pcsPerCtn <= 0) $pcsPerCtn = 1;
+                $fittingsCtn += ($bal / $pcsPerCtn);
+                $fittingsPcs += $bal;
+                if ($bal > 0) $fgValuation += ($bal * $cost);
+            } else {
+                // Other finished goods
+                if ($bal > 0) $fgValuation += ($bal * $cost);
+            }
         }
+
+        // Today's Activity (Issued & Produced)
+        $todayStr = date('Y-m-d');
+        $todayRawIssued = 0.0;
+        $todayFgProduced = 0.0;
+
+        try {
+            $stmt_tables = $pdo->query("SHOW TABLES");
+            $tables = [];
+            while ($row = $stmt_tables->fetch(PDO::FETCH_NUM)) { $tables[] = $row[0]; }
+
+            // 1. Today Raw Issued
+            if (in_array("material_issue_notes", $tables) && in_array("material_issue_note_items", $tables)) {
+                $sMin = $pdo->prepare("
+                    SELECT COALESCE(SUM(mii.qty), 0) 
+                    FROM material_issue_note_items mii 
+                    JOIN material_issue_notes m ON mii.min_id = m.id 
+                    WHERE m.company_id = ? AND m.is_cancelled = 0 AND DATE(m.date) = ?
+                ");
+                $sMin->execute([$company_id, $todayStr]);
+                $todayRawIssued += floatval($sMin->fetchColumn() ?: 0);
+            }
+            if (in_array("production_notes", $tables) && in_array("production_note_items", $tables)) {
+                $sPnRaw = $pdo->prepare("
+                    SELECT COALESCE(SUM(ABS(pni.qty)), 0) 
+                    FROM production_note_items pni 
+                    JOIN production_notes p ON pni.pn_id = p.id 
+                    WHERE p.company_id = ? AND p.is_cancelled = 0 AND pni.qty < 0 AND DATE(p.date) = ?
+                ");
+                $sPnRaw->execute([$company_id, $todayStr]);
+                $todayRawIssued += floatval($sPnRaw->fetchColumn() ?: 0);
+
+                // 2. Today Finished Goods Produced
+                $sPnFg = $pdo->prepare("
+                    SELECT COALESCE(SUM(pni.qty), 0) 
+                    FROM production_note_items pni 
+                    JOIN production_notes p ON pni.pn_id = p.id 
+                    WHERE p.company_id = ? AND p.is_cancelled = 0 AND pni.qty > 0 AND DATE(p.date) = ?
+                ");
+                $sPnFg->execute([$company_id, $todayStr]);
+                $todayFgProduced = floatval($sPnFg->fetchColumn() ?: 0);
+            }
+        } catch(Exception $eActs) {}
 
         // Sort alert items: Out of Stock first, then lowest balance
         usort($alertItems, function($a, $b) {
@@ -138,6 +281,27 @@ if ($action === 'get_alerts') {
             'status' => 'success',
             'summary' => [
                 'total_items' => $totalItems,
+                'low_stock_count' => $lowStockCount,
+                'reorder_count' => $reorderCount,
+                'out_of_stock_count' => $outOfStockCount,
+                'total_stock_value' => round($totalStockValue, 2),
+                'raw_material' => [
+                    'bags' => round($rawBags, 0),
+                    'kg' => round($rawKg, 1),
+                    'today_issued' => round($todayRawIssued, 0),
+                    'valuation' => round($rawValuation, 2)
+                ],
+                'finished_goods' => [
+                    'pipes_pcs' => round($pipesPcs, 0),
+                    'pipes_kg' => round($pipesKg, 1),
+                    'fittings_ctn' => round($fittingsCtn, 0),
+                    'fittings_pcs' => round($fittingsPcs, 0),
+                    'today_produced' => round($todayFgProduced, 0),
+                    'valuation' => round($fgValuation, 2)
+                ]
+            ],
+            'items' => $alertItems
+        ]);
                 'low_stock_count' => $lowStockCount,
                 'reorder_count' => $reorderCount,
                 'out_of_stock_count' => $outOfStockCount,

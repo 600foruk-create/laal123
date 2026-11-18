@@ -576,8 +576,83 @@ document.addEventListener('click', function(e) {
                     minimumFractionDigits: 2, maximumFractionDigits: 2
                 });
             }
+
+            const curr = (window.globalCurrencySymbol || 'Rs.') + ' ';
+            // Raw Material Activity Card
+            if (summary.raw_material) {
+                const rm = summary.raw_material;
+                const rBags = document.getElementById('summaryRawStockBags');
+                if (rBags) rBags.textContent = (rm.bags || 0) + ' Bags';
+                const rKg = document.getElementById('summaryRawStockKg');
+                if (rKg) rKg.textContent = (rm.kg || 0) + ' Kg';
+                const rIss = document.getElementById('summaryRawIssuedToday');
+                if (rIss) rIss.textContent = (rm.today_issued || 0) + ' Bags';
+                const rVal = document.getElementById('summaryRawValuation');
+                if (rVal) rVal.textContent = curr + parseFloat(rm.valuation || 0).toLocaleString('en-US', {
+                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                });
+            }
+
+            // Finished Goods Activity Card
+            if (summary.finished_goods) {
+                const fg = summary.finished_goods;
+                const fgPipes = document.getElementById('summaryFgPipesPcs');
+                if (fgPipes) fgPipes.textContent = (fg.pipes_pcs || 0) + ' Pcs';
+                const fgCtn = document.getElementById('summaryFgFittingsCtn');
+                if (fgCtn) fgCtn.textContent = (fg.fittings_ctn || 0) + ' Ctn';
+                const fgProd = document.getElementById('summaryFgProducedToday');
+                if (fgProd) fgProd.textContent = (fg.today_produced || 0) + ' Pcs';
+                const fgVal = document.getElementById('summaryFgValuation');
+                if (fgVal) fgVal.textContent = curr + parseFloat(fg.valuation || 0).toLocaleString('en-US', {
+                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                });
+            }
         }
         window.applyInventoryAlertUI = applyInventoryAlertUI;
+
+        window.openRawMaterialReport = function() {
+            window.openModularPopup('Navigation/Reports/inventory_balances.html', 'fa-cubes', 'Inventory Balances - Raw Material', () => {
+                if (window.InventoryBalances) {
+                    window.InventoryBalances.init();
+                    setTimeout(() => {
+                        const sel = document.getElementById('ib_cat_select');
+                        if (sel) {
+                            for (let opt of sel.options) {
+                                if (opt.text.toUpperCase().includes('RAW')) {
+                                    sel.value = opt.value;
+                                    break;
+                                }
+                            }
+                            if (typeof window.InventoryBalances.fetchBalances === 'function') {
+                                window.InventoryBalances.fetchBalances();
+                            }
+                        }
+                    }, 500);
+                }
+            }, 'Inventory Balances', true, true);
+        };
+
+        window.openFinishedGoodsReport = function() {
+            window.openModularPopup('Navigation/Reports/inventory_balances.html', 'fa-boxes', 'Inventory Balances - Finished Goods', () => {
+                if (window.InventoryBalances) {
+                    window.InventoryBalances.init();
+                    setTimeout(() => {
+                        const sel = document.getElementById('ib_cat_select');
+                        if (sel) {
+                            for (let opt of sel.options) {
+                                if (opt.text.toUpperCase().includes('PIPE') || opt.text.toUpperCase().includes('FITTING')) {
+                                    sel.value = opt.value;
+                                    break;
+                                }
+                            }
+                            if (typeof window.InventoryBalances.fetchBalances === 'function') {
+                                window.InventoryBalances.fetchBalances();
+                            }
+                        }
+                    }, 500);
+                }
+            }, 'Inventory Balances', true, true);
+        };
 
         async function loadInventoryAlerts() {
             try {

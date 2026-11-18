@@ -273,6 +273,22 @@
                                 id="summaryOutstanding">Rs. 0</span></div>
                     </div>
 
+                    <div class="summary-card" id="rawMaterialCard" onclick="window.openRawMaterialReport()" style="cursor: pointer;" title="Click to view Raw Material stock ledger">
+                        <h4><i class="fas fa-cubes" style="color:#d97706;"></i> Raw Material Activity</h4>
+                        <div class="summary-row"><span>In-Hand Stock:</span> <span class="value" id="summaryRawStockBags">0 Bags</span></div>
+                        <div class="summary-row"><span>Total Weight:</span> <span class="value" id="summaryRawStockKg">0 Kg</span></div>
+                        <div class="summary-row"><span>Today Issued:</span> <span class="value" id="summaryRawIssuedToday">0 Bags</span></div>
+                        <div class="summary-row"><span>Raw Valuation:</span> <span class="value money" id="summaryRawValuation">Rs. 0</span></div>
+                    </div>
+
+                    <div class="summary-card" id="finishedGoodsCard" onclick="window.openFinishedGoodsReport()" style="cursor: pointer;" title="Click to view Finished Goods stock ledger">
+                        <h4><i class="fas fa-boxes" style="color:#0284c7;"></i> Finished Goods Activity</h4>
+                        <div class="summary-row"><span>Pipes Stock:</span> <span class="value" id="summaryFgPipesPcs">0 Pcs</span></div>
+                        <div class="summary-row"><span>Fittings Stock:</span> <span class="value" id="summaryFgFittingsCtn">0 Ctn</span></div>
+                        <div class="summary-row"><span>Today Produced:</span> <span class="value" id="summaryFgProducedToday">0 Pcs</span></div>
+                        <div class="summary-row"><span>Stock Value:</span> <span class="value money" id="summaryFgValuation">Rs. 0</span></div>
+                    </div>
+
                     <div class="summary-card" id="inventoryAlertsCard" onclick="if(window.showInventoryDetails) window.showInventoryDetails();" style="cursor: pointer;" title="Click to view low stock and reorder details">
                         <h4><i class="fas fa-box"></i> Inventory Alerts</h4>
                         <div class="summary-row">
@@ -296,14 +312,14 @@
         <div id="window-manager"></div>
     </div>
 
-    <script src="assets/js/app_v128.js?v=v66-inventory-alerts-live"></script>
+    <script src="assets/js/app_v128.js?v=v67-rm-fg-cards"></script>
     <script src="assets/js/inventory_price_settings.js?v=10"></script>
     <script src="assets/js/inventory_tax_rates.js?v=4"></script>
     <script src="assets/js/inventory_reorder_levels.js?v=3"></script>
     <script src="assets/js/inventory_cost_method.js?v=4"></script>
     <script src="assets/js/chart_of_services.js?v=8"></script>
-    <script src="assets/js/dashboard_customizer.js?v=6-inventory-alerts"></script>
-    <script src="assets/js/app_v2.js?v=v167-inventory-alerts-live"></script>
+    <script src="assets/js/dashboard_customizer.js?v=7-rm-fg-cards"></script>
+    <script src="assets/js/app_v2.js?v=v168-rm-fg-cards"></script>
     <script src="assets/js/voucher_preferences.js?v=1"></script>
     <script src="assets/js/inventory_movement_settings.js?v=2"></script>
     <script src="assets/js/jobs.js?v=6"></script>

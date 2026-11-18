@@ -85,6 +85,8 @@
             { id: 'cash_position', label: 'Cash Position' },
             { id: 'customer_activity', label: 'Customer Activity' },
             { id: 'vendor_activity', label: 'Vendor Activity' },
+            { id: 'raw_material_activity', label: 'Raw Material Activity (Bags / Kg)' },
+            { id: 'finished_goods_activity', label: 'Finished Goods Activity (Pipes / Fittings)' },
             { id: 'inventory_alerts', label: 'Inventory Alerts' },
             { id: 'pos_activity', label: 'POS Activity' },
             { id: 'digital_activity', label: 'Digital Invoicing / FBR' }
@@ -98,7 +100,7 @@
         kpi_cards: ['sales', 'cash_hand', 'bank_bal', 'rec_total'],
         middle_cards: ['cash_banks', 'receivables', 'payables'],
         bottom_widgets: ['weekly_sales_trend', 'my_notes'],
-        right_summary: ['cash_position', 'customer_activity', 'vendor_activity', 'inventory_alerts']
+        right_summary: ['cash_position', 'customer_activity', 'vendor_activity', 'raw_material_activity', 'finished_goods_activity', 'inventory_alerts']
     };
 
     const DashboardCustomizer = {
@@ -552,6 +554,42 @@
                 `;
             }
 
+            if (allowed.includes('raw_material_activity')) {
+                const s = (window._cachedInventoryAlertSummary && window._cachedInventoryAlertSummary.raw_material) || {};
+                const bagsText = s.bags !== undefined ? (s.bags + ' Bags') : '0 Bags';
+                const kgText = s.kg !== undefined ? (s.kg + ' Kg') : '0 Kg';
+                const issuedText = s.today_issued !== undefined ? (s.today_issued + ' Bags') : '0 Bags';
+                const currency = (window.globalCurrencySymbol || 'Rs.') + ' ';
+                const valText = s.valuation !== undefined ? (currency + parseFloat(s.valuation).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : 'Rs. 0';
+                html += `
+                    <div class="summary-card" id="rawMaterialCard" data-summary-id="raw_material_activity" onclick="window.openRawMaterialReport()" style="cursor: pointer;" title="Click to view Raw Material stock ledger">
+                        <h4><i class="fas fa-cubes" style="color:#d97706;"></i> Raw Material Activity</h4>
+                        <div class="summary-row"><span>In-Hand Stock:</span> <span class="value" id="summaryRawStockBags">${bagsText}</span></div>
+                        <div class="summary-row"><span>Total Weight:</span> <span class="value" id="summaryRawStockKg">${kgText}</span></div>
+                        <div class="summary-row"><span>Today Issued:</span> <span class="value" id="summaryRawIssuedToday">${issuedText}</span></div>
+                        <div class="summary-row"><span>Raw Valuation:</span> <span class="value money" id="summaryRawValuation">${valText}</span></div>
+                    </div>
+                `;
+            }
+
+            if (allowed.includes('finished_goods_activity')) {
+                const s = (window._cachedInventoryAlertSummary && window._cachedInventoryAlertSummary.finished_goods) || {};
+                const pipesText = s.pipes_pcs !== undefined ? (s.pipes_pcs + ' Pcs') : '0 Pcs';
+                const ctnText = s.fittings_ctn !== undefined ? (s.fittings_ctn + ' Ctn') : '0 Ctn';
+                const prodText = s.today_produced !== undefined ? (s.today_produced + ' Pcs') : '0 Pcs';
+                const currency = (window.globalCurrencySymbol || 'Rs.') + ' ';
+                const valText = s.valuation !== undefined ? (currency + parseFloat(s.valuation).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : 'Rs. 0';
+                html += `
+                    <div class="summary-card" id="finishedGoodsCard" data-summary-id="finished_goods_activity" onclick="window.openFinishedGoodsReport()" style="cursor: pointer;" title="Click to view Finished Goods stock ledger">
+                        <h4><i class="fas fa-boxes" style="color:#0284c7;"></i> Finished Goods Activity</h4>
+                        <div class="summary-row"><span>Pipes Stock:</span> <span class="value" id="summaryFgPipesPcs">${pipesText}</span></div>
+                        <div class="summary-row"><span>Fittings Stock:</span> <span class="value" id="summaryFgFittingsCtn">${ctnText}</span></div>
+                        <div class="summary-row"><span>Today Produced:</span> <span class="value" id="summaryFgProducedToday">${prodText}</span></div>
+                        <div class="summary-row"><span>Stock Value:</span> <span class="value money" id="summaryFgValuation">${valText}</span></div>
+                    </div>
+                `;
+            }
+
             if (allowed.includes('inventory_alerts')) {
                 const s = window._cachedInventoryAlertSummary || {};
                 const lscText = s.low_stock_count !== undefined ? (s.low_stock_count + ' Items') : '0 Items';
@@ -697,6 +735,32 @@
                 if (invLowEl) invLowEl.textContent = String(s.low_stock_count !== undefined ? s.low_stock_count : 0);
                 if (invReorderEl) invReorderEl.textContent = String(s.reorder_count !== undefined ? s.reorder_count : 0);
                 if (invStockValEl) invStockValEl.textContent = fmt(s.total_stock_value || 0);
+
+                // Update Raw Material Activity Card
+                if (s.raw_material) {
+                    const rm = s.raw_material;
+                    const rBags = document.getElementById('summaryRawStockBags');
+                    if (rBags) rBags.textContent = (rm.bags || 0) + ' Bags';
+                    const rKg = document.getElementById('summaryRawStockKg');
+                    if (rKg) rKg.textContent = (rm.kg || 0) + ' Kg';
+                    const rIss = document.getElementById('summaryRawIssuedToday');
+                    if (rIss) rIss.textContent = (rm.today_issued || 0) + ' Bags';
+                    const rVal = document.getElementById('summaryRawValuation');
+                    if (rVal) rVal.textContent = fmt(rm.valuation || 0);
+                }
+
+                // Update Finished Goods Activity Card
+                if (s.finished_goods) {
+                    const fg = s.finished_goods;
+                    const fgPipes = document.getElementById('summaryFgPipesPcs');
+                    if (fgPipes) fgPipes.textContent = (fg.pipes_pcs || 0) + ' Pcs';
+                    const fgCtn = document.getElementById('summaryFgFittingsCtn');
+                    if (fgCtn) fgCtn.textContent = (fg.fittings_ctn || 0) + ' Ctn';
+                    const fgProd = document.getElementById('summaryFgProducedToday');
+                    if (fgProd) fgProd.textContent = (fg.today_produced || 0) + ' Pcs';
+                    const fgVal = document.getElementById('summaryFgValuation');
+                    if (fgVal) fgVal.textContent = fmt(fg.valuation || 0);
+                }
             } else if (typeof window.loadInventoryAlerts === 'function') {
                 window.loadInventoryAlerts();
             }
