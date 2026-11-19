@@ -1,6 +1,8 @@
 <?php
-header('Content-Type: application/json');
-require_once 'db_config.php';
+if (!empty($_GET['action']) || !empty($_POST['action'])) {
+    header('Content-Type: application/json');
+}
+require_once __DIR__ . '/db_config.php';
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $company_id = $_GET['company_id'] ?? $_POST['company_id'] ?? 1;

@@ -2,6 +2,7 @@
 // SoftifyX ERP - Public Document Viewer (Invoice, Quotation, Order, Challan, Ledger)
 // Accessible via WhatsApp Links for Customers & Parties
 require_once __DIR__ . '/api/db_config.php';
+header('Content-Type: text/html; charset=utf-8');
 
 $type = $_GET['type'] ?? '';
 $coId = (int)($_GET['co'] ?? 1);
@@ -242,6 +243,8 @@ elseif ($type === 'challan') {
 elseif ($type === 'ledger') {
     $docTitle = 'ACCOUNT STATEMENT';
     try {
+        require_once __DIR__ . '/api/account_ledger.php';
+
         $accParam = $_GET['acc'] ?? ($id ?: '');
         $fromDate = $_GET['from'] ?? '';
         $toDate = $_GET['to'] ?? '';
@@ -257,9 +260,18 @@ elseif ($type === 'ledger') {
         $accRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($accRow) {
+            $periodLabel = 'All Dates';
+            if ($fromDate && $toDate) {
+                $periodLabel = date('d-M-Y', strtotime($fromDate)) . ' To ' . date('d-M-Y', strtotime($toDate));
+            } elseif ($fromDate) {
+                $periodLabel = 'From ' . date('d-M-Y', strtotime($fromDate));
+            } elseif ($toDate) {
+                $periodLabel = 'Up to ' . date('d-M-Y', strtotime($toDate));
+            }
+
             $docData = [
                 'serial_no' => $accRow['code'],
-                'date'      => ($fromDate && $toDate) ? "$fromDate To $toDate" : 'All Dates',
+                'date'      => $periodLabel,
                 'remarks'   => 'Account statement for ' . $accRow['name']
             ];
             $customer = [
@@ -271,78 +283,9 @@ elseif ($type === 'ledger') {
                 'gst'       => $accRow['st_reg_no'] ?? ''
             ];
 
-            $coa_id = $accRow['id'];
-
-            // 1. Initial Opening Balance
-            $stmtOB = $pdo->prepare("SELECT COALESCE(SUM(debit), 0) as op_debit, COALESCE(SUM(credit), 0) as op_credit FROM coa_opening_balances WHERE coa_id = ? AND company_id = ?");
-            $stmtOB->execute([$coa_id, $coId]);
-            $ob = $stmtOB->fetch(PDO::FETCH_ASSOC);
-            $initial_debit = (float)($ob['op_debit'] ?? 0);
-            $initial_credit = (float)($ob['op_credit'] ?? 0);
-
-            // Queries to collect ALL transactions
-            $queries = [];
-            $queries[] = "SELECT v.id as source_id, 'JV' as source_type, v.voucher_date as date, 
-                          COALESCE(NULLIF(TRIM(i.description),''), NULLIF((SELECT TRIM(description) FROM general_journal_voucher_items WHERE voucher_id = v.id ORDER BY id ASC LIMIT 1),''), NULLIF(TRIM(v.description),''), TRIM(v.remarks)) as description, 
-                          CONCAT('JV-', v.serial_no) as tran_no, '' as reference, i.debit, i.credit 
-                          FROM general_journal_voucher_items i 
-                          INNER JOIN general_journal_vouchers v ON i.voucher_id = v.id 
-                          WHERE i.coa_id = ? AND v.company_id = ? AND v.is_cancelled = 0 AND v.is_posted = 1";
-
-            $queries[] = "SELECT id as source_id, 'SI' as source_type, invoice_date as date, 
-                          COALESCE(NULLIF((SELECT TRIM(description) FROM sale_invoice_items WHERE invoice_id = sale_invoices.id ORDER BY id ASC LIMIT 1),''), NULLIF(TRIM(remarks),''), CONCAT('SI-', serial_no)) as description, 
-                          CONCAT('SI-', serial_no) as tran_no, dc_no as reference, net_amount as debit, 0 as credit 
-                          FROM sale_invoices 
-                          WHERE customer_coa_id = ? AND company_id = ? AND is_cancelled = 0";
-
-            $queries[] = "SELECT id as source_id, 'SR' as source_type, return_date as date, 
-                          COALESCE(NULLIF(TRIM(remarks),''), CONCAT('SR-', serial_no)) as description, 
-                          CONCAT('SR-', serial_no) as tran_no, '' as reference, 0 as debit, net_amount as credit 
-                          FROM sale_returns 
-                          WHERE customer_coa_id = ? AND company_id = ? AND is_cancelled = 0";
-
-            $queries[] = "SELECT r.id as source_id, 'CR' as source_type, r.receipt_date as date, 
-                          COALESCE(NULLIF(TRIM(r.remarks),''), 'Cash Receipt') as description, 
-                          CONCAT('CR-', r.serial_no) as tran_no, '' as reference, 0 as debit, i.amount as credit 
-                          FROM cash_receipt_items i 
-                          INNER JOIN cash_receipts r ON i.receipt_id = r.id 
-                          WHERE i.coa_id = ? AND r.company_id = ? AND r.is_cancelled = 0";
-
-            $queries[] = "SELECT r.id as source_id, 'BR' as source_type, r.receipt_date as date, 
-                          COALESCE(NULLIF(TRIM(r.remarks),''), 'Bank Receipt') as description, 
-                          CONCAT('BR-', r.serial_no) as tran_no, r.cheque_no as reference, 0 as debit, i.amount as credit 
-                          FROM bank_receipt_items i 
-                          INNER JOIN bank_receipts r ON i.receipt_id = r.id 
-                          WHERE i.coa_id = ? AND r.company_id = ? AND r.is_cancelled = 0";
-
-            $all_txs = [];
-            foreach ($queries as $q) {
-                try {
-                    $stmtQ = $pdo->prepare($q);
-                    $stmtQ->execute([$coa_id, $coId]);
-                    $all_txs = array_merge($all_txs, $stmtQ->fetchAll(PDO::FETCH_ASSOC));
-                } catch(Exception $e) {}
-            }
-
-            usort($all_txs, function($a, $b) {
-                return strcmp($a['date'] ?? '', $b['date'] ?? '');
-            });
-
-            $op_bal = $initial_debit - $initial_credit;
-            $cur_txs = [];
-            foreach ($all_txs as $tx) {
-                $txDate = $tx['date'] ?? '';
-                if ($fromDate && $txDate < $fromDate) {
-                    $op_bal += ((float)$tx['debit'] - (float)$tx['credit']);
-                } elseif ($toDate && $txDate > $toDate) {
-                    continue;
-                } else {
-                    $cur_txs[] = $tx;
-                }
-            }
-
-            $docData['opening_balance'] = $op_bal;
-            $docItems = $cur_txs;
+            $coa_id = (int)$accRow['id'];
+            $raw_txs = fetchLedgerTransactions($pdo, $coId, $coa_id, $fromDate, $toDate);
+            $docItems = is_array($raw_txs) ? $raw_txs : [];
         } else {
             $errorMsg = "Account '$accParam' not found in system.";
         }
@@ -742,13 +685,45 @@ elseif ($type === 'ledger') {
         <?php if ($type === 'ledger'): ?>
             <!-- LEDGER SPECIFIC TABLE -->
             <?php 
-            $runningBal = (float)($docData['opening_balance'] ?? 0);
-            $totD = 0; $totC = 0;
+            $runningBal = 0;
+            $totD = 0; 
+            $totC = 0;
+            $renderedRows = [];
+
+            foreach ($docItems as $tx) {
+                $d = (float)($tx['debit'] ?? 0);
+                $c = (float)($tx['credit'] ?? 0);
+                $isOb = !empty($tx['is_ob']);
+
+                // Skip 0 / 0 rows (like empty opening balance)
+                if ($d == 0 && $c == 0) continue;
+
+                $totD += $d;
+                $totC += $c;
+                $runningBal += ($d - $c);
+                $status = $runningBal > 0 ? 'Debit' : ($runningBal < 0 ? 'Credit' : 'Nil');
+
+                $displayDate = !empty($tx['date']) ? date('d-M-Y', strtotime($tx['date'])) : ($isOb ? 'Opening' : '');
+                $tranNo = !empty($tx['tran_no']) ? $tx['tran_no'] : ($isOb ? 'OB' : ($tx['reference'] ?? ''));
+
+                $renderedRows[] = [
+                    'date'        => $displayDate,
+                    'tran_no'     => $tranNo,
+                    'reference'   => $tx['reference'] ?? '',
+                    'description' => $tx['description'] ?? '',
+                    'debit'       => $d,
+                    'credit'      => $c,
+                    'balance'     => abs($runningBal),
+                    'status'      => $status,
+                    'is_ob'       => $isOb
+                ];
+            }
+            $finalStatus = $runningBal > 0 ? 'Debit' : ($runningBal < 0 ? 'Credit' : 'Nil');
             ?>
             <table class="items-table">
                 <thead>
                     <tr>
-                        <th style="width: 75px;">Date</th>
+                        <th style="width: 80px;">Date</th>
                         <th style="width: 75px;">Tran. No.</th>
                         <th>Description</th>
                         <th style="width: 85px;">Debit (Rs.)</th>
@@ -758,40 +733,42 @@ elseif ($type === 'ledger') {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr style="background: #f8fafc; font-weight: bold; font-style: italic;">
-                        <td colspan="3" style="text-align: right; padding: 6px 10px;">Opening Balance</td>
-                        <td style="text-align: right;"><?= $runningBal > 0 ? fmt($runningBal) : '' ?></td>
-                        <td style="text-align: right;"><?= $runningBal < 0 ? fmt(abs($runningBal)) : '' ?></td>
-                        <td style="text-align: right; font-weight: 800;"><?= fmt(abs($runningBal)) ?></td>
-                        <td style="text-align: center; color: <?= $runningBal >= 0 ? '#16a34a' : '#dc2626' ?>;"><?= $runningBal > 0 ? 'Debit' : ($runningBal < 0 ? 'Credit' : 'Nil') ?></td>
-                    </tr>
-                    <?php 
-                    foreach ($docItems as $tx): 
-                        $d = (float)($tx['debit'] ?? 0);
-                        $c = (float)($tx['credit'] ?? 0);
-                        $totD += $d;
-                        $totC += $c;
-                        $runningBal += ($d - $c);
-                        $status = $runningBal > 0 ? 'Debit' : ($runningBal < 0 ? 'Credit' : 'Nil');
-                    ?>
-                    <tr>
-                        <td style="text-align: center;"><?= htmlspecialchars($tx['date'] ?? '') ?></td>
-                        <td style="text-align: center;"><?= htmlspecialchars($tx['tran_no'] ?? ($tx['reference'] ?? '')) ?></td>
-                        <td><?= htmlspecialchars($tx['description'] ?? '') ?></td>
-                        <td style="text-align: right;"><?= $d > 0 ? fmt($d) : '' ?></td>
-                        <td style="text-align: right;"><?= $c > 0 ? fmt($c) : '' ?></td>
-                        <td style="text-align: right; font-weight: 800;"><?= fmt(abs($runningBal)) ?></td>
-                        <td style="text-align: center; font-weight: 700; color: <?= $runningBal >= 0 ? '#16a34a' : '#dc2626' ?>;"><?= $status ?></td>
-                    </tr>
-                    <?php endforeach; ?>
+                    <?php if (empty($renderedRows)): ?>
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 25px; color: #94a3b8;">
+                                <i class="far fa-folder-open" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
+                                No transactions found for this account.
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($renderedRows as $row): ?>
+                        <tr style="<?= $row['is_ob'] ? 'background: #f1f5f9; font-weight: bold;' : '' ?>">
+                            <td style="text-align: center;"><?= htmlspecialchars($row['date']) ?></td>
+                            <td style="text-align: center; font-weight: 600;"><?= htmlspecialchars($row['tran_no']) ?></td>
+                            <td><?= htmlspecialchars($row['description']) ?></td>
+                            <td style="text-align: right; color: <?= $row['debit'] > 0 ? '#16a34a' : '#64748b' ?>; font-weight: <?= $row['debit'] > 0 ? '600' : 'normal' ?>;">
+                                <?= $row['debit'] > 0 ? fmt($row['debit']) : '-' ?>
+                            </td>
+                            <td style="text-align: right; color: <?= $row['credit'] > 0 ? '#dc2626' : '#64748b' ?>; font-weight: <?= $row['credit'] > 0 ? '600' : 'normal' ?>;">
+                                <?= $row['credit'] > 0 ? fmt($row['credit']) : '-' ?>
+                            </td>
+                            <td style="text-align: right; font-weight: 800;">
+                                <?= fmt($row['balance']) ?>
+                            </td>
+                            <td style="text-align: center; font-weight: 700; color: <?= $row['status'] === 'Debit' ? '#dc2626' : ($row['status'] === 'Credit' ? '#16a34a' : '#64748b') ?>;">
+                                <?= $row['status'] ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
                 <tfoot>
                     <tr>
                         <td colspan="3" style="text-align: right; font-weight: 800; padding: 6px 10px;">Totals Rs.</td>
-                        <td style="text-align: right; font-weight: 800;"><?= fmt($totD) ?></td>
-                        <td style="text-align: right; font-weight: 800;"><?= fmt($totC) ?></td>
+                        <td style="text-align: right; font-weight: 800; color: #16a34a;"><?= fmt($totD) ?></td>
+                        <td style="text-align: right; font-weight: 800; color: #dc2626;"><?= fmt($totC) ?></td>
                         <td style="text-align: right; font-weight: 800; font-size: 11px;"><?= fmt(abs($runningBal)) ?></td>
-                        <td style="text-align: center; font-weight: 800;"><?= $runningBal > 0 ? 'Debit' : ($runningBal < 0 ? 'Credit' : 'Nil') ?></td>
+                        <td style="text-align: center; font-weight: 800; color: <?= $finalStatus === 'Debit' ? '#dc2626' : ($finalStatus === 'Credit' ? '#16a34a' : '#64748b') ?>;"><?= $finalStatus ?></td>
                     </tr>
                 </tfoot>
             </table>
@@ -802,15 +779,15 @@ elseif ($type === 'ledger') {
                     <div class="meta-card-body">
                         <div><b>Account:</b> <?= htmlspecialchars($customer['name'] ?? '') ?> (<?= htmlspecialchars($customer['code'] ?? '') ?>)</div>
                         <div style="margin-top: 4px;"><b>Period:</b> <?= htmlspecialchars($docData['date'] ?? '') ?></div>
-                        <div style="margin-top: 4px;"><b>Total Transactions:</b> <?= count($docItems) ?></div>
+                        <div style="margin-top: 4px;"><b>Total Transactions:</b> <?= count($renderedRows) ?></div>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="meta-card-header"><i class="fas fa-balance-scale" style="color: #2563eb;"></i> Balance Summary</div>
                     <table class="summary-table">
-                        <tr><td>Total Debits</td><td style="text-align: right; font-weight: 600;">Rs. <?= fmt($totD) ?></td></tr>
-                        <tr><td>Total Credits</td><td style="text-align: right; font-weight: 600;">Rs. <?= fmt($totC) ?></td></tr>
-                        <tr class="total-row"><td>Closing Balance</td><td style="text-align: right; font-weight: 800;">Rs. <?= fmt(abs($runningBal)) ?> (<?= $runningBal > 0 ? 'DR' : ($runningBal < 0 ? 'CR' : 'NIL') ?>)</td></tr>
+                        <tr><td>Total Debits</td><td style="text-align: right; font-weight: 600; color: #16a34a;">Rs. <?= fmt($totD) ?></td></tr>
+                        <tr><td>Total Credits</td><td style="text-align: right; font-weight: 600; color: #dc2626;">Rs. <?= fmt($totC) ?></td></tr>
+                        <tr class="total-row"><td>Closing Balance</td><td style="text-align: right; font-weight: 800; color: <?= $finalStatus === 'Debit' ? '#dc2626' : ($finalStatus === 'Credit' ? '#16a34a' : '#1e293b') ?>;">Rs. <?= fmt(abs($runningBal)) ?> (<?= $finalStatus ?>)</td></tr>
                     </table>
                 </div>
             </div>
@@ -1006,6 +983,13 @@ elseif ($type === 'ledger') {
                        "*<?= addslashes($docTitle) ?>*\n" +
                        "--------------------------------\n" +
                        "👤 *Account / Customer:* <?= addslashes($customer['name'] ?? 'Customer') ?>\n" +
+                       <?php if ($type === 'ledger'): ?>
+                       "💰 *Total Debits:* Rs. <?= fmt($totD ?? 0) ?>\n" +
+                       "💰 *Total Credits:* Rs. <?= fmt($totC ?? 0) ?>\n" +
+                       "⚖️ *Closing Balance:* Rs. <?= fmt(abs($runningBal ?? 0)) ?> (<?= $finalStatus ?? '' ?>)\n" +
+                       <?php else: ?>
+                       "💰 *Total Amount:* Rs. <?= fmt($docData['net_amount'] ?? ($docData['tot_incl'] ?? $totNet ?? 0)) ?>\n" +
+                       <?php endif; ?>
                        "--------------------------------\n" +
                        "👉 *Poora Document dekhne aur PDF download karne ke liye link kholein:*\n" +
                        url;
