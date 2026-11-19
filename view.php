@@ -824,3 +824,4 @@ function fmt($num, $dec = 2) {
     </script>
 </body>
 </html>
+
