@@ -156,6 +156,136 @@ function getItemUnitWeightKg($item) {
     return 0.0;
 }
 
+// Helper: Calculate date boundaries for activity period filters
+function getPeriodBounds($period, $from = null, $to = null) {
+    $today = date('Y-m-d');
+    switch ($period) {
+        case 'yesterday':
+            $y = date('Y-m-d', strtotime('-1 day'));
+            return [$y, $y];
+        case 'this_week':
+            $w = (int)date('w');
+            $daysToMon = ($w === 0) ? 6 : ($w - 1);
+            $mon = date('Y-m-d', strtotime("-$daysToMon days"));
+            return [$mon, $today];
+        case 'this_month':
+            $first = date('Y-m-01');
+            return [$first, $today];
+        case 'last_month':
+            $first = date('Y-m-01', strtotime('first day of last month'));
+            $last = date('Y-m-t', strtotime('last day of last month'));
+            return [$first, $last];
+        case 'this_year':
+            $first = date('Y-01-01');
+            return [$first, $today];
+        case 'all_time':
+            return ['2000-01-01', '2099-12-31'];
+        case 'custom':
+            return [$from ?: $today, $to ?: $today];
+        case 'today':
+        default:
+            return [$today, $today];
+    }
+}
+
+// Helper: Core Activity Metrics (Issued raw material and Produced finished goods)
+function calculateActivityMetrics($pdo, $company_id, $rawFrom, $rawTo, $fgFrom, $fgTo) {
+    $rawIssued = 0.0;
+    $fgProducedKg = 0.0;
+    $fgProducedPcs = 0.0;
+
+    try {
+        $stmt_tables = $pdo->query("SHOW TABLES");
+        $tables = [];
+        while ($row = $stmt_tables->fetch(PDO::FETCH_NUM)) { $tables[] = $row[0]; }
+
+        // Raw Issued via Material Issue Notes
+        if (in_array("material_issue_notes", $tables) && in_array("material_issue_note_items", $tables)) {
+            $sMin = $pdo->prepare("
+                SELECT COALESCE(SUM(mii.qty), 0) 
+                FROM material_issue_note_items mii 
+                JOIN material_issue_notes m ON mii.min_id = m.id 
+                WHERE m.company_id = ? AND m.is_cancelled = 0 AND DATE(m.date) BETWEEN ? AND ?
+            ");
+            $sMin->execute([$company_id, $rawFrom, $rawTo]);
+            $rawIssued += floatval($sMin->fetchColumn() ?: 0);
+        }
+
+        // Raw consumed and Finished Goods produced via Production Notes
+        if (in_array("production_notes", $tables) && in_array("production_note_items", $tables)) {
+            $sPnRaw = $pdo->prepare("
+                SELECT COALESCE(SUM(ABS(pni.qty)), 0) 
+                FROM production_note_items pni 
+                JOIN production_notes p ON pni.pn_id = p.id 
+                WHERE p.company_id = ? AND p.is_cancelled = 0 AND pni.qty < 0 AND DATE(p.date) BETWEEN ? AND ?
+            ");
+            $sPnRaw->execute([$company_id, $rawFrom, $rawTo]);
+            $rawIssued += floatval($sPnRaw->fetchColumn() ?: 0);
+
+            $sPnFg = $pdo->prepare("
+                SELECT pni.qty, pni.pieces, i.unit, i.name as item_name,
+                       COALESCE(i.unit_weight, 0) as unit_weight,
+                       COALESCE(i.qty_per_piece, 0) as qty_per_piece,
+                       COALESCE(i.carton, 0) as carton
+                FROM production_note_items pni 
+                JOIN production_notes p ON pni.pn_id = p.id 
+                JOIN inv_items i ON pni.item_id = i.id
+                WHERE p.company_id = ? AND p.is_cancelled = 0 AND pni.qty > 0 AND DATE(p.date) BETWEEN ? AND ?
+            ");
+            $sPnFg->execute([$company_id, $fgFrom, $fgTo]);
+            $pnFgRows = $sPnFg->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($pnFgRows as $pRow) {
+                $q = floatval($pRow['qty'] ?? 0);
+                $pcs = floatval($pRow['pieces'] ?? 0);
+                $u = strtoupper(trim($pRow['unit'] ?? ''));
+                $uWt = getItemUnitWeightKg($pRow);
+
+                $fgProducedPcs += ($q > 0) ? $q : $pcs;
+                $wKg = $q;
+                if ($u !== 'KG' && $u !== 'KGS') {
+                    $actualPcs = ($q > 0) ? $q : $pcs;
+                    if ($uWt > 0) {
+                        $wKg = $actualPcs * $uWt;
+                    }
+                }
+                $fgProducedKg += $wKg;
+            }
+        }
+    } catch(Exception $e) {}
+
+    return [
+        'issued_kg' => round($rawIssued, 1),
+        'produced_kg' => round($fgProducedKg, 1),
+        'produced_pcs' => round($fgProducedPcs, 0)
+    ];
+}
+
+// 0. QUICK ACTIVITY PERIOD ENDPOINT (Super fast 2ms filter change)
+if ($action === 'get_activity_period') {
+    try {
+        $type = $_GET['type'] ?? 'both';
+        $period = $_GET['period'] ?? 'today';
+        $from = $_GET['from'] ?? null;
+        $to = $_GET['to'] ?? null;
+
+        list($dFrom, $dTo) = getPeriodBounds($period, $from, $to);
+        $res = calculateActivityMetrics($pdo, $company_id, $dFrom, $dTo, $dFrom, $dTo);
+
+        sendResponse([
+            'status' => 'success',
+            'type' => $type,
+            'period' => $period,
+            'from' => $dFrom,
+            'to' => $dTo,
+            'issued_kg' => $res['issued_kg'],
+            'produced_kg' => $res['produced_kg'],
+            'produced_pcs' => $res['produced_pcs']
+        ]);
+    } catch (Exception $e) {
+        sendResponse(['status' => 'error', 'error' => $e->getMessage()]);
+    }
+}
+
 // 1. GET ALERTS (Summary & Alert Items for Main Dashboard)
 if ($action === 'get_alerts') {
     try {
@@ -318,69 +448,16 @@ if ($action === 'get_alerts') {
             return strcasecmp($a['name'], $b['name']);
         });
 
-        // Today's Activity (Issued & Produced)
-        $todayStr = date('Y-m-d');
-        $todayRawIssued = 0.0;
-        $todayFgProducedKg = 0.0;
-        $todayFgProducedPcs = 0.0;
+        // Activity metrics (Issued raw material & Produced finished goods with Period Filter)
+        $rawPeriod = $_GET['raw_period'] ?? 'today';
+        $fgPeriod = $_GET['fg_period'] ?? 'today';
+        list($rawFrom, $rawTo) = getPeriodBounds($rawPeriod, $_GET['raw_from'] ?? null, $_GET['raw_to'] ?? null);
+        list($fgFrom, $fgTo) = getPeriodBounds($fgPeriod, $_GET['fg_from'] ?? null, $_GET['fg_to'] ?? null);
 
-        try {
-            $stmt_tables = $pdo->query("SHOW TABLES");
-            $tables = [];
-            while ($row = $stmt_tables->fetch(PDO::FETCH_NUM)) { $tables[] = $row[0]; }
-
-            // 1. Today Raw Issued
-            if (in_array("material_issue_notes", $tables) && in_array("material_issue_note_items", $tables)) {
-                $sMin = $pdo->prepare("
-                    SELECT COALESCE(SUM(mii.qty), 0) 
-                    FROM material_issue_note_items mii 
-                    JOIN material_issue_notes m ON mii.min_id = m.id 
-                    WHERE m.company_id = ? AND m.is_cancelled = 0 AND DATE(m.date) = ?
-                ");
-                $sMin->execute([$company_id, $todayStr]);
-                $todayRawIssued += floatval($sMin->fetchColumn() ?: 0);
-            }
-            if (in_array("production_notes", $tables) && in_array("production_note_items", $tables)) {
-                $sPnRaw = $pdo->prepare("
-                    SELECT COALESCE(SUM(ABS(pni.qty)), 0) 
-                    FROM production_note_items pni 
-                    JOIN production_notes p ON pni.pn_id = p.id 
-                    WHERE p.company_id = ? AND p.is_cancelled = 0 AND pni.qty < 0 AND DATE(p.date) = ?
-                ");
-                $sPnRaw->execute([$company_id, $todayStr]);
-                $todayRawIssued += floatval($sPnRaw->fetchColumn() ?: 0);
-
-                // 2. Today Finished Goods Produced (Calculated in true KG)
-                $sPnFg = $pdo->prepare("
-                    SELECT pni.qty, pni.pieces, i.unit, i.name as item_name,
-                           COALESCE(i.unit_weight, 0) as unit_weight,
-                           COALESCE(i.qty_per_piece, 0) as qty_per_piece,
-                           COALESCE(i.carton, 0) as carton
-                    FROM production_note_items pni 
-                    JOIN production_notes p ON pni.pn_id = p.id 
-                    JOIN inv_items i ON pni.item_id = i.id
-                    WHERE p.company_id = ? AND p.is_cancelled = 0 AND pni.qty > 0 AND DATE(p.date) = ?
-                ");
-                $sPnFg->execute([$company_id, $todayStr]);
-                $pnFgRows = $sPnFg->fetchAll(PDO::FETCH_ASSOC);
-                foreach ($pnFgRows as $pRow) {
-                    $q = floatval($pRow['qty'] ?? 0);
-                    $pcs = floatval($pRow['pieces'] ?? 0);
-                    $u = strtoupper(trim($pRow['unit'] ?? ''));
-                    $uWt = getItemUnitWeightKg($pRow);
-
-                    $todayFgProducedPcs += ($q > 0) ? $q : $pcs;
-                    $wKg = $q;
-                    if ($u !== 'KG' && $u !== 'KGS') {
-                        $actualPcs = ($q > 0) ? $q : $pcs;
-                        if ($uWt > 0) {
-                            $wKg = $actualPcs * $uWt;
-                        }
-                    }
-                    $todayFgProducedKg += $wKg;
-                }
-            }
-        } catch(Exception $eActs) {}
+        $actMetrics = calculateActivityMetrics($pdo, $company_id, $rawFrom, $rawTo, $fgFrom, $fgTo);
+        $todayRawIssued = $actMetrics['issued_kg'];
+        $todayFgProducedKg = $actMetrics['produced_kg'];
+        $todayFgProducedPcs = $actMetrics['produced_pcs'];
 
         // Sort alert items: Out of Stock first, then lowest balance
         usort($alertItems, function($a, $b) {
@@ -402,7 +479,9 @@ if ($action === 'get_alerts') {
                 'raw_material' => [
                     'total_kg' => round($rawKg, 1),
                     'kg' => round($rawKg, 1),
+                    'issued_kg' => round($todayRawIssued, 1),
                     'today_issued_kg' => round($todayRawIssued, 1),
+                    'period' => $rawPeriod,
                     'valuation' => round($rawValuation, 2),
                     'items' => $rawMaterialItemList
                 ],
@@ -412,9 +491,11 @@ if ($action === 'get_alerts') {
                     'fittings_ctn' => round($fittingsCtn, 0),
                     'fittings_pcs' => round($fittingsPcs, 0),
                     'fittings_kg' => round($fittingsKg, 1),
+                    'produced_kg' => round($todayFgProducedKg, 1),
                     'today_produced' => round($todayFgProducedKg, 1),
                     'today_produced_kg' => round($todayFgProducedKg, 1),
                     'today_produced_pcs' => round($todayFgProducedPcs, 0),
+                    'period' => $fgPeriod,
                     'total_kg' => round($totalFgKg, 1),
                     'total_fg_kg' => round($totalFgKg, 1),
                     'valuation' => round($fgValuation, 2)

@@ -289,8 +289,19 @@
                         <div id="summaryRawItemList" style="max-height: 125px; min-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin: 4px 0; border: 1px solid #f1f5f9; border-radius: 6px; padding: 4px 6px; background: #fafafa;">
                             <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 15px 0;">Loading Raw Materials...</div>
                         </div>
-                        <div class="summary-row" style="font-size: 11px; padding-top: 3px; border-top: 1px dashed #e2e8f0;">
-                            <span>Today Issued:</span>
+                        <div class="summary-row" style="font-size: 11px; padding-top: 3px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: inline-flex; align-items: center; gap: 4px;" onclick="event.stopPropagation();">
+                                <span style="font-weight: 600; color: #475569;">Issued:</span>
+                                <select id="selRawIssuedPeriod" onclick="event.stopPropagation();" onchange="event.stopPropagation(); window.changeActivityPeriod('raw', this.value);" style="font-size: 10px; font-weight: 700; color: #0284c7; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 0 4px; cursor: pointer; outline: none; height: 18px; line-height: 16px;">
+                                    <option value="today">Today</option>
+                                    <option value="yesterday">Yesterday</option>
+                                    <option value="this_week">This Week</option>
+                                    <option value="this_month">This Month</option>
+                                    <option value="last_month">Last Month</option>
+                                    <option value="this_year">This Year</option>
+                                    <option value="all_time">All Time</option>
+                                </select>
+                            </div>
                             <span class="value" id="summaryRawIssuedToday" style="font-weight: 700; color: #0284c7;">0 Kg</span>
                         </div>
                         <div class="summary-row" style="font-size: 11px;">
@@ -306,7 +317,21 @@
                         </div>
                         <div class="summary-row"><span>Pipes Stock:</span> <span class="value" id="summaryFgPipesPcs">0 Kg</span></div>
                         <div class="summary-row"><span>Fittings Stock:</span> <span class="value" id="summaryFgFittingsCtn">0 Kg</span></div>
-                        <div class="summary-row"><span>Today Produced:</span> <span class="value" id="summaryFgProducedToday">0 Kg</span></div>
+                        <div class="summary-row" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: inline-flex; align-items: center; gap: 4px;" onclick="event.stopPropagation();">
+                                <span style="font-weight: 600; color: #475569;">Produced:</span>
+                                <select id="selFgProducedPeriod" onclick="event.stopPropagation();" onchange="event.stopPropagation(); window.changeActivityPeriod('fg', this.value);" style="font-size: 10px; font-weight: 700; color: #0284c7; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 0 4px; cursor: pointer; outline: none; height: 18px; line-height: 16px;">
+                                    <option value="today">Today</option>
+                                    <option value="yesterday">Yesterday</option>
+                                    <option value="this_week">This Week</option>
+                                    <option value="this_month">This Month</option>
+                                    <option value="last_month">Last Month</option>
+                                    <option value="this_year">This Year</option>
+                                    <option value="all_time">All Time</option>
+                                </select>
+                            </div>
+                            <span class="value" id="summaryFgProducedToday">0 Kg</span>
+                        </div>
                         <div class="summary-row"><span>Stock Value:</span> <span class="value money" id="summaryFgValuation">Rs. 0</span></div>
                     </div>
 
@@ -339,8 +364,8 @@
     <script src="assets/js/inventory_reorder_levels.js?v=3"></script>
     <script src="assets/js/inventory_cost_method.js?v=4"></script>
     <script src="assets/js/chart_of_services.js?v=8"></script>
-    <script src="assets/js/dashboard_customizer.js?v=10-fg-kg"></script>
-    <script src="assets/js/app_v2.js?v=v171-fg-kg"></script>
+    <script src="assets/js/dashboard_customizer.js?v=11-period-filter"></script>
+    <script src="assets/js/app_v2.js?v=v172-period-filter"></script>
     <script src="assets/js/voucher_preferences.js?v=1"></script>
     <script src="assets/js/inventory_movement_settings.js?v=3-neg-stock-policy"></script>
     <script src="assets/js/jobs.js?v=6"></script>

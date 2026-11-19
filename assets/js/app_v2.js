@@ -582,11 +582,14 @@ document.addEventListener('click', function(e) {
                     if (typeof window.applyValueColor === 'function') window.applyValueColor(rKg, totKg);
                 }
                 const rIss = document.getElementById('summaryRawIssuedToday');
-                const issKg = (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0));
+                const issKg = (rm.issued_kg !== undefined ? rm.issued_kg : (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0)));
                 if (rIss) {
-                    rIss.textContent = issKg + ' Kg';
+                    rIss.textContent = Number(issKg).toLocaleString('en-US') + ' Kg';
                     if (typeof window.applyValueColor === 'function') window.applyValueColor(rIss, issKg);
                 }
+                const selRaw = document.getElementById('selRawIssuedPeriod');
+                const savedRaw = rm.period || localStorage.getItem('softifyx_raw_period') || 'today';
+                if (selRaw && selRaw.value !== savedRaw) selRaw.value = savedRaw;
                 const rVal = document.getElementById('summaryRawValuation');
                 if (rVal) {
                     rVal.textContent = curr + parseFloat(rm.valuation || 0).toLocaleString('en-US', {
@@ -633,11 +636,14 @@ document.addEventListener('click', function(e) {
                     if (typeof window.applyValueColor === 'function') window.applyValueColor(fgCtn, fKg);
                 }
                 const fgProd = document.getElementById('summaryFgProducedToday');
-                const prKg = fg.today_produced_kg !== undefined ? fg.today_produced_kg : (fg.today_produced || 0);
+                const prKg = (fg.produced_kg !== undefined ? fg.produced_kg : (fg.today_produced_kg !== undefined ? fg.today_produced_kg : (fg.today_produced || 0)));
                 if (fgProd) {
                     fgProd.textContent = Number(prKg).toLocaleString('en-US') + ' Kg';
                     if (typeof window.applyValueColor === 'function') window.applyValueColor(fgProd, prKg);
                 }
+                const selFg = document.getElementById('selFgProducedPeriod');
+                const savedFg = fg.period || localStorage.getItem('softifyx_fg_period') || 'today';
+                if (selFg && selFg.value !== savedFg) selFg.value = savedFg;
                 const fgTot = document.getElementById('summaryFgTotalKg');
                 const tKg = fg.total_fg_kg !== undefined ? fg.total_fg_kg : ((fg.pipes_kg || 0) + (fg.fittings_kg || 0));
                 if (fgTot) {
@@ -719,7 +725,9 @@ document.addEventListener('click', function(e) {
                 }
 
                 // 2. Fresh Fetch from Backend
-                const res = await fetch(`api/items_below_reorder.php?action=get_alerts&company_id=${companyId}&_cb=${Date.now()}`);
+                const rawP = localStorage.getItem('softifyx_raw_period') || 'today';
+                const fgP = localStorage.getItem('softifyx_fg_period') || 'today';
+                const res = await fetch(`api/items_below_reorder.php?action=get_alerts&company_id=${companyId}&raw_period=${rawP}&fg_period=${fgP}&_cb=${Date.now()}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.status === 'success') {

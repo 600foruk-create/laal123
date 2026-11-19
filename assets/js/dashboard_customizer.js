@@ -557,9 +557,11 @@
             if (allowed.includes('raw_material_activity')) {
                 const s = (window._cachedInventoryAlertSummary && window._cachedInventoryAlertSummary.raw_material) || {};
                 const kgText = s.total_kg !== undefined ? (s.total_kg + ' Kg') : (s.kg !== undefined ? (s.kg + ' Kg') : '0 Kg');
-                const issuedText = s.today_issued_kg !== undefined ? (s.today_issued_kg + ' Kg') : (s.today_issued !== undefined ? (s.today_issued + ' Kg') : '0 Kg');
+                const curIssued = s.issued_kg !== undefined ? s.issued_kg : (s.today_issued_kg !== undefined ? s.today_issued_kg : (s.today_issued !== undefined ? s.today_issued : 0));
+                const issuedText = Number(curIssued).toLocaleString('en-US') + ' Kg';
                 const currency = (window.globalCurrencySymbol || 'Rs.') + ' ';
                 const valText = s.valuation !== undefined ? (currency + parseFloat(s.valuation).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : 'Rs. 0';
+                const savedRawPeriod = s.period || localStorage.getItem('softifyx_raw_period') || 'today';
                 
                 let rawListHtml = '';
                 if (s.items && Array.isArray(s.items) && s.items.length > 0) {
@@ -588,8 +590,19 @@
                         <div id="summaryRawItemList" style="max-height: 125px; min-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin: 4px 0; border: 1px solid #f1f5f9; border-radius: 6px; padding: 4px 6px; background: #fafafa;">
                             ${rawListHtml}
                         </div>
-                        <div class="summary-row" style="font-size: 11px; padding-top: 3px; border-top: 1px dashed #e2e8f0;">
-                            <span>Today Issued:</span>
+                        <div class="summary-row" style="font-size: 11px; padding-top: 3px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: inline-flex; align-items: center; gap: 4px;" onclick="event.stopPropagation();">
+                                <span style="font-weight: 600; color: #475569;">Issued:</span>
+                                <select id="selRawIssuedPeriod" onclick="event.stopPropagation();" onchange="event.stopPropagation(); window.changeActivityPeriod('raw', this.value);" style="font-size: 10px; font-weight: 700; color: #0284c7; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 0 4px; cursor: pointer; outline: none; height: 18px; line-height: 16px;">
+                                    <option value="today" ${savedRawPeriod === 'today' ? 'selected' : ''}>Today</option>
+                                    <option value="yesterday" ${savedRawPeriod === 'yesterday' ? 'selected' : ''}>Yesterday</option>
+                                    <option value="this_week" ${savedRawPeriod === 'this_week' ? 'selected' : ''}>This Week</option>
+                                    <option value="this_month" ${savedRawPeriod === 'this_month' ? 'selected' : ''}>This Month</option>
+                                    <option value="last_month" ${savedRawPeriod === 'last_month' ? 'selected' : ''}>Last Month</option>
+                                    <option value="this_year" ${savedRawPeriod === 'this_year' ? 'selected' : ''}>This Year</option>
+                                    <option value="all_time" ${savedRawPeriod === 'all_time' ? 'selected' : ''}>All Time</option>
+                                </select>
+                            </div>
                             <span class="value" id="summaryRawIssuedToday" style="font-weight: 700; color: #0284c7;">${issuedText}</span>
                         </div>
                         <div class="summary-row" style="font-size: 11px;">
@@ -604,10 +617,12 @@
                 const s = (window._cachedInventoryAlertSummary && window._cachedInventoryAlertSummary.finished_goods) || {};
                 const pipesKgText = (s.pipes_kg !== undefined ? Number(s.pipes_kg).toLocaleString('en-US') : (s.pipes_pcs || 0)) + ' Kg';
                 const ctnKgText = (s.fittings_kg !== undefined ? Number(s.fittings_kg).toLocaleString('en-US') : (s.fittings_ctn || 0)) + ' Kg';
-                const prodKgText = (s.today_produced_kg !== undefined ? Number(s.today_produced_kg).toLocaleString('en-US') : (s.today_produced || 0)) + ' Kg';
+                const curProd = s.produced_kg !== undefined ? s.produced_kg : (s.today_produced_kg !== undefined ? s.today_produced_kg : (s.today_produced || 0));
+                const prodKgText = Number(curProd).toLocaleString('en-US') + ' Kg';
                 const totalKgText = (s.total_fg_kg !== undefined ? Number(s.total_fg_kg).toLocaleString('en-US') : ((s.pipes_kg || 0) + (s.fittings_kg || 0))) + ' Kg';
                 const currency = (window.globalCurrencySymbol || 'Rs.') + ' ';
                 const valText = s.valuation !== undefined ? (currency + parseFloat(s.valuation).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : 'Rs. 0';
+                const savedFgPeriod = s.period || localStorage.getItem('softifyx_fg_period') || 'today';
                 html += `
                     <div class="summary-card" id="finishedGoodsCard" data-summary-id="finished_goods_activity" onclick="window.openFinishedGoodsReport()" style="cursor: pointer;" title="Click to view Finished Goods stock ledger">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -616,7 +631,21 @@
                         </div>
                         <div class="summary-row"><span>Pipes Stock:</span> <span class="value" id="summaryFgPipesPcs">${pipesKgText}</span></div>
                         <div class="summary-row"><span>Fittings Stock:</span> <span class="value" id="summaryFgFittingsCtn">${ctnKgText}</span></div>
-                        <div class="summary-row"><span>Today Produced:</span> <span class="value" id="summaryFgProducedToday">${prodKgText}</span></div>
+                        <div class="summary-row" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: inline-flex; align-items: center; gap: 4px;" onclick="event.stopPropagation();">
+                                <span style="font-weight: 600; color: #475569;">Produced:</span>
+                                <select id="selFgProducedPeriod" onclick="event.stopPropagation();" onchange="event.stopPropagation(); window.changeActivityPeriod('fg', this.value);" style="font-size: 10px; font-weight: 700; color: #0284c7; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 0 4px; cursor: pointer; outline: none; height: 18px; line-height: 16px;">
+                                    <option value="today" ${savedFgPeriod === 'today' ? 'selected' : ''}>Today</option>
+                                    <option value="yesterday" ${savedFgPeriod === 'yesterday' ? 'selected' : ''}>Yesterday</option>
+                                    <option value="this_week" ${savedFgPeriod === 'this_week' ? 'selected' : ''}>This Week</option>
+                                    <option value="this_month" ${savedFgPeriod === 'this_month' ? 'selected' : ''}>This Month</option>
+                                    <option value="last_month" ${savedFgPeriod === 'last_month' ? 'selected' : ''}>Last Month</option>
+                                    <option value="this_year" ${savedFgPeriod === 'this_year' ? 'selected' : ''}>This Year</option>
+                                    <option value="all_time" ${savedFgPeriod === 'all_time' ? 'selected' : ''}>All Time</option>
+                                </select>
+                            </div>
+                            <span class="value" id="summaryFgProducedToday">${prodKgText}</span>
+                        </div>
                         <div class="summary-row"><span>Stock Value:</span> <span class="value money" id="summaryFgValuation">${valText}</span></div>
                     </div>
                 `;
@@ -790,10 +819,12 @@
                     }
                     const rIss = document.getElementById('summaryRawIssuedToday');
                     if (rIss) {
-                        const issKg = (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0));
-                        rIss.textContent = issKg + ' Kg';
+                        const issKg = (rm.issued_kg !== undefined ? rm.issued_kg : (rm.today_issued_kg !== undefined ? rm.today_issued_kg : (rm.today_issued || 0)));
+                        rIss.textContent = Number(issKg).toLocaleString('en-US') + ' Kg';
                         if (typeof window.applyValueColor === 'function') window.applyValueColor(rIss, issKg);
                     }
+                    const selRaw = document.getElementById('selRawIssuedPeriod');
+                    if (selRaw && rm.period) selRaw.value = rm.period;
                     const rVal = document.getElementById('summaryRawValuation');
                     if (rVal) {
                         const rmVal = rm.valuation || 0;
@@ -839,11 +870,13 @@
                         if (typeof window.applyValueColor === 'function') window.applyValueColor(fgCtn, fKg);
                     }
                     const fgProd = document.getElementById('summaryFgProducedToday');
-                    const prKg = fg.today_produced_kg !== undefined ? fg.today_produced_kg : (fg.today_produced || 0);
                     if (fgProd) {
+                        const prKg = (fg.produced_kg !== undefined ? fg.produced_kg : (fg.today_produced_kg !== undefined ? fg.today_produced_kg : (fg.today_produced || 0)));
                         fgProd.textContent = Number(prKg).toLocaleString('en-US') + ' Kg';
                         if (typeof window.applyValueColor === 'function') window.applyValueColor(fgProd, prKg);
                     }
+                    const selFg = document.getElementById('selFgProducedPeriod');
+                    if (selFg && fg.period) selFg.value = fg.period;
                     const fgTot = document.getElementById('summaryFgTotalKg');
                     const tKg = fg.total_fg_kg !== undefined ? fg.total_fg_kg : ((fg.pipes_kg || 0) + (fg.fittings_kg || 0));
                     if (fgTot) {
@@ -1117,6 +1150,65 @@
             this.getConfig();
             this.applyAll();
             this.fetchConfigFromDB();
+        }
+    };
+
+    window.changeActivityPeriod = async function(type, period) {
+        try {
+            const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const companyId = session.company_id || 1;
+
+            if (type === 'raw') {
+                localStorage.setItem('softifyx_raw_period', period);
+                const valEl = document.getElementById('summaryRawIssuedToday');
+                if (valEl) valEl.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:10px;"></i>';
+            } else if (type === 'fg') {
+                localStorage.setItem('softifyx_fg_period', period);
+                const valEl = document.getElementById('summaryFgProducedToday');
+                if (valEl) valEl.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:10px;"></i>';
+            }
+
+            const res = await fetch(`api/items_below_reorder.php?action=get_activity_period&type=${type}&period=${period}&company_id=${companyId}&_cb=${Date.now()}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.status === 'success') {
+                    if (type === 'raw' || type === 'both') {
+                        const issKg = data.issued_kg !== undefined ? data.issued_kg : 0;
+                        const valEl = document.getElementById('summaryRawIssuedToday');
+                        if (valEl) {
+                            valEl.textContent = Number(issKg).toLocaleString('en-US') + ' Kg';
+                            if (typeof window.applyValueColor === 'function') window.applyValueColor(valEl, issKg);
+                        }
+                        if (window._cachedInventoryAlertSummary && window._cachedInventoryAlertSummary.raw_material) {
+                            window._cachedInventoryAlertSummary.raw_material.issued_kg = issKg;
+                            window._cachedInventoryAlertSummary.raw_material.today_issued_kg = issKg;
+                            window._cachedInventoryAlertSummary.raw_material.period = period;
+                        }
+                    }
+                    if (type === 'fg' || type === 'both') {
+                        const prodKg = data.produced_kg !== undefined ? data.produced_kg : 0;
+                        const valEl = document.getElementById('summaryFgProducedToday');
+                        if (valEl) {
+                            valEl.textContent = Number(prodKg).toLocaleString('en-US') + ' Kg';
+                            if (typeof window.applyValueColor === 'function') window.applyValueColor(valEl, prodKg);
+                        }
+                        if (window._cachedInventoryAlertSummary && window._cachedInventoryAlertSummary.finished_goods) {
+                            window._cachedInventoryAlertSummary.finished_goods.produced_kg = prodKg;
+                            window._cachedInventoryAlertSummary.finished_goods.today_produced_kg = prodKg;
+                            window._cachedInventoryAlertSummary.finished_goods.period = period;
+                        }
+                    }
+                    try {
+                        localStorage.setItem(`softifyx_cached_inv_alerts_${companyId}`, JSON.stringify({
+                            status: 'success',
+                            summary: window._cachedInventoryAlertSummary,
+                            items: window._inventoryAlertItems || []
+                        }));
+                    } catch(e) {}
+                }
+            }
+        } catch(err) {
+            console.error('changeActivityPeriod error:', err);
         }
     };
 
