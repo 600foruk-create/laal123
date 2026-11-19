@@ -50,6 +50,54 @@ try { $pdo->exec("ALTER TABLE inv_items ADD COLUMN unit VARCHAR(50) DEFAULT 'Pcs
 try { $pdo->exec("ALTER TABLE inv_items ADD COLUMN qty_per_piece DECIMAL(15,2) DEFAULT 0"); } catch (Exception $e) {}
 
 switch ($action) {
+    case 'check_stock':
+        $item_ids = $_GET['item_ids'] ?? ($_POST['item_ids'] ?? '');
+        $loc_id = intval($_GET['location_id'] ?? 0);
+        $exclude_min_id = intval($_GET['exclude_min_id'] ?? 0);
+        $exclude_si_id = intval($_GET['exclude_si_id'] ?? 0);
+        if (!$item_ids) {
+            sendResponse(['status' => 'success', 'stock' => []]);
+            exit;
+        }
+
+        $clean_ids = array_filter(array_map('intval', explode(',', $item_ids)));
+        if (empty($clean_ids)) {
+            sendResponse(['status' => 'success', 'stock' => []]);
+            exit;
+        }
+        $id_list = implode(',', $clean_ids);
+
+        $locCond = function($col) use ($loc_id) {
+            return $loc_id ? " AND $col = $loc_id" : "";
+        };
+
+        $minCond = $exclude_min_id ? " AND m.id != $exclude_min_id" : "";
+        $siCond = $exclude_si_id ? " AND si.id != $exclude_si_id" : "";
+
+        $q = [];
+        $q[] = "SELECT item_id, pieces, quantity as qty FROM inv_opening_balances WHERE company_id = $company_id AND item_id IN ($id_list)" . $locCond('location_id');
+        $q[] = "SELECT pii.item_coa_id as item_id, pii.pieces, pii.quantity as qty FROM purchase_invoice_items pii JOIN purchase_invoices pi ON pii.invoice_id = pi.id WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.is_posted = 1 AND pii.item_coa_id IN ($id_list)" . $locCond('pi.inventory_location_id');
+        $q[] = "SELECT sri.item_coa_id as item_id, sri.pieces, sri.quantity as qty FROM sale_return_items sri JOIN sale_returns sr ON sri.return_id = sr.id WHERE sr.company_id = $company_id AND sr.is_cancelled = 0 AND sr.is_posted = 1 AND sri.item_coa_id IN ($id_list)" . $locCond('sr.inventory_location_id');
+        $q[] = "SELECT sii.item_coa_id as item_id, -sii.pieces as pieces, -sii.quantity as qty FROM sale_invoice_items sii JOIN sale_invoices si ON sii.invoice_id = si.id WHERE si.company_id = $company_id AND si.is_cancelled = 0 AND si.is_posted = 1 AND sii.item_coa_id IN ($id_list) $siCond" . $locCond('si.inventory_location_id');
+        $q[] = "SELECT pri.item_coa_id as item_id, -pri.pieces as pieces, -pri.quantity as qty FROM purchase_return_items pri JOIN purchase_returns pr ON pri.return_id = pr.id WHERE pr.company_id = $company_id AND pr.is_cancelled = 0 AND pr.is_posted = 1 AND pri.item_coa_id IN ($id_list)" . $locCond('pr.inventory_location_id');
+        $q[] = "SELECT ai.item_id, ai.pieces, ai.qty as qty FROM add_inventory_adjustment_items ai JOIN add_inventory_adjustments a ON ai.adjustment_id = a.id WHERE a.company_id = $company_id AND a.is_cancelled = 0 AND ai.item_id IN ($id_list)" . $locCond('a.inventory_location_id');
+        $q[] = "SELECT ri.item_id, -ri.pieces as pieces, -ri.qty as qty FROM reduce_inventory_adjustment_items ri JOIN reduce_inventory_adjustments r ON ri.adjustment_id = r.id WHERE r.company_id = $company_id AND r.is_cancelled = 0 AND ri.item_id IN ($id_list)" . $locCond('r.inventory_location_id');
+        $q[] = "SELECT pp.item_id, pp.pieces, pp.qty as qty FROM production_note_items pp JOIN production_notes p ON pp.pn_id = p.id WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND pp.item_id IN ($id_list)" . $locCond('p.inventory_location_id');
+        $q[] = "SELECT mii.item_id, -mii.pieces as pieces, -mii.qty as qty FROM material_issue_note_items mii JOIN material_issue_notes m ON mii.min_id = m.id WHERE m.company_id = $company_id AND m.is_cancelled = 0 AND m.is_posted = 1 AND mii.item_id IN ($id_list) $minCond" . $locCond('m.inventory_location_id');
+
+        $union = implode(" UNION ALL ", $q);
+        $res = $pdo->query("SELECT item_id, COALESCE(SUM(pieces), 0) as stock_pcs, COALESCE(SUM(qty), 0) as stock_qty FROM ($union) as t GROUP BY item_id")->fetchAll(PDO::FETCH_ASSOC);
+
+        $stockMap = [];
+        foreach ($res as $r) {
+            $stockMap[$r['item_id']] = [
+                'pcs' => floatval($r['stock_pcs']),
+                'qty' => floatval($r['stock_qty'])
+            ];
+        }
+        sendResponse(['status' => 'success', 'stock' => $stockMap]);
+        break;
+
     case 'search_mins':
         $stmt = $pdo->prepare("
             SELECT m1.id, m1.serial_no, m1.date, m1.requisition_no, m1.is_cancelled, m1.is_posted, m1.created_at

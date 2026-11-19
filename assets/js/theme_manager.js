@@ -1365,14 +1365,15 @@
             }
 
             // 4. Fetch latest verified settings from API with cache-busting
-            const [rFbr, rPos, rFbrInteg, rSaleInv] = await Promise.all([
+            const [rFbr, rPos, rFbrInteg, rSaleInv, rNeg] = await Promise.all([
                 fetch(`api/settings.php?action=get_setting&key=module_fbr_enabled&company_id=${companyId}&_t=${Date.now()}`),
                 fetch(`api/settings.php?action=get_setting&key=module_pos_enabled&company_id=${companyId}&_t=${Date.now()}`),
                 fetch(`api/settings.php?action=get_setting&key=fbr_allow_integration_settings&company_id=${companyId}&_t=${Date.now()}`),
-                fetch(`api/settings.php?action=get_setting&key=default_sale_invoice&company_id=${companyId}&_t=${Date.now()}`)
+                fetch(`api/settings.php?action=get_setting&key=default_sale_invoice&company_id=${companyId}&_t=${Date.now()}`),
+                fetch(`api/settings.php?action=get_setting&key=negative_stock_policy&company_id=${companyId}&_t=${Date.now()}`).catch(() => null)
             ]);
 
-            if (rFbr.ok) {
+            if (rFbr && rFbr.ok) {
                 const dFbr = await rFbr.json();
                 if (dFbr && dFbr.value !== null && dFbr.value !== undefined) {
                     const val = String(dFbr.value);
@@ -1381,7 +1382,7 @@
                     if (m) m.style.display = (val === '1') ? 'inline-block' : 'none';
                 }
             }
-            if (rPos.ok) {
+            if (rPos && rPos.ok) {
                 const dPos = await rPos.json();
                 if (dPos && dPos.value !== null && dPos.value !== undefined) {
                     const val = String(dPos.value);
@@ -1390,7 +1391,7 @@
                     if (m) m.style.display = (isPosRole || val === '1') ? 'inline-block' : 'none';
                 }
             }
-            if (rFbrInteg.ok) {
+            if (rFbrInteg && rFbrInteg.ok) {
                 const dInteg = await rFbrInteg.json();
                 if (dInteg && dInteg.value !== null && dInteg.value !== undefined) {
                     const val = String(dInteg.value);
@@ -1403,6 +1404,12 @@
                 const dSaleInv = await rSaleInv.json();
                 if (dSaleInv && dSaleInv.value) {
                     localStorage.setItem('default_sale_invoice', dSaleInv.value);
+                }
+            }
+            if (rNeg && rNeg.ok) {
+                const dNeg = await rNeg.json().catch(() => null);
+                if (dNeg && dNeg.value) {
+                    localStorage.setItem('softifyx_negative_stock_policy', dNeg.value);
                 }
             }
         } catch(e) {
@@ -2081,6 +2088,15 @@
                 body: JSON.stringify({ key: 'default_min_mode', value: defaultMinMode })
             });
 
+            // Save Negative Stock Control Policy
+            const negPolicy = document.querySelector('input[name="sys_negative_stock_policy"]:checked')?.value || 'allow';
+            localStorage.setItem('softifyx_negative_stock_policy', negPolicy);
+            await fetch('api/settings.php?action=save_setting&company_id=' + companyId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'negative_stock_policy', value: negPolicy })
+            });
+
             // Save Security & Modules
             await fetch('api/settings.php?action=save_global_setting', {
                 method: 'POST',
@@ -2414,6 +2430,17 @@
             const dataMin = await resMin.json();
             const defaultMinMode = document.getElementById('setting_default_min_mode');
             if (defaultMinMode && dataMin.value) defaultMinMode.value = dataMin.value;
+
+            // Load Negative Stock Control Policy
+            const resNeg = await fetch('api/settings.php?action=get_setting&key=negative_stock_policy&company_id=' + companyId + '&_t=' + Date.now()).catch(() => null);
+            let negVal = localStorage.getItem('softifyx_negative_stock_policy') || 'allow';
+            if (resNeg && resNeg.ok) {
+                const dataNeg = await resNeg.json().catch(() => null);
+                if (dataNeg && dataNeg.value) negVal = dataNeg.value;
+            }
+            localStorage.setItem('softifyx_negative_stock_policy', negVal);
+            const rNeg = document.querySelector(`input[name="sys_negative_stock_policy"][value="${negVal}"]`);
+            if (rNeg) rNeg.checked = true;
 
             // Load Sale Invoice Category Headers display setting
             const resCatH = await fetch('api/settings.php?action=get_setting&key=sale_invoice_show_category_headers&company_id=' + companyId + '&_t=' + Date.now()).catch(() => null);

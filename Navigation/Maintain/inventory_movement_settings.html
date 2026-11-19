@@ -40,6 +40,36 @@
         </div>
     </div>
 
+    <!-- Negative Stock Control Policy -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 11px; font-weight: 800; color: #1e3a8a; text-transform: uppercase;">
+            <i class="fas fa-shield-alt" style="color: #ea580c; margin-right: 4px;"></i> Negative Stock Control Policy (Inventory Safety)
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 15px 20px; background: white;">
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: #475569;">
+                <input type="radio" name="negativeStockPolicy" value="allow" checked style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px;">
+                <div>
+                    <span style="font-weight: 700; color: #1e293b;">Allow (Disabled / No Warning)</span>
+                    <div style="font-size: 11px; font-weight: normal; color: #64748b; margin-top: 2px;">Stock negative hone par koi alert nahi aayega, entries baghair kisi rukawat ke save hongi.</div>
+                </div>
+            </label>
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: #475569;">
+                <input type="radio" name="negativeStockPolicy" value="warn" style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px;">
+                <div>
+                    <span style="font-weight: 700; color: #d97706;"><i class="fas fa-exclamation-triangle" style="margin-right: 4px;"></i> Warning Alert (Recommended / Enabled)</span>
+                    <div style="font-size: 11px; font-weight: normal; color: #64748b; margin-top: 2px;">Jab stock 0 ya kam ho, to pop-up warning alert show hoga. Operator 'Yes' karke emergency me save kar sakta hai.</div>
+                </div>
+            </label>
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: #475569;">
+                <input type="radio" name="negativeStockPolicy" value="block" style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px;">
+                <div>
+                    <span style="font-weight: 700; color: #dc2626;"><i class="fas fa-ban" style="margin-right: 4px;"></i> Strict Block (Sakht Rok)</span>
+                    <div style="font-size: 11px; font-weight: normal; color: #64748b; margin-top: 2px;">Agar stock kam ya negative ho raha ho to save hi nahi karne dega jab tak pehle purchase bill ya stock add na ho.</div>
+                </div>
+            </label>
+        </div>
+    </div>
+
     <style>
         .inv-pref-btn {
             background: #ffffff;

@@ -2949,6 +2949,62 @@ window.SIModule = {
         //     return false;
         // }
 
+        // Negative Stock Policy Check
+        const negPolicy = localStorage.getItem('softifyx_negative_stock_policy') || 'allow';
+        if (negPolicy !== 'allow' && !payload.is_cancelled && payload.items && payload.items.length > 0) {
+            try {
+                const itemIds = [...new Set(payload.items.map(it => it.item_coa_id).filter(Boolean))];
+                if (itemIds.length > 0) {
+                    const excludeSiId = this.currentId || 0;
+                    const stockRes = await fetch(`api/inventory.php?action=check_stock&item_ids=${itemIds.join(',')}&exclude_si_id=${excludeSiId}&company_id=${session.company_id || 1}&_t=${Date.now()}`);
+                    if (stockRes.ok) {
+                        const stockData = await stockRes.json();
+                        if (stockData && stockData.stock) {
+                            const reqTotals = {};
+                            payload.items.forEach(it => {
+                                if (!reqTotals[it.item_coa_id]) {
+                                    reqTotals[it.item_coa_id] = { qty: 0, pieces: 0, name: it.description || ('Item #' + it.item_coa_id) };
+                                }
+                                reqTotals[it.item_coa_id].qty += (parseFloat(it.quantity) || 0);
+                                reqTotals[it.item_coa_id].pieces += (parseFloat(it.pieces) || 0);
+                            });
+
+                            const deficitItems = [];
+                            for (const id of Object.keys(reqTotals)) {
+                                const stockInfo = stockData.stock[id] || { pcs: 0, qty: 0 };
+                                const reqQty = reqTotals[id].qty;
+                                const reqPcs = reqTotals[id].pieces;
+                                const availQty = stockInfo.qty;
+                                const availPcs = stockInfo.pcs;
+
+                                if (reqQty > 0 && reqQty > availQty) {
+                                    const short = (reqQty - availQty).toFixed(2);
+                                    deficitItems.push(`• ${reqTotals[id].name}: Available = ${availQty.toFixed(2)}, Invoice Qty = ${reqQty.toFixed(2)} (Deficit: ${short})`);
+                                } else if (reqPcs > 0 && reqPcs > availPcs && reqQty <= 0) {
+                                    const short = (reqPcs - availPcs).toFixed(2);
+                                    deficitItems.push(`• ${reqTotals[id].name}: Available Pcs = ${availPcs.toFixed(2)}, Invoice Pcs = ${reqPcs.toFixed(2)} (Deficit: ${short})`);
+                                }
+                            }
+
+                            if (deficitItems.length > 0) {
+                                if (negPolicy === 'block') {
+                                    alert("🛑 STRICT BLOCK (Negative Stock Policy):\n\nStock kam honay ki wajah se yeh Sale Invoice save nahi ho sakti!\n\n" + deficitItems.join("\n") + "\n\nBarah-e-karam pehle stock produce/purchase karein ya System Settings me policy allow/warn par tabdeel karein.");
+                                    return false;
+                                } else if (negPolicy === 'warn') {
+                                    const proceed = confirm("⚠️ INVENTORY STOCK WARNING ALERT:\n\nDarj zail items ka stock dastiyab miqdar se kam hai:\n\n" + deficitItems.join("\n") + "\n\nKia aap phir bhi is Sale Invoice ko save karna chahtay hain?");
+                                    if (!proceed) {
+                                        return false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch(chkErr) {
+                console.warn("Negative stock pre-check warning:", chkErr);
+            }
+        }
+
         try {
             const res = await fetch(`api/sale_invoice.php?action=save_invoice&company_id=${session.company_id || 1}`, {
                 method: 'POST',

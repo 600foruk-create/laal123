@@ -880,6 +880,57 @@
 
             if (data.items.length === 0) { alert("Please add at least one item row to save."); return false; }
 
+            // Negative Stock Policy Check
+            const negPolicy = localStorage.getItem('softifyx_negative_stock_policy') || 'allow';
+            if (negPolicy !== 'allow' && !data.is_cancelled) {
+                try {
+                    const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                    const companyId = session.company_id || 1;
+                    const itemIds = [...new Set(data.items.map(it => it.item_id).filter(Boolean))];
+                    if (itemIds.length > 0) {
+                        const excludeId = this.data.currentId || 0;
+                        const stockRes = await fetch(`api/inventory.php?action=check_stock&item_ids=${itemIds.join(',')}&exclude_min_id=${excludeId}&company_id=${companyId}&_t=${Date.now()}`);
+                        if (stockRes.ok) {
+                            const stockData = await stockRes.json();
+                            if (stockData && stockData.stock) {
+                                const reqTotals = {};
+                                data.items.forEach(it => {
+                                    if (!reqTotals[it.item_id]) {
+                                        reqTotals[it.item_id] = { qty: 0, pieces: 0, name: it.description || ('Item #' + it.item_id) };
+                                    }
+                                    reqTotals[it.item_id].qty += (parseFloat(it.qty) || 0);
+                                    reqTotals[it.item_id].pieces += (parseFloat(it.pieces) || 0);
+                                });
+
+                                const deficitItems = [];
+                                for (const id of Object.keys(reqTotals)) {
+                                    const available = stockData.stock[id] ? stockData.stock[id].qty : 0;
+                                    const required = reqTotals[id].qty;
+                                    if (required > available) {
+                                        const short = (required - available).toFixed(2);
+                                        deficitItems.push(`• ${reqTotals[id].name}: Available = ${available.toFixed(2)}, Required = ${required.toFixed(2)} (Deficit: ${short})`);
+                                    }
+                                }
+
+                                if (deficitItems.length > 0) {
+                                    if (negPolicy === 'block') {
+                                        alert("🛑 STRICT BLOCK (Negative Stock Policy):\n\nStock kam honay ki wajah se yeh Material Issue Note save nahi ho sakta!\n\n" + deficitItems.join("\n") + "\n\nBarah-e-karam pehle stock purchase/adjust karein ya System Settings me policy tabdeel karein.");
+                                        return false;
+                                    } else if (negPolicy === 'warn') {
+                                        const proceed = confirm("⚠️ INVENTORY STOCK WARNING ALERT:\n\nDarj zail raw materials ka stock dastiyab miqdar se kam hai:\n\n" + deficitItems.join("\n") + "\n\nKia aap phir bhi is Material Issue Note ko save karna chahtay hain?");
+                                        if (!proceed) {
+                                            return false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch(chkErr) {
+                    console.warn("Negative stock pre-check warning:", chkErr);
+                }
+            }
+
             try {
                 const res = await fetch('api/material_issue_notes.php?action=save', {
                     method: 'POST',
