@@ -1734,6 +1734,10 @@ window.SaleOrderModule = {
         const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
         const coName = session.company_name || 'SEASTONE PLASTIC INDUSTRIES';
 
+        const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+        const coId = session.company_id || 1;
+        const viewUrl = `${baseUrl}view.php?so=${sn}&co=${coId}`;
+
         const msg = `*${coName.toUpperCase()}*\n` +
                     `*SALE ORDER # ${sn}*\n` +
                     `--------------------------------\n` +
@@ -1742,6 +1746,9 @@ window.SaleOrderModule = {
                     `👤 *Customer:* ${vName}\n` +
                     `💰 *Total Amount:* Rs. ${totIncl}\n` +
                     `${delDate ? `🚚 *Delivery Date:* ${delDate}\n` : ''}` +
+                    `--------------------------------\n` +
+                    `👉 *Poora Order dekhne aur PDF download karne ke liye link kholein:*\n` +
+                    `🌐 ${viewUrl}\n` +
                     `--------------------------------\n` +
                     `Thank you for your order!`;
 
@@ -2101,6 +2108,8 @@ window.SaleOrderModule = {
                             }
                         }
 
+                        var viewUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'view.php?so=${sn}&co=${session.company_id || 1}';
+
                         var msg = "*${coName.toUpperCase()}*\\n" +
                                   "*SALE ORDER # ${sn}*\\n" +
                                   "--------------------------------\\n" +
@@ -2110,7 +2119,9 @@ window.SaleOrderModule = {
                                   "💰 *Total Amount:* Rs. ${totIncl}\\n" +
                                   "${delDate ? `🚚 *Delivery Date:* ${delDate}\\n` : ''}" +
                                   "--------------------------------\\n" +
-                                  "📎 *Sale Order PDF file is attached below.*\\n" +
+                                  "👉 *Poora Order dekhne aur PDF download karne ke liye link kholein:*\\n" +
+                                  "🌐 " + viewUrl + "\\n" +
+                                  "--------------------------------\\n" +
                                   "Thank you for your business!";
 
                         var appUrl = phone ? "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(msg) : "whatsapp://send?text=" + encodeURIComponent(msg);

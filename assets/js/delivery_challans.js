@@ -1772,6 +1772,10 @@
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             const coName = session.company_name || 'SEASTONE PLASTIC INDUSTRIES';
 
+            const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+            const coId = session.company_id || 1;
+            const viewUrl = `${baseUrl}view.php?dc=${sn}&co=${coId}`;
+
             const msg = `*${coName.toUpperCase()}*\n` +
                         `*DELIVERY CHALLAN # ${sn}*\n` +
                         `--------------------------------\n` +
@@ -1779,6 +1783,9 @@
                         `📅 *Date:* ${date}\n` +
                         `👤 *Customer:* ${custName}\n` +
                         `📦 *Total Quantity:* ${totQty}\n` +
+                        `--------------------------------\n` +
+                        `👉 *Poora Challan dekhne aur PDF download karne ke liye link kholein:*\n` +
+                        `🌐 ${viewUrl}\n` +
                         `--------------------------------\n` +
                         `Thank you for your business!`;
 
@@ -2291,6 +2298,8 @@
                                     }
                                 }
 
+                                var viewUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'view.php?dc=${sn}&co=${session.company_id || 1}';
+
                                 var msg = "*${coName.toUpperCase()}*\\n" +
                                           "*DELIVERY CHALLAN # ${sn}*\\n" +
                                           "--------------------------------\\n" +
@@ -2299,7 +2308,9 @@
                                           "👤 *Customer:* ${(custName || '').replace(/"/g, '')}\\n" +
                                           "📦 *Total Quantity:* ${totQty.toFixed(2)}\\n" +
                                           "--------------------------------\\n" +
-                                          "📎 *Delivery Challan PDF file is attached below.*\\n" +
+                                          "👉 *Poora Challan dekhne aur PDF download karne ke liye link kholein:*\\n" +
+                                          "🌐 " + viewUrl + "\\n" +
+                                          "--------------------------------\\n" +
                                           "Thank you for your business!";
 
                                 var appUrl = phone ? "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(msg) : "whatsapp://send?text=" + encodeURIComponent(msg);

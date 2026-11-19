@@ -1387,6 +1387,10 @@
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             const coName = session.company_name || 'SEASTONE PLASTIC INDUSTRIES';
 
+            const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+            const coId = session.company_id || 1;
+            const viewUrl = `${baseUrl}view.php?quot=${sn}&co=${coId}`;
+
             const msg = `*${coName.toUpperCase()}*\n` +
                         `*QUOTATION # ${sn}*\n` +
                         `--------------------------------\n` +
@@ -1395,6 +1399,9 @@
                         `👤 *Customer:* ${cName}\n` +
                         `💰 *Total Value:* Rs. ${totNet}\n` +
                         `${validTill ? `⏳ *Valid Till:* ${validTill}\n` : ''}` +
+                        `--------------------------------\n` +
+                        `👉 *Poori Quotation dekhne aur PDF download karne ke liye link kholein:*\n` +
+                        `🌐 ${viewUrl}\n` +
                         `--------------------------------\n` +
                         `Thank you for your business!`;
 
@@ -1756,6 +1763,8 @@
                                 }
                             }
 
+                            var viewUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'view.php?quot=${sn}&co=${session.company_id || 1}';
+
                             var msg = "*${coName.toUpperCase()}*\\n" +
                                       "*QUOTATION # ${sn}*\\n" +
                                       "--------------------------------\\n" +
@@ -1765,7 +1774,9 @@
                                       "💰 *Total Value:* Rs. ${totNet}\\n" +
                                       "${validTill ? `⏳ *Valid Till:* ${validTill}\\n` : ''}" +
                                       "--------------------------------\\n" +
-                                      "📎 *Quotation PDF file is attached below.*\\n" +
+                                      "👉 *Poori Quotation dekhne aur PDF download karne ke liye link kholein:*\\n" +
+                                      "🌐 " + viewUrl + "\\n" +
+                                      "--------------------------------\\n" +
                                       "Thank you for your business!";
 
                             var appUrl = phone ? "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(msg) : "whatsapp://send?text=" + encodeURIComponent(msg);

@@ -3437,6 +3437,12 @@ window.SIModule = {
             msg += `📊 *Total Ledger Balance:* Rs. ${custBalance}\n`;
         }
         msg += `--------------------------------\n`;
+        const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+        const coId = (JSON.parse(localStorage.getItem('softifyx_session') || '{}')).company_id || 1;
+        const viewUrl = `${baseUrl}view.php?inv=${serialNo}&co=${coId}`;
+        msg += `👉 *Pura Invoice dekhne aur PDF download karne ke liye link kholein:*\n`;
+        msg += `🌐 ${viewUrl}\n`;
+        msg += `--------------------------------\n`;
         msg += `Thank you for your business!`;
         return msg;
     },
@@ -4685,6 +4691,8 @@ window.SIModule = {
                                 }
                             }
 
+                            var viewUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'view.php?inv=${sn}&co=${coId}';
+
                             var msg = "*${coName.toUpperCase()}*\\n" +
                                       "*TAX INVOICE # ${sn}*\\n" +
                                       "--------------------------------\\n" +
@@ -4695,7 +4703,9 @@ window.SIModule = {
                                       "${invoiceBalance > 0 ? `⚖️ *Invoice Balance:* Rs. ${formatAmt(invoiceBalance)}\\n` : ''}" +
                                       "${currentBalance ? `📊 *Ledger Balance:* Rs. ${formatBal(currentBalance)}\\n` : ''}" +
                                       "--------------------------------\\n" +
-                                      "📎 *Tax Invoice PDF file is attached below.*\\n" +
+                                      "👉 *Pura Invoice dekhne aur PDF download karne ke liye link kholein:*\\n" +
+                                      "🌐 " + viewUrl + "\\n" +
+                                      "--------------------------------\\n" +
                                       "Thank you for your business!";
 
                             var appUrl = phone ? "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(msg) : "whatsapp://send?text=" + encodeURIComponent(msg);
