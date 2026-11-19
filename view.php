@@ -13,7 +13,13 @@ elseif (isset($_GET['quot'])) { $type = 'quotation'; $id = $_GET['quot']; }
 elseif (isset($_GET['so'])) { $type = 'order'; $id = $_GET['so']; }
 elseif (isset($_GET['dc'])) { $type = 'challan'; $id = $_GET['dc']; }
 elseif (isset($_GET['ledger'])) { $type = 'ledger'; $id = $_GET['ledger']; }
+elseif (isset($_GET['cr'])) { $type = 'cash_receipt'; $id = $_GET['cr']; }
+elseif (isset($_GET['br'])) { $type = 'bank_receipt'; $id = $_GET['br']; }
+elseif (isset($_GET['receipt'])) { $type = 'receipt'; $id = $_GET['receipt']; }
 else { $id = $_GET['id'] ?? ''; }
+
+if ($type === 'cr') $type = 'cash_receipt';
+if ($type === 'br') $type = 'bank_receipt';
 
 if (!$type) $type = 'invoice';
 
@@ -40,6 +46,25 @@ $errorMsg = '';
 // Helper formatters
 function fmt($num, $dec = 2) {
     return number_format((float)($num ?: 0), $dec, '.', ',');
+}
+
+function numberToWords($number) {
+    $number = (int)abs($number);
+    if ($number === 0) return 'Zero';
+    $words = [
+        0 => '', 1 => 'One', 2 => 'Two', 3 => 'Three', 4 => 'Four', 5 => 'Five',
+        6 => 'Six', 7 => 'Seven', 8 => 'Eight', 9 => 'Nine', 10 => 'Ten',
+        11 => 'Eleven', 12 => 'Twelve', 13 => 'Thirteen', 14 => 'Fourteen', 15 => 'Fifteen',
+        16 => 'Sixteen', 17 => 'Seventeen', 18 => 'Eighteen', 19 => 'Nineteen', 20 => 'Twenty',
+        30 => 'Thirty', 40 => 'Forty', 50 => 'Fifty', 60 => 'Sixty', 70 => 'Seventy',
+        80 => 'Eighty', 90 => 'Ninety'
+    ];
+    if ($number < 20) return $words[$number];
+    if ($number < 100) return $words[10 * floor($number / 10)] . ($number % 10 ? ' ' . $words[$number % 10] : '');
+    if ($number < 1000) return $words[floor($number / 100)] . ' Hundred' . ($number % 100 ? ' and ' . numberToWords($number % 100) : '');
+    if ($number < 100000) return numberToWords(floor($number / 1000)) . ' Thousand' . ($number % 1000 ? ' ' . numberToWords($number % 1000) : '');
+    if ($number < 10000000) return numberToWords(floor($number / 100000)) . ' Lakh' . ($number % 100000 ? ' ' . numberToWords($number % 100000) : '');
+    return numberToWords(floor($number / 10000000)) . ' Crore' . ($number % 10000000 ? ' ' . numberToWords($number % 10000000) : '');
 }
 
 // ==========================================
@@ -250,9 +275,14 @@ elseif ($type === 'ledger') {
         $toDate = $_GET['to'] ?? '';
 
         $stmt = $pdo->prepare("
-            SELECT cl.id, cl.code, cl.name, c.address, c.telephone, c.ntn_cnic, c.st_reg_no 
+            SELECT cl.id, cl.code, cl.name, 
+                   COALESCE(c.address, v.address, '') as address, 
+                   COALESCE(c.telephone, v.telephone, '') as telephone, 
+                   COALESCE(c.ntn_cnic, v.ntn_cnic, '') as ntn_cnic, 
+                   COALESCE(c.st_reg_no, v.strn, '') as st_reg_no 
             FROM coa_list cl 
             LEFT JOIN customers c ON cl.id = c.coa_list_id 
+            LEFT JOIN vendors v ON cl.id = v.coa_list_id 
             WHERE (cl.code = ? OR cl.id = ?) AND cl.company_id = ?
             LIMIT 1
         ");
@@ -290,6 +320,92 @@ elseif ($type === 'ledger') {
             $errorMsg = "Account '$accParam' not found in system.";
         }
     } catch(Exception $e) {
+        $errorMsg = $e->getMessage();
+    }
+}
+
+// ==========================================
+// 6. CASH RECEIPT / BANK RECEIPT VOUCHER
+// ==========================================
+elseif ($type === 'cash_receipt' || $type === 'bank_receipt' || $type === 'receipt') {
+    try {
+        $isBank = ($type === 'bank_receipt');
+        $tableName = $isBank ? 'bank_receipts' : 'cash_receipts';
+        $itemsTable = $isBank ? 'bank_receipt_items' : 'cash_receipt_items';
+        $accCol = $isBank ? 'bank_account_coa_id' : 'cash_account_coa_id';
+
+        // Auto-detect cash or bank if generic type=receipt
+        if ($type === 'receipt') {
+            $checkStmt = $pdo->prepare("SELECT id FROM cash_receipts WHERE (id = ? OR serial_no = ?) AND company_id = ? LIMIT 1");
+            $checkStmt->execute([$id, $id, $coId]);
+            if ($checkStmt->fetch()) {
+                $type = 'cash_receipt';
+                $tableName = 'cash_receipts';
+                $itemsTable = 'cash_receipt_items';
+                $accCol = 'cash_account_coa_id';
+            } else {
+                $type = 'bank_receipt';
+                $tableName = 'bank_receipts';
+                $itemsTable = 'bank_receipt_items';
+                $accCol = 'bank_account_coa_id';
+                $isBank = true;
+            }
+        }
+
+        $docTitle = $isBank ? 'BANK RECEIPT VOUCHER' : 'CASH RECEIPT VOUCHER';
+
+        if (is_numeric($id)) {
+            $stmt = $pdo->prepare("SELECT * FROM $tableName WHERE (id = ? OR serial_no = ?) AND company_id = ? ORDER BY id DESC LIMIT 1");
+            $stmt->execute([$id, $id, $coId]);
+        } else {
+            $stmt = $pdo->prepare("SELECT * FROM $tableName WHERE serial_no = ? AND company_id = ? ORDER BY id DESC LIMIT 1");
+            $stmt->execute([$id, $coId]);
+        }
+        $docData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($docData) {
+            $stmtItems = $pdo->prepare("
+                SELECT i.*, cl.code as coa_code, cl.name as coa_name
+                FROM $itemsTable i
+                LEFT JOIN coa_list cl ON i.coa_id = cl.id
+                WHERE i.receipt_id = ?
+            ");
+            $stmtItems->execute([$docData['id']]);
+            $docItems = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+
+            // Fetch cash/bank deposit account details
+            $stmtAcc = $pdo->prepare("SELECT code, name FROM coa_list WHERE id = ?");
+            $stmtAcc->execute([$docData[$accCol] ?? 0]);
+            $accInfo = $stmtAcc->fetch(PDO::FETCH_ASSOC) ?: [];
+            $docData['account_name'] = $accInfo['name'] ?? ($isBank ? 'Bank Account' : 'Cash Account');
+            $docData['account_code'] = $accInfo['code'] ?? '';
+
+            // Customer / Received From Details
+            $stmtCust = $pdo->prepare("
+                SELECT cl.id, cl.code, cl.name, c.address, c.telephone, c.ntn_cnic, c.st_reg_no
+                FROM coa_list cl
+                LEFT JOIN customers c ON cl.id = c.coa_list_id
+                WHERE cl.id = ?
+            ");
+            $stmtCust->execute([$docData['received_from_coa_id'] ?? 0]);
+            $custRow = $stmtCust->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $isPetty = ($docData['receipt_type'] ?? '') === 'Petty';
+            $customer = [
+                'name'      => $isPetty ? 'Petty Cash Account' : ($custRow['name'] ?? 'Customer'),
+                'code'      => $custRow['code'] ?? '',
+                'address'   => $custRow['address'] ?? '',
+                'telephone' => $custRow['telephone'] ?? '',
+                'ntn'       => $custRow['ntn_cnic'] ?? '',
+                'gst'       => $custRow['st_reg_no'] ?? ''
+            ];
+            $docData['is_petty'] = $isPetty;
+            $docData['is_bank'] = $isBank;
+            $docData['serial_display'] = ($isBank ? 'BR-' : 'CR-') . $docData['serial_no'];
+        } else {
+            $errorMsg = ($isBank ? "Bank Receipt #" : "Cash Receipt #") . "$id not found in system.";
+        }
+    } catch (Exception $e) {
         $errorMsg = $e->getMessage();
     }
 }
@@ -785,7 +901,7 @@ elseif ($type === 'ledger') {
             <!-- Account / Customer Card -->
             <div class="meta-card">
                 <div class="meta-card-header">
-                    <i class="fas fa-user-circle" style="color: #2563eb;"></i> <?= $type === 'ledger' ? 'Account Details' : 'Customer Details' ?>
+                    <i class="fas fa-user-circle" style="color: #2563eb;"></i> <?= ($type === 'cash_receipt' || $type === 'bank_receipt') ? 'Received From' : ($type === 'ledger' ? 'Account Details' : 'Customer Details') ?>
                 </div>
                 <div class="meta-card-body">
                     <div style="font-weight: 800; font-size: 12.5px; color: #000; margin-bottom: 4px;">
@@ -811,13 +927,25 @@ elseif ($type === 'ledger') {
                 <div class="meta-card-body">
                     <table class="meta-table">
                         <tr>
-                            <td class="meta-label"><?= htmlspecialchars($type === 'quotation' ? 'Quotation #' : ($type === 'order' ? 'Order #' : ($type === 'challan' ? 'Challan #' : ($type === 'ledger' ? 'Account #' : 'Invoice #')))) ?></td>
-                            <td>: <b><?= htmlspecialchars($docData['serial_no'] ?? $id) ?></b></td>
+                            <td class="meta-label"><?= htmlspecialchars(
+                                $type === 'quotation' ? 'Quotation #' :
+                                ($type === 'order' ? 'Order #' :
+                                ($type === 'challan' ? 'Challan #' :
+                                ($type === 'ledger' ? 'Account #' :
+                                (($type === 'cash_receipt' || $type === 'bank_receipt') ? 'Receipt #' : 'Invoice #'))))
+                            ) ?></td>
+                            <td>: <b><?= htmlspecialchars($docData['serial_display'] ?? ($docData['serial_no'] ?? $id)) ?></b></td>
                         </tr>
                         <tr>
                             <td class="meta-label">Period / Date</td>
-                            <td>: <b><?= htmlspecialchars($docData['date'] ?? ($docData['order_date'] ?? date('Y-m-d'))) ?></b></td>
+                            <td>: <b><?= htmlspecialchars($docData['receipt_date'] ?? ($docData['date'] ?? ($docData['order_date'] ?? date('Y-m-d')))) ?></b></td>
                         </tr>
+                        <?php if (!empty($docData['account_name'])): ?>
+                            <tr><td class="meta-label">Deposit In</td><td>: <?= htmlspecialchars($docData['account_name']) ?></td></tr>
+                        <?php endif; ?>
+                        <?php if (!empty($docData['receipt_type'])): ?>
+                            <tr><td class="meta-label">Receipt Type</td><td>: <?= htmlspecialchars($docData['receipt_type']) ?></td></tr>
+                        <?php endif; ?>
                         <?php if (!empty($docData['valid_till'])): ?>
                             <tr><td class="meta-label">Valid Till</td><td>: <?= htmlspecialchars($docData['valid_till']) ?></td></tr>
                         <?php endif; ?>
@@ -946,6 +1074,130 @@ elseif ($type === 'ledger') {
                         <tr><td>Total Debits</td><td style="text-align: right; font-weight: 600; color: #16a34a;">Rs. <?= fmt($totD) ?></td></tr>
                         <tr><td>Total Credits</td><td style="text-align: right; font-weight: 600; color: #dc2626;">Rs. <?= fmt($totC) ?></td></tr>
                         <tr class="total-row"><td>Closing Balance</td><td style="text-align: right; font-weight: 800; color: <?= $finalStatus === 'Debit' ? '#dc2626' : ($finalStatus === 'Credit' ? '#16a34a' : '#1e293b') ?>;">Rs. <?= fmt(abs($runningBal)) ?> (<?= $finalStatus ?>)</td></tr>
+                    </table>
+                </div>
+            </div>
+
+        <?php elseif ($type === 'cash_receipt' || $type === 'bank_receipt'): ?>
+
+            <!-- RECEIPT VOUCHER TABLE -->
+            <div class="mobile-swipe-hint no-print">
+                <i class="fas fa-arrows-alt-h"></i> Swipe table to view all columns
+            </div>
+            <div class="table-responsive">
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30px;">#</th>
+                        <?php if (!empty($docData['is_petty'])): ?>
+                            <th style="width: 100px;">Account Code</th>
+                            <th style="width: 180px;">Account Name</th>
+                            <th>Description</th>
+                            <th style="width: 110px;">Amount (Rs.)</th>
+                        <?php else: ?>
+                            <th style="width: 80px;">Inv #</th>
+                            <th style="width: 85px;">Inv Date</th>
+                            <th>Description / Cheque Details</th>
+                            <th style="width: 95px;">Received (Rs.)</th>
+                            <th style="width: 80px;">Tax / Deductions</th>
+                            <th style="width: 80px;">Adv / Disc</th>
+                            <th style="width: 100px;">Total Credited (Rs.)</th>
+                        <?php endif; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $totRcvd = 0; $totTax = 0; $totAdj = 0; $totCredited = 0;
+                    if (empty($docItems)): ?>
+                        <tr><td colspan="<?= !empty($docData['is_petty']) ? 5 : 7 ?>" style="text-align: center; padding: 25px; color: #94a3b8;"><i class="far fa-folder-open" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>No itemized records found for this receipt.</td></tr>
+                    <?php else:
+                        foreach ($docItems as $idx => $it):
+                            if (!empty($docData['is_petty'])) {
+                                $amt = (float)($it['total_credited'] ?? ($it['received_amount'] ?? 0));
+                                $totCredited += $amt;
+                    ?>
+                        <tr>
+                            <td style="text-align: center;"><?= $idx + 1 ?></td>
+                            <td style="text-align: center; font-weight: 600;"><?= htmlspecialchars($it['coa_code'] ?? '') ?></td>
+                            <td><b><?= htmlspecialchars($it['coa_name'] ?? '') ?></b></td>
+                            <td><?= htmlspecialchars($it['description'] ?? '') ?></td>
+                            <td style="text-align: right; font-weight: 800; color: #16a34a;"><?= fmt($amt) ?></td>
+                        </tr>
+                    <?php 
+                            } else {
+                                $rcvd = (float)($it['received_amount'] ?? 0);
+                                $wht = (float)($it['wht_amount'] ?? 0);
+                                $gst = (float)($it['gst_amount'] ?? ($it['gst_wh_amount'] ?? 0));
+                                $adv = (float)($it['advance_adjusted'] ?? ($it['adv_adj_amount'] ?? 0));
+                                $disc = (float)($it['discount_given'] ?? 0);
+                                $credited = (float)($it['total_credited'] ?? ($rcvd + $wht + $gst + $adv + $disc));
+
+                                $totRcvd += $rcvd;
+                                $totTax += ($wht + $gst);
+                                $totAdj += ($adv + $disc);
+                                $totCredited += $credited;
+
+                                $descArr = [];
+                                if (!empty($it['description'])) $descArr[] = $it['description'];
+                                if (!empty($it['cheque_no'])) $descArr[] = 'Chq #: ' . $it['cheque_no'];
+                                if (!empty($it['bank_name'])) $descArr[] = 'Bank: ' . $it['bank_name'];
+                                if (!empty($it['cheque_date'])) $descArr[] = 'Chq Date: ' . date('d-M-Y', strtotime($it['cheque_date']));
+                    ?>
+                        <tr>
+                            <td style="text-align: center;"><?= $idx + 1 ?></td>
+                            <td style="text-align: center; font-weight: 600;"><?= htmlspecialchars($it['invoice_no'] ?? '-') ?></td>
+                            <td style="text-align: center;"><?= !empty($it['invoice_date']) ? date('d-M-Y', strtotime($it['invoice_date'])) : '-' ?></td>
+                            <td><?= htmlspecialchars(implode(' | ', $descArr) ?: ($docData['is_bank'] ? 'Bank Transfer / Online Deposit' : 'Cash Received')) ?></td>
+                            <td style="text-align: right; font-weight: 600; color: #16a34a;"><?= fmt($rcvd) ?></td>
+                            <td style="text-align: right; color: #dc2626;"><?= ($wht + $gst) > 0 ? fmt($wht + $gst) : '-' ?></td>
+                            <td style="text-align: right;"><?= ($adv + $disc) > 0 ? fmt($adv + $disc) : '-' ?></td>
+                            <td style="text-align: right; font-weight: 800; color: #0b3b60;"><?= fmt($credited) ?></td>
+                        </tr>
+                    <?php 
+                            }
+                        endforeach;
+                    endif;
+                    ?>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <?php if (!empty($docData['is_petty'])): ?>
+                            <td colspan="4" style="text-align: right; font-weight: 800; padding: 6px 10px;">Total Amount Rs.</td>
+                            <td style="text-align: right; font-weight: 800; color: #16a34a; font-size: 11px;"><?= fmt($totCredited) ?></td>
+                        <?php else: ?>
+                            <td colspan="4" style="text-align: right; font-weight: 800; padding: 6px 10px;">Totals Rs.</td>
+                            <td style="text-align: right; font-weight: 800; color: #16a34a;"><?= fmt($totRcvd) ?></td>
+                            <td style="text-align: right; font-weight: 800; color: #dc2626;"><?= fmt($totTax) ?></td>
+                            <td style="text-align: right; font-weight: 800;"><?= fmt($totAdj) ?></td>
+                            <td style="text-align: right; font-weight: 800; font-size: 11px; color: #0b3b60;"><?= fmt($totCredited) ?></td>
+                        <?php endif; ?>
+                    </tr>
+                </tfoot>
+            </table>
+            </div>
+
+            <div class="lower-section">
+                <div class="words-card">
+                    <div class="meta-card-header"><i class="fas fa-comment-dots" style="color: #2563eb;"></i> Payment Details</div>
+                    <div class="meta-card-body">
+                        <div><b>Amount in Words:</b> <span style="font-weight: 700; color: #0b3b60;"><?= numberToWords(round($totCredited)) ?> Rupees Only</span></div>
+                        <div style="margin-top: 6px;"><b>Remarks:</b> <?= htmlspecialchars($docData['remarks'] ?? 'Received with thanks.') ?></div>
+                        <div style="margin-top: 6px;"><b>Deposited Into:</b> <?= htmlspecialchars($docData['account_name'] ?? '') ?> <?= !empty($docData['account_code']) ? '(' . htmlspecialchars($docData['account_code']) . ')' : '' ?></div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="meta-card-header"><i class="fas fa-receipt" style="color: #2563eb;"></i> Receipt Summary</div>
+                    <table class="summary-table">
+                        <?php if (empty($docData['is_petty'])): ?>
+                        <tr><td>Received Amount</td><td style="text-align: right; font-weight: 600; color: #16a34a;">Rs. <?= fmt($totRcvd) ?></td></tr>
+                        <?php if ($totTax > 0): ?>
+                        <tr><td>Tax Deductions</td><td style="text-align: right; color: #dc2626;">Rs. <?= fmt($totTax) ?></td></tr>
+                        <?php endif; ?>
+                        <?php if ($totAdj > 0): ?>
+                        <tr><td>Adjustments / Disc</td><td style="text-align: right;">Rs. <?= fmt($totAdj) ?></td></tr>
+                        <?php endif; ?>
+                        <?php endif; ?>
+                        <tr class="total-row"><td>Total Credited</td><td style="text-align: right; font-weight: 800; color: #0b3b60;">Rs. <?= fmt($totCredited) ?></td></tr>
                     </table>
                 </div>
             </div>
@@ -1150,6 +1402,9 @@ elseif ($type === 'ledger') {
                        "💰 *Total Debits:* Rs. <?= fmt($totD ?? 0) ?>\n" +
                        "💰 *Total Credits:* Rs. <?= fmt($totC ?? 0) ?>\n" +
                        "⚖️ *Closing Balance:* Rs. <?= fmt(abs($runningBal ?? 0)) ?> (<?= $finalStatus ?? '' ?>)\n" +
+                       <?php elseif ($type === 'cash_receipt' || $type === 'bank_receipt'): ?>
+                       "🧾 *Receipt #:* <?= addslashes($docData['serial_display'] ?? ($docData['serial_no'] ?? $id)) ?>\n" +
+                       "💰 *Amount Credited:* Rs. <?= fmt($totCredited ?? 0) ?>\n" +
                        <?php else: ?>
                        "💰 *Total Amount:* Rs. <?= fmt($docData['net_amount'] ?? ($docData['tot_incl'] ?? $totNet ?? 0)) ?>\n" +
                        <?php endif; ?>

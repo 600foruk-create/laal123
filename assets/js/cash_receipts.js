@@ -1606,6 +1606,59 @@ window.CRModule = {
         } else {
             alert("Pop-up blocker prevented printing. Please allow popups for this site.");
         }
+    },
+
+    shareWhatsApp: function() {
+        const sn = (document.getElementById('cr_sn')?.value || '').trim();
+        if (!sn || !this.currentId) {
+            alert("Please save or retrieve a receipt first to share on WhatsApp.");
+            return;
+        }
+
+        const date = (document.getElementById('cr_date')?.value || '').trim();
+        const grandTotal = (document.getElementById('cr_grand_total')?.value || '0.00').trim();
+        const typeEl = document.querySelector('input[name="cr_type"]:checked');
+        const isPetty = typeEl && typeEl.value === 'Petty';
+        const customerName = isPetty ? 'Petty Cash Account' : (document.getElementById('cr_received_from_name')?.value || 'Customer').trim();
+        const cashAcc = (document.getElementById('cr_cash_name')?.value || 'Cash Account').trim();
+
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const companyId = session.company_id || 1;
+        const companyName = session.company_name || 'SEASTONE PLASTIC INDUSTRIES';
+
+        const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+        const viewUrl = `${baseUrl}view.php?type=cr&id=${encodeURIComponent(sn)}&co=${companyId}`;
+
+        const entered = prompt(`Customer "${customerName}" ka WhatsApp number enter karein (e.g. 03001234567):`, '');
+        let phone = '';
+        if (entered) {
+            phone = entered.replace(/[^0-9]/g, '');
+            if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+            else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+        }
+
+        const numVal = parseFloat(grandTotal.replace(/,/g, '')) || 0;
+        const formattedTotal = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const msg = `*${companyName.toUpperCase()}*\n` +
+                    `*CASH RECEIPT VOUCHER*\n` +
+                    `--------------------------------\n` +
+                    `🧾 *Receipt #:* CR-${sn}\n` +
+                    `📅 *Date:* ${date}\n` +
+                    `👤 *Received From:* ${customerName}\n` +
+                    `💰 *Amount Received:* Rs. ${formattedTotal}\n` +
+                    `🏦 *Deposit Account:* ${cashAcc}\n` +
+                    `--------------------------------\n` +
+                    `👉 *Mukammal Receipt Voucher dekhne aur PDF download karne ke liye link kholein:*\n` +
+                    `🌐 ${viewUrl}\n` +
+                    `--------------------------------\n` +
+                    `Payment wasool hui, shukriya!`;
+
+        const waUrl = phone 
+            ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
+            : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+        window.open(waUrl, '_blank');
     }
 };
 

@@ -194,8 +194,19 @@ window.CustomerBalancesModule = {
                     <td class="text-right">${self.formatAmt(cr)}</td>
                     <td class="text-right">${self.formatAmt(cb)}</td>
                     <td class="text-center">${row.cb_status || ''}</td>
-                    <td></td>
+                    <td style="text-align:center;">
+                        <button type="button" class="cub-wa-btn" style="background: none; border: none; cursor: pointer; color: #25D366; font-size: 13px; padding: 2px 4px; line-height: 1;" title="Send WhatsApp Reminder to ${row.account_name || 'Customer'}"><i class="fab fa-whatsapp"></i></button>
+                    </td>
                 `;
+                
+                const waBtn = tr.querySelector('.cub-wa-btn');
+                if (waBtn) {
+                    waBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        self.sendWhatsAppReminder(row);
+                    });
+                }
                 
                 tr.addEventListener('click', () => {
                     const allRows = tbody.querySelectorAll('tr');
@@ -450,5 +461,49 @@ window.CustomerBalancesModule = {
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => { printWindow.print(); }, 800);
+    },
+
+    sendWhatsAppReminder: function(row) {
+        if (!row) return;
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const companyId = session.company_id || 1;
+        const companyName = session.company_name || 'SEASTONE PLASTIC INDUSTRIES';
+
+        const accCode = (row.account_code || '').trim();
+        const accName = (row.account_name || 'Customer').trim();
+        const cb = parseFloat(row.closing_balance || 0);
+        const cbStatus = row.cb_status || (cb >= 0 ? 'Debit' : 'Credit');
+        const formattedCb = Math.abs(cb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+        const viewUrl = `${baseUrl}view.php?type=ledger&acc=${encodeURIComponent(accCode)}&co=${companyId}`;
+
+        const entered = prompt(`Customer "${accName}" (${accCode}) ka WhatsApp number enter karein (e.g. 03001234567):`, '');
+        let phone = '';
+        if (entered) {
+            phone = entered.replace(/[^0-9]/g, '');
+            if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+            else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+        }
+
+        const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        const msg = `*${companyName.toUpperCase()}*\n` +
+                    `*PAYMENT BALANCE REMINDER*\n` +
+                    `--------------------------------\n` +
+                    `👤 *Customer:* ${accName} (${accCode})\n` +
+                    `💰 *Closing Balance:* Rs. ${formattedCb} (${cbStatus})\n` +
+                    `📅 *As of:* ${today}\n` +
+                    `--------------------------------\n` +
+                    `👉 *Mukammal Khata (Ledger Statement) dekhne aur PDF download karne ke liye link kholein:*\n` +
+                    `🌐 ${viewUrl}\n` +
+                    `--------------------------------\n` +
+                    `Baraye meharbani baqiya raqam ki adaigi jald az jald yaqini banayein. Shukriya!`;
+
+        const waUrl = phone 
+            ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
+            : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+        window.open(waUrl, '_blank');
     }
 };
