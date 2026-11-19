@@ -693,10 +693,24 @@ window.AccountLedgerModule = {
             ? `<div style="font-size:11px; color:#555; margin-top:2px; font-weight:normal;">${contactParts.join(' | ')}</div>`
             : '';
 
-        const printContent = `<!DOCTYPE html><html><head><title>Account Ledger</title><base href="${baseUrl}">
+        const accCode = (document.getElementById('ledger-account-search')?.value || accountLabel.split('-')[0] || '').trim();
+        const fromDate = isPeriodChecked ? (document.getElementById('ledger-from-date')?.value || '') : '';
+        const toDate = isPeriodChecked ? (document.getElementById('ledger-to-date')?.value || '') : '';
+        const viewUrl = `${baseUrl}view.php?type=ledger&acc=${encodeURIComponent(accCode)}&from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}&co=${companyId}`;
+
+        const printContent = `<!DOCTYPE html><html><head><title>Account Ledger - ${accountLabel}</title><base href="${baseUrl}">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+        <script src="assets/js/html2pdf.bundle.min.js"></script>
         <style>
             @page { margin: 0; }
             body{font-family:Arial,sans-serif;font-size:11px;padding:20px;margin:0}
+            @media screen {
+                body { margin: 60px auto 25px auto; max-width: 230mm; padding: 10mm; background: #fff; box-shadow: 0 0 15px rgba(0,0,0,0.15); border-radius: 4px; }
+            }
+            @media print {
+                body { margin: 0; padding: 0; }
+                .no-print { display: none !important; }
+            }
             .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}
             .hdr-left{width:100px}
             .hdr-center{flex:1;text-align:center}
@@ -707,6 +721,47 @@ window.AccountLedgerModule = {
             th,td{border:1px solid #000;padding:4px 6px}
             th{background:#f0f0f0;font-weight:bold}
         </style></head><body>
+        
+        <!-- Floating Top Action Bar -->
+        <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; background: #0f172a; color: white; padding: 8px 18px; display: flex; align-items: center; justify-content: space-between; z-index: 99999; box-shadow: 0 3px 10px rgba(0,0,0,0.3); font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="background: #1e293b; border: 1px solid #334155; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 12px; color: #38bdf8;">
+                    <i class="fas fa-book"></i> LEDGER
+                </span>
+                <span style="font-size: 12px; font-weight: 600; color: #f1f5f9;">${accountLabel}</span>
+                <span style="font-size: 11px; color: #94a3b8;"><i class="far fa-calendar-alt"></i> ${periodText}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <!-- Print Button -->
+                <button type="button" onclick="window.print()" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-print"></i> Print
+                </button>
+
+                <!-- Download PDF Button -->
+                <button type="button" onclick="downloadLedgerPdf()" style="background: #0284c7; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </button>
+
+                <!-- WhatsApp PDF Button -->
+                <button type="button" onclick="shareLedgerWhatsApp()" style="background: #25D366; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,211,102,0.3);">
+                    <i class="fab fa-whatsapp" style="font-size: 15px;"></i> Send on WhatsApp (PDF)
+                </button>
+
+                <!-- Close Button -->
+                <button type="button" onclick="window.close()" style="background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer;">
+                    Close
+                </button>
+            </div>
+        </div>
+
+        <!-- Helpful Notification Banner -->
+        <div id="wa-banner-tip" class="no-print" style="display: none; position: fixed; top: 48px; left: 0; right: 0; background: #ecfdf5; border-bottom: 2px solid #10b981; color: #065f46; padding: 9px 18px; z-index: 99998; font-size: 12px; font-weight: 600; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.06);">
+            <i class="fab fa-whatsapp" style="color: #10b981; font-size: 16px; margin-right: 6px;"></i>
+            Ledger PDF aapke computer ke <strong>Downloads</strong> folder mein save ho gayi hy! WhatsApp Desktop chat open ho chuki hy, wahan PDF file <strong>drag &amp; drop</strong> karein ya 📎 Paperclip icon se attach kar ke send kar dein.
+            <button onclick="document.getElementById('wa-banner-tip').style.display='none'" style="margin-left: 12px; background: transparent; border: 1px solid #10b981; border-radius: 3px; padding: 1px 6px; cursor: pointer; color: #065f46; font-size: 11px;">✕ Dismiss</button>
+        </div>
+
+        <div class="page-container" id="printable-ledger">
         <div class="hdr">
             <div class="hdr-left" style="text-align: left;">${logoImg}</div>
             <div class="hdr-center"><h1>${companyName}</h1>${contactLine}<h2>Account Ledger</h2></div>
@@ -735,13 +790,142 @@ window.AccountLedgerModule = {
             <span>Printed by: ${userName}</span>
             <span>Generated: ${new Date().toLocaleString()} | SoftifyX ERP</span>
         </div>
+        </div>
+
+        <script>
+            function downloadLedgerPdf(callback) {
+                var el = document.getElementById('printable-ledger');
+                var safeName = '${accountLabel.replace(/[^a-zA-Z0-9_-]/g, '_')}';
+                var opt = {
+                    margin: [6, 6, 6, 6],
+                    filename: 'Ledger_' + safeName + '.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, logging: false },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                };
+
+                if (window.html2pdf) {
+                    var worker = html2pdf().set(opt).from(el).save();
+                    if (callback) worker.then(callback);
+                } else {
+                    window.print();
+                }
+            }
+
+            function shareLedgerWhatsApp() {
+                downloadLedgerPdf();
+
+                var entered = prompt('Customer / Account "${accountLabel.replace(/"/g, '')}" ka WhatsApp number enter karein (e.g. 03001234567):', '');
+                var phone = '';
+                if (entered) {
+                    phone = entered.replace(/[^0-9]/g, '');
+                    if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+                    else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+                }
+
+                var msg = "*${companyName.toUpperCase()}*\\n" +
+                          "*ACCOUNT STATEMENT / LEDGER*\\n" +
+                          "--------------------------------\\n" +
+                          "👤 *Account:* ${accountLabel.replace(/"/g, '')}\\n" +
+                          "📅 *Period:* ${periodText}\\n" +
+                          "💰 *Total Debits:* Rs. ${this.fmt(totalDebit)}\\n" +
+                          "💰 *Total Credits:* Rs. ${this.fmt(totalCredit)}\\n" +
+                          "⚖️ *Closing Balance:* Rs. ${this.fmt(Math.abs(runningBalance))} (${finalStatus})\\n" +
+                          "--------------------------------\\n" +
+                          "👉 *Poora Khata dekhne aur PDF download karne ke liye link kholein:*\\n" +
+                          "🌐 ${viewUrl}\\n" +
+                          "--------------------------------\\n" +
+                          "Thank you for your business!";
+
+                var appUrl = phone ? "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(msg) : "whatsapp://send?text=" + encodeURIComponent(msg);
+                
+                var a = document.createElement('a');
+                a.href = appUrl;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function() { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+
+                var banner = document.getElementById('wa-banner-tip');
+                if (banner) banner.style.display = 'block';
+            }
+
+            window.onload = function() {
+                window.focus();
+            };
+        </script>
         </body></html>`;
 
         const w = window.open('', '_blank');
         w.document.write(printContent);
         w.document.close();
-        setTimeout(() => w.print(), 600);
+        setTimeout(() => {
+            try { w.focus(); } catch(e) {}
+        }, 300);
 
+    },
+
+    shareWhatsApp: function() {
+        if (!this.currentLedgerData || this.currentLedgerData.length === 0) {
+            alert('Please display a ledger first before sharing on WhatsApp.');
+            return;
+        }
+
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const companyId = session.company_id || 1;
+        const companyName = session.company_name || 'SEASTONE PLASTIC INDUSTRIES';
+        const accountLabel = document.getElementById('ledger-account-code-label')?.textContent || 'Account';
+        const accCode = (document.getElementById('ledger-account-search')?.value || accountLabel.split('-')[0] || '').trim();
+        const isPeriodChecked = document.getElementById('ledger-period-checkbox')?.checked;
+        const periodText = isPeriodChecked
+            ? `${document.getElementById('ledger-from-date')?.value || ''} To ${document.getElementById('ledger-to-date')?.value || ''}`
+            : 'All Dates';
+
+        let runningBalance = 0;
+        let totalDebit = 0;
+        let totalCredit = 0;
+        this.currentLedgerData.forEach(tx => {
+            const debit = parseFloat(tx.debit) || 0;
+            const credit = parseFloat(tx.credit) || 0;
+            totalDebit += debit;
+            totalCredit += credit;
+            runningBalance += (debit - credit);
+        });
+
+        const finalStatus = runningBalance > 0 ? 'Debit' : (runningBalance < 0 ? 'Credit' : 'Nil');
+        const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+        const fromDate = isPeriodChecked ? (document.getElementById('ledger-from-date')?.value || '') : '';
+        const toDate = isPeriodChecked ? (document.getElementById('ledger-to-date')?.value || '') : '';
+        const viewUrl = `${baseUrl}view.php?type=ledger&acc=${encodeURIComponent(accCode)}&from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}&co=${companyId}`;
+
+        const entered = prompt(`Customer / Account "${accountLabel}" ka WhatsApp number enter karein (e.g. 03001234567):`, '');
+        let phone = '';
+        if (entered) {
+            phone = entered.replace(/[^0-9]/g, '');
+            if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+            else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+        }
+
+        const msg = `*${companyName.toUpperCase()}*\n` +
+                    `*ACCOUNT STATEMENT / LEDGER*\n` +
+                    `--------------------------------\n` +
+                    `👤 *Account:* ${accountLabel}\n` +
+                    `📅 *Period:* ${periodText}\n` +
+                    `💰 *Total Debits:* Rs. ${this.fmt(totalDebit)}\n` +
+                    `💰 *Total Credits:* Rs. ${this.fmt(totalCredit)}\n` +
+                    `⚖️ *Closing Balance:* Rs. ${this.fmt(Math.abs(runningBalance))} (${finalStatus})\n` +
+                    `--------------------------------\n` +
+                    `👉 *Poora Khata dekhne aur PDF download karne ke liye link kholein:*\n` +
+                    `🌐 ${viewUrl}\n` +
+                    `--------------------------------\n` +
+                    `Thank you for your business!`;
+
+        const appUrl = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}` : `whatsapp://send?text=${encodeURIComponent(msg)}`;
+        
+        const a = document.createElement('a');
+        a.href = appUrl;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
     },
 
     exportExcel: function() {

@@ -36,6 +36,11 @@ $docItems = [];
 $customer = [];
 $errorMsg = '';
 
+// Helper formatters
+function fmt($num, $dec = 2) {
+    return number_format((float)($num ?: 0), $dec, '.', ',');
+}
+
 // ==========================================
 // 1. SALE INVOICE
 // ==========================================
@@ -231,9 +236,119 @@ elseif ($type === 'challan') {
     }
 }
 
-// Helper formatters
-function fmt($num, $dec = 2) {
-    return number_format((float)($num ?: 0), $dec, '.', ',');
+// ==========================================
+// 5. ACCOUNT LEDGER / STATEMENT
+// ==========================================
+elseif ($type === 'ledger') {
+    $docTitle = 'ACCOUNT STATEMENT';
+    try {
+        $accParam = $_GET['acc'] ?? ($id ?: '');
+        $fromDate = $_GET['from'] ?? '';
+        $toDate = $_GET['to'] ?? '';
+
+        $stmt = $pdo->prepare("
+            SELECT cl.id, cl.code, cl.name, c.address, c.telephone, c.ntn_cnic, c.st_reg_no 
+            FROM coa_list cl 
+            LEFT JOIN customers c ON cl.id = c.coa_list_id 
+            WHERE (cl.code = ? OR cl.id = ?) AND cl.company_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$accParam, $accParam, $coId]);
+        $accRow = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($accRow) {
+            $docData = [
+                'serial_no' => $accRow['code'],
+                'date'      => ($fromDate && $toDate) ? "$fromDate To $toDate" : 'All Dates',
+                'remarks'   => 'Account statement for ' . $accRow['name']
+            ];
+            $customer = [
+                'name'      => $accRow['name'],
+                'code'      => $accRow['code'],
+                'address'   => $accRow['address'] ?? '',
+                'telephone' => $accRow['telephone'] ?? '',
+                'ntn'       => $accRow['ntn_cnic'] ?? '',
+                'gst'       => $accRow['st_reg_no'] ?? ''
+            ];
+
+            $coa_id = $accRow['id'];
+
+            // 1. Initial Opening Balance
+            $stmtOB = $pdo->prepare("SELECT COALESCE(SUM(debit), 0) as op_debit, COALESCE(SUM(credit), 0) as op_credit FROM coa_opening_balances WHERE coa_id = ? AND company_id = ?");
+            $stmtOB->execute([$coa_id, $coId]);
+            $ob = $stmtOB->fetch(PDO::FETCH_ASSOC);
+            $initial_debit = (float)($ob['op_debit'] ?? 0);
+            $initial_credit = (float)($ob['op_credit'] ?? 0);
+
+            // Queries to collect ALL transactions
+            $queries = [];
+            $queries[] = "SELECT v.id as source_id, 'JV' as source_type, v.voucher_date as date, 
+                          COALESCE(NULLIF(TRIM(i.description),''), NULLIF((SELECT TRIM(description) FROM general_journal_voucher_items WHERE voucher_id = v.id ORDER BY id ASC LIMIT 1),''), NULLIF(TRIM(v.description),''), TRIM(v.remarks)) as description, 
+                          CONCAT('JV-', v.serial_no) as tran_no, '' as reference, i.debit, i.credit 
+                          FROM general_journal_voucher_items i 
+                          INNER JOIN general_journal_vouchers v ON i.voucher_id = v.id 
+                          WHERE i.coa_id = ? AND v.company_id = ? AND v.is_cancelled = 0 AND v.is_posted = 1";
+
+            $queries[] = "SELECT id as source_id, 'SI' as source_type, invoice_date as date, 
+                          COALESCE(NULLIF((SELECT TRIM(description) FROM sale_invoice_items WHERE invoice_id = sale_invoices.id ORDER BY id ASC LIMIT 1),''), NULLIF(TRIM(remarks),''), CONCAT('SI-', serial_no)) as description, 
+                          CONCAT('SI-', serial_no) as tran_no, dc_no as reference, net_amount as debit, 0 as credit 
+                          FROM sale_invoices 
+                          WHERE customer_coa_id = ? AND company_id = ? AND is_cancelled = 0";
+
+            $queries[] = "SELECT id as source_id, 'SR' as source_type, return_date as date, 
+                          COALESCE(NULLIF(TRIM(remarks),''), CONCAT('SR-', serial_no)) as description, 
+                          CONCAT('SR-', serial_no) as tran_no, '' as reference, 0 as debit, net_amount as credit 
+                          FROM sale_returns 
+                          WHERE customer_coa_id = ? AND company_id = ? AND is_cancelled = 0";
+
+            $queries[] = "SELECT r.id as source_id, 'CR' as source_type, r.receipt_date as date, 
+                          COALESCE(NULLIF(TRIM(r.remarks),''), 'Cash Receipt') as description, 
+                          CONCAT('CR-', r.serial_no) as tran_no, '' as reference, 0 as debit, i.amount as credit 
+                          FROM cash_receipt_items i 
+                          INNER JOIN cash_receipts r ON i.receipt_id = r.id 
+                          WHERE i.coa_id = ? AND r.company_id = ? AND r.is_cancelled = 0";
+
+            $queries[] = "SELECT r.id as source_id, 'BR' as source_type, r.receipt_date as date, 
+                          COALESCE(NULLIF(TRIM(r.remarks),''), 'Bank Receipt') as description, 
+                          CONCAT('BR-', r.serial_no) as tran_no, r.cheque_no as reference, 0 as debit, i.amount as credit 
+                          FROM bank_receipt_items i 
+                          INNER JOIN bank_receipts r ON i.receipt_id = r.id 
+                          WHERE i.coa_id = ? AND r.company_id = ? AND r.is_cancelled = 0";
+
+            $all_txs = [];
+            foreach ($queries as $q) {
+                try {
+                    $stmtQ = $pdo->prepare($q);
+                    $stmtQ->execute([$coa_id, $coId]);
+                    $all_txs = array_merge($all_txs, $stmtQ->fetchAll(PDO::FETCH_ASSOC));
+                } catch(Exception $e) {}
+            }
+
+            usort($all_txs, function($a, $b) {
+                return strcmp($a['date'] ?? '', $b['date'] ?? '');
+            });
+
+            $op_bal = $initial_debit - $initial_credit;
+            $cur_txs = [];
+            foreach ($all_txs as $tx) {
+                $txDate = $tx['date'] ?? '';
+                if ($fromDate && $txDate < $fromDate) {
+                    $op_bal += ((float)$tx['debit'] - (float)$tx['credit']);
+                } elseif ($toDate && $txDate > $toDate) {
+                    continue;
+                } else {
+                    $cur_txs[] = $tx;
+                }
+            }
+
+            $docData['opening_balance'] = $op_bal;
+            $docItems = $cur_txs;
+        } else {
+            $errorMsg = "Account '$accParam' not found in system.";
+        }
+    } catch(Exception $e) {
+        $errorMsg = $e->getMessage();
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -241,7 +356,7 @@ function fmt($num, $dec = 2) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($docTitle) ?> # <?= htmlspecialchars($docData['serial_no'] ?? $id) ?> - <?= htmlspecialchars($coName) ?></title>
+    <title><?= htmlspecialchars($docTitle) ?> - <?= htmlspecialchars($customer['name'] ?? $id) ?> - <?= htmlspecialchars($coName) ?></title>
     
     <!-- Fonts & Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -313,7 +428,7 @@ function fmt($num, $dec = 2) {
 
         /* Document Container */
         .page-container {
-            max-width: 215mm;
+            max-width: <?= $type === 'ledger' ? '240mm' : '215mm' ?>;
             min-height: 270mm;
             margin: 65px auto 30px auto;
             background: #ffffff;
@@ -512,7 +627,7 @@ function fmt($num, $dec = 2) {
     <div class="top-nav no-print">
         <div class="brand-badge">
             <span class="pill">
-                <i class="fas fa-file-invoice"></i> <?= htmlspecialchars($docTitle) ?> # <?= htmlspecialchars($docData['serial_no'] ?? $id) ?>
+                <i class="fas fa-file-invoice"></i> <?= htmlspecialchars($docTitle) ?> <?= $type !== 'ledger' ? '# ' . htmlspecialchars($docData['serial_no'] ?? $id) : '' ?>
             </span>
             <span style="font-weight: 600; font-size: 13px;"><?= htmlspecialchars($customer['name'] ?? 'Customer') ?></span>
         </div>
@@ -571,26 +686,23 @@ function fmt($num, $dec = 2) {
 
         <!-- Meta Information Cards -->
         <div class="meta-cards">
-            <!-- Customer Card -->
+            <!-- Account / Customer Card -->
             <div class="meta-card">
                 <div class="meta-card-header">
-                    <i class="fas fa-user-circle" style="color: #2563eb;"></i> Customer Details
+                    <i class="fas fa-user-circle" style="color: #2563eb;"></i> <?= $type === 'ledger' ? 'Account Details' : 'Customer Details' ?>
                 </div>
                 <div class="meta-card-body">
                     <div style="font-weight: 800; font-size: 12.5px; color: #000; margin-bottom: 4px;">
                         <?= htmlspecialchars($customer['name'] ?? '') ?>
                     </div>
+                    <?php if (!empty($customer['code'])): ?>
+                        <div style="color: #ea580c; font-weight: bold; margin-bottom: 3px;"><b>Account Code:</b> <?= htmlspecialchars($customer['code']) ?></div>
+                    <?php endif; ?>
                     <?php if (!empty($customer['address'])): ?>
                         <div style="color: #475569; margin-bottom: 3px;"><i class="fas fa-map-marker-alt" style="color: #2563eb; width: 12px;"></i> <?= htmlspecialchars($customer['address']) ?></div>
                     <?php endif; ?>
                     <?php if (!empty($customer['telephone'])): ?>
                         <div style="color: #1e293b; margin-bottom: 3px;"><i class="fas fa-phone-alt" style="color: #2563eb; width: 12px;"></i> <?= htmlspecialchars($customer['telephone']) ?></div>
-                    <?php endif; ?>
-                    <?php if (!empty($customer['ntn']) || !empty($customer['gst'])): ?>
-                        <div style="font-size: 10px; color: #64748b; margin-top: 4px;">
-                            <?php if (!empty($customer['ntn'])): ?><span><b>NTN:</b> <?= htmlspecialchars($customer['ntn']) ?></span>&nbsp;&nbsp;&nbsp;<?php endif; ?>
-                            <?php if (!empty($customer['gst'])): ?><span><b>GST:</b> <?= htmlspecialchars($customer['gst']) ?></span><?php endif; ?>
-                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -603,11 +715,11 @@ function fmt($num, $dec = 2) {
                 <div class="meta-card-body">
                     <table class="meta-table">
                         <tr>
-                            <td class="meta-label"><?= htmlspecialchars($type === 'quotation' ? 'Quotation #' : ($type === 'order' ? 'Order #' : ($type === 'challan' ? 'Challan #' : 'Invoice #'))) ?></td>
+                            <td class="meta-label"><?= htmlspecialchars($type === 'quotation' ? 'Quotation #' : ($type === 'order' ? 'Order #' : ($type === 'challan' ? 'Challan #' : ($type === 'ledger' ? 'Account #' : 'Invoice #')))) ?></td>
                             <td>: <b><?= htmlspecialchars($docData['serial_no'] ?? $id) ?></b></td>
                         </tr>
                         <tr>
-                            <td class="meta-label">Date</td>
+                            <td class="meta-label">Period / Date</td>
                             <td>: <b><?= htmlspecialchars($docData['date'] ?? ($docData['order_date'] ?? date('Y-m-d'))) ?></b></td>
                         </tr>
                         <?php if (!empty($docData['valid_till'])): ?>
@@ -627,145 +739,225 @@ function fmt($num, $dec = 2) {
             </div>
         </div>
 
-        <!-- Items Table -->
-        <table class="items-table">
-            <thead>
-                <tr>
-                    <th style="width: 25px;">#</th>
-                    <th style="width: 80px;">Item Code</th>
-                    <th>Description</th>
-                    <th style="width: 45px;">Unit</th>
-                    <th style="width: 45px;">Pcs</th>
-                    <th style="width: 60px;">Quantity</th>
-                    <th style="width: 65px;">Rate</th>
-                    <?php if ($type === 'invoice' && !empty($docData['is_tax_invoice'])): ?>
-                        <th style="width: 65px;">Gross Total</th>
-                        <th style="width: 40px;">Disc %</th>
-                        <th style="width: 55px;">Disc Amt</th>
-                        <th style="width: 40px;">STAX %</th>
-                        <th style="width: 55px;">STAX Amt</th>
-                        <th style="width: 75px;">Net Value</th>
-                    <?php else: ?>
-                        <th style="width: 80px;">Total Value</th>
-                    <?php endif; ?>
-                </tr>
-            </thead>
-            <tbody>
-                <?php 
-                $totPcs = 0; $totQty = 0; $totGross = 0; $totDisc = 0; $totStax = 0; $totNet = 0;
-                foreach ($docItems as $idx => $it): 
-                    $pcs = (float)($it['pieces'] ?? 0);
-                    $qty = (float)($it['quantity'] ?? 0);
-                    $rate = (float)($it['rate'] ?? 0);
-                    $gross = (float)($it['gross_amount'] ?? ($qty * $rate));
-                    $disc = (float)($it['disc_amount'] ?? 0);
-                    $stax = (float)($it['sales_tax_amount'] ?? 0);
-                    $net = (float)($it['net_amount'] ?? ($gross - $disc + $stax));
-
-                    $totPcs += $pcs;
-                    $totQty += $qty;
-                    $totGross += $gross;
-                    $totDisc += $disc;
-                    $totStax += $stax;
-                    $totNet += $net;
-                ?>
-                <tr>
-                    <td style="text-align: center;"><?= $idx + 1 ?></td>
-                    <td style="text-align: center;"><?= htmlspecialchars($it['item_code'] ?? ($it['inv_code'] ?? '')) ?></td>
-                    <td><b><?= htmlspecialchars($it['description'] ?? ($it['inv_name'] ?? 'Item')) ?></b></td>
-                    <td style="text-align: center;"><?= htmlspecialchars($it['unit'] ?? 'Pcs') ?></td>
-                    <td style="text-align: right;"><?= $pcs > 0 ? (int)$pcs : '-' ?></td>
-                    <td style="text-align: right;"><b><?= fmt($qty, 2) ?></b></td>
-                    <td style="text-align: right;"><?= fmt($rate, 2) ?></td>
-                    <?php if ($type === 'invoice' && !empty($docData['is_tax_invoice'])): ?>
-                        <td style="text-align: right;"><?= fmt($gross, 2) ?></td>
-                        <td style="text-align: right;"><?= (float)($it['disc_pct'] ?? 0) ?>%</td>
-                        <td style="text-align: right;"><?= fmt($disc, 2) ?></td>
-                        <td style="text-align: right;"><?= (float)($it['sales_tax_pct'] ?? 0) ?>%</td>
-                        <td style="text-align: right;"><?= fmt($stax, 2) ?></td>
-                        <td style="text-align: right; font-weight: 800; color: #0b3b60;"><?= fmt($net, 2) ?></td>
-                    <?php else: ?>
-                        <td style="text-align: right; font-weight: 800; color: #0b3b60;"><?= fmt($net, 2) ?></td>
-                    <?php endif; ?>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="4" style="text-align: left; padding: 6px 8px;">TOTAL</td>
-                    <td style="text-align: right;"><?= (int)$totPcs ?></td>
-                    <td style="text-align: right;"><?= fmt($totQty, 2) ?></td>
-                    <td></td>
-                    <?php if ($type === 'invoice' && !empty($docData['is_tax_invoice'])): ?>
-                        <td style="text-align: right;"><?= fmt($totGross, 2) ?></td>
-                        <td></td>
-                        <td style="text-align: right;"><?= fmt($totDisc, 2) ?></td>
-                        <td></td>
-                        <td style="text-align: right;"><?= fmt($totStax, 2) ?></td>
-                        <td style="text-align: right; font-size: 11px;"><?= fmt($totNet, 2) ?></td>
-                    <?php else: ?>
-                        <td style="text-align: right; font-size: 11px;"><?= fmt($totNet, 2) ?></td>
-                    <?php endif; ?>
-                </tr>
-            </tfoot>
-        </table>
-
-        <!-- Lower Section (Remarks / Summary) -->
-        <div class="lower-section">
-            <div class="words-card">
-                <div class="meta-card-header">
-                    <i class="fas fa-comment-dots" style="color: #2563eb;"></i> Notes & Remarks
-                </div>
-                <div class="meta-card-body" style="min-height: 80px;">
-                    <div><b>Remarks:</b> <?= htmlspecialchars($docData['remarks'] ?? 'None') ?></div>
-                    <?php if (!empty($docData['terms_conditions'])): ?>
-                        <div style="margin-top: 8px; font-size: 10px; color: #475569;">
-                            <b>Terms & Conditions:</b><br><?= nl2br(htmlspecialchars($docData['terms_conditions'])) ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <div class="summary-card">
-                <div class="meta-card-header">
-                    <i class="fas fa-calculator" style="color: #2563eb;"></i> Financial Summary
-                </div>
-                <table class="summary-table">
+        <?php if ($type === 'ledger'): ?>
+            <!-- LEDGER SPECIFIC TABLE -->
+            <?php 
+            $runningBal = (float)($docData['opening_balance'] ?? 0);
+            $totD = 0; $totC = 0;
+            ?>
+            <table class="items-table">
+                <thead>
                     <tr>
-                        <td>Gross Amount</td>
-                        <td style="text-align: right; font-weight: 600;">Rs. <?= fmt($totGross ?: $totNet) ?></td>
+                        <th style="width: 75px;">Date</th>
+                        <th style="width: 75px;">Tran. No.</th>
+                        <th>Description</th>
+                        <th style="width: 85px;">Debit (Rs.)</th>
+                        <th style="width: 85px;">Credit (Rs.)</th>
+                        <th style="width: 95px;">Balance (Rs.)</th>
+                        <th style="width: 60px;">Status</th>
                     </tr>
-                    <?php if ($totDisc > 0): ?>
-                        <tr>
-                            <td>Total Discount</td>
-                            <td style="text-align: right; color: #dc2626;">- Rs. <?= fmt($totDisc) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                    <?php if ($totStax > 0): ?>
-                        <tr>
-                            <td>Sales Tax Amount</td>
-                            <td style="text-align: right;">Rs. <?= fmt($totStax) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                    <?php if (!empty($docData['freight']) && (float)$docData['freight'] > 0): ?>
-                        <tr>
-                            <td>Carriage & Freight</td>
-                            <td style="text-align: right;">Rs. <?= fmt($docData['freight']) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                    <tr class="total-row">
-                        <td>Net Total Payable</td>
-                        <td style="text-align: right;">Rs. <?= fmt($docData['net_amount'] ?? ($docData['tot_incl'] ?? $totNet)) ?></td>
+                </thead>
+                <tbody>
+                    <tr style="background: #f8fafc; font-weight: bold; font-style: italic;">
+                        <td colspan="3" style="text-align: right; padding: 6px 10px;">Opening Balance</td>
+                        <td style="text-align: right;"><?= $runningBal > 0 ? fmt($runningBal) : '' ?></td>
+                        <td style="text-align: right;"><?= $runningBal < 0 ? fmt(abs($runningBal)) : '' ?></td>
+                        <td style="text-align: right; font-weight: 800;"><?= fmt(abs($runningBal)) ?></td>
+                        <td style="text-align: center; color: <?= $runningBal >= 0 ? '#16a34a' : '#dc2626' ?>;"><?= $runningBal > 0 ? 'Debit' : ($runningBal < 0 ? 'Credit' : 'Nil') ?></td>
                     </tr>
-                    <?php if (isset($docData['balance']) && (float)$docData['balance'] > 0): ?>
-                        <tr>
-                            <td><b>Current Balance</b></td>
-                            <td style="text-align: right; font-weight: 800; color: #b91c1c;">Rs. <?= fmt($docData['balance']) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                </table>
+                    <?php 
+                    foreach ($docItems as $tx): 
+                        $d = (float)($tx['debit'] ?? 0);
+                        $c = (float)($tx['credit'] ?? 0);
+                        $totD += $d;
+                        $totC += $c;
+                        $runningBal += ($d - $c);
+                        $status = $runningBal > 0 ? 'Debit' : ($runningBal < 0 ? 'Credit' : 'Nil');
+                    ?>
+                    <tr>
+                        <td style="text-align: center;"><?= htmlspecialchars($tx['date'] ?? '') ?></td>
+                        <td style="text-align: center;"><?= htmlspecialchars($tx['tran_no'] ?? ($tx['reference'] ?? '')) ?></td>
+                        <td><?= htmlspecialchars($tx['description'] ?? '') ?></td>
+                        <td style="text-align: right;"><?= $d > 0 ? fmt($d) : '' ?></td>
+                        <td style="text-align: right;"><?= $c > 0 ? fmt($c) : '' ?></td>
+                        <td style="text-align: right; font-weight: 800;"><?= fmt(abs($runningBal)) ?></td>
+                        <td style="text-align: center; font-weight: 700; color: <?= $runningBal >= 0 ? '#16a34a' : '#dc2626' ?>;"><?= $status ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align: right; font-weight: 800; padding: 6px 10px;">Totals Rs.</td>
+                        <td style="text-align: right; font-weight: 800;"><?= fmt($totD) ?></td>
+                        <td style="text-align: right; font-weight: 800;"><?= fmt($totC) ?></td>
+                        <td style="text-align: right; font-weight: 800; font-size: 11px;"><?= fmt(abs($runningBal)) ?></td>
+                        <td style="text-align: center; font-weight: 800;"><?= $runningBal > 0 ? 'Debit' : ($runningBal < 0 ? 'Credit' : 'Nil') ?></td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <div class="lower-section">
+                <div class="words-card">
+                    <div class="meta-card-header"><i class="fas fa-info-circle" style="color: #2563eb;"></i> Ledger Summary</div>
+                    <div class="meta-card-body">
+                        <div><b>Account:</b> <?= htmlspecialchars($customer['name'] ?? '') ?> (<?= htmlspecialchars($customer['code'] ?? '') ?>)</div>
+                        <div style="margin-top: 4px;"><b>Period:</b> <?= htmlspecialchars($docData['date'] ?? '') ?></div>
+                        <div style="margin-top: 4px;"><b>Total Transactions:</b> <?= count($docItems) ?></div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="meta-card-header"><i class="fas fa-balance-scale" style="color: #2563eb;"></i> Balance Summary</div>
+                    <table class="summary-table">
+                        <tr><td>Total Debits</td><td style="text-align: right; font-weight: 600;">Rs. <?= fmt($totD) ?></td></tr>
+                        <tr><td>Total Credits</td><td style="text-align: right; font-weight: 600;">Rs. <?= fmt($totC) ?></td></tr>
+                        <tr class="total-row"><td>Closing Balance</td><td style="text-align: right; font-weight: 800;">Rs. <?= fmt(abs($runningBal)) ?> (<?= $runningBal > 0 ? 'DR' : ($runningBal < 0 ? 'CR' : 'NIL') ?>)</td></tr>
+                    </table>
+                </div>
             </div>
-        </div>
+
+        <?php else: ?>
+
+            <!-- STANDARD INVOICE / QUOTATION / ORDER / CHALLAN TABLE -->
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25px;">#</th>
+                        <th style="width: 80px;">Item Code</th>
+                        <th>Description</th>
+                        <th style="width: 45px;">Unit</th>
+                        <th style="width: 45px;">Pcs</th>
+                        <th style="width: 60px;">Quantity</th>
+                        <th style="width: 65px;">Rate</th>
+                        <?php if ($type === 'invoice' && !empty($docData['is_tax_invoice'])): ?>
+                            <th style="width: 65px;">Gross Total</th>
+                            <th style="width: 40px;">Disc %</th>
+                            <th style="width: 55px;">Disc Amt</th>
+                            <th style="width: 40px;">STAX %</th>
+                            <th style="width: 55px;">STAX Amt</th>
+                            <th style="width: 75px;">Net Value</th>
+                        <?php else: ?>
+                            <th style="width: 80px;">Total Value</th>
+                        <?php endif; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $totPcs = 0; $totQty = 0; $totGross = 0; $totDisc = 0; $totStax = 0; $totNet = 0;
+                    foreach ($docItems as $idx => $it): 
+                        $pcs = (float)($it['pieces'] ?? 0);
+                        $qty = (float)($it['quantity'] ?? 0);
+                        $rate = (float)($it['rate'] ?? 0);
+                        $gross = (float)($it['gross_amount'] ?? ($qty * $rate));
+                        $disc = (float)($it['disc_amount'] ?? 0);
+                        $stax = (float)($it['sales_tax_amount'] ?? 0);
+                        $net = (float)($it['net_amount'] ?? ($gross - $disc + $stax));
+
+                        $totPcs += $pcs;
+                        $totQty += $qty;
+                        $totGross += $gross;
+                        $totDisc += $disc;
+                        $totStax += $stax;
+                        $totNet += $net;
+                    ?>
+                    <tr>
+                        <td style="text-align: center;"><?= $idx + 1 ?></td>
+                        <td style="text-align: center;"><?= htmlspecialchars($it['item_code'] ?? ($it['inv_code'] ?? '')) ?></td>
+                        <td><b><?= htmlspecialchars($it['description'] ?? ($it['inv_name'] ?? 'Item')) ?></b></td>
+                        <td style="text-align: center;"><?= htmlspecialchars($it['unit'] ?? 'Pcs') ?></td>
+                        <td style="text-align: right;"><?= $pcs > 0 ? (int)$pcs : '-' ?></td>
+                        <td style="text-align: right;"><b><?= fmt($qty, 2) ?></b></td>
+                        <td style="text-align: right;"><?= fmt($rate, 2) ?></td>
+                        <?php if ($type === 'invoice' && !empty($docData['is_tax_invoice'])): ?>
+                            <td style="text-align: right;"><?= fmt($gross, 2) ?></td>
+                            <td style="text-align: right;"><?= (float)($it['disc_pct'] ?? 0) ?>%</td>
+                            <td style="text-align: right;"><?= fmt($disc, 2) ?></td>
+                            <td style="text-align: right;"><?= (float)($it['sales_tax_pct'] ?? 0) ?>%</td>
+                            <td style="text-align: right;"><?= fmt($stax, 2) ?></td>
+                            <td style="text-align: right; font-weight: 800; color: #0b3b60;"><?= fmt($net, 2) ?></td>
+                        <?php else: ?>
+                            <td style="text-align: right; font-weight: 800; color: #0b3b60;"><?= fmt($net, 2) ?></td>
+                        <?php endif; ?>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" style="text-align: left; padding: 6px 8px;">TOTAL</td>
+                        <td style="text-align: right;"><?= (int)$totPcs ?></td>
+                        <td style="text-align: right;"><?= fmt($totQty, 2) ?></td>
+                        <td></td>
+                        <?php if ($type === 'invoice' && !empty($docData['is_tax_invoice'])): ?>
+                            <td style="text-align: right;"><?= fmt($totGross, 2) ?></td>
+                            <td></td>
+                            <td style="text-align: right;"><?= fmt($totDisc, 2) ?></td>
+                            <td></td>
+                            <td style="text-align: right;"><?= fmt($totStax, 2) ?></td>
+                            <td style="text-align: right; font-size: 11px;"><?= fmt($totNet, 2) ?></td>
+                        <?php else: ?>
+                            <td style="text-align: right; font-size: 11px;"><?= fmt($totNet, 2) ?></td>
+                        <?php endif; ?>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <!-- Lower Section (Remarks / Summary) -->
+            <div class="lower-section">
+                <div class="words-card">
+                    <div class="meta-card-header">
+                        <i class="fas fa-comment-dots" style="color: #2563eb;"></i> Notes & Remarks
+                    </div>
+                    <div class="meta-card-body" style="min-height: 80px;">
+                        <div><b>Remarks:</b> <?= htmlspecialchars($docData['remarks'] ?? 'None') ?></div>
+                        <?php if (!empty($docData['terms_conditions'])): ?>
+                            <div style="margin-top: 8px; font-size: 10px; color: #475569;">
+                                <b>Terms & Conditions:</b><br><?= nl2br(htmlspecialchars($docData['terms_conditions'])) ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div class="summary-card">
+                    <div class="meta-card-header">
+                        <i class="fas fa-calculator" style="color: #2563eb;"></i> Financial Summary
+                    </div>
+                    <table class="summary-table">
+                        <tr>
+                            <td>Gross Amount</td>
+                            <td style="text-align: right; font-weight: 600;">Rs. <?= fmt($totGross ?: $totNet) ?></td>
+                        </tr>
+                        <?php if ($totDisc > 0): ?>
+                            <tr>
+                                <td>Total Discount</td>
+                                <td style="text-align: right; color: #dc2626;">- Rs. <?= fmt($totDisc) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($totStax > 0): ?>
+                            <tr>
+                                <td>Sales Tax Amount</td>
+                                <td style="text-align: right;">Rs. <?= fmt($totStax) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if (!empty($docData['freight']) && (float)$docData['freight'] > 0): ?>
+                            <tr>
+                                <td>Carriage & Freight</td>
+                                <td style="text-align: right;">Rs. <?= fmt($docData['freight']) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <tr class="total-row">
+                            <td>Net Total Payable</td>
+                            <td style="text-align: right;">Rs. <?= fmt($docData['net_amount'] ?? ($docData['tot_incl'] ?? $totNet)) ?></td>
+                        </tr>
+                        <?php if (isset($docData['balance']) && (float)$docData['balance'] > 0): ?>
+                            <tr>
+                                <td><b>Current Balance</b></td>
+                                <td style="text-align: right; font-weight: 800; color: #b91c1c;">Rs. <?= fmt($docData['balance']) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                    </table>
+                </div>
+            </div>
+
+        <?php endif; ?>
 
         <!-- Footer Signatures -->
         <div style="margin-top: 45px; display: flex; justify-content: space-between; padding: 0 15px;">
@@ -795,10 +987,10 @@ function fmt($num, $dec = 2) {
             if (!el) return;
             var opt = {
                 margin: [4, 4, 4, 4],
-                filename: '<?= preg_replace("/[^a-zA-Z0-9_-]/", "_", $docTitle . "_" . ($docData["serial_no"] ?? $id)) ?>.pdf',
+                filename: '<?= preg_replace("/[^a-zA-Z0-9_-]/", "_", $docTitle . "_" . ($customer["name"] ?? "Doc")) ?>.pdf',
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, logging: false },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                jsPDF: { unit: 'mm', format: 'a4', orientation: '<?= $type === "ledger" ? "landscape" : "portrait" ?>' }
             };
 
             if (window.html2pdf) {
@@ -811,17 +1003,14 @@ function fmt($num, $dec = 2) {
         function shareWhatsApp() {
             var url = window.location.href;
             var text = "*<?= addslashes(strtoupper($coName)) ?>*\n" +
-                       "*<?= addslashes($docTitle) ?> # <?= addslashes($docData['serial_no'] ?? $id) ?>*\n" +
+                       "*<?= addslashes($docTitle) ?>*\n" +
                        "--------------------------------\n" +
-                       "📄 *Document #:* <?= addslashes($docData['serial_no'] ?? $id) ?>\n" +
-                       "👤 *Customer:* <?= addslashes($customer['name'] ?? 'Customer') ?>\n" +
-                       "💰 *Total Amount:* Rs. <?= fmt($docData['net_amount'] ?? ($docData['tot_incl'] ?? $totNet)) ?>\n" +
+                       "👤 *Account / Customer:* <?= addslashes($customer['name'] ?? 'Customer') ?>\n" +
                        "--------------------------------\n" +
-                       "👉 *Pura document dekhne aur PDF download karne ke liye link kholein:*\n" +
+                       "👉 *Poora Document dekhne aur PDF download karne ke liye link kholein:*\n" +
                        url;
             window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(text), '_blank');
         }
     </script>
 </body>
 </html>
-
