@@ -1042,6 +1042,15 @@ document.addEventListener('click', function(e) {
             
             // We use a small timeout to let the browser calculate the width/height of the new content
             setTimeout(() => {
+                if (window.innerWidth <= 768) {
+                    container.style.top = '0px';
+                    container.style.left = '0px';
+                    container.style.width = '100vw';
+                    container.style.height = '100vh';
+                    container.style.transform = 'none';
+                    focusWindow(container);
+                    return;
+                }
                 const rect = container.getBoundingClientRect();
                 const isSys = (dataModuleTag === 'System Settings' || container.classList.contains('modal-system-settings'));
                 const curWidth = isSys ? Math.min(1200, viewportWidth - 30) : rect.width;
@@ -1285,6 +1294,10 @@ document.addEventListener('click', function(e) {
         }
 
         function makeDraggable(element, handle) {
+            if (window.innerWidth <= 768) {
+                handle.style.cursor = 'default';
+                return;
+            }
             let isDragging = false;
             let startX, startY, initialTop, initialLeft;
 
