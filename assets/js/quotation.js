@@ -1361,6 +1361,52 @@
             document.getElementById('qPrintSettModal').style.display = 'none';
         },
 
+        shareWhatsApp: function() {
+            if (!this.data.currentId) return alert("Please save or retrieve a quotation first.");
+
+            const sn = document.getElementById('q_sn')?.value || '';
+            const date = document.getElementById('q_date')?.value || '';
+            const cName = document.getElementById('q_customer_name')?.value || 'Customer';
+            const cTel = document.getElementById('q_customer_tel')?.value || document.getElementById('q_customer_contact')?.value || '';
+            const totNet = document.getElementById('q_tot_incl')?.value || '0.00';
+            const validTill = document.getElementById('q_valid_till')?.value || '';
+
+            let phone = cTel.replace(/[^0-9]/g, '');
+            if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+            else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+
+            if (!phone) {
+                const entered = prompt(`Customer "${cName}" ka WhatsApp number enter karein (e.g. 03001234567):`, '');
+                if (entered) {
+                    phone = entered.replace(/[^0-9]/g, '');
+                    if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+                    else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+                }
+            }
+
+            const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const coName = session.company_name || 'SEASTONE PLASTIC INDUSTRIES';
+
+            const msg = `*${coName.toUpperCase()}*\n` +
+                        `*QUOTATION # ${sn}*\n` +
+                        `--------------------------------\n` +
+                        `📄 *Quotation #:* ${sn}\n` +
+                        `📅 *Date:* ${date}\n` +
+                        `👤 *Customer:* ${cName}\n` +
+                        `💰 *Total Value:* Rs. ${totNet}\n` +
+                        `${validTill ? `⏳ *Valid Till:* ${validTill}\n` : ''}` +
+                        `--------------------------------\n` +
+                        `Thank you for your business!`;
+
+            const appUrl = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}` : `whatsapp://send?text=${encodeURIComponent(msg)}`;
+            
+            const a = document.createElement('a');
+            a.href = appUrl;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+        },
+
         printQuotation: function() {
             if (!this.data.currentId) return alert("Please save or retrieve a quotation first.");
 
@@ -1503,9 +1549,17 @@
                 <head>
                     <title>QUOTATION - ${sn}</title>
                     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+                    <script src="assets/js/html2pdf.bundle.min.js"></script>
                     <style>
                         @page { margin: 0; size: auto; }
                         body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; color: #000; margin: 10mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        @media screen {
+                            body { margin: 55px auto 25px auto; max-width: 215mm; padding: 10mm; background: #fff; box-shadow: 0 0 15px rgba(0,0,0,0.15); border-radius: 4px; }
+                        }
+                        @media print {
+                            body { margin: 0; padding: 0; }
+                            .no-print { display: none !important; }
+                        }
                         .page-container { padding: 0; position: relative; box-sizing: border-box; }
                         
                         .header-area { display: flex; justify-content: space-between; border-bottom: 2px solid #1F4E79; padding-bottom: 10px; margin-bottom: 15px; }
@@ -1541,6 +1595,45 @@
                     </style>
                 </head>
                 <body>
+                    <!-- Floating Top Action Bar -->
+                    <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; background: #0f172a; color: white; padding: 8px 18px; display: flex; align-items: center; justify-content: space-between; z-index: 99999; box-shadow: 0 3px 10px rgba(0,0,0,0.3); font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="background: #1e293b; border: 1px solid #334155; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 12px; color: #38bdf8;">
+                                <i class="fas fa-file-alt"></i> QUOTATION # ${sn}
+                            </span>
+                            <span style="font-size: 12px; font-weight: 600; color: #f1f5f9;">${cName || 'Customer'}</span>
+                            ${(cTel || cContact) ? `<span style="font-size: 11px; color: #94a3b8;"><i class="fas fa-phone-alt"></i> ${cTel || cContact}</span>` : ''}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <!-- Print Button -->
+                            <button type="button" onclick="window.print()" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+
+                            <!-- Download PDF Button -->
+                            <button type="button" onclick="downloadQuotationPdf()" style="background: #0284c7; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-file-pdf"></i> Download PDF
+                            </button>
+
+                            <!-- WhatsApp PDF Button -->
+                            <button type="button" onclick="shareQuotationWhatsApp()" style="background: #25D366; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,211,102,0.3);">
+                                <i class="fab fa-whatsapp" style="font-size: 15px;"></i> Send on WhatsApp (PDF)
+                            </button>
+
+                            <!-- Close Button -->
+                            <button type="button" onclick="window.close()" style="background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Helpful Notification Banner -->
+                    <div id="wa-banner-tip" class="no-print" style="display: none; position: fixed; top: 48px; left: 0; right: 0; background: #ecfdf5; border-bottom: 2px solid #10b981; color: #065f46; padding: 9px 18px; z-index: 99998; font-size: 12px; font-weight: 600; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.06);">
+                        <i class="fab fa-whatsapp" style="color: #10b981; font-size: 16px; margin-right: 6px;"></i>
+                        Quotation PDF aapke computer ke <strong>Downloads</strong> folder mein save ho gayi hy! WhatsApp Desktop chat open ho chuki hy, wahan PDF file <strong>drag &amp; drop</strong> karein ya 📎 Paperclip icon se attach kar ke send kar dein.
+                        <button onclick="document.getElementById('wa-banner-tip').style.display='none'" style="margin-left: 12px; background: transparent; border: 1px solid #10b981; border-radius: 3px; padding: 1px 6px; cursor: pointer; color: #065f46; font-size: 11px;">✕ Dismiss</button>
+                    </div>
+
                     <div class="page-container">
                         ${headerHtml}
                         
@@ -1623,14 +1716,82 @@
                             <div class="sig-line">Authorized Signatory</div>
                         </div>
                     </div>
+
+                    <script>
+                        function downloadQuotationPdf(callback) {
+                            var el = document.querySelector('.page-container');
+                            var safeName = '${(cName || 'Quotation').replace(/[^a-zA-Z0-9_-]/g, '_')}';
+                            var opt = {
+                                margin: [6, 6, 6, 6],
+                                filename: 'Quotation_${sn}_' + safeName + '.pdf',
+                                image: { type: 'jpeg', quality: 0.98 },
+                                html2canvas: { scale: 2, useCORS: true, logging: false },
+                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                            };
+
+                            if (window.html2pdf) {
+                                var worker = html2pdf().set(opt).from(el).save();
+                                if (callback) worker.then(callback);
+                            } else {
+                                window.print();
+                            }
+                        }
+
+                        function shareQuotationWhatsApp() {
+                            downloadQuotationPdf();
+
+                            var phone = '${(cTel || cContact || '').replace(/[^0-9]/g, '')}';
+                            if (phone.startsWith('03')) {
+                                phone = '92' + phone.substring(1);
+                            } else if (phone.length === 10 && phone.startsWith('3')) {
+                                phone = '92' + phone;
+                            }
+
+                            if (!phone) {
+                                var entered = prompt('Customer "${(cName || '').replace(/"/g, '')}" ka WhatsApp number enter karein (e.g. 03001234567):', '');
+                                if (entered) {
+                                    phone = entered.replace(/[^0-9]/g, '');
+                                    if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+                                    else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+                                }
+                            }
+
+                            var msg = "*${coName.toUpperCase()}*\\n" +
+                                      "*QUOTATION # ${sn}*\\n" +
+                                      "--------------------------------\\n" +
+                                      "📄 *Quotation #:* ${sn}\\n" +
+                                      "📅 *Date:* ${date}\\n" +
+                                      "👤 *Customer:* ${(cName || '').replace(/"/g, '')}\\n" +
+                                      "💰 *Total Value:* Rs. ${totNet}\\n" +
+                                      "${validTill ? `⏳ *Valid Till:* ${validTill}\\n` : ''}" +
+                                      "--------------------------------\\n" +
+                                      "📎 *Quotation PDF file is attached below.*\\n" +
+                                      "Thank you for your business!";
+
+                            var appUrl = phone ? "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(msg) : "whatsapp://send?text=" + encodeURIComponent(msg);
+                            
+                            var a = document.createElement('a');
+                            a.href = appUrl;
+                            document.body.appendChild(a);
+                            a.click();
+                            setTimeout(function() { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+
+                            var banner = document.getElementById('wa-banner-tip');
+                            if (banner) banner.style.display = 'block';
+                        }
+
+                        window.onload = function() {
+                            window.focus();
+                        };
+                    </script>
                 </body>
                 </html>
             `;
             printWindow.document.write(html);
             printWindow.document.close();
-            printWindow.onload = function() {
-                printWindow.print();
-            };
+            setTimeout(function() {
+                try { printWindow.focus(); } catch(e) {}
+            }, 300);
         }
     };
 })();

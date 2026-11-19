@@ -1705,6 +1705,55 @@ window.SaleOrderModule = {
         document.getElementById('soPrintSettingsModal').style.display = 'none';
     },
 
+    shareWhatsApp: function() {
+        if (!this.currentId) {
+            alert("Please save or load a Sale Order before sharing on WhatsApp.");
+            return;
+        }
+
+        const sn = document.getElementById('so_sn')?.value || '';
+        const poDate = document.getElementById('so_date')?.value || '';
+        const delDate = document.getElementById('so_delivery_date')?.value || '';
+        const vName = document.getElementById('customer_name')?.value || 'Customer';
+        const vTel = document.getElementById('customer_tel')?.value || '';
+        const totIncl = document.getElementById('tot_incl')?.value || '0.00';
+
+        let phone = vTel.replace(/[^0-9]/g, '');
+        if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+        else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+
+        if (!phone) {
+            const entered = prompt(`Customer "${vName}" ka WhatsApp number enter karein (e.g. 03001234567):`, '');
+            if (entered) {
+                phone = entered.replace(/[^0-9]/g, '');
+                if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+                else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+            }
+        }
+
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const coName = session.company_name || 'SEASTONE PLASTIC INDUSTRIES';
+
+        const msg = `*${coName.toUpperCase()}*\n` +
+                    `*SALE ORDER # ${sn}*\n` +
+                    `--------------------------------\n` +
+                    `📄 *Order #:* ${sn}\n` +
+                    `📅 *Date:* ${poDate}\n` +
+                    `👤 *Customer:* ${vName}\n` +
+                    `💰 *Total Amount:* Rs. ${totIncl}\n` +
+                    `${delDate ? `🚚 *Delivery Date:* ${delDate}\n` : ''}` +
+                    `--------------------------------\n` +
+                    `Thank you for your order!`;
+
+        const appUrl = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}` : `whatsapp://send?text=${encodeURIComponent(msg)}`;
+        
+        const a = document.createElement('a');
+        a.href = appUrl;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+    },
+
     printSO: async function() {
         if (!this.currentId) {
             alert("Please save or load a Sale Order before printing.");
@@ -1867,9 +1916,18 @@ window.SaleOrderModule = {
             <html>
             <head>
                 <title>SALE ORDER - ${sn}</title>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+                <script src="assets/js/html2pdf.bundle.min.js"></script>
                 <style>
                     @page { margin: 0; }
                     body { font-family: Arial, sans-serif; font-size: 12px; margin: 1cm; }
+                    @media screen {
+                        body { margin: 55px auto 25px auto; max-width: 215mm; padding: 10mm; background: #fff; box-shadow: 0 0 15px rgba(0,0,0,0.15); border-radius: 4px; }
+                    }
+                    @media print {
+                        body { margin: 0; padding: 0; }
+                        .no-print { display: none !important; }
+                    }
                     .header { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 5px; }
                     .header img { position: absolute; left: 0; top: 0; max-width: 80px; max-height: 80px; }
                     .header-content { text-align: center; }
@@ -1885,6 +1943,46 @@ window.SaleOrderModule = {
                 </style>
             </head>
             <body>
+                <!-- Floating Top Action Bar -->
+                <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; background: #0f172a; color: white; padding: 8px 18px; display: flex; align-items: center; justify-content: space-between; z-index: 99999; box-shadow: 0 3px 10px rgba(0,0,0,0.3); font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="background: #1e293b; border: 1px solid #334155; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 12px; color: #38bdf8;">
+                            <i class="fas fa-file-invoice"></i> ORDER # ${sn}
+                        </span>
+                        <span style="font-size: 12px; font-weight: 600; color: #f1f5f9;">${vName || 'Customer'}</span>
+                        ${vTel ? `<span style="font-size: 11px; color: #94a3b8;"><i class="fas fa-phone-alt"></i> ${vTel}</span>` : ''}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <!-- Print Button -->
+                        <button type="button" onclick="window.print()" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+
+                        <!-- Download PDF Button -->
+                        <button type="button" onclick="downloadSOPdf()" style="background: #0284c7; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-file-pdf"></i> Download PDF
+                        </button>
+
+                        <!-- WhatsApp PDF Button -->
+                        <button type="button" onclick="shareSOWhatsApp()" style="background: #25D366; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,211,102,0.3);">
+                            <i class="fab fa-whatsapp" style="font-size: 15px;"></i> Send on WhatsApp (PDF)
+                        </button>
+
+                        <!-- Close Button -->
+                        <button type="button" onclick="window.close()" style="background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer;">
+                            Close
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Helpful Notification Banner -->
+                <div id="wa-banner-tip" class="no-print" style="display: none; position: fixed; top: 48px; left: 0; right: 0; background: #ecfdf5; border-bottom: 2px solid #10b981; color: #065f46; padding: 9px 18px; z-index: 99998; font-size: 12px; font-weight: 600; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.06);">
+                    <i class="fab fa-whatsapp" style="color: #10b981; font-size: 16px; margin-right: 6px;"></i>
+                    Sale Order PDF aapke computer ke <strong>Downloads</strong> folder mein save ho gayi hy! WhatsApp Desktop chat open ho chuki hy, wahan PDF file <strong>drag &amp; drop</strong> karein ya 📎 Paperclip icon se attach kar ke send kar dein.
+                    <button onclick="document.getElementById('wa-banner-tip').style.display='none'" style="margin-left: 12px; background: transparent; border: 1px solid #10b981; border-radius: 3px; padding: 1px 6px; cursor: pointer; color: #065f46; font-size: 11px;">✕ Dismiss</button>
+                </div>
+
+                <div class="page-container">
                 ${headerHtml}
                 
                 <table class="details-table">
@@ -1962,6 +2060,75 @@ window.SaleOrderModule = {
                         <span style="font-size: 10px; color: #666;">Printed By: ${session.username || 'Administrator'}</span>
                     </div>
                 </div>
+                </div>
+
+                <script>
+                    function downloadSOPdf(callback) {
+                        var el = document.querySelector('.page-container');
+                        var safeName = '${(vName || 'Order').replace(/[^a-zA-Z0-9_-]/g, '_')}';
+                        var opt = {
+                            margin: [8, 8, 8, 8],
+                            filename: 'Sale_Order_${sn}_' + safeName + '.pdf',
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2, useCORS: true, logging: false },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                        };
+
+                        if (window.html2pdf) {
+                            var worker = html2pdf().set(opt).from(el).save();
+                            if (callback) worker.then(callback);
+                        } else {
+                            window.print();
+                        }
+                    }
+
+                    function shareSOWhatsApp() {
+                        downloadSOPdf();
+
+                        var phone = '${(vTel || '').replace(/[^0-9]/g, '')}';
+                        if (phone.startsWith('03')) {
+                            phone = '92' + phone.substring(1);
+                        } else if (phone.length === 10 && phone.startsWith('3')) {
+                            phone = '92' + phone;
+                        }
+
+                        if (!phone) {
+                            var entered = prompt('Customer "${(vName || '').replace(/"/g, '')}" ka WhatsApp number enter karein (e.g. 03001234567):', '');
+                            if (entered) {
+                                phone = entered.replace(/[^0-9]/g, '');
+                                if (phone.startsWith('03')) phone = '92' + phone.substring(1);
+                                else if (phone.length === 10 && phone.startsWith('3')) phone = '92' + phone;
+                            }
+                        }
+
+                        var msg = "*${coName.toUpperCase()}*\\n" +
+                                  "*SALE ORDER # ${sn}*\\n" +
+                                  "--------------------------------\\n" +
+                                  "📄 *Order #:* ${sn}\\n" +
+                                  "📅 *Date:* ${poDate}\\n" +
+                                  "👤 *Customer:* ${(vName || '').replace(/"/g, '')}\\n" +
+                                  "💰 *Total Amount:* Rs. ${totIncl}\\n" +
+                                  "${delDate ? `🚚 *Delivery Date:* ${delDate}\\n` : ''}" +
+                                  "--------------------------------\\n" +
+                                  "📎 *Sale Order PDF file is attached below.*\\n" +
+                                  "Thank you for your business!";
+
+                        var appUrl = phone ? "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(msg) : "whatsapp://send?text=" + encodeURIComponent(msg);
+                        
+                        var a = document.createElement('a');
+                        a.href = appUrl;
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(function() { if (document.body.contains(a)) document.body.removeChild(a); }, 500);
+
+                        var banner = document.getElementById('wa-banner-tip');
+                        if (banner) banner.style.display = 'block';
+                    }
+
+                    window.onload = function() {
+                        window.focus();
+                    };
+                </script>
             </body>
             </html>
         `;
@@ -1970,12 +2137,11 @@ window.SaleOrderModule = {
             printWindow.document.open();
             printWindow.document.write(html);
             printWindow.document.close();
-                // Since this was async, we need a slight delay to ensure the DOM and images render
-                setTimeout(() => {
-                    printWindow.print();
-                }, 500);
-            }
-        },
+            setTimeout(() => {
+                try { printWindow.focus(); } catch(e) {}
+            }, 300);
+        }
+    },
 
     updateSuggestHighlight: function(items) {
         items.forEach((item, idx) => {

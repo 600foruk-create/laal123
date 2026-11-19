@@ -4711,10 +4711,7 @@ window.SIModule = {
                         }
 
                         window.onload = function() {
-                            setTimeout(function() {
-                                window.focus();
-                                window.print();
-                            }, 400);
+                            window.focus();
                         };
                     </script>
                 </body>
@@ -4743,9 +4740,11 @@ window.SIModule = {
                 setTimeout(() => {
                     try {
                         printWindow.focus();
-                        printWindow.print();
+                        if (mode === 'direct_print') {
+                            printWindow.print();
+                        }
                     } catch(e) {}
-                }, 800);
+                }, 300);
             }
         } catch(err) {
             console.error("Print generation error:", err);
