@@ -1,0 +1,238 @@
+<div style="display: flex; flex-direction: column; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff;">
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .gj-btn-info:hover { background: #3b6998 !important; }
+    </style>
+
+    <!-- Filter Section -->
+    <div style="padding: 10px; background-color: #EBEBEB; border-bottom: 2px solid #999; display: flex; flex-direction: column; gap: 5px; font-size: 11px;">
+        <!-- Radio Buttons for Invoice Types -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; padding: 5px; margin-bottom: 5px; background-color: #d1d1d1; border: 1px solid #aaa; border-radius: 2px; width: fit-content; margin: 0 auto 5px auto;">
+            <label style="font-weight: bold; cursor: pointer;"><input type="radio" name="iss_inv_type" value="all" checked> All Sales</label>
+            <label style="font-weight: bold; cursor: pointer;"><input type="radio" name="iss_inv_type" value="tax"> Sales Tax Invoices</label>
+            <label style="font-weight: bold; cursor: pointer;"><input type="radio" name="iss_inv_type" value="non_tax"> Sale Invoices (Non Tax)</label>
+        </div>
+
+        <table style="border-spacing: 5px; border-collapse: separate; flex: 1;">
+            <tr>
+                <td style="width: 20px;"><input type="checkbox" id="iss_use_item_cat"></td>
+                <td style="width: 100px; font-weight: bold; font-style: italic;">Item Category</td>
+                <td colspan="2">
+                    <select id="iss_item_cat" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Item Category...</option>
+                    </select>
+                </td>
+                <td rowspan="9" style="vertical-align: top; text-align: right;">
+                    <div style="display: flex; gap: 5px; justify-content: flex-end; flex-direction: row; margin-top: 10px;">
+                        <button type="button" class="gj-tool-btn gj-btn-info" onclick="window.ItemSaleSummaryModule.fetchReport()" style="width: 80px;">Display</button>
+                        <button type="button" class="gj-tool-btn gj-btn-info" onclick="window.ItemSaleSummaryModule.printReport()" style="width: 80px;">Print</button>
+                        <button type="button" class="gj-tool-btn gj-btn-info" onclick="window.ItemSaleSummaryModule.exportExcel()" style="width: 80px;">Excel</button>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="iss_use_item_sub_cat"></td>
+                <td style="font-weight: bold; font-style: italic;">Sub Category</td>
+                <td colspan="2">
+                    <select id="iss_item_sub_cat" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Sub Category...</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="iss_use_cust_type"></td>
+                <td style="font-weight: bold; font-style: italic;">Customer Type</td>
+                <td colspan="2">
+                    <select id="iss_cust_type" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Customer Type...</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="iss_use_customer"></td>
+                <td style="font-weight: bold; font-style: italic;">Customer</td>
+                <td colspan="2" style="position: relative;">
+                    <div style="display: flex;">
+                        <input type="text" id="iss_customer_code" style="width: 120px; border: 1px solid #999; padding: 1px; border-right: none;" disabled placeholder="Code">
+                        <input type="text" id="iss_customer_name" style="flex: 1; border: 1px solid #999; padding: 1px;" disabled placeholder="Customer Name">
+                    </div>
+                    <input type="hidden" id="iss_customer_id">
+                    <div id="iss_customer_suggest" class="sr-suggest-box"></div>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="iss_use_region"></td>
+                <td style="font-weight: bold; font-style: italic;">Main Region</td>
+                <td colspan="2">
+                    <select id="iss_region" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Main Region...</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="iss_use_sub_region"></td>
+                <td style="font-weight: bold; font-style: italic; color: #999;">Sub Region</td>
+                <td colspan="2">
+                    <select id="iss_sub_region" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Sub Region...</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="iss_use_business"></td>
+                <td style="font-weight: bold; font-style: italic;">Business Sector</td>
+                <td colspan="2">
+                    <select id="iss_business" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Business Sector...</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="iss_use_dept"></td>
+                <td style="font-weight: bold; font-style: italic;">Department</td>
+                <td colspan="2">
+                    <select id="iss_dept" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Department...</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="iss_use_emp"></td>
+                <td style="font-weight: bold; font-style: italic;">Employee</td>
+                <td colspan="2">
+                    <select id="iss_emp" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                        <option value="">Select Employee...</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="iss_use_date"></td>
+                <td style="font-weight: bold; font-style: italic;">Period From</td>
+                <td style="width: 120px;">
+                    <input type="date" id="iss_date_from" style="width: 100%; border: 1px solid #999; padding: 1px;" disabled>
+                </td>
+                <td style="font-weight: bold; font-style: italic;">
+                    <span style="margin: 0 5px;">To</span>
+                    <input type="date" id="iss_date_to" style="width: 120px; border: 1px solid #999; padding: 1px;" disabled>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Main Data Grid -->
+    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <!-- Header (Fixed) -->
+        <div style="background: #EAEAEA; font-size: 11px; font-weight: bold; border-bottom: 1px solid #999; flex-shrink: 0; overflow-y: scroll;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <thead>
+                    <tr>
+                        <th style="width: 20px; border-right: 1px solid #999; padding: 2px; text-align: center;"></th>
+                        <th style="width: 80px; border-right: 1px solid #999; padding: 2px; text-align: center; font-style: italic; font-weight: normal;">Item Code</th>
+                        <th style="width: 80px; border-right: 1px solid #999; padding: 2px; text-align: center; font-style: italic; font-weight: normal;">HS Code</th>
+                        <th style="border-right: 1px solid #999; padding: 2px; text-align: left; font-style: italic; font-weight: normal;">Item Name</th>
+                        <th style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: center; font-style: italic; font-weight: normal;">Pieces</th>
+                        <th style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: center; font-style: italic; font-weight: normal;">Quantity</th>
+                        <th style="width: 50px; border-right: 1px solid #999; padding: 2px; text-align: center; font-style: italic; font-weight: normal;">Unit</th>
+                        <th style="width: 80px; border-right: 1px solid #999; padding: 2px; text-align: center; font-style: italic; font-weight: normal;">Amount</th>
+                        <th style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: center; font-style: italic; font-weight: normal;">Min Rate</th>
+                        <th style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: center; font-style: italic; font-weight: normal;">Max Rate</th>
+                        <th style="width: 70px; padding: 2px; text-align: center; font-style: italic; font-weight: normal;">Avg Rate</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <!-- Body (Scrollable) -->
+        <div style="flex: 1; overflow-y: scroll; font-size: 11px;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;" id="iss_tbody_table">
+                <tbody id="iss_tbody">
+                    <!-- Data populated via JS -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Footer (Fixed) -->
+        <div style="background: #c0c0c0; font-size: 11px; font-weight: bold; flex-shrink: 0; overflow-y: scroll; border-top: 1px solid #999;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <tfoot>
+                    <tr>
+                        <td style="width: 20px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 80px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 80px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="border-right: 1px solid #999; padding: 2px; text-align: right; font-style: italic; border-bottom: 1px solid #999; background: transparent;">Totals</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="iss_tot_pcs">0.00</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="iss_tot_qty">0.00</td>
+                        <td style="width: 50px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 80px; border-right: 1px solid #999; padding: 2px; text-align: right; font-weight: bold; background: #fff; border-bottom: 1px solid #999;" id="iss_tot_amt">0.00</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 70px; border-right: 1px solid #999; padding: 2px; background: transparent;">&nbsp;</td>
+                        <td style="width: 70px; padding: 2px; background: transparent;">&nbsp;</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <style>
+        .sr-btn {
+            background-color: #1F4E79;
+            color: #fff;
+            border: 1px solid #000;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 3px;
+        }
+        .sr-btn:hover { background-color: #153859; }
+        
+        #iss_tbody tr { border-bottom: 1px solid #eee; cursor: pointer; }
+        #iss_tbody tr.selected td { background-color: #1F4E79 !important; color: white; }
+        #iss_tbody td { padding: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-right: 1px solid #e0e0e0; }
+        #iss_tbody td:last-child { border-right: none; }
+
+        .sr-suggest-box {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ccc;
+            z-index: 1000;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            font-size: 11px;
+        }
+        .sr-suggest-box div { padding: 4px; cursor: pointer; }
+        .sr-suggest-box div:hover, .sr-suggest-box div.active { background-color: #1F4E79; color: white; }
+        
+        .sr-row-pointer {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            border-left: 6px solid transparent;
+            margin-left: 2px;
+        }
+        
+        #iss_tbody tr.selected .sr-row-pointer {
+            border-left-color: white;
+        }
+    </style>
+</div>

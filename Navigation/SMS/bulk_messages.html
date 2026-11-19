@@ -1,0 +1,260 @@
+<div id="bulkSMSContainer" data-module="Bulk Messages" style="min-height: 590px; display: flex; flex-direction: column; gap: 8px; background: white; padding: 12px; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 4px; width: 930px; position: relative;">
+    
+    <!-- Top Filter Row -->
+    <div style="display: flex; gap: 12px; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 4px; background: #f8fafc; align-items: flex-end; flex-wrap: wrap;">
+        <!-- Campaign Mode Selector -->
+        <div style="display: flex; flex-direction: column; gap: 4px; width: 175px;">
+            <label class="sms-label" style="font-weight: 700; color: #1e3a8a;"><i class="fas fa-bullhorn"></i> Campaign Mode</label>
+            <select id="bmCampaignMode" class="sms-input" onchange="window.BulkMessagesModule.handleCampaignModeChange()" style="font-weight: 700; border-color: #1F4E79; color: #1e3a8a; height: 26px;">
+                <option value="standard">✉️ Ledger / Account SMS</option>
+                <option value="price_list">🏷️ Customer Price List (WhatsApp)</option>
+            </select>
+        </div>
+
+        <!-- Standard Mode Filters -->
+        <div id="bmStandardFilterContainer" style="display: flex; gap: 12px; align-items: flex-end;">
+            <div style="display: flex; flex-direction: column; gap: 4px; width: 130px;" id="bmGroupTypeContainer">
+                <label class="sms-label">Target Group</label>
+                <select id="bmGroupType" class="sms-input" onchange="window.BulkMessagesModule.handleFiltersChange()">
+                    <option value="customer">All Customers</option>
+                    <option value="vendor">All Vendors</option>
+                </select>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; width: 140px;" id="bmRegionFilterContainer">
+                <label class="sms-label">Filter by Region</label>
+                <select id="bmRegionSelect" class="sms-input" onchange="window.BulkMessagesModule.handleFiltersChange()">
+                    <option value="ALL">-- All Regions --</option>
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 5px;" id="bmOnlyDebtContainer">
+                <input type="checkbox" id="bmOnlyDebt" onchange="window.BulkMessagesModule.handleFiltersChange()" style="width: 15px; height: 15px;">
+                <label for="bmOnlyDebt" class="sms-label" style="cursor: pointer;">Balance &gt; 0 Only</label>
+            </div>
+        </div>
+
+        <!-- Price List Mode Filters (Visible when Campaign Mode = price_list) -->
+        <div id="bmPriceListFilterContainer" style="display: none; gap: 12px; align-items: flex-end;">
+            <div style="display: flex; flex-direction: column; gap: 4px; width: 165px;">
+                <label class="sms-label">Target Customers</label>
+                <select id="bmPriceAudience" class="sms-input" onchange="window.BulkMessagesModule.handlePriceListFiltersChange()">
+                    <option value="custom_only">Customized Rates Only</option>
+                    <option value="all_customers">All Active Customers</option>
+                </select>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; width: 135px;">
+                <label class="sms-label">Filter Brand</label>
+                <select id="bmPriceBrandFilter" class="sms-input" onchange="window.BulkMessagesModule.handlePriceListFiltersChange()">
+                    <option value="ALL">-- All Brands --</option>
+                </select>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; width: 145px;">
+                <label class="sms-label">Rate Format in Msg</label>
+                <select id="bmPriceRateFormat" class="sms-input" onchange="window.BulkMessagesModule.handleRateFormatChange()">
+                    <option value="brand_wise">Brand-wise Summary</option>
+                    <option value="item_wise">Item-wise Detail</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-left: auto;">
+            <button class="sms-btn sms-save" onclick="window.BulkMessagesModule.refreshCurrentList()" style="height: 28px; width: 110px; font-weight: 700;">
+                <i class="fas fa-sync"></i> Refresh List
+            </button>
+        </div>
+    </div>
+
+    <!-- Middle Grid Section -->
+    <div style="display: flex; gap: 15px; flex: 1; min-height: 220px;">
+        <!-- Left Side: Table of matched parties with checkboxes -->
+        <div style="flex: 1.3; border: 1px solid #cbd5e0; border-radius: 4px; padding: 8px; background: white; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 3px; text-transform: uppercase;">
+                <span id="bmRecipientListTitle">Recipient Selection (<span id="bmMatchedCount">0</span> selected)</span>
+                <div>
+                    <button class="sms-btn" onclick="window.BulkMessagesModule.toggleSelectAll(true)" style="height: 20px; min-width: 50px; font-size: 9px; padding: 0 4px;">Select All</button>
+                    <button class="sms-btn" onclick="window.BulkMessagesModule.toggleSelectAll(false)" style="height: 20px; min-width: 50px; font-size: 9px; padding: 0 4px;">Clear All</button>
+                </div>
+            </div>
+            
+            <div style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; background: #fff;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+                    <thead style="position: sticky; top: 0; background: #1F4E79; color: white;">
+                        <tr>
+                            <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e0; width: 30px;">Send</th>
+                            <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0; width: 70px;">Code</th>
+                            <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0;">Name</th>
+                            <th style="padding: 4px; text-align: left; border: 1px solid #cbd5e0; width: 95px;">Mobile</th>
+                            <th id="bmColBalanceOrPricing" style="padding: 4px; text-align: right; border: 1px solid #cbd5e0; width: 110px;">Balance</th>
+                            <th id="bmColPreview" style="padding: 4px; text-align: center; border: 1px solid #cbd5e0; width: 45px; display: none;">Preview</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bmRecipientsBody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right Side: Template & Bulk Composer -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; border-radius: 4px; padding: 12px; background: white; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 12px; font-weight: 700; color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 3px; text-transform: uppercase;" id="bmComposerHeaderTitle">
+                Bulk Composer
+            </div>
+
+            <!-- Standard Template Dropdown (shown in standard mode) -->
+            <div style="display: flex; flex-direction: column; gap: 4px;" id="bmStandardTemplateContainer">
+                <label class="sms-label">Choose SMS Template</label>
+                <select id="bmTemplateSelect" class="sms-input" onchange="window.BulkMessagesModule.applyTemplate()">
+                    <option value="">-- Custom Message (No Template) --</option>
+                </select>
+            </div>
+
+            <!-- Price List Template Info Banner (shown in price_list mode) -->
+            <div id="bmPriceListInfoBanner" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 6px 10px; font-size: 11px; color: #166534;">
+                <i class="fab fa-whatsapp" style="font-size: 13px; color: #16a34a;"></i> <strong>WhatsApp Price List Campaign:</strong> Each customer will receive their own customized pricing.
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <label class="sms-label" style="margin: 0;" id="bmMsgLabel">Message Template</label>
+                    <div style="display: flex; align-items: center; gap: 5px;" id="bmAttachPDFContainer">
+                        <input type="checkbox" id="bmAttachPDF" onchange="window.BulkMessagesModule.togglePDFAttachment()" style="width: 13px; height: 13px; cursor: pointer;">
+                        <label for="bmAttachPDF" style="font-size: 11px; cursor: pointer; color: #1e293b; font-weight: 600; margin: 0;">Attach PDF Ledger Link</label>
+                    </div>
+                </div>
+                <textarea id="bmMessageText" class="sms-input" style="flex: 1; min-height: 110px; resize: none; padding: 6px; font-family: monospace; font-size: 12px;" placeholder="Write custom message or use available placeholders."></textarea>
+                
+                <!-- Tag Insert Buttons for Price List Mode (NO Customer_Code, NO Catalog_Link) -->
+                <div id="bmPriceTagsHelper" style="display: none; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 2px;">
+                    <span style="font-size: 10px; color: #64748b; font-weight: 600;">Click to insert:</span>
+                    <button type="button" class="sms-tag-btn" onclick="window.BulkMessagesModule.insertTag('{Customer_Name}')" title="Customer Business Name">{Customer_Name}</button>
+                    <button type="button" class="sms-tag-btn" onclick="window.BulkMessagesModule.insertTag('{Date}')" title="Effective Date">{Date}</button>
+                    <button type="button" class="sms-tag-btn" onclick="window.BulkMessagesModule.insertTag('{Price_List_Details}')" title="Personalized Rates List">{Price_List_Details}</button>
+                    <button type="button" class="sms-tag-btn" onclick="window.BulkMessagesModule.insertTag('{Company_Name}')" title="Company Name">{Company_Name}</button>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; margin-top: 4px;">
+                    <span id="bmCharCounter">0 characters / 0 SMS Parts</span>
+                    <button id="bmSendBtn" class="sms-btn sms-save" onclick="window.BulkMessagesModule.sendBulkSMS()" style="height: 28px; min-width: 130px; color: white; background: #1F4E79; border: none; font-weight: 700;">
+                        <i class="fas fa-paper-plane"></i> Send Bulk SMS
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Row: Recent SMS Logs -->
+    <div style="height: 140px; display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px; background: #f8fafc; margin-top: 5px;">
+        <div style="font-size: 11px; font-weight: 700; color: #1F4E79; margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid #1F4E79; padding-bottom: 2px; display: flex; justify-content: space-between; align-items: center;">
+            <span>Recent Send Logs (Bulk Messages)</span>
+            <button onclick="window.BulkMessagesModule.loadLogs()" style="border: none; background: none; color: #1e3a8a; font-size: 10px; font-weight: 600; cursor: pointer;">
+                <i class="fas fa-sync"></i> Refresh Logs
+            </button>
+        </div>
+        <div style="flex: 1; background: white; border: 1px solid #cbd5e0; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                <thead style="position: sticky; top: 0; background: #1F4E79; color: white;">
+                    <tr>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0; width: 130px;">Sent Time</th>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0; width: 130px;">Recipient</th>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0; width: 100px;">Mobile No</th>
+                        <th style="padding: 3px 6px; text-align: left; border: 1px solid #cbd5e0;">Message Details</th>
+                        <th style="padding: 3px 6px; text-align: center; border: 1px solid #cbd5e0; width: 70px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="bmLogsBody">
+                    <!-- Logs list -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Price List Message Preview Modal -->
+    <div id="bmPreviewModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9998; justify-content: center; align-items: center; border-radius: 4px;">
+        <div style="width: 440px; background: white; padding: 15px; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #cbd5e0; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1F4E79; padding-bottom: 5px;">
+                <div style="font-size: 13px; font-weight: 700; color: #1F4E79;">
+                    <i class="fab fa-whatsapp" style="color: #16a34a;"></i> WhatsApp Message Preview
+                </div>
+                <button onclick="document.getElementById('bmPreviewModal').style.display='none'" style="background: none; border: none; font-size: 18px; font-weight: bold; cursor: pointer; color: #64748b; line-height: 1;">&times;</button>
+            </div>
+            <div style="font-size: 11.5px; color: #1e3a8a; font-weight: 700;" id="bmPreviewRecipientInfo"></div>
+            <div style="background: #eef2f6; border: 1px solid #cbd5e0; border-radius: 4px; padding: 10px; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11.5px; white-space: pre-wrap; max-height: 250px; overflow-y: auto; line-height: 1.4; color: #1e293b;" id="bmPreviewMessageText"></div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button class="sms-btn" onclick="document.getElementById('bmPreviewModal').style.display='none'">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Sending Progress Modal -->
+    <div id="simulatedBulkModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; border-radius: 4px;">
+        <div style="width: 400px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #cbd5e0; display: flex; flex-direction: column; gap: 15px; text-align: center;">
+            <div style="font-size: 14px; font-weight: 700; color: #1e3a8a;" id="bmProgressTitle">Sending Bulk Messages...</div>
+            
+            <div style="width: 100%; background: #e2e8f0; height: 16px; border-radius: 10px; overflow: hidden; position: relative;">
+                <div id="bmProgressBar" style="width: 0%; background: #16a34a; height: 100%; transition: width 0.15s ease;"></div>
+            </div>
+            
+            <div style="font-size: 12px; color: #475569;" id="bmProgressText">Processed: 0 of 0 messages</div>
+            
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 10px; display: none;" id="bmProgressCloseBtn">
+                <button onclick="document.getElementById('simulatedBulkModal').style.display='none'" style="border: none; background: #16a34a; color: white; border-radius: 4px; padding: 6px 22px; font-size: 11px; font-weight: bold; cursor: pointer;">Done</button>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .sms-btn {
+            height: 28px;
+            min-width: 70px;
+            padding: 0 12px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #cbd5e0;
+            background: white;
+            transition: all 0.2s;
+        }
+        .sms-btn:hover { background: #f8fafc; }
+        .sms-label { font-size: 11px; font-weight: 600; color: #334155; }
+        .sms-input {
+            height: 24px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            padding: 0 6px;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+        .sms-input:focus { border-color: #1e3a8a; }
+
+        .sms-tag-btn {
+            height: 20px;
+            padding: 0 6px;
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 3px;
+            border: 1px solid #93c5fd;
+            background: #eff6ff;
+            color: #1e40af;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .sms-tag-btn:hover {
+            background: #dbeafe;
+            border-color: #3b82f6;
+        }
+        
+        #bmRecipientsBody tr { border-bottom: 1px solid #f1f5f9; }
+        #bmRecipientsBody tr:hover { background: #f8fafc; }
+        #bmRecipientsBody td { padding: 4px; border: 1px solid #cbd5e0; }
+        
+        #bmLogsBody tr { border-bottom: 1px solid #f1f5f9; }
+        #bmLogsBody tr:hover { background: #f8fafc; }
+        #bmLogsBody td { padding: 4px 6px; border: 1px solid #e2e8f0; }
+    </style>
+</div>

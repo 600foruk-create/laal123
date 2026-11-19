@@ -1,0 +1,219 @@
+<div id="regionsContainer" data-module="Customer Regions" style="width: 860px; height: auto; display: flex; flex-direction: column; gap: 4px; background: white; padding: 6px 8px 8px 8px; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; border-radius: 4px;">
+
+    <style>
+        #regionsContainer .coa-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 7px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            min-width: 48px;
+            height: 30px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        #regionsContainer .coa-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        #regionsContainer .coa-btn:active { transform: translateY(1px); }
+
+        #regionsContainer .coa-add    { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        #regionsContainer .coa-add:hover    { background: #3b6998 !important; }
+        #regionsContainer .coa-save   { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        #regionsContainer .coa-save:hover   { background: #3b6998 !important; }
+        #regionsContainer .coa-cancel { background: #64748b !important; color: white !important; border-color: #64748b !important; }
+        #regionsContainer .coa-cancel:hover { background: #475569 !important; }
+        #regionsContainer .coa-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        #regionsContainer .coa-delete:hover { background: #c82333 !important; }
+        #regionsContainer .coa-export { background: #16a34a !important; color: white !important; border-color: #16a34a !important; }
+        #regionsContainer .coa-export:hover { background: #15803d !important; }
+        #regionsContainer .coa-import { background: #0284c7 !important; color: white !important; border-color: #0284c7 !important; }
+        #regionsContainer .coa-import:hover { background: #0369a1 !important; }
+
+        #regionsContainer .coa-label {
+            font-size: 11px;
+            font-style: italic;
+            font-weight: 500;
+            color: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            text-align: left;
+        }
+        #regionsContainer .coa-input {
+            height: 24px;
+            border: 1px solid #94a3b8;
+            border-radius: 3px;
+            padding: 0 6px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            transition: border 0.2s;
+        }
+        #regionsContainer .coa-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+
+        #regionsContainer select option:checked {
+            background-color: var(--theme-primary, #1F4E79) !important;
+            color: white !important;
+            box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+            -webkit-box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+        }
+        #regionsContainer select option {
+            padding: 2px 6px !important;
+            margin: 0 !important;
+            min-height: 18px !important;
+            height: 18px !important;
+            line-height: 18px !important;
+        }
+        #regionsContainer select { padding: 2px 0; }
+
+        #regionsContainer input:disabled,
+        #regionsContainer select:disabled {
+            background-color: #f8fafc;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+    </style>
+
+    <!-- Top Action Bar (Hierarchy & Excel Export/Import) -->
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 2px;">
+        <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+            <i class="fas fa-sitemap" style="color: #1F4E79;"></i>
+            <span>Customer Regions Hierarchy</span>
+            <small id="cr_title_breadcrumb" style="color: #64748b; font-weight: normal;">(Main Region &rarr; Sub Region &rarr; Area / List)</small>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+            <button type="button" class="coa-btn" onclick="clearAllRegions()" style="height: 27px; padding: 0 9px; color: #7f1d1d; border-color: #fca5a5; background: #fef2f2;" title="Wipe all regions hierarchy to start fresh">
+                <i class="fas fa-trash-alt"></i> Clear All
+            </button>
+            <button type="button" class="coa-btn coa-export" onclick="exportRegions('all')" style="height: 27px; padding: 0 10px;" title="Download complete hierarchy in Excel (.xlsx) format">
+                <i class="fas fa-file-excel"></i> Export All to Excel
+            </button>
+            <button type="button" class="coa-btn coa-import" onclick="triggerImportRegions('all')" style="height: 27px; padding: 0 10px;" title="Upload Excel (.xlsx/.xls) or CSV file to add or update regions">
+                <i class="fas fa-file-upload"></i> Import from Excel
+            </button>
+            <input type="file" id="regionImportFileInput" accept=".xlsx, .xls, .csv, .txt" style="display: none;" onchange="handleRegionFileImport(this)">
+        </div>
+    </div>
+
+    <!-- Section 1: Main Region -->
+    <div style="flex: 1; display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 6px; border-radius: 4px; min-height: 0;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px; display: flex; justify-content: space-between; align-items: center;">
+            <span id="cr_sec1_title">Main Region</span>
+            <span style="font-size: 10px; color: #64748b; text-transform: none; font-weight: 500;">(e.g., Province / Country Level)</span>
+        </div>
+
+        <div style="display: flex; gap: 15px; flex: 1; align-items: stretch; min-height: 0;">
+            <!-- Left: List box -->
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <select id="mainRegionList" size="7"
+                    style="width: 100%; flex: 1; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;"
+                    onchange="onMainRegionSelect(this.value)"></select>
+            </div>
+
+            <!-- Right: Buttons aligned to right edge of list, then field below -->
+            <div style="flex: 1.3; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: flex-end; gap: 4px; flex-wrap: wrap;">
+                    <button type="button" class="coa-btn coa-add"    onclick="resetMainRegionForm(true)"><i class="fas fa-plus"></i> Add</button>
+                    <button type="button" class="coa-btn coa-save"   onclick="saveMainRegion()"><i class="fas fa-save"></i> Save</button>
+                    <button type="button" class="coa-btn coa-cancel" onclick="resetMainRegionForm()"><i class="fas fa-times"></i> Cancel</button>
+                    <button type="button" class="coa-btn coa-delete" onclick="deleteMainRegion()"><i class="fas fa-trash"></i> Delete</button>
+                    <button type="button" class="coa-btn coa-save"   onclick="showRegionChart('main')" title="View Tree Chart"><i class="fas fa-chart-pie"></i> Chart</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 90px 1fr; gap: 4px 8px; align-content: start; margin-top: 4px;">
+                    <label class="coa-label" id="cr_sec1_label">Main Region</label>
+                    <input type="text" id="mainRegionName" class="coa-input" placeholder="Enter Region Name" style="font-weight: bold;" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Sub Region -->
+    <div style="flex: 1; display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 6px; border-radius: 4px; min-height: 0;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px; display: flex; justify-content: space-between; align-items: center;">
+            <span id="cr_sec2_title">Sub Region</span>
+            <span style="font-size: 10px; color: #64748b; text-transform: none; font-weight: 500;">(e.g., District / City Level)</span>
+        </div>
+
+        <div style="display: flex; gap: 15px; flex: 1; align-items: stretch; min-height: 0;">
+            <!-- Left: List box -->
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <select id="subRegionList" size="7"
+                    style="width: 100%; flex: 1; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;"
+                    onchange="onSubRegionSelect(this.value)"></select>
+            </div>
+
+            <!-- Right: Buttons aligned to right edge of list, then field below -->
+            <div style="flex: 1.3; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: flex-end; gap: 4px; flex-wrap: wrap;">
+                    <button type="button" class="coa-btn coa-add"    onclick="resetSubRegionForm(true)"><i class="fas fa-plus"></i> Add</button>
+                    <button type="button" class="coa-btn coa-save"   onclick="saveSubRegion()"><i class="fas fa-save"></i> Save</button>
+                    <button type="button" class="coa-btn coa-cancel" onclick="resetSubRegionForm()"><i class="fas fa-times"></i> Cancel</button>
+                    <button type="button" class="coa-btn coa-delete" onclick="deleteSubRegion()"><i class="fas fa-trash"></i> Delete</button>
+                    <button type="button" class="coa-btn coa-save"   onclick="showRegionChart('sub')" title="View Tree Chart"><i class="fas fa-chart-pie"></i> Chart</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 90px 1fr; gap: 4px 8px; align-content: start; margin-top: 4px;">
+                    <label class="coa-label" id="cr_sec2_label">Sub Region</label>
+                    <input type="text" id="subRegionName" class="coa-input" placeholder="Enter Sub Region Name" style="font-weight: bold;" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: List -->
+    <div style="flex: 1; display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 6px; border-radius: 4px; min-height: 0;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px; display: flex; justify-content: space-between; align-items: center;">
+            <span id="cr_sec3_title">LIST (Area / Sector / Territory)</span>
+            <span style="font-size: 10px; color: #64748b; text-transform: none; font-weight: 500;">(e.g., Town / Area / Sector)</span>
+        </div>
+
+        <div style="display: flex; gap: 15px; flex: 1; align-items: stretch; min-height: 0;">
+            <!-- Left: List box -->
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <select id="listRegionList" size="7"
+                    style="width: 100%; flex: 1; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;"
+                    onchange="onListRegionSelect(this.value)"></select>
+            </div>
+
+            <!-- Right: Buttons aligned to right edge of list, then field below -->
+            <div style="flex: 1.3; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: flex-end; gap: 4px; flex-wrap: wrap;">
+                    <button type="button" class="coa-btn coa-add"    onclick="resetListRegionForm(true)"><i class="fas fa-plus"></i> Add</button>
+                    <button type="button" class="coa-btn coa-save"   onclick="saveListRegion()"><i class="fas fa-save"></i> Save</button>
+                    <button type="button" class="coa-btn coa-cancel" onclick="resetListRegionForm()"><i class="fas fa-times"></i> Cancel</button>
+                    <button type="button" class="coa-btn coa-delete" onclick="deleteListRegion()"><i class="fas fa-trash"></i> Delete</button>
+                    <button type="button" class="coa-btn coa-save"   onclick="showRegionChart('list')" title="View Tree Chart"><i class="fas fa-chart-pie"></i> Chart</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 90px 1fr; gap: 4px 8px; align-content: start; margin-top: 4px;">
+                    <label class="coa-label" id="cr_sec3_label">List</label>
+                    <input type="text" id="listRegionName" class="coa-input" placeholder="Enter List Name" style="font-weight: bold;" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="assets/js/customer_regions.js?v=6"></script>
+<script>
+    if (typeof window.applyCustomRegionLabels === 'function') {
+        window.applyCustomRegionLabels(document.getElementById('regionsContainer') || document);
+    }
+    if (window.CustomerRegions && typeof window.CustomerRegions.init === 'function') {
+        window.CustomerRegions.init();
+    } else if (typeof window.initRegionsView === 'function') {
+        window.initRegionsView();
+    }
+</script>
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+    if (typeof window.applyCustomRegionLabels === 'function') {
+        window.applyCustomRegionLabels(document.getElementById('regionsContainer') || document);
+    }
+">

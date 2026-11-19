@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Print Vouchers</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #333; line-height: 1.4; background: #e0e0e0; margin: 0; padding: 20px 20px 80px 20px; }
+        
+        .voucher-container { background: #fff; width: 800px; min-height: 1000px; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.3); padding: 40px; box-sizing: border-box; display: none; margin-bottom: 20px; position: relative; }
+        .voucher-container.active { display: block; }
+        
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; position: relative; }
+        .company-name { font-family: "Times New Roman", Times, serif; font-size: 28px; font-weight: bold; font-style: italic; margin-bottom: 4px; display: block; text-transform: uppercase; }
+        .company-info { font-size: 11px; margin-bottom: 2px; }
+
+        .title-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; }
+        .voucher-title { border: 1px solid #333; padding: 5px 20px; font-weight: bold; font-style: italic; font-size: 16px; min-width: 250px; text-align: center; text-transform: uppercase; }
+        
+        .info-grid { display: flex; flex-direction: column; gap: 5px; margin-bottom: 15px; }
+        
+        table.grid { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 10px; }
+        table.grid th, table.grid td { border: 1px solid #ccc; padding: 5px; }
+        table.grid th { font-weight: bold; font-style: italic; text-align: left; background: #f9f9f9; border-top: 2px solid #666; border-bottom: 2px solid #666; }
+        table.grid td.right { text-align: right; }
+        table.grid td.center { text-align: center; }
+        
+        .totals-row { font-weight: bold; }
+        .totals-row td { border-top: 2px solid #666; border-bottom: 2px solid #666; }
+        
+        .signatures { display: flex; justify-content: space-between; margin-top: 80px; }
+        .sig-box { width: 150px; text-align: center; border-top: 1px solid #333; padding-top: 5px; font-weight: bold; font-style: italic; }
+
+        /* Toolbar */
+        .toolbar { position: fixed; bottom: 0; left: 0; right: 0; background: #f0f0f0; border-top: 1px solid #ccc; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); }
+        .pagination { display: flex; align-items: center; gap: 5px; }
+        .btn { border: 1px solid #999; background: #fff; padding: 5px 12px; cursor: pointer; border-radius: 3px; font-size: 12px; font-weight: bold; }
+        .btn:hover { background: #e8e8e8; }
+        .btn:disabled { color: #999; cursor: not-allowed; }
+        .page-info { border: 1px solid #999; background: #fff; padding: 5px 15px; font-weight: bold; font-size: 12px; min-width: 60px; text-align: center; }
+
+        /* PRINT STYLES */
+        @media print { 
+            @page { margin: 10mm; size: auto; } 
+            body { margin: 0; padding: 0; background: none; }
+            .toolbar { display: none !important; }
+            .voucher-container { display: block !important; box-shadow: none; margin: 0; padding: 0; width: 100%; min-height: auto; page-break-after: always; }
+            .voucher-container:last-child { page-break-after: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading" style="text-align: center; font-size: 20px; margin-top: 50px;">
+        <i class="fas fa-spinner fa-spin"></i> Loading Vouchers...
+    </div>
+
+    <div id="vouchers-wrapper"></div>
+
+    <div class="toolbar" id="toolbar" style="display:none;">
+        <div class="pagination">
+            <span style="font-weight: bold; margin-right: 10px;">Pages:</span>
+            <button class="btn" id="btn-first" onclick="goTo(0)" title="First Record"><i class="fas fa-step-backward"></i></button>
+            <button class="btn" id="btn-prev" onclick="goTo(currentIndex - 1)" title="Previous Record"><i class="fas fa-caret-left"></i></button>
+            <div class="page-info" id="page-info">1</div>
+            <button class="btn" id="btn-next" onclick="goTo(currentIndex + 1)" title="Next Record"><i class="fas fa-caret-right"></i></button>
+            <button class="btn" id="btn-last" onclick="goTo(totalVouchers - 1)" title="Last Record"><i class="fas fa-step-forward"></i></button>
+        </div>
+        <div>
+            <button class="btn" style="background: #1f4668; color: #fff; padding: 8px 20px; font-size: 14px;" onclick="window.print()"><i class="fas fa-print"></i> Print All</button>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const type = params.get('type') || '';
+        const criteria = params.get('criteria') || 'all';
+        const df = params.get('df') || '';
+        const dt = params.get('dt') || '';
+        const sf = params.get('sf') || '';
+        const st = params.get('st') || '';
+
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const companyId = session.company_id || 1;
+        const compName = session.company_name || 'SOFTIFYX ERP';
+        const compAddr = session.company_address || 'Company Address Area';
+        const compPhone = session.company_phone || 'Tel: 000-000000';
+
+        let currentIndex = 0;
+        let totalVouchers = 0;
+        let vouchersData = [];
+
+        async function loadVouchers() {
+            try {
+                let apiUrl = `api/print_vouchers.php?action=get_vouchers&company_id=${companyId}&type=${encodeURIComponent(type)}&criteria=${encodeURIComponent(criteria)}`;
+                if (criteria === 'date') apiUrl += `&df=${df}&dt=${dt}`;
+                if (criteria === 'serial') apiUrl += `&sf=${sf}&st=${st}`;
+
+                const res = await fetch(apiUrl);
+                const data = await res.json();
+                
+                document.getElementById('loading').style.display = 'none';
+
+                if (data.status === 'success' && data.vouchers && data.vouchers.length > 0) {
+                    vouchersData = data.vouchers;
+                    totalVouchers = vouchersData.length;
+                    renderAll();
+                    goTo(0);
+                    document.getElementById('toolbar').style.display = 'flex';
+                } else {
+                    document.getElementById('vouchers-wrapper').innerHTML = `<div style="text-align: center; color: red; font-size: 18px; margin-top: 50px;">No vouchers found for the selected criteria.</div>`;
+                }
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('vouchers-wrapper').innerHTML = `<div style="text-align: center; color: red; font-size: 18px; margin-top: 50px;">Error loading data: ${err.message}</div>`;
+            }
+        }
+
+        function extractGLEntries(type, v) {
+            let entries = [];
+            
+            if (type === 'general_journal_voucher') {
+                v.items.forEach(itm => {
+                    entries.push({ code: itm.coa_code || '', name: itm._name || '', debit: parseFloat(itm._debit || 0), credit: parseFloat(itm._credit || 0) });
+                });
+            } else if (type === 'purchases' || type === 'purchase_invoices') {
+                v.items.forEach(itm => {
+                    entries.push({ code: itm.code || itm.coa_code || '', name: itm._name || 'Purchases', debit: parseFloat(itm.net_amount || itm.gross_amount || itm._amount || 0), credit: 0 });
+                });
+                entries.push({ code: v._party_code || '', name: v._party_name || 'Vendor Account', debit: 0, credit: parseFloat(v.net_total || v.total_incl_tax || 0) });
+            } else if (type === 'sale_invoices') {
+                entries.push({ code: v._party_code || '', name: v._party_name || 'Customer Account', debit: parseFloat(v.net_total || v.total_incl_tax || 0), credit: 0 });
+                v.items.forEach(itm => {
+                    entries.push({ code: itm.code || itm.coa_code || '', name: itm._name || 'Sales', debit: 0, credit: parseFloat(itm.net_amount || itm.gross_amount || itm._amount || 0) });
+                });
+            } else if (type === 'cash_receipts' || type === 'bank_receipts') {
+                entries.push({ code: v._bank_cash_code || '', name: v._bank_cash_name || 'Cash/Bank Account', debit: parseFloat(v.total_amount || 0), credit: 0 });
+                v.items.forEach(itm => {
+                    entries.push({ code: itm.coa_code || '', name: itm._name || v._party_name || 'Received From', debit: 0, credit: parseFloat(itm.total_credited || itm.received_amount || itm._amount || 0) });
+                });
+            } else if (type === 'cash_payments' || type === 'bank_payments') {
+                v.items.forEach(itm => {
+                    entries.push({ code: itm.coa_code || '', name: itm._name || v._party_name || 'Paid To', debit: parseFloat(itm.total_debited || itm.paid_amount || itm._amount || 0), credit: 0 });
+                });
+                entries.push({ code: v._bank_cash_code || '', name: v._bank_cash_name || 'Cash/Bank Account', debit: 0, credit: parseFloat(v.total_amount || 0) });
+            } else if (type === 'purchase_returns') {
+                entries.push({ code: v._party_code || '', name: v._party_name || 'Vendor Account', debit: parseFloat(v.net_total || v.total_incl_tax || 0), credit: 0 });
+                v.items.forEach(itm => {
+                    entries.push({ code: itm.code || itm.coa_code || '', name: itm._name || 'Purchase Returns', debit: 0, credit: parseFloat(itm.net_amount || itm.gross_amount || itm._amount || 0) });
+                });
+            } else if (type === 'sale_returns') {
+                v.items.forEach(itm => {
+                    entries.push({ code: itm.code || itm.coa_code || '', name: itm._name || 'Sale Returns', debit: parseFloat(itm.net_amount || itm.gross_amount || itm._amount || 0), credit: 0 });
+                });
+                entries.push({ code: v._party_code || '', name: v._party_name || 'Customer Account', debit: 0, credit: parseFloat(v.net_total || v.total_incl_tax || 0) });
+            } else {
+                // Fallback for Inventory Notes (MIN, PN, Adjustments) -> We map Qty to Debit
+                v.items.forEach(itm => {
+                    entries.push({ code: itm.code || itm.coa_code || '', name: itm._name || 'Item', debit: parseFloat(itm._qty || itm.quantity || itm.pieces || 0), credit: 0 });
+                });
+            }
+            return entries;
+        }
+
+        // Helper to spell out numbers in words
+        function numberToWords(amount) {
+            const words = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+            
+            if (amount === 0) return "Zero";
+            if (amount < 20) return words[amount];
+            if (amount < 100) return tens[Math.floor(amount / 10)] + (amount % 10 !== 0 ? " " + words[amount % 10] : "");
+            if (amount < 1000) return words[Math.floor(amount / 100)] + " Hundred" + (amount % 100 !== 0 ? " and " + numberToWords(amount % 100) : "");
+            if (amount < 100000) return numberToWords(Math.floor(amount / 1000)) + " Thousand" + (amount % 1000 !== 0 ? " " + numberToWords(amount % 1000) : "");
+            if (amount < 10000000) return numberToWords(Math.floor(amount / 100000)) + " Lakh" + (amount % 100000 !== 0 ? " " + numberToWords(amount % 100000) : "");
+            return "Amount too large"; // simplified
+        }
+
+        function renderAll() {
+            const wrapper = document.getElementById('vouchers-wrapper');
+            let html = '';
+            
+            vouchersData.forEach((v, idx) => {
+                let dateStr = v._date ? new Date(v._date).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '';
+                
+                const entries = extractGLEntries(type, v);
+                let itemsHtml = '';
+                let totalDeb = 0, totalCred = 0;
+                
+                entries.forEach(e => {
+                    itemsHtml += `
+                        <tr>
+                            <td>${e.code}</td>
+                            <td>${e.name}</td>
+                            <td class="right">${e.debit > 0 ? Number(e.debit).toLocaleString('en-US', {minimumFractionDigits:2}) : ''}</td>
+                            <td class="right">${e.credit > 0 ? Number(e.credit).toLocaleString('en-US', {minimumFractionDigits:2}) : ''}</td>
+                        </tr>
+                    `;
+                    totalDeb += e.debit;
+                    totalCred += e.credit;
+                });
+                
+                const isInventoryNote = ['material_issue_notes', 'production_notes', 'add_inventory_adjustments', 'reduce_inventory_adjustments'].includes(type);
+                
+                let thHtml = `
+                    <tr>
+                        <th style="width:120px;">Acc Code</th>
+                        <th>Account Name</th>
+                        <th style="width:120px;" class="right">${isInventoryNote ? 'Qty' : 'Debit (Rs.)'}</th>
+                        <th style="width:120px;" class="right">${isInventoryNote ? '' : 'Credit (Rs.)'}</th>
+                    </tr>
+                `;
+                
+                let footHtml = `
+                    <tr class="totals-row">
+                        <td colspan="2" class="right">Totals</td>
+                        <td class="right">${Number(totalDeb).toLocaleString('en-US', {minimumFractionDigits:isInventoryNote ? 0 : 2})}</td>
+                        <td class="right">${isInventoryNote ? '' : Number(totalCred).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+                    </tr>
+                `;
+                
+                const remarks = v.remarks || v.description || v.memo || '';
+                
+                // Construct Amount in Words
+                let wordsStr = "";
+                if (!isInventoryNote) {
+                    const wholeAmt = Math.floor(totalDeb);
+                    const cents = Math.round((totalDeb - wholeAmt) * 100);
+                    wordsStr = "Rupees " + numberToWords(wholeAmt).toLowerCase() + (cents > 0 ? ` and ${cents}/100` : "") + " only.";
+                }
+                
+                const isCancelled = v.is_cancelled == 1 || v.is_cancelled === '1' || v.is_cancelled === true;
+                const statusText = isCancelled ? 'CANCELLED' : 'POSTED';
+                const statusColor = isCancelled ? '#d9534f' : '#333';
+                
+                html += `
+                    <div class="voucher-container" id="voucher-${idx}">
+                        <div class="header">
+                            <div style="position: absolute; right: 0; top: 0; border: 1px solid ${statusColor}; color: ${statusColor}; padding: 2px 10px; font-weight: bold; font-style: italic; text-transform: uppercase;">${statusText}</div>
+                            <span class="company-name">${compName}</span>
+                            <div class="company-info">${compAddr}</div>
+                            <div class="company-info">${compPhone}</div>
+                        </div>
+                        
+                        <div class="title-row">
+                            <div>
+                                <span style="font-weight: bold; font-style: italic;">Serial No :</span>
+                                <span style="margin-left: 10px; font-weight: bold; font-size: 14px;">${v._serial}</span>
+                                <span style="font-weight: bold; font-style: italic; margin-left: 40px;">Date :</span>
+                                <span style="margin-left: 10px; font-weight: bold; font-size: 14px;">${dateStr}</span>
+                            </div>
+                            <div class="voucher-title">${v._title}</div>
+                        </div>
+                        
+                        <div class="info-grid">
+                            ${remarks ? `<div><span style="font-style: italic;">Description : </span>${remarks}</div>` : ''}
+                        </div>
+                        
+                        <table class="grid">
+                            <thead>
+                                ${thHtml}
+                            </thead>
+                            <tbody>
+                                ${itemsHtml}
+                            </tbody>
+                            <tfoot>
+                                ${footHtml}
+                            </tfoot>
+                        </table>
+                        
+                        ${wordsStr ? `<div style="font-style: italic; margin-top: 5px;">Amount in Words : <span style="font-weight: bold;">${wordsStr}</span></div>` : ''}
+                        
+                        <div class="signatures">
+                            <div class="sig-box">Prepared By<br><span style="font-size: 10px; font-weight: normal;">Administrator</span></div>
+                            <div class="sig-box">Checked By</div>
+                            <div class="sig-box">Approved By</div>
+                        </div>
+                    </div>
+                `;
+            });
+            wrapper.innerHTML = html;
+        }
+
+        function goTo(index) {
+            if (index < 0 || index >= totalVouchers) return;
+            
+            // Hide all
+            document.querySelectorAll('.voucher-container').forEach(el => el.classList.remove('active'));
+            
+            // Show target
+            currentIndex = index;
+            document.getElementById(`voucher-${currentIndex}`).classList.add('active');
+            
+            // Update toolbar
+            document.getElementById('page-info').textContent = (currentIndex + 1) + ' of ' + totalVouchers;
+            
+            document.getElementById('btn-first').disabled = (currentIndex === 0);
+            document.getElementById('btn-prev').disabled = (currentIndex === 0);
+            document.getElementById('btn-next').disabled = (currentIndex === totalVouchers - 1);
+            document.getElementById('btn-last').disabled = (currentIndex === totalVouchers - 1);
+        }
+
+        window.onload = loadVouchers;
+    </script>
+</body>
+</html>

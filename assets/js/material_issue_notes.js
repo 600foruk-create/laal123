@@ -820,6 +820,10 @@
         },
 
         saveMIN: async function(silent = false) {
+            const isFormula = document.getElementById('min_use_formula') ? document.getElementById('min_use_formula').checked : false;
+            const formulaId = isFormula ? (document.getElementById('min_formula_id').value || null) : null;
+            const formulaQty = isFormula ? (parseFloat(document.getElementById('min_formula_qty').value) || 1) : null;
+
             const data = {
                 id: this.data.currentId,
                 serial_no: document.getElementById('min_sn').value,
@@ -831,6 +835,8 @@
                 debit_account_id: document.getElementById('min_dr_code').dataset.id,
                 credit_account_id: document.getElementById('min_cr_code').dataset.id,
                 remarks: document.getElementById('min_remarks').value,
+                formula_id: formulaId,
+                formula_qty: formulaQty,
                 total_pieces: 0,
                 total_qty: 0,
                 total_amount: 0,
@@ -942,6 +948,20 @@
             this.data.is_posted = data.is_posted == 1 ? 1 : 0;
             this.updateCancellationUI();
             this.updatePostedUI();
+
+            if (document.getElementById('min_use_formula')) {
+                if (data.formula_id) {
+                    document.getElementById('min_use_formula').checked = true;
+                    this.toggleFormulaMode();
+                    document.getElementById('min_formula_id').value = data.formula_id;
+                    if (document.getElementById('min_formula_qty')) {
+                        document.getElementById('min_formula_qty').value = data.formula_qty || 1;
+                    }
+                } else {
+                    document.getElementById('min_use_formula').checked = false;
+                    this.toggleFormulaMode();
+                }
+            }
 
             const tbody = document.querySelector('#min_grid tbody');
             tbody.innerHTML = '';

@@ -29,6 +29,16 @@
             this.bindEvents();
             this.loadCompanyProfile().catch(e => console.warn(e));
 
+            // Default Overheads to Manual Input (0)
+            const expModeEl = document.getElementById('pcExpenseMode');
+            if (expModeEl) expModeEl.value = 'manual';
+            const elecInput = document.getElementById('pcInputElectricity');
+            const laborInput = document.getElementById('pcInputLabor');
+            const ovhInput = document.getElementById('pcInputOverheads');
+            if (elecInput) { elecInput.disabled = false; if (!elecInput.value) elecInput.value = '0'; }
+            if (laborInput) { laborInput.disabled = false; if (!laborInput.value) laborInput.value = '0'; }
+            if (ovhInput) { ovhInput.disabled = false; if (!ovhInput.value) ovhInput.value = '0'; }
+
             try {
                 await this.loadMeta();
             } catch (e) {
@@ -276,7 +286,7 @@
         },
 
         onExpenseModeChange: function() {
-            const mode = document.getElementById('pcExpenseMode')?.value || 'auto';
+            const mode = document.getElementById('pcExpenseMode')?.value || 'manual';
             const elecInput = document.getElementById('pcInputElectricity');
             const laborInput = document.getElementById('pcInputLabor');
             const ovhInput = document.getElementById('pcInputOverheads');
@@ -286,9 +296,9 @@
                 if (laborInput) laborInput.disabled = true;
                 if (ovhInput) ovhInput.disabled = true;
             } else {
-                if (elecInput) elecInput.disabled = false;
-                if (laborInput) laborInput.disabled = false;
-                if (ovhInput) ovhInput.disabled = false;
+                if (elecInput) { elecInput.disabled = false; if (!elecInput.value) elecInput.value = '0'; }
+                if (laborInput) { laborInput.disabled = false; if (!laborInput.value) laborInput.value = '0'; }
+                if (ovhInput) { ovhInput.disabled = false; if (!ovhInput.value) ovhInput.value = '0'; }
             }
 
             this.loadReport();
@@ -350,7 +360,7 @@
             const fromDate = document.getElementById('pcFromDate')?.value || '';
             const toDate = document.getElementById('pcToDate')?.value || '';
             const productId = document.getElementById('pcProductFilter')?.value || 'all';
-            const expenseMode = document.getElementById('pcExpenseMode')?.value || 'auto';
+            const expenseMode = document.getElementById('pcExpenseMode')?.value || 'manual';
 
             const elecCost = document.getElementById('pcInputElectricity')?.value || '0';
             const laborCost = document.getElementById('pcInputLabor')?.value || '0';
@@ -422,6 +432,13 @@
                             const hasItems = c.items && c.items.length > 0;
                             const expandIcon = hasItems ? `<span class="pc-cat-toggle" style="display:inline-block; width:15px; cursor:pointer; font-weight:800; color:var(--theme-primary, #1F4E79); margin-right:4px;">[+]</span>` : '';
 
+                            let formulaBadge = '';
+                            if (c.formula_name && c.formula_name !== 'No Formula Defined') {
+                                formulaBadge = `<span style="font-size: 8.5px; background: #dbeafe; color: #1e40af; padding: 1px 5px; border-radius: 3px; font-weight: normal; margin-left: 6px;"><i class="fas fa-flask"></i> ${c.formula_name}</span>`;
+                            } else if (parseFloat(c.allocated_material || 0) <= 0) {
+                                formulaBadge = `<span style="font-size: 8.5px; background: #fef3c7; color: #92400e; padding: 1px 5px; border-radius: 3px; font-weight: normal; margin-left: 6px;"><i class="fas fa-exclamation-circle"></i> No Formula</span>`;
+                            }
+
                             html += `
                                 <tr class="pc-cat-parent" data-cat-id="${c.category_id}" style="font-weight: 600; cursor: pointer;" onclick="window.ProductionCostingModule.toggleCategoryGroup(this, event)">
                                     <td style="text-align: center; font-weight: 700; color: #64748b;">${c.sr}</td>
@@ -431,6 +448,7 @@
                                     <td style="font-weight: 700; color: #0f172a;">
                                         ${expandIcon}
                                         <span>${c.category_name}</span>
+                                        ${formulaBadge}
                                         <span style="font-size: 9px; color: #64748b; font-weight: normal; margin-left: 6px;">(${c.item_count} ${c.item_count === 1 ? 'size' : 'sizes'})</span>
                                     </td>
                                     <td style="text-align: center; font-weight: 600;">KG</td>
@@ -571,7 +589,7 @@
             }
 
             // Sync Expense Input fields if in auto mode
-            const expMode = document.getElementById('pcExpenseMode')?.value || 'auto';
+            const expMode = document.getElementById('pcExpenseMode')?.value || 'manual';
             if (expMode === 'auto') {
                 const elElec = document.getElementById('pcInputElectricity');
                 const elLabor = document.getElementById('pcInputLabor');
@@ -599,7 +617,11 @@
             // Render Card 2: Cost Sheet Breakdown
             document.getElementById('pcCostMatPct').textContent = `${cost.material_pct}%`;
             document.getElementById('pcCostMatTotal').textContent = `Rs. ${this.formatCurrency(cost.material_consumed_val)}`;
-            document.getElementById('pcCostMatPerKg').textContent = `Rs. ${this.formatDecimal(cost.material_cost_per_kg, 2)} / KG`;
+            if (parseFloat(cost.material_cost_per_kg) > 0) {
+                document.getElementById('pcCostMatPerKg').textContent = `Rs. ${this.formatDecimal(cost.material_cost_per_kg, 2)} / KG`;
+            } else {
+                document.getElementById('pcCostMatPerKg').innerHTML = `<span style="color:#b45309; font-weight:600; font-size:10px;">No Formula</span>`;
+            }
 
             document.getElementById('pcCostElecPct').textContent = `${cost.electricity_pct}%`;
             document.getElementById('pcCostElecTotal').textContent = `Rs. ${this.formatCurrency(cost.electricity_cost)}`;

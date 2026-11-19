@@ -1,0 +1,581 @@
+<div id="posDayClosingApp" class="pos-dayclosing-wrapper" style="padding: 16px; background: #f4f6f9; min-height: 600px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #2d3748; box-sizing: border-box;">
+    
+    <!-- Custom Scoped Styles -->
+    <style>
+        .pos-dayclosing-wrapper * { box-sizing: border-box; }
+        .pos-dc-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+        .pos-dc-title { font-size: 20px; font-weight: 700; color: #1a202c; display: flex; align-items: center; gap: 8px; margin: 0; }
+        .pos-dc-title i { color: #1F4E79; font-size: 22px; }
+        .pos-dc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* Meta Header Card */
+        .pos-dc-meta-card { background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e0; padding: 12px 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: center; }
+        .pos-dc-meta-item label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #718096; font-weight: 600; margin-bottom: 3px; }
+        .pos-dc-meta-item .meta-val { font-size: 13px; font-weight: 700; color: #1a202c; }
+        .pos-dc-meta-item select, .pos-dc-meta-item input { height: 30px; font-size: 12px; border: 1px solid #cbd5e0; border-radius: 4px; padding: 2px 6px; width: 100%; background: #fff; }
+
+        /* Warning Banner */
+        .pos-dc-warning { display: none; background: #fffbeb; border: 1px solid #fde68a; border-left: 5px solid #d97706; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; color: #92400e; font-size: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+        /* Layout Grid */
+        .pos-dc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 14px; }
+        
+        .pos-dc-card { background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; display: flex; flex-direction: column; }
+        .pos-dc-card-header { background: #f8fafc; border-bottom: 1px solid #edf2f7; padding: 10px 14px; font-size: 13px; font-weight: 700; color: #2d3748; display: flex; justify-content: space-between; align-items: center; }
+        .pos-dc-card-body { padding: 14px; flex: 1; font-size: 12px; }
+
+        /* Summary rows */
+        .dc-summary-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px dashed #edf2f7; font-size: 12px; }
+        .dc-summary-row:last-child { border-bottom: none; }
+        .dc-summary-row.highlight { font-weight: 700; font-size: 13px; border-top: 1px solid #cbd5e0; border-bottom: 1px solid #cbd5e0; padding: 8px 0; margin: 4px 0; background: #f8fafc; }
+        .dc-summary-row .label { color: #4a5568; }
+        .dc-summary-row .amount { font-weight: 600; text-align: right; color: #1a202c; font-family: monospace; font-size: 13px; }
+
+        /* Reconciliation Specific */
+        .reconcile-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+        .cash-diff-display { padding: 10px; border-radius: 6px; text-align: center; margin-top: 10px; font-weight: 800; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .diff-balanced { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .diff-short { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .diff-excess { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+
+        /* Denominations Drawer */
+        .denom-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+        .denom-table td { padding: 3px 4px; border-bottom: 1px solid #edf2f7; }
+        .denom-input { width: 50px; height: 24px; text-align: center; border: 1px solid #cbd5e0; border-radius: 3px; font-size: 11px; }
+
+        /* Badges */
+        .pos-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .badge-open { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .badge-closed { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+        .badge-fbr-sub { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+        .badge-fbr-pend { background: #fffaf0; color: #c05621; border: 1px solid #fbd38d; }
+        .badge-fbr-fail { background: #fff5f5; color: #9b2c2c; border: 1px solid #feb2b2; }
+
+        /* Thermal Printable Receipt */
+        .receipt-paper { background: #fff; width: 330px; margin: 0 auto; padding: 14px; border: 1px solid #000; font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #000; line-height: 1.35; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .receipt-center { text-align: center; }
+        .receipt-divider { border-top: 1px dashed #000; margin: 6px 0; }
+        .receipt-double { border-top: 2px dashed #000; margin: 6px 0; }
+        .receipt-row { display: flex; justify-content: space-between; }
+        .receipt-row strong { font-weight: bold; }
+
+        /* Modal Overlays */
+        .pos-modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .pos-modal-backdrop.show { display: flex; }
+        .pos-modal-dialog { background: #fff; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); width: 92%; max-width: 820px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; animation: posModalIn 0.2s ease-out; }
+        @keyframes posModalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        .pos-modal-header { padding: 12px 18px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+        .pos-modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; color: #1a202c; display: flex; align-items: center; gap: 8px; }
+        .pos-modal-close { background: none; border: none; font-size: 20px; color: #718096; cursor: pointer; line-height: 1; }
+        .pos-modal-close:hover { color: #e53e3e; }
+        .pos-modal-body { padding: 16px; overflow-y: auto; flex: 1; font-size: 13px; }
+        .pos-modal-footer { padding: 10px 18px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; background: #f8fafc; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printableClosingReceipt, #printableClosingReceipt * { visibility: visible; }
+            #printableClosingReceipt { position: absolute; left: 0; top: 0; width: 80mm; margin: 0; padding: 5px; }
+        }
+    </style>
+
+    <!-- 1. Page Header -->
+    <div class="pos-dc-header">
+        <div>
+            <h2 class="pos-dc-title">
+                <i class="fas fa-door-closed"></i> POS Day Closing & Shift Reconciliation
+            </h2>
+            <div style="font-size: 12px; color: #718096; margin-top: 2px;">
+                Reconcile cash drawer, verify payments, check hold sales & FBR counts, and finalize business shift.
+            </div>
+        </div>
+        <div class="pos-dc-actions">
+            <button type="button" class="btn btn-primary btn-sm" onclick="window.POSDayClosingModule.loadLiveSummary()" style="background: #1F4E79; border-color: #1F4E79; font-weight: 600;">
+                <i class="fas fa-sync-alt"></i> Refresh Summary
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.POSDayClosingModule.openCashMovementModal('Cash In')" style="background: #fff; font-weight: 600;">
+                <i class="fas fa-arrow-down" style="color: #16a34a;"></i> Cash In
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.POSDayClosingModule.openCashMovementModal('Cash Out')" style="background: #fff; font-weight: 600;">
+                <i class="fas fa-arrow-up" style="color: #dc2626;"></i> Cash Out
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.POSDayClosingModule.openHistoryModal()" style="background: #fff; font-weight: 600;">
+                <i class="fas fa-history"></i> Closing History
+            </button>
+            <button type="button" class="btn btn-outline-dark btn-sm" onclick="window.POSDayClosingModule.previewReport()" style="background: #fff; font-weight: 600;">
+                <i class="fas fa-print"></i> Preview Report
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. Header Meta Info Card -->
+    <div class="pos-dc-meta-card">
+        <div class="pos-dc-meta-item">
+            <label>Closing No.</label>
+            <div class="meta-val" id="dc_meta_closing_no" style="color: #d97706;">CLS-Auto</div>
+        </div>
+        <div class="pos-dc-meta-item">
+            <label>Business Date</label>
+            <input type="date" id="dc_meta_date" onchange="window.POSDayClosingModule.loadLiveSummary()">
+        </div>
+        <div class="pos-dc-meta-item">
+            <label>Branch / Outlet</label>
+            <select id="dc_meta_branch" onchange="window.POSDayClosingModule.loadLiveSummary()"></select>
+        </div>
+        <div class="pos-dc-meta-item">
+            <label>POS Terminal</label>
+            <div class="meta-val" id="dc_meta_terminal">POS-Terminal-1</div>
+        </div>
+        <div class="pos-dc-meta-item">
+            <label>Cashier / User</label>
+            <div class="meta-val" id="dc_meta_cashier">Admin</div>
+        </div>
+        <div class="pos-dc-meta-item">
+            <label>Shift Started</label>
+            <div class="meta-val" id="dc_meta_shift_start" style="font-size: 11px; color: #4a5568;">--</div>
+        </div>
+        <div class="pos-dc-meta-item">
+            <label>Shift Status</label>
+            <div id="dc_meta_status_badge">
+                <span class="pos-badge badge-open"><i class="fas fa-clock"></i> Shift Open</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Warning Alert for Pending Hold Sales -->
+    <div id="posHoldWarningAlert" class="pos-dc-warning">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 18px; color: #d97706;"></i>
+            <div>
+                <strong>Active Hold Sales Found!</strong>
+                <span id="posHoldWarningText">There are 0 pending hold sales in this branch.</span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button type="button" class="btn btn-sm" onclick="window.POSDayClosingModule.openHoldRegister()" style="background: #d97706; color: #fff; font-size: 11px; padding: 3px 8px; border: none; border-radius: 4px; font-weight: 600;">
+                <i class="fas fa-external-link-alt"></i> Resolve in Hold Register
+            </button>
+            <label style="font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; margin: 0; color: #78350f;">
+                <input type="checkbox" id="dc_override_holds"> Authorize Override
+            </label>
+        </div>
+    </div>
+
+    <!-- 4. Three Column Main Grid -->
+    <div class="pos-dc-grid">
+        
+        <!-- CARD 1: SALES SUMMARY -->
+        <div class="pos-dc-card">
+            <div class="pos-dc-card-header">
+                <span><i class="fas fa-receipt" style="color: #3182ce;"></i> Sales Transactions Summary</span>
+                <span class="pos-badge" id="dc_inv_count_badge" style="background: #ebf8ff; color: #2b6cb0;">0 Invoices</span>
+            </div>
+            <div class="pos-dc-card-body">
+                <div class="dc-summary-row">
+                    <span class="label">Gross Sales Amount</span>
+                    <span class="amount" id="dc_sum_gross">Rs 0.00</span>
+                </div>
+                <div class="dc-summary-row">
+                    <span class="label">Total Discount Amount</span>
+                    <span class="amount" id="dc_sum_discount" style="color: #e53e3e;">- Rs 0.00</span>
+                </div>
+                <div class="dc-summary-row">
+                    <span class="label">Sales Tax Amount</span>
+                    <span class="amount" id="dc_sum_tax" style="color: #d97706;">+ Rs 0.00</span>
+                </div>
+                <div class="dc-summary-row highlight">
+                    <span class="label" style="font-weight: 700; color: #1a202c;">Net Sales (Invoiced)</span>
+                    <span class="amount" id="dc_sum_net" style="color: #1F4E79; font-size: 14px;">Rs 0.00</span>
+                </div>
+                <div class="dc-summary-row">
+                    <span class="label">Sales Returns Count</span>
+                    <span class="amount" id="dc_ret_count">0 returns</span>
+                </div>
+                <div class="dc-summary-row">
+                    <span class="label">Sales Returns Total</span>
+                    <span class="amount" id="dc_ret_amount" style="color: #e53e3e;">- Rs 0.00</span>
+                </div>
+                <div class="dc-summary-row">
+                    <span class="label">Cancelled Invoices Count</span>
+                    <span class="amount" id="dc_cancel_count">0</span>
+                </div>
+                <div class="dc-summary-row highlight" style="background: #f0fdf4; border-color: #bbf7d0;">
+                    <span class="label" style="font-weight: 800; color: #166534;">Net Transaction Revenue</span>
+                    <span class="amount" id="dc_net_transactions" style="color: #166534; font-size: 15px;">Rs 0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD 2: PAYMENT METHODS & FBR BREAKDOWN -->
+        <div class="pos-dc-card">
+            <div class="pos-dc-card-header">
+                <span><i class="fas fa-credit-card" style="color: #805ad5;"></i> Payment Breakdown & FBR</span>
+                <span style="font-size: 11px; color: #718096;">By Instrument</span>
+            </div>
+            <div class="pos-dc-card-body">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 12px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #cbd5e0; color: #4a5568;">
+                            <th style="text-align: left; padding: 4px 0;">Method</th>
+                            <th style="text-align: center; padding: 4px 0;">Count</th>
+                            <th style="text-align: right; padding: 4px 0;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 5px 0;"><i class="fas fa-money-bill-wave" style="color: #16a34a;"></i> Cash Sales</td>
+                            <td style="text-align: center;" id="dc_pm_cash_cnt">0</td>
+                            <td style="text-align: right; font-weight: 600;" id="dc_pm_cash_amt">Rs 0.00</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px 0;"><i class="fas fa-credit-card" style="color: #3182ce;"></i> Card (Debit/Credit)</td>
+                            <td style="text-align: center;" id="dc_pm_card_cnt">0</td>
+                            <td style="text-align: right; font-weight: 600;" id="dc_pm_card_amt">Rs 0.00</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px 0;"><i class="fas fa-university" style="color: #4f46e5;"></i> Bank Transfer / Cheque</td>
+                            <td style="text-align: center;" id="dc_pm_bank_cnt">0</td>
+                            <td style="text-align: right; font-weight: 600;" id="dc_pm_bank_amt">Rs 0.00</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px 0;"><i class="fas fa-qrcode" style="color: #d97706;"></i> QR / Mobile Wallets</td>
+                            <td style="text-align: center;" id="dc_pm_qr_cnt">0</td>
+                            <td style="text-align: right; font-weight: 600;" id="dc_pm_qr_amt">Rs 0.00</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px 0;"><i class="fas fa-user-clock" style="color: #718096;"></i> Customer Credit Ledger</td>
+                            <td style="text-align: center;" id="dc_pm_credit_cnt">0</td>
+                            <td style="text-align: right; font-weight: 600;" id="dc_pm_credit_amt">Rs 0.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- FBR Status Summary Section -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-top: 6px;">
+                    <div style="font-weight: 700; font-size: 11px; text-transform: uppercase; color: #4a5568; margin-bottom: 6px; display: flex; justify-content: space-between;">
+                        <span><i class="fas fa-shield-alt" style="color: #1F4E79;"></i> FBR Digital Invoices</span>
+                        <span style="font-size: 10px; color: #718096;">Verified Records</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span class="pos-badge badge-fbr-sub"><i class="fas fa-check-circle"></i> Submitted</span>
+                        <span id="dc_fbr_sub_cnt" style="font-weight: bold; font-family: monospace;">0 Invoices</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span class="pos-badge badge-fbr-pend"><i class="fas fa-clock"></i> Pending Submission</span>
+                        <span id="dc_fbr_pend_cnt" style="font-weight: bold; font-family: monospace; color: #c05621;">0 Invoices</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="pos-badge badge-fbr-fail"><i class="fas fa-times-circle"></i> Rejected / Failed</span>
+                        <span id="dc_fbr_fail_cnt" style="font-weight: bold; font-family: monospace; color: #c53030;">0 Invoices</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD 3: CASH RECONCILIATION -->
+        <div class="pos-dc-card" style="border-color: #3182ce;">
+            <div class="pos-dc-card-header" style="background: #ebf8ff; color: #2b6cb0;">
+                <span><i class="fas fa-calculator" style="color: #3182ce;"></i> Physical Cash Reconciliation</span>
+                <button type="button" class="btn btn-xs btn-outline-primary" onclick="window.POSDayClosingModule.toggleDenominations()" style="font-size: 11px; padding: 1px 6px;">
+                    <i class="fas fa-coins"></i> Count Denominations
+                </button>
+            </div>
+            <div class="pos-dc-card-body">
+                
+                <div class="reconcile-box">
+                    <div class="dc-summary-row">
+                        <span class="label">Opening Cash Drawer</span>
+                        <span class="amount" id="dc_rec_opening">Rs 0.00</span>
+                    </div>
+                    <div class="dc-summary-row">
+                        <span class="label">Cash Sales (+)</span>
+                        <span class="amount" id="dc_rec_cash_sales" style="color: #16a34a;">+ Rs 0.00</span>
+                    </div>
+                    <div class="dc-summary-row">
+                        <span class="label">Cash In (Float Deposit) (+)</span>
+                        <span class="amount" id="dc_rec_cash_in" style="color: #16a34a;">+ Rs 0.00</span>
+                    </div>
+                    <div class="dc-summary-row">
+                        <span class="label">Cash Refunds on Returns (-)</span>
+                        <span class="amount" id="dc_rec_refunds" style="color: #e53e3e;">- Rs 0.00</span>
+                    </div>
+                    <div class="dc-summary-row">
+                        <span class="label">Cash Out (Petty Expenses) (-)</span>
+                        <span class="amount" id="dc_rec_cash_out" style="color: #e53e3e;">- Rs 0.00</span>
+                    </div>
+                    <div class="dc-summary-row highlight" style="border-color: #cbd5e0; margin-top: 6px;">
+                        <span class="label" style="font-weight: 800; color: #1F4E79;">Expected Cash in Drawer</span>
+                        <span class="amount" id="dc_rec_expected" style="font-weight: 800; font-size: 15px; color: #1F4E79;">Rs 0.00</span>
+                    </div>
+                </div>
+
+                <!-- Actual Cash Entry -->
+                <div style="background: #fff; border: 2px solid #3182ce; border-radius: 6px; padding: 10px;">
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #2b6cb0; margin-bottom: 4px;">
+                        Actual Physical Cash Count (Enter Hand-Counted Cash):
+                    </label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-weight: bold; font-size: 16px; color: #4a5568;">PKR</span>
+                        <input type="number" step="0.01" id="dc_actual_cash_input" value="0.00" style="flex: 1; height: 36px; font-size: 18px; font-weight: 800; text-align: right; border: 1px solid #cbd5e0; border-radius: 4px; padding: 4px 10px; color: #1a202c;" oninput="window.POSDayClosingModule.calculateDifference()">
+                    </div>
+                </div>
+
+                <!-- Cash Difference Status Badge / Display -->
+                <div id="dc_diff_display" class="cash-diff-display diff-balanced">
+                    <span id="dc_diff_title"><i class="fas fa-check-circle"></i> Drawer Balanced</span>
+                    <span id="dc_diff_amount">Rs 0.00</span>
+                </div>
+
+                <!-- Denominations Calculator Drawer (Collapsible) -->
+                <div id="dc_denominations_drawer" style="display: none; background: #ffffff; border: 1px solid #cbd5e0; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                    <div style="font-weight: 700; font-size: 11px; color: #4a5568; margin-bottom: 4px;">
+                        Currency Notes Counter
+                    </div>
+                    <table class="denom-table">
+                        <tr>
+                            <td>5,000 x</td>
+                            <td><input type="number" class="denom-input" data-note="5000" oninput="window.POSDayClosingModule.computeDenominations()"></td>
+                            <td>1,000 x</td>
+                            <td><input type="number" class="denom-input" data-note="1000" oninput="window.POSDayClosingModule.computeDenominations()"></td>
+                        </tr>
+                        <tr>
+                            <td>500 x</td>
+                            <td><input type="number" class="denom-input" data-note="500" oninput="window.POSDayClosingModule.computeDenominations()"></td>
+                            <td>100 x</td>
+                            <td><input type="number" class="denom-input" data-note="100" oninput="window.POSDayClosingModule.computeDenominations()"></td>
+                        </tr>
+                        <tr>
+                            <td>50 x</td>
+                            <td><input type="number" class="denom-input" data-note="50" oninput="window.POSDayClosingModule.computeDenominations()"></td>
+                            <td>20 x</td>
+                            <td><input type="number" class="denom-input" data-note="20" oninput="window.POSDayClosingModule.computeDenominations()"></td>
+                        </tr>
+                        <tr>
+                            <td>10 x</td>
+                            <td><input type="number" class="denom-input" data-note="10" oninput="window.POSDayClosingModule.computeDenominations()"></td>
+                            <td>Coins:</td>
+                            <td><input type="number" class="denom-input" id="denom_coins" data-note="1" oninput="window.POSDayClosingModule.computeDenominations()"></td>
+                        </tr>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 5. Remarks & Bottom Action Bar -->
+    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e0; padding: 14px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 4px;">
+                    Cash Difference Reason (Required if Short / Excess):
+                </label>
+                <input type="text" id="dc_diff_reason" class="form-control" placeholder="Explain discrepancy if actual cash does not equal expected cash..." style="width: 100%; height: 32px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 4px;">
+                    Closing Remarks / Supervisor Notes:
+                </label>
+                <input type="text" id="dc_closing_remarks" class="form-control" placeholder="Any general observations for this shift..." style="width: 100%; height: 32px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;">
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #edf2f7; padding-top: 10px; flex-wrap: wrap; gap: 10px;">
+            <div style="font-size: 11px; color: #718096; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-lock" style="color: #3182ce;"></i>
+                <span>Closing this shift locks all transactions for this cashier/terminal and saves an audit closing report.</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="window.POSDayClosingModule.loadLiveSummary()">
+                    <i class="fas fa-undo"></i> Reset
+                </button>
+                <button type="button" id="btnExecuteCloseShift" class="btn btn-success" onclick="window.POSDayClosingModule.submitClosing()" style="padding: 6px 18px; font-weight: 700; background: #27ae60; border-color: #27ae60; color: #fff;">
+                    <i class="fas fa-check-circle"></i> Close Shift
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 1: CASH IN / CASH OUT MODAL          -->
+    <!-- ========================================== -->
+    <div id="posModalCashMovement" class="pos-modal-backdrop">
+        <div class="pos-modal-dialog" style="max-width: 440px;">
+            <div class="pos-modal-header" style="background: #1F4E79; color: #ffffff;">
+                <h3 style="color: #ffffff;" id="posCashMovementModalTitle"><i class="fas fa-money-bill-wave"></i> Record Cash Movement</h3>
+                <button type="button" class="pos-modal-close" style="color: #ffffff;" onclick="window.POSDayClosingModule.closeCashMovementModal()">&times;</button>
+            </div>
+            <div class="pos-modal-body">
+                <input type="hidden" id="cm_type" value="Cash In">
+                
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 4px;">Movement Type:</label>
+                    <select id="cm_type_select" class="form-control" style="width: 100%; height: 32px;" onchange="document.getElementById('cm_type').value = this.value">
+                        <option value="Cash In">Cash In (Float Deposit / Add Cash)</option>
+                        <option value="Cash Out">Cash Out (Petty Expense / Drop Cash)</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 4px;">Amount (PKR):</label>
+                    <input type="number" step="0.01" id="cm_amount" class="form-control" placeholder="0.00" style="width: 100%; height: 34px; font-size: 14px; font-weight: bold;">
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 4px;">Reason / Description:</label>
+                    <input type="text" id="cm_reason" class="form-control" placeholder="e.g. Additional change float, Tea expense, Bank drop..." style="width: 100%; height: 32px;">
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 4px;">Reference No (Optional):</label>
+                    <input type="text" id="cm_ref" class="form-control" placeholder="e.g. Voucher #, receipt slip..." style="width: 100%; height: 32px;">
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="window.POSDayClosingModule.closeCashMovementModal()">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="window.POSDayClosingModule.saveCashMovement()" style="background: #1F4E79; border-color: #1F4E79;">Save Movement</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 2: CLOSING REPORT PREVIEW & PRINT     -->
+    <!-- ========================================== -->
+    <div id="posModalClosingPreview" class="pos-modal-backdrop">
+        <div class="pos-modal-dialog" style="max-width: 480px;">
+            <div class="pos-modal-header" style="background: #2d3748; color: #ffffff;">
+                <h3 style="color: #ffffff;"><i class="fas fa-print"></i> POS Shift Closing Report</h3>
+                <button type="button" class="pos-modal-close" style="color: #ffffff;" onclick="window.POSDayClosingModule.closePreviewModal()">&times;</button>
+            </div>
+            <div class="pos-modal-body" style="background: #f1f5f9; padding: 15px;">
+                
+                <!-- Printable Thermal Receipt Container -->
+                <div id="printableClosingReceipt" class="receipt-paper">
+                    <div class="receipt-center">
+                        <strong style="font-size: 14px;">SOFTIFYX FINANCIALS</strong><br>
+                        <span>POS DAY CLOSING REPORT</span><br>
+                        <span id="prn_branch_name">Main Branch</span><br>
+                        <span id="prn_date">2026-10-15</span>
+                    </div>
+                    
+                    <div class="receipt-divider"></div>
+                    <div class="receipt-row"><span>Closing No:</span><strong id="prn_closing_no">CLS-0001</strong></div>
+                    <div class="receipt-row"><span>Terminal:</span><span id="prn_terminal">POS-1</span></div>
+                    <div class="receipt-row"><span>Cashier:</span><span id="prn_cashier">Admin</span></div>
+                    <div class="receipt-row"><span>Shift Started:</span><span id="prn_shift_start">--</span></div>
+                    <div class="receipt-row"><span>Shift Closed:</span><span id="prn_shift_closed">--</span></div>
+                    
+                    <div class="receipt-divider"></div>
+                    <div class="receipt-center"><strong>--- SALES SUMMARY ---</strong></div>
+                    <div class="receipt-row"><span>Invoices Count:</span><strong id="prn_inv_count">0</strong></div>
+                    <div class="receipt-row"><span>Gross Sales:</span><span id="prn_gross">0.00</span></div>
+                    <div class="receipt-row"><span>Discounts:</span><span id="prn_disc">0.00</span></div>
+                    <div class="receipt-row"><span>Sales Tax:</span><span id="prn_tax">0.00</span></div>
+                    <div class="receipt-row"><strong>Net Invoiced Sales:</strong><strong id="prn_net">0.00</strong></div>
+                    <div class="receipt-row"><span>Returns Count:</span><span id="prn_ret_count">0</span></div>
+                    <div class="receipt-row"><span>Returns Amount:</span><span id="prn_ret_amt">0.00</span></div>
+                    <div class="receipt-row"><strong>Net Revenue:</strong><strong id="prn_revenue">0.00</strong></div>
+
+                    <div class="receipt-divider"></div>
+                    <div class="receipt-center"><strong>--- PAYMENT BREAKDOWN ---</strong></div>
+                    <div class="receipt-row"><span>Cash Sales:</span><span id="prn_pm_cash">0.00</span></div>
+                    <div class="receipt-row"><span>Card Sales:</span><span id="prn_pm_card">0.00</span></div>
+                    <div class="receipt-row"><span>Bank Transfer:</span><span id="prn_pm_bank">0.00</span></div>
+                    <div class="receipt-row"><span>QR / Wallets:</span><span id="prn_pm_qr">0.00</span></div>
+                    <div class="receipt-row"><span>Customer Credit:</span><span id="prn_pm_credit">0.00</span></div>
+
+                    <div class="receipt-divider"></div>
+                    <div class="receipt-center"><strong>--- CASH DRAWER RECONCILIATION ---</strong></div>
+                    <div class="receipt-row"><span>Opening Cash:</span><span id="prn_rec_opening">0.00</span></div>
+                    <div class="receipt-row"><span>Cash Sales (+):</span><span id="prn_rec_cash_sales">0.00</span></div>
+                    <div class="receipt-row"><span>Cash In (+):</span><span id="prn_rec_cash_in">0.00</span></div>
+                    <div class="receipt-row"><span>Cash Refunds (-):</span><span id="prn_rec_refunds">0.00</span></div>
+                    <div class="receipt-row"><span>Cash Out (-):</span><span id="prn_rec_cash_out">0.00</span></div>
+                    <div class="receipt-double"></div>
+                    <div class="receipt-row"><strong>Expected Cash:</strong><strong id="prn_rec_expected">0.00</strong></div>
+                    <div class="receipt-row"><strong>Actual Cash Count:</strong><strong id="prn_rec_actual">0.00</strong></div>
+                    <div class="receipt-row"><strong>Variance (Difference):</strong><strong id="prn_rec_diff">0.00</strong></div>
+                    <div class="receipt-row"><span>Status:</span><strong id="prn_rec_status">Balanced</strong></div>
+
+                    <div class="receipt-divider"></div>
+                    <div class="receipt-center"><strong>--- FBR AUDIT STATUS ---</strong></div>
+                    <div class="receipt-row"><span>FBR Submitted:</span><span id="prn_fbr_sub">0 Invoices</span></div>
+                    <div class="receipt-row"><span>FBR Pending:</span><span id="prn_fbr_pend">0 Invoices</span></div>
+                    <div class="receipt-row"><span>FBR Failed:</span><span id="prn_fbr_fail">0 Invoices</span></div>
+
+                    <div class="receipt-divider" style="margin-top: 25px;"></div>
+                    <div class="receipt-row" style="margin-top: 15px;">
+                        <span>Cashier: _____________</span>
+                        <span>Supervisor: _____________</span>
+                    </div>
+                </div>
+
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="window.POSDayClosingModule.closePreviewModal()">Close</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="window.print()" style="background: #1F4E79; border-color: #1F4E79;">
+                    <i class="fas fa-print"></i> Print Receipt
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 3: CLOSING HISTORY REGISTER          -->
+    <!-- ========================================== -->
+    <div id="posModalClosingHistory" class="pos-modal-backdrop">
+        <div class="pos-modal-dialog" style="max-width: 950px;">
+            <div class="pos-modal-header" style="background: #1F4E79; color: #ffffff;">
+                <h3 style="color: #ffffff;"><i class="fas fa-history"></i> Day Closing History & Register</h3>
+                <button type="button" class="pos-modal-close" style="color: #ffffff;" onclick="window.POSDayClosingModule.closeHistoryModal()">&times;</button>
+            </div>
+            <div class="pos-modal-body" style="padding: 14px;">
+                <!-- Filter Bar -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center;">
+                    <input type="text" id="hist_search" placeholder="Search Closing # or Cashier..." style="flex: 1; min-width: 180px; height: 32px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;" onkeyup="if(event.key==='Enter') window.POSDayClosingModule.loadHistoryRecords()">
+                    <input type="date" id="hist_from" style="height: 32px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;" onchange="window.POSDayClosingModule.loadHistoryRecords()">
+                    <input type="date" id="hist_to" style="height: 32px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;" onchange="window.POSDayClosingModule.loadHistoryRecords()">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="window.POSDayClosingModule.loadHistoryRecords()" style="height: 32px; padding: 4px 12px; font-size: 12px; background: #1F4E79; border-color: #1F4E79;">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+
+                <!-- Table -->
+                <div style="border: 1px solid #cbd5e0; border-radius: 6px; overflow-x: auto; max-height: calc(85vh - 200px);">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                        <thead style="background: #edf2f7; color: #4a5568; position: sticky; top: 0; z-index: 2;">
+                            <tr>
+                                <th style="padding: 8px 10px;">CLOSING #</th>
+                                <th style="padding: 8px 10px;">DATE</th>
+                                <th style="padding: 8px 10px;">BRANCH</th>
+                                <th style="padding: 8px 10px;">CASHIER</th>
+                                <th style="padding: 8px 10px; text-align: right;">NET SALES</th>
+                                <th style="padding: 8px 10px; text-align: right;">EXPECTED CASH</th>
+                                <th style="padding: 8px 10px; text-align: right;">ACTUAL CASH</th>
+                                <th style="padding: 8px 10px; text-align: right;">DIFFERENCE</th>
+                                <th style="padding: 8px 10px; text-align: center;">STATUS</th>
+                                <th style="padding: 8px 10px; text-align: center;">ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hist_table_body">
+                            <!-- Records rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="window.POSDayClosingModule.closeHistoryModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    if (window.POSDayClosingModule) {
+        window.POSDayClosingModule.init();
+    } else {
+        setTimeout(() => window.POSDayClosingModule && window.POSDayClosingModule.init(), 100);
+    }
+</script>
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" onload="if(window.POSDayClosingModule) { window.POSDayClosingModule.init(); }" style="display:none;">

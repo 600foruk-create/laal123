@@ -1,0 +1,189 @@
+<div id="itemCostMethodContainer" data-module="Item Cost Valuation Method" style="width: 920px; height: 640px; margin: 5px; background: white; display: flex; flex-direction: column; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; box-sizing: border-box; border: 1px solid #cbd5e0; border-radius: 4px;">
+    
+    <!-- Header Section -->
+    <div style="background: #f8fafc; padding: 10px 15px; border-bottom: 1px solid #e2e8f0; position: relative; display: flex; align-items: center; justify-content: space-between; margin: 0; border: 1px solid #e2e8f0; border-radius: 4px;">
+        
+        <!-- Left: Empty -->
+        <div style="width: 10px;"></div>
+
+        <!-- Middle: Options -->
+        <div style="flex: 1; margin-left: 40px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer;">
+                    <input type="radio" name="costFilter" value="all" checked onchange="window.CostMethodModule.toggleFilters()"> All Inventory Items
+                </label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: #334155; width: 100px; cursor: pointer;">
+                    <input type="radio" name="costFilter" value="category" onchange="window.CostMethodModule.toggleFilters()"> Category
+                </label>
+                <div class="custom-dropdown-container" id="costCatDropdownContainer">
+                    <div class="custom-dropdown-display disabled" id="costCategoryDisplay" tabindex="0" onclick="window.CostMethodModule.toggleDropdown('costCatList', this)" onkeydown="window.CostMethodModule.handleDropdownKeydown(event, 'costCatList', 'category', this)">
+                        <span id="costCategoryText" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Select Category...</span>
+                        <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: 5px;"></i>
+                    </div>
+                    <div class="custom-dropdown-list" id="costCatList"></div>
+                    <input type="hidden" id="costCategorySelect" value="0">
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: #334155; width: 100px; cursor: pointer;">
+                    <input type="radio" name="costFilter" value="brand" onchange="window.CostMethodModule.toggleFilters()"> Brand
+                </label>
+                <div class="custom-dropdown-container" id="costBrandDropdownContainer">
+                    <div class="custom-dropdown-display disabled" id="costBrandDisplay" tabindex="0" onclick="window.CostMethodModule.toggleDropdown('costBrandList', this)" onkeydown="window.CostMethodModule.handleDropdownKeydown(event, 'costBrandList', 'brand', this)">
+                        <span id="costBrandText" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Select Brand...</span>
+                        <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: 5px;"></i>
+                    </div>
+                    <div class="custom-dropdown-list" id="costBrandList"></div>
+                    <input type="hidden" id="costBrandSelect" value="0">
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Top Buttons -->
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+            <div style="display: flex; gap: 6px; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 5px;">
+                <button class="ob-btn" onclick="window.CostMethodModule.save()">Save<br>(Ctrl+S)</button>
+                <button class="ob-btn" onclick="window.CostMethodModule.cancel()">Cancel</button>
+            </div>
+            
+            <div style="background: #cbd5e0; padding: 5px 10px; border: 1px solid #94a3b8; display: flex; align-items: center; gap: 5px; border-radius: 2px;">
+                <button class="bulk-btn" onclick="window.CostMethodModule.bulkSet('Weighted Average Cost')">Set Avg Cost All</button>
+                <button class="bulk-btn" onclick="window.CostMethodModule.bulkSet('Manual Cost')">Set Manual Cost All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div style="flex: 1; background: white; margin: 5px 0 0 0; border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="overflow-y: auto; flex: 1;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;">
+                <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                    <tr>
+                        <th style="width: 40px; border-bottom: 2px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 4px;"></th>
+                        <th style="width: 120px; border-bottom: 2px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 4px; color: #475569; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: center;">Item Code</th>
+                        <th style="border-bottom: 2px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 4px; color: #475569; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: left;">Item Name</th>
+                        <th style="width: 250px; border-bottom: 2px solid #e2e8f0; padding: 4px; color: #475569; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: left;">Method of Cost Valuation</th>
+                    </tr>
+                </thead>
+                <tbody id="itemCostMethodTableBody">
+                    <!-- Data Rows will be injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <style>
+        .ob-btn {
+            background: #4a789c;
+            border: 1px solid #4a789c;
+            padding: 2px;
+            font-size: 11px;
+            line-height: 1.2;
+            letter-spacing: -0.2px;
+            text-align: center;
+            white-space: normal;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 35px;
+            border-radius: 4px;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .ob-btn:hover { background: #3b6282; }
+
+        .bulk-btn {
+            background: white;
+            border: 1px solid #94a3b8;
+            padding: 2px 5px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 2px;
+            color: #334155;
+            transition: all 0.2s;
+        }
+        .bulk-btn:hover { background: #f1f5f9; border-color: #64748b; }
+        
+        #itemCostMethodTableBody tr { 
+            height: 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+        #itemCostMethodTableBody tr:hover { background: #edf2f7; }
+        #itemCostMethodTableBody tr.row-selected { background: var(--theme-primary, #1F4E79) !important; color: white !important; }
+        #itemCostMethodTableBody tr.row-selected td { color: white !important; }
+        #itemCostMethodTableBody tr .row-arrow { visibility: hidden; }
+        #itemCostMethodTableBody tr.row-selected .row-arrow { visibility: visible; color: white; }
+        #itemCostMethodTableBody tr.row-selected .method-cell-manual { color: #fca5a5 !important; }
+        #itemCostMethodTableBody tr.row-selected .method-cell-avg { color: #93c5fd !important; }
+
+        #itemCostMethodTableBody td { 
+            padding: 0 4px; 
+            border-bottom: 1px solid #cbd5e0; 
+            border-right: 1px solid #cbd5e0; 
+            font-size: 13px;
+            height: 20px;
+            box-sizing: border-box;
+        }
+        .method-cell-manual { color: #b91c1c; font-weight: 600; }
+        .method-cell-avg { color: #1e40af; font-weight: 600; }
+
+        .custom-dropdown-container {
+            position: relative;
+            flex: 1;
+            max-width: 300px;
+            height: 22px;
+            font-size: 13px;
+        }
+        .custom-dropdown-display {
+            border: 1px solid black;
+            background: #fff;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 5px;
+            cursor: pointer;
+            justify-content: space-between;
+            color: #333;
+        }
+        .custom-dropdown-display:focus {
+            outline: 2px solid #1F4E79;
+            outline-offset: -1px;
+        }
+        .custom-dropdown-display.disabled {
+            background: #f8f9fa;
+            color: #94a3b8;
+            cursor: not-allowed;
+            border-color: black;
+        }
+        .custom-dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #cbd5e0;
+            border-top: none;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .custom-dropdown-item {
+            padding: 2px 5px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .custom-dropdown-item:hover, .custom-dropdown-item.selected {
+            background: #1F4E79;
+            color: white;
+        }
+    </style>
+</div>

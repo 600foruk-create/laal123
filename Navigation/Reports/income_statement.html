@@ -1,0 +1,86 @@
+<style>
+    .inc-btn {
+        background-color: #2a5879;
+        border: 1px solid #1a3c5c;
+        color: white;
+        padding: 4px 0;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 11px;
+        cursor: pointer;
+        border-radius: 2px;
+        font-weight: bold;
+        box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2);
+        white-space: nowrap;
+        width: 80px;
+    }
+</style>
+<!-- Form Container -->
+<div style="background: #ffffff; display: flex; flex-direction: column; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; margin: 0; min-height: 250px; height: 100%;">
+    
+    <!-- Title and View Button Bar -->
+    <div style="display: flex; justify-content: flex-end; align-items: center; padding-bottom: 15px;">
+        <button id="inc_btn_view" class="inc-btn" style="height: 25px;">View</button>
+    </div>
+
+    <!-- Filter Section -->
+    <div style="background: #F0F0F0; border: 1px solid #999; padding: 25px 30px; display: flex; flex-direction: column; gap: 15px; flex-grow: 1;">
+        
+        <!-- To date -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: bold; font-style: italic; color: #555; width: 120px;">
+                <input type="radio" name="inc_date_filter" id="inc_filter_todate" value="to_date" checked style="margin: 0;"> 
+                <span style="border-bottom: 1px dotted #888;">To date</span>
+            </label>
+        </div>
+        
+        <!-- Upto -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: bold; font-style: italic; color: #555; width: 120px;">
+                <input type="radio" name="inc_date_filter" id="inc_filter_upto" value="upto" style="margin: 0;"> 
+                <span style="border-bottom: 1px dotted #888;">Upto</span>
+            </label>
+            <input type="date" id="inc_upto_date" style="width: 120px; border: 1px solid #999; padding: 2px;" disabled>
+        </div>
+        
+        <!-- For Period From -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: bold; font-style: italic; color: #555; width: 120px;">
+                <input type="radio" name="inc_date_filter" id="inc_filter_period" value="period" style="margin: 0;"> 
+                <span style="border-bottom: 1px dotted #888;">For Period From</span>
+            </label>
+            <input type="date" id="inc_from_date" style="width: 120px; border: 1px solid #999; padding: 2px;" disabled>
+            <span style="font-weight: bold; font-style: italic; color: #555; margin: 0 5px;">To</span>
+            <input type="date" id="inc_to_date" style="width: 120px; border: 1px solid #999; padding: 2px;" disabled>
+        </div>
+
+    </div>
+</div>
+
+<!-- Report Print Area (Hidden by default, used for rendering and printing) -->
+<div id="inc_print_area" style="display: none;"></div>
+
+<!-- Ensure module gets initialized via img onload hack -->
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+    if(!window.IncomeStatement) {
+        let s = document.createElement('script');
+        s.src = 'assets/js/income_statement.js?v=' + Date.now();
+        s.onload = () => {
+            const checkDOM = setInterval(() => {
+                if (document.getElementById('inc_btn_view')) {
+                    clearInterval(checkDOM);
+                    window.IncomeStatement.init();
+                }
+            }, 50);
+        };
+        document.body.appendChild(s);
+    } else {
+        const checkDOM = setInterval(() => {
+            if (document.getElementById('inc_btn_view')) {
+                clearInterval(checkDOM);
+                window.IncomeStatement.init();
+            }
+        }, 50);
+    }
+">

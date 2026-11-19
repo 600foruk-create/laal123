@@ -1,0 +1,619 @@
+<div class="bs-container" id="bsMainContainer" data-module="Balance Sheet" style="width: 100%; height: 100%; min-width: 980px; min-height: 540px; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; background: #f8fafc; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 11px; color: #1e293b; padding: 6px 10px; gap: 5px; position: relative;">
+
+    <!-- Bar 1: Filters & Parameters Bar -->
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); flex-shrink: 0;">
+        
+        <!-- Left Side: Date, Preset, Vouchers, Smart Reclass, Compare -->
+        <div style="display: flex; align-items: center; gap: 7px; flex-wrap: wrap;">
+            <!-- As On Date -->
+            <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                <label class="bs-label" style="font-weight: 700; color: #334155; font-size: 10.5px;">As on Date:</label>
+                <input type="date" id="bsAsOnDate" class="bs-input" style="width: 115px; font-weight: 600; padding: 2px 4px; border: 1px solid #cbd5e1; border-radius: 3px; font-size: 11px;" onchange="window.BalanceSheetModule.onDateChange()">
+            </div>
+
+            <!-- Date Presets -->
+            <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                <label class="bs-label" style="color: #64748b; font-size: 10.5px;">Preset:</label>
+                <select id="bsDatePreset" class="bs-input" style="width: 110px; font-weight: 600; padding: 2px 4px; border: 1px solid #cbd5e1; border-radius: 3px; font-size: 10.5px;" onchange="window.BalanceSheetModule.applyDatePreset()">
+                    <option value="today">Today</option>
+                    <option value="this_month" selected>This Month End</option>
+                    <option value="last_month">Last Month End</option>
+                    <option value="this_quarter">Quarter End</option>
+                    <option value="financial_year">Year End (30-Jun)</option>
+                    <option value="custom">Custom Date</option>
+                </select>
+            </div>
+
+            <!-- Voucher Status Filter -->
+            <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                <label class="bs-label" style="color: #64748b; font-size: 10.5px;">Vouchers:</label>
+                <select id="bsVoucherStatus" class="bs-input" style="width: 95px; font-weight: 600; padding: 2px 3px; border: 1px solid #cbd5e1; border-radius: 3px; font-size: 10.5px;" onchange="window.BalanceSheetModule.loadReport()">
+                    <option value="posted" selected>Posted Only</option>
+                    <option value="all">Include Drafts</option>
+                </select>
+            </div>
+
+            <!-- Smart Reclassification Toggle -->
+            <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 3px; padding: 2px 6px;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; font-weight: 700; color: #166534;" title="Auto reclassifies bank overdrafts to liabilities and supplier advances to assets">
+                    <input type="checkbox" id="bsSmartReclass" checked onchange="window.BalanceSheetModule.loadReport()">
+                    <span>Smart Reclass</span>
+                </label>
+            </div>
+
+            <!-- Comparative Toggle -->
+            <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; padding: 2px 6px;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; font-weight: 600; color: #334155;">
+                    <input type="checkbox" id="bsEnableComparative" onchange="window.BalanceSheetModule.toggleComparative()"> Compare Prior
+                </label>
+                <input type="date" id="bsComparativeDate" class="bs-input" style="width: 105px; font-size: 10px; display: none; padding: 1px 3px; border: 1px solid #cbd5e1; border-radius: 3px; margin-left: 3px;" onchange="window.BalanceSheetModule.loadReport()">
+            </div>
+        </div>
+
+        <!-- Right Side of Bar 1: Layout Mode, Scale Toggle, Groups -->
+        <div style="display: flex; align-items: center; gap: 7px; flex-shrink: 0;">
+            <!-- Layout Mode Switch -->
+            <div style="display: flex; align-items: center; gap: 2px; background: #e2e8f0; border-radius: 3px; padding: 1.5px 3px;">
+                <button type="button" id="bsBtnLayoutSide" class="bs-tab-btn active" onclick="window.BalanceSheetModule.switchLayout('side')" style="border: none; background: white; color: #1e293b; font-weight: 700; padding: 2px 8px; border-radius: 2px; cursor: pointer; font-size: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
+                    <i class="fas fa-columns"></i> T-Account
+                </button>
+                <button type="button" id="bsBtnLayoutVert" class="bs-tab-btn" onclick="window.BalanceSheetModule.switchLayout('vertical')" style="border: none; background: transparent; color: #64748b; font-weight: 600; padding: 2px 8px; border-radius: 2px; cursor: pointer; font-size: 10px;">
+                    <i class="fas fa-list"></i> Vertical
+                </button>
+            </div>
+
+            <!-- Figures Display Scale Toggle: Rs / k / M -->
+            <div style="display: flex; align-items: center; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 3px; padding: 1.5px; gap: 1px;" title="Display scale">
+                <button type="button" id="bsBtnScaleRs" onclick="window.BalanceSheetModule.setScale('actual')" style="border: none; background: #0284c7; color: white; font-weight: 700; padding: 1.5px 7px; border-radius: 2px; cursor: pointer; font-size: 9.5px;">Rs.</button>
+                <button type="button" id="bsBtnScaleK" onclick="window.BalanceSheetModule.setScale('k')" style="border: none; background: transparent; color: #64748b; font-weight: 600; padding: 1.5px 7px; border-radius: 2px; cursor: pointer; font-size: 9.5px;" title="Display in Thousands ('000)">k</button>
+                <button type="button" id="bsBtnScaleM" onclick="window.BalanceSheetModule.setScale('m')" style="border: none; background: transparent; color: #64748b; font-weight: 600; padding: 1.5px 7px; border-radius: 2px; cursor: pointer; font-size: 9.5px;" title="Display in Millions ('M)">M</button>
+            </div>
+
+            <!-- Expand / Collapse All Button -->
+            <button type="button" onclick="window.BalanceSheetModule.toggleAllGroups()" style="border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 600; padding: 2.5px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; display: flex; align-items: center; gap: 4px;" title="Toggle Expand or Collapse All Groups">
+                <i class="fas fa-layer-group" style="color: #0284c7;"></i> Groups
+            </button>
+        </div>
+    </div>
+
+    <!-- Bar 2: Operations & Action Tools Bar -->
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); flex-shrink: 0;">
+        
+        <!-- Left Side: Enterprise Intelligence & Audit Tools -->
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-right: 2px;">
+                <i class="fas fa-tools" style="color: #0284c7;"></i> Tools:
+            </span>
+
+            <!-- Audit Diagnostic (Formerly Farq Scan) -->
+            <button type="button" id="bsBtnDiagnoseToolbar" onclick="window.BalanceSheetModule.openDiagnostic()" style="background: #ef4444; color: white; border: 1px solid #dc2626; padding: 3px 10px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px; display: flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(239,68,68,0.2);" title="Scan and diagnose Trial Balance & Balance Sheet differences">
+                <i class="fas fa-stethoscope"></i> Audit Diagnostic
+            </button>
+
+            <!-- Debtors & Creditors Aging Schedule -->
+            <button type="button" id="bsBtnAgingToolbar" onclick="window.BalanceSheetModule.openAgingModal()" style="border: 1px solid #f59e0b; background: #fffbeb; color: #b45309; font-weight: 700; padding: 3px 10px; border-radius: 3px; cursor: pointer; font-size: 10.5px; display: flex; align-items: center; gap: 5px;" title="Debtors & Creditors FIFO Aging Schedule">
+                <i class="fas fa-hourglass-half" style="color: #d97706;"></i> Aging Schedule
+            </button>
+
+            <!-- Financial Year-End Closing Wizard -->
+            <button type="button" id="bsBtnYearClosingToolbar" onclick="window.BalanceSheetModule.openYearClosing()" style="background: #4338ca; color: white; border: 1px solid #3730a3; padding: 3px 10px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px; display: flex; align-items: center; gap: 5px;" title="Fiscal Year Closing & Retained Earnings Roll-Forward Wizard">
+                <i class="fas fa-lock"></i> Year-End Closing
+            </button>
+        </div>
+
+        <!-- Right Side: Primary Execution & Export Buttons -->
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <!-- Generate -->
+            <button type="button" class="bs-btn bs-btn-primary" onclick="window.BalanceSheetModule.loadReport()" style="background: var(--theme-primary, #1F4E79); color: white; border: 1px solid #1a3c5c; padding: 3px 12px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px; display: flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(31,78,121,0.2);">
+                <i class="fas fa-sync-alt"></i> Generate Report
+            </button>
+
+            <!-- Excel Export -->
+            <button type="button" class="bs-btn bs-btn-success" onclick="window.BalanceSheetModule.exportExcel()" style="background: #16a34a; color: white; border: 1px solid #15803d; padding: 3px 10px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px; display: flex; align-items: center; gap: 5px;">
+                <i class="far fa-file-excel"></i> Excel Export
+            </button>
+
+            <!-- Official Print -->
+            <button type="button" class="bs-btn bs-btn-secondary" onclick="window.BalanceSheetModule.printReport()" style="background: #475569; color: white; border: 1px solid #334155; padding: 3px 10px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px; display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-print"></i> Official Print (PDF)
+            </button>
+        </div>
+    </div>
+
+    <!-- Suspense Account Alert (Hidden unless suspense account has balance) -->
+    <div id="bsSuspenseBanner" style="display: none; background: #fef2f2; border: 1px solid #f87171; border-radius: 4px; padding: 4px 10px; color: #991b1b; font-size: 10.5px; font-weight: 600; flex-shrink: 0; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <i class="fas fa-exclamation-triangle" style="color: #dc2626;"></i>
+            <span><strong>Suspense Warning:</strong> Active balance detected in Suspense Account(s). Please clear suspense vouchers before final financial audit.</span>
+        </div>
+        <span id="bsSuspenseDetails" style="font-family: monospace; font-size: 10px;"></span>
+    </div>
+
+    <!-- Top KPI Summary Cards (5 Cards) -->
+    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; flex-shrink: 0;">
+        
+        <!-- Card 1: Total Assets -->
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-left: 4px solid #0284c7; border-radius: 4px; padding: 5px 9px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Total Assets</span>
+                <i class="fas fa-building" style="color: #0284c7; font-size: 12px;"></i>
+            </div>
+            <div id="bsKpiTotalAssets" style="font-size: 14.5px; font-weight: 800; color: #0284c7; margin-top: 1px;">Rs. 0</div>
+            <div style="display: flex; gap: 6px; margin-top: 2px; font-size: 9px; color: #64748b;">
+                <span>Fixed: <strong id="bsKpiNonCurrentAssets" style="color: #0369a1;">Rs. 0</strong></span>
+                <span>Current: <strong id="bsKpiCurrentAssets" style="color: #0284c7;">Rs. 0</strong></span>
+            </div>
+        </div>
+
+        <!-- Card 2: Total Liabilities -->
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-left: 4px solid #ea580c; border-radius: 4px; padding: 5px 9px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Total Liabilities</span>
+                <i class="fas fa-file-invoice-dollar" style="color: #ea580c; font-size: 12px;"></i>
+            </div>
+            <div id="bsKpiTotalLiabilities" style="font-size: 14.5px; font-weight: 800; color: #ea580c; margin-top: 1px;">Rs. 0</div>
+            <div style="display: flex; gap: 6px; margin-top: 2px; font-size: 9px; color: #64748b;">
+                <span>Long-Term: <strong id="bsKpiNonCurrentLiabilities" style="color: #c2410c;">Rs. 0</strong></span>
+                <span>Current: <strong id="bsKpiCurrentLiabilities" style="color: #ea580c;">Rs. 0</strong></span>
+            </div>
+        </div>
+
+        <!-- Card 3: Owner's Equity (Feature 5) -->
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-left: 4px solid #7c3aed; border-radius: 4px; padding: 5px 9px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Owner's Equity</span>
+                <i class="fas fa-coins" style="color: #7c3aed; font-size: 12px;"></i>
+            </div>
+            <div id="bsKpiOwnerEquity" style="font-size: 14.5px; font-weight: 800; color: #7c3aed; margin-top: 1px;">Rs. 0</div>
+            <div style="display: flex; gap: 6px; margin-top: 2px; font-size: 9px; color: #64748b;">
+                <span>Capital: <strong id="bsKpiOwnerCapital" style="color: #6d28d9;">Rs. 0</strong></span>
+                <span>Profit: <strong id="bsKpiNetProfit" style="color: #15803d;">Rs. 0</strong></span>
+            </div>
+        </div>
+
+        <!-- Card 4: Working Capital -->
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-left: 4px solid #0891b2; border-radius: 4px; padding: 5px 9px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Working Capital</span>
+                <i class="fas fa-hand-holding-usd" style="color: #0891b2; font-size: 12px;"></i>
+            </div>
+            <div id="bsKpiWorkingCapital" style="font-size: 14.5px; font-weight: 800; color: #0891b2; margin-top: 1px;">Rs. 0</div>
+            <div style="margin-top: 2px; font-size: 9px; color: #64748b;">
+                <span>Current Assets - Current Liab</span>
+            </div>
+        </div>
+
+        <!-- Card 5: Meezan Equilibrium Status (Feature 1 Button Inside) -->
+        <div id="bsKpiMeezanCard" style="background: #f0fdf4; border: 1px solid #86efac; border-left: 4px solid #16a34a; border-radius: 4px; padding: 5px 9px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 9.5px; font-weight: 700; color: #166534; text-transform: uppercase;">Meezan Status</span>
+                <i id="bsKpiMeezanIcon" class="fas fa-check-circle" style="color: #16a34a; font-size: 12px;"></i>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 1px;">
+                <div id="bsKpiMeezanText" style="font-size: 13.5px; font-weight: 800; color: #16a34a;">BALANCED</div>
+                <button type="button" id="bsBtnCardDiagnose" onclick="window.BalanceSheetModule.openDiagnostic()" style="display: none; background: #dc2626; color: white; border: none; border-radius: 3px; padding: 2px 6px; font-size: 9px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+                    <i class="fas fa-stethoscope"></i> Scan Cause
+                </button>
+            </div>
+            <div style="margin-top: 2px; font-size: 9px; color: #166534;">
+                <span>Diff: <strong id="bsKpiMeezanDiff">Rs. 0.00</strong></span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Secondary Row: Financial Health Ratios (Feature 4) & Inventory 3-Way Snapshot (Feature 3) -->
+    <div style="display: flex; gap: 6px; flex-shrink: 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; align-items: center; justify-content: space-between; font-size: 10px;">
+        
+        <!-- Financial Health Ratios (Feature 4) -->
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-weight: 700; color: var(--theme-primary, #1F4E79); display: flex; align-items: center; gap: 4px;">
+                <i class="fas fa-chart-line" style="color: #0284c7;"></i> Financial Ratios:
+            </span>
+
+            <span title="Current Assets / Current Liabilities (Ideal: 1.5 - 2.0)">
+                Current Ratio: <strong id="bsRatioCurrent" style="font-weight: 800; color: #0f172a;">-</strong>
+                <span id="bsBadgeCurrentRatio" style="padding: 1px 5px; border-radius: 3px; font-size: 8.5px; font-weight: 700; margin-left: 3px;">-</span>
+            </span>
+
+            <span style="color: #cbd5e1;">|</span>
+
+            <span title="(Cash + Bank + Trade Receivables) / Current Liabilities (Ideal: ≥ 1.0)">
+                Quick Ratio (Acid Test): <strong id="bsRatioQuick" style="font-weight: 800; color: #0f172a;">-</strong>
+                <span id="bsBadgeQuickRatio" style="padding: 1px 5px; border-radius: 3px; font-size: 8.5px; font-weight: 700; margin-left: 3px;">-</span>
+            </span>
+
+            <span style="color: #cbd5e1;">|</span>
+
+            <span title="Trade Receivables / Trade Payables">
+                Debtors / Creditors: <strong id="bsRatioDebtorsCreditors" style="font-weight: 800; color: #0f172a;">-</strong>
+            </span>
+        </div>
+
+        <!-- Manufacturing Inventory 3-Way Split (Feature 3) -->
+        <div style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; padding: 2px 8px;">
+            <span style="font-weight: 700; color: #334155; display: flex; align-items: center; gap: 4px;">
+                <i class="fas fa-boxes" style="color: #d97706;"></i> Store & Floor Stock:
+            </span>
+            <span title="Resin, Stabilizer, Chemical, Calcium">Raw Material: <strong id="bsInvRawVal" style="color: #b45309;">Rs. 0</strong></span>
+            <span style="color: #cbd5e1;">•</span>
+            <span title="Floor WIP from Production Costing">Floor WIP: <strong id="bsInvWipVal" style="color: #d97706;">Rs. 0</strong></span>
+            <span style="color: #cbd5e1;">•</span>
+            <span title="Pipes & Fittings ready for sale">Finished Goods: <strong id="bsInvFgVal" style="color: #15803d;">Rs. 0</strong></span>
+        </div>
+
+    </div>
+
+    <!-- Main Content Tables Scrollable Container -->
+    <div id="bsScrollArea" style="flex: 1; overflow-y: auto; overflow-x: auto; min-height: 250px; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff;">
+        
+        <!-- SIDE-BY-SIDE T-ACCOUNT VIEW (Default) -->
+        <div id="bsViewSideBySide" style="display: flex; width: 100%; min-height: 100%;">
+            
+            <!-- LEFT COLUMN: ASSETS -->
+            <div style="flex: 1; border-right: 2px solid #cbd5e1; display: flex; flex-direction: column;">
+                <div style="background: #f1f5f9; padding: 6px 12px; font-weight: 800; font-size: 12px; color: #0369a1; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fas fa-cube" style="color: #0284c7;"></i> ASSETS (PROPERTY & RESOURCES)</span>
+                    <span id="bsSideTotalAssetsTop" style="font-size: 12px; font-weight: 800; color: #0284c7;">Rs. 0</span>
+                </div>
+                <div id="bsAssetsContainer" style="flex: 1; padding: 5px;"></div>
+                <div style="background: #e0f2fe; padding: 7px 12px; font-weight: 800; font-size: 12px; color: #0369a1; border-top: 2px solid #0284c7; display: flex; justify-content: space-between; align-items: center;">
+                    <span>TOTAL ASSETS:</span>
+                    <span id="bsSideTotalAssetsBottom">Rs. 0</span>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: LIABILITIES & EQUITY -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <div style="background: #f1f5f9; padding: 6px 12px; font-weight: 800; font-size: 12px; color: #9a3412; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fas fa-hand-holding-usd" style="color: #ea580c;"></i> LIABILITIES & OWNER'S EQUITY</span>
+                    <span id="bsSideTotalLiabEquityTop" style="font-size: 12px; font-weight: 800; color: #c2410c;">Rs. 0</span>
+                </div>
+                <div id="bsLiabEquityContainer" style="flex: 1; padding: 5px;"></div>
+                <div style="background: #ffedd5; padding: 7px 12px; font-weight: 800; font-size: 12px; color: #9a3412; border-top: 2px solid #ea580c; display: flex; justify-content: space-between; align-items: center;">
+                    <span>TOTAL LIABILITIES & EQUITY:</span>
+                    <span id="bsSideTotalLiabEquityBottom">Rs. 0</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- VERTICAL CASCADING VIEW (Toggleable) -->
+        <div id="bsViewVertical" style="display: none; padding: 8px;">
+            <div id="bsVerticalContainer"></div>
+        </div>
+
+    </div>
+
+    <!-- 4-Point Audit & Verification Bar (Bottom Footer) -->
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 10px; display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #475569; flex-shrink: 0; box-shadow: 0 -1px 2px rgba(0,0,0,0.03);">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <span style="font-weight: 700; color: #1e293b;"><i class="fas fa-clipboard-check" style="color: var(--theme-primary, #1F4E79);"></i> Audit Reconciliation:</span>
+            
+            <span id="bsAuditTbBadge" style="display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="window.BalanceSheetModule.openDiagnostic()">
+                <i class="fas fa-check-circle" style="color: #16a34a;"></i> Trial Balance: <strong style="color: #15803d;">Matched</strong>
+            </span>
+
+            <span id="bsAuditInvBadge" style="display: flex; align-items: center; gap: 4px;">
+                <i class="fas fa-check-circle" style="color: #16a34a;"></i> Inventory GL vs Stock: <strong style="color: #15803d;">Reconciled</strong>
+            </span>
+
+            <span id="bsAuditPlBadge" style="display: flex; align-items: center; gap: 4px;">
+                <i class="fas fa-check-circle" style="color: #16a34a;"></i> Profit & Loss (P&L): <strong style="color: #15803d;">Injected</strong>
+            </span>
+
+            <span id="bsAuditMeezanBadge" style="display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="window.BalanceSheetModule.openDiagnostic()">
+                <i class="fas fa-check-circle" style="color: #16a34a;"></i> Balance Sheet Meezan: <strong style="color: #15803d;">100% Balanced</strong>
+            </span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" onclick="window.BalanceSheetModule.openDiagnostic()" style="background: none; border: none; color: #dc2626; font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 10px;">
+                <i class="fas fa-stethoscope"></i> Audit Diagnostic
+            </button>
+            <span style="color: #cbd5e1;">•</span>
+            <div style="font-style: italic; color: #64748b; font-size: 9.5px;">
+                SoftifyX ERP • Audited Manufacturing Balance Sheet
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: DIFFERENCE DIAGNOSTIC TOOL (Audit Diagnostic Modal - Option 1)    -->
+    <!-- ========================================================================= -->
+    <div id="bsDiagnosticModal" style="display: none; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+        <div style="background: #ffffff; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 880px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #cbd5e1;">
+            
+            <!-- Modal Header -->
+            <div style="background: var(--theme-primary, #1F4E79); color: white; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-stethoscope" style="color: #f87171;"></i> Audit Diagnostic & Imbalance Scanner
+                </div>
+                <button type="button" onclick="window.BalanceSheetModule.closeDiagnostic()" style="background: transparent; border: none; color: white; font-size: 16px; cursor: pointer; padding: 0 4px;" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div id="bsDiagBody" style="padding: 14px 18px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                <div style="text-align: center; padding: 30px; color: #64748b;">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i><br>
+                    <span style="display:inline-block; margin-top:8px; font-weight:600;">Scanning Ledgers, Opening Balances, and Vouchers...</span>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="background: #f8fafc; border-top: 1px solid #cbd5e1; padding: 8px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+                <button type="button" onclick="window.BalanceSheetModule.runDiagnosticScan()" style="background: #0284c7; color: white; border: none; padding: 4px 12px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 11px;">
+                    <i class="fas fa-redo"></i> Re-Scan
+                </button>
+                <button type="button" onclick="window.BalanceSheetModule.closeDiagnostic()" style="background: #64748b; color: white; border: none; padding: 4px 12px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 11px;">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: SUB-LEDGER DRILL-DOWN (Option 1: Instant Account Khata)            -->
+    <!-- ========================================================================= -->
+    <div id="bsLedgerModal" style="display: none; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+        <div style="background: #ffffff; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 920px; max-width: 96%; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #cbd5e1;">
+            
+            <!-- Modal Header -->
+            <div style="background: #0284c7; color: white; padding: 9px 16px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 12.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-book-open" style="color: #fed7aa;"></i>
+                    <span id="bsLedgerModalTitle">Account Ledger Drill-Down</span>
+                </div>
+                <button type="button" onclick="window.BalanceSheetModule.closeLedgerModal()" style="background: transparent; border: none; color: white; font-size: 16px; cursor: pointer;" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Ledger Summary Strip -->
+            <div id="bsLedgerSummaryStrip" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 8px 16px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr; gap: 8px; align-items: center; font-size: 10.5px;">
+                <div>
+                    <div style="color: #64748b; font-size: 9.5px; font-weight: 700;">ACCOUNT TITLE</div>
+                    <div id="bsLedgerAccTitle" style="font-weight: 800; color: #1e293b; font-size: 12px; margin-top: 1px;">-</div>
+                </div>
+                <div>
+                    <div style="color: #64748b; font-size: 9.5px; font-weight: 700;">AS ON DATE</div>
+                    <div id="bsLedgerAsOnDate" style="font-weight: 700; color: #0284c7; margin-top: 1px;">-</div>
+                </div>
+                <div>
+                    <div style="color: #64748b; font-size: 9.5px; font-weight: 700;">TOTAL DEBIT</div>
+                    <div id="bsLedgerTotDeb" style="font-weight: 700; color: #1e293b; margin-top: 1px;">Rs. 0.00</div>
+                </div>
+                <div>
+                    <div style="color: #64748b; font-size: 9.5px; font-weight: 700;">TOTAL CREDIT</div>
+                    <div id="bsLedgerTotCrd" style="font-weight: 700; color: #1e293b; margin-top: 1px;">Rs. 0.00</div>
+                </div>
+                <div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 4px; padding: 4px 8px; text-align: right;">
+                    <div style="color: #0369a1; font-size: 9px; font-weight: 800;">BALANCE SHEET BALANCE</div>
+                    <div id="bsLedgerClosingBal" style="font-weight: 900; color: #0284c7; font-size: 13.5px;">Rs. 0.00</div>
+                </div>
+            </div>
+
+            <!-- Filter bar inside modal -->
+            <div style="padding: 6px 16px; background: #ffffff; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                <input type="text" id="bsLedgerSearchInput" placeholder="Quick search voucher #, narration..." oninput="window.BalanceSheetModule.filterLedgerRows()" style="padding: 3px 8px; font-size: 10px; border: 1px solid #cbd5e1; border-radius: 3px; width: 260px;">
+                <span id="bsLedgerTxCount" style="font-size: 10px; color: #64748b; font-weight: 600;">0 transactions</span>
+            </div>
+
+            <!-- Ledger Table -->
+            <div style="padding: 0; overflow-y: auto; flex: 1; max-height: 55vh;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                    <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 5; border-bottom: 2px solid #cbd5e1; color: #334155;">
+                        <tr>
+                            <th style="padding: 5px 8px; text-align: left; width: 75px;">Date</th>
+                            <th style="padding: 5px 8px; text-align: left; width: 50px;">Type</th>
+                            <th style="padding: 5px 8px; text-align: left; width: 85px;">Voucher #</th>
+                            <th style="padding: 5px 8px; text-align: left;">Narration / Description</th>
+                            <th style="padding: 5px 8px; text-align: right; width: 85px;">Debit</th>
+                            <th style="padding: 5px 8px; text-align: right; width: 85px;">Credit</th>
+                            <th style="padding: 5px 8px; text-align: right; width: 95px;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bsLedgerTableBody">
+                        <tr><td colspan="7" style="text-align: center; padding: 25px; color: #94a3b8;">Loading transactions...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="background: #f8fafc; border-top: 1px solid #cbd5e1; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" id="bsBtnOpenFullLedger" onclick="window.BalanceSheetModule.openFullLedger()" style="background: #0284c7; color: white; border: none; padding: 4px 12px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px; display: flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-external-link-alt"></i> Open in Full Account Ledger Module
+                </button>
+                <button type="button" onclick="window.BalanceSheetModule.closeLedgerModal()" style="background: #64748b; color: white; border: none; padding: 4px 12px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: DEBTORS & CREDITORS AGING SCHEDULE (Option 4)                      -->
+    <!-- ========================================================================= -->
+    <div id="bsAgingModal" style="display: none; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+        <div style="background: #ffffff; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 950px; max-width: 96%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #cbd5e1;">
+            
+            <!-- Modal Header -->
+            <div style="background: #b45309; color: white; padding: 9px 16px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 12.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-hourglass-half" style="color: #fef08a;"></i> Debtors & Creditors FIFO Aging Analysis (Outstanding Balance Breakdown)
+                </div>
+                <button type="button" onclick="window.BalanceSheetModule.closeAgingModal()" style="background: transparent; border: none; color: white; font-size: 16px; cursor: pointer;" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Aging Summary Cards -->
+            <div style="padding: 10px 16px; background: #fffbeb; border-bottom: 1px solid #fde68a; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <!-- Debtors Overview -->
+                <div style="background: white; border: 1px solid #fed7aa; border-radius: 4px; padding: 8px 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                        <span style="font-weight: 800; color: #0284c7; font-size: 11px;"><i class="fas fa-users"></i> TRADE DEBTORS (CUSTOMERS)</span>
+                        <strong id="bsAgingDebTotal" style="color: #0f172a; font-size: 12px;">Rs. 0.00</strong>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 6px; text-align: center; font-size: 9.5px;">
+                        <div style="background: #f0fdf4; padding: 3px; border-radius: 2px;">
+                            <div style="color: #166534; font-weight: 700;">0 - 30 Days</div>
+                            <div id="bsAgingDeb0_30" style="font-weight: 800; color: #15803d; margin-top: 2px;">Rs. 0</div>
+                        </div>
+                        <div style="background: #eff6ff; padding: 3px; border-radius: 2px;">
+                            <div style="color: #1e40af; font-weight: 700;">31 - 60 Days</div>
+                            <div id="bsAgingDeb31_60" style="font-weight: 800; color: #1d4ed8; margin-top: 2px;">Rs. 0</div>
+                        </div>
+                        <div style="background: #fffbeb; padding: 3px; border-radius: 2px;">
+                            <div style="color: #92400e; font-weight: 700;">61 - 90 Days</div>
+                            <div id="bsAgingDeb61_90" style="font-weight: 800; color: #b45309; margin-top: 2px;">Rs. 0</div>
+                        </div>
+                        <div style="background: #fef2f2; padding: 3px; border-radius: 2px;">
+                            <div style="color: #991b1b; font-weight: 700;">90+ Days</div>
+                            <div id="bsAgingDeb90Plus" style="font-weight: 800; color: #dc2626; margin-top: 2px;">Rs. 0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Creditors Overview -->
+                <div style="background: white; border: 1px solid #fed7aa; border-radius: 4px; padding: 8px 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                        <span style="font-weight: 800; color: #ea580c; font-size: 11px;"><i class="fas fa-truck"></i> TRADE CREDITORS (VENDORS)</span>
+                        <strong id="bsAgingCredTotal" style="color: #0f172a; font-size: 12px;">Rs. 0.00</strong>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 6px; text-align: center; font-size: 9.5px;">
+                        <div style="background: #f0fdf4; padding: 3px; border-radius: 2px;">
+                            <div style="color: #166534; font-weight: 700;">0 - 30 Days</div>
+                            <div id="bsAgingCred0_30" style="font-weight: 800; color: #15803d; margin-top: 2px;">Rs. 0</div>
+                        </div>
+                        <div style="background: #eff6ff; padding: 3px; border-radius: 2px;">
+                            <div style="color: #1e40af; font-weight: 700;">31 - 60 Days</div>
+                            <div id="bsAgingCred31_60" style="font-weight: 800; color: #1d4ed8; margin-top: 2px;">Rs. 0</div>
+                        </div>
+                        <div style="background: #fffbeb; padding: 3px; border-radius: 2px;">
+                            <div style="color: #92400e; font-weight: 700;">61 - 90 Days</div>
+                            <div id="bsAgingCred61_90" style="font-weight: 800; color: #b45309; margin-top: 2px;">Rs. 0</div>
+                        </div>
+                        <div style="background: #fef2f2; padding: 3px; border-radius: 2px;">
+                            <div style="color: #991b1b; font-weight: 700;">90+ Days</div>
+                            <div id="bsAgingCred90Plus" style="font-weight: 800; color: #dc2626; margin-top: 2px;">Rs. 0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Switcher for Aging Tables -->
+            <div style="padding: 6px 16px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; gap: 8px;">
+                <button type="button" id="bsAgingTabDeb" onclick="window.BalanceSheetModule.switchAgingTab('debtors')" style="border: 1px solid #0284c7; background: #0284c7; color: white; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 10px; cursor: pointer;">
+                    Customer Aging (Debtors)
+                </button>
+                <button type="button" id="bsAgingTabCred" onclick="window.BalanceSheetModule.switchAgingTab('creditors')" style="border: 1px solid #cbd5e1; background: #ffffff; color: #64748b; padding: 3px 10px; border-radius: 3px; font-weight: 600; font-size: 10px; cursor: pointer;">
+                    Vendor Aging (Creditors)
+                </button>
+            </div>
+
+            <!-- Aging Table Container -->
+            <div style="padding: 0; overflow-y: auto; flex: 1; max-height: 50vh;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                    <thead style="position: sticky; top: 0; background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
+                        <tr style="color: #334155; font-weight: 700;">
+                            <th style="padding: 5px 8px; text-align: left; width: 65px;">Code</th>
+                            <th style="padding: 5px 8px; text-align: left;">Account Name</th>
+                            <th style="padding: 5px 8px; text-align: right; width: 85px;">Total Balance</th>
+                            <th style="padding: 5px 8px; text-align: right; width: 75px; color: #166534;">0 - 30 Days</th>
+                            <th style="padding: 5px 8px; text-align: right; width: 75px; color: #1e40af;">31 - 60 Days</th>
+                            <th style="padding: 5px 8px; text-align: right; width: 75px; color: #b45309;">61 - 90 Days</th>
+                            <th style="padding: 5px 8px; text-align: right; width: 75px; color: #dc2626;">90+ Days</th>
+                            <th style="padding: 5px 8px; text-align: center; width: 80px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bsAgingTableBody">
+                        <tr><td colspan="8" style="text-align: center; padding: 25px; color: #94a3b8;">No aging data loaded.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="background: #f8fafc; border-top: 1px solid #cbd5e1; padding: 8px 16px; display: flex; justify-content: flex-end;">
+                <button type="button" onclick="window.BalanceSheetModule.closeAgingModal()" style="background: #64748b; color: white; border: none; padding: 4px 14px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: FINANCIAL YEAR CLOSING WIZARD (Option 6)                           -->
+    <!-- ========================================================================= -->
+    <div id="bsYearClosingModal" style="display: none; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+        <div style="background: #ffffff; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 720px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #cbd5e1;">
+            
+            <!-- Modal Header -->
+            <div style="background: #312e81; color: white; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 12.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-lock" style="color: #a5b4fc;"></i> Financial Year Closing & Retained Earnings Wizard
+                </div>
+                <button type="button" onclick="window.BalanceSheetModule.closeYearClosing()" style="background: transparent; border: none; color: white; font-size: 16px; cursor: pointer;" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="padding: 16px 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px; font-size: 11px;">
+                
+                <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 4px; padding: 10px 12px; color: #3730a3;">
+                    <div style="font-weight: 800; font-size: 11.5px; margin-bottom: 3px;"><i class="fas fa-info-circle"></i> Year-End Profit & Loss Roll-Forward</div>
+                    <div>Saal ke ikhtitam par Profit & Loss ko close karke <strong>Retained Earnings</strong> equity account mein transfer kiya jata hai taake naye mali saal ka P&L fresh zero se start ho sake.</div>
+                </div>
+
+                <!-- Date Picker & Live Calculation -->
+                <div style="display: flex; gap: 12px; align-items: flex-end; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px 14px;">
+                    <div style="flex: 1;">
+                        <label style="font-weight: 700; color: #334155; display: block; margin-bottom: 3px;">Fiscal Year Closing Date:</label>
+                        <input type="date" id="bsClosingDate" style="width: 100%; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; font-weight: 600; font-size: 11px;" onchange="window.BalanceSheetModule.previewYearClosing()">
+                    </div>
+                    <button type="button" onclick="window.BalanceSheetModule.previewYearClosing()" style="background: #4338ca; color: white; border: none; padding: 5px 12px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 11px;">
+                        <i class="fas fa-calculator"></i> Calculate
+                    </button>
+                </div>
+
+                <!-- Calculation Preview Box -->
+                <div id="bsClosingPreviewContent" style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="text-align: center; padding: 25px; color: #64748b;">
+                        <i class="fas fa-spinner fa-spin"></i> Calculating Net Profit & Target Retained Earnings Account...
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="background: #f8fafc; border-top: 1px solid #cbd5e1; padding: 8px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+                <button type="button" id="bsBtnExecuteClosing" onclick="window.BalanceSheetModule.executeYearClosing()" style="background: #16a34a; color: white; border: none; padding: 5px 14px; border-radius: 3px; font-weight: 800; cursor: pointer; font-size: 11px; display: none;">
+                    <i class="fas fa-lock"></i> Post & Lock Year Closing Entry
+                </button>
+                <button type="button" onclick="window.BalanceSheetModule.closeYearClosing()" style="background: #64748b; color: white; border: none; padding: 5px 12px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 11px;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+        </div>
+    </div>
+
+</div>
+
+<!-- Auto-init handler -->
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+    if (window.BalanceSheetModule) {
+        window.BalanceSheetModule.init();
+    } else {
+        const s = document.createElement('script');
+        s.src = 'assets/js/balance_sheet.js?v=' + Date.now();
+        s.onload = () => { if (window.BalanceSheetModule) window.BalanceSheetModule.init(); };
+        document.body.appendChild(s);
+    }
+">

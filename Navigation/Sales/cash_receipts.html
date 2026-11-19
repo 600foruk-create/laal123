@@ -1,0 +1,416 @@
+<!-- Cash Receipts Module -->
+<div id="cashReceiptContainer" data-module="Cash Receipts"
+    style="width: 100%; height: 100%; min-height: 520px; box-sizing: border-box; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden !important; border: 1px solid #cbd5e0; border-radius: 4px; position: relative;">
+
+    <!-- Top Toolbar -->
+    <div
+        style="background: #e2e8f0; padding: 2px; display: flex; gap: 2px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: auto; white-space: nowrap;">
+        <button type="button" class="cr-tool-btn cr-btn-info" onclick="window.CRModule.openCOA()">New Account</button>
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        <button type="button" class="cr-tool-btn cr-btn-add" onclick="window.CRModule.resetForm(true)">Add</button>
+        <button type="button" class="cr-tool-btn cr-btn-save" onclick="window.CRModule.save()">Save (Ctrl+S)</button>
+        <button type="button" class="cr-tool-btn cr-btn-cancel" onclick="window.CRModule.resetForm()">Cancel</button>
+        <button type="button" class="cr-tool-btn cr-btn-delete" onclick="window.CRModule.delete()">Delete</button>
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        <button type="button" id="cr_post_btn" class="cr-tool-btn cr-btn-info" onclick="window.CRModule.togglePost()">Post</button>
+        <button type="button" class="cr-tool-btn cr-btn-info" onclick="window.CRModule.openFindModal()">Find</button>
+        <button type="button" class="cr-tool-btn cr-btn-info" onclick="window.CRModule.navigate('last')">Retrieve Last Saved</button>
+        <button type="button" class="cr-tool-btn cr-btn-save" onclick="window.CRModule.printReceipt('print')">Print</button>
+        <button type="button" class="cr-tool-btn cr-btn-info" onclick="window.CRModule.printReceipt('voucher')">Voucher</button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div
+        style="flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 4px; background: #f1f5f9; overflow: hidden !important;">
+
+        <!-- Header Info Row -->
+        <div
+            style="display: flex; gap: 8px; background: white; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px;">
+            <div style="flex: 1; display: grid; grid-template-columns: 115px 30px 1fr; gap: 2px; align-items: center;">
+                <label class="cr-label">Serial No</label>
+                <button type="button" class="cr-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.CRModule.navigate('prev')"><<</button>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="text" id="cr_sn" class="cr-input" style="width: 110px; text-align: center; color: blue; font-weight: 800; font-size: 16px;">
+                    <button type="button" class="cr-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.CRModule.navigate('next')">>></button>
+                    <label style="font-size: 16px; font-weight: 800; color: #dc3545; display: flex; align-items: center; gap: 4px; margin-left: 5px;">
+                        <input type="checkbox" id="cr_is_cancelled" style="transform: scale(1.5);" onchange="window.CRModule.updateCancellationUI()"> Cancel
+                    </label>
+                    <div id="cr_cancelled_stamp" style="font-size: 14px; font-weight: bold; color: #dc3545; border: 2px solid #dc3545; padding: 2px 8px; border-radius: 4px; display: none; margin-left: 10px;">CANCELLED</div>
+                    <div id="cr_posted_stamp" style="font-size: 14px; font-weight: bold; color: #dc3545; border: 2px solid #dc3545; padding: 2px 8px; border-radius: 4px; display: none; margin-left: 10px;">POSTED</div>
+                    <div id="cr_unposted_stamp" style="font-size: 14px; font-weight: bold; color: #eab308; border: 2px solid #eab308; padding: 2px 8px; border-radius: 4px; display: none; margin-left: 10px;">UNPOSTED</div>
+                </div>
+
+                <label class="cr-label">Date</label>
+                <div></div>
+                <input type="date" id="cr_date" class="cr-input" style="width: 110px;">
+
+                <label class="cr-label">Job No & Description</label>
+                <div></div>
+                <select id="cr_job_id" class="cr-input" style="width: 250px;"></select>
+
+                <label class="cr-label">Employee Reference</label>
+                <div></div>
+                <select id="cr_employee_id" class="cr-input" style="width: 250px;"></select>
+            </div>
+
+            <div
+                style="width: 190px; display: flex; flex-direction: column; gap: 6px; justify-content: center; padding: 6px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
+                <label
+                    style="display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 600; cursor: pointer; color: #1e3a8a;">
+                    <input type="radio" name="cr_type" value="Customer" checked
+                        onclick="window.CRModule.updateReceivedFromLabel('Customer')"> Receipt From Customer
+                </label>
+                <label
+                    style="display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 600; cursor: pointer; color: #1e3a8a;">
+                    <input type="radio" name="cr_type" value="Petty"
+                        onclick="window.CRModule.updateReceivedFromLabel('Petty')"> Petty Receipt
+                </label>
+            </div>
+        </div>
+
+        <!-- Accounts Row -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: grid; grid-template-columns: 135px 30px 1fr; gap: 2px; align-items: center; background: #f8fafc; padding: 6px; border: 1px solid #cbd5e0; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);">
+                <label class="cr-label">Cash Account</label>
+                <div></div>
+                <div style="display: flex; gap: 8px; align-items: center; position: relative;">
+                    <input type="text" id="cr_cash_code" class="cr-input" style="width: 110px;" placeholder="Code">
+                    <input type="text" id="cr_cash_name" class="cr-input" style="flex: 1;" placeholder="Search Cash Account...">
+                    <div id="cr_cash_suggest" class="cr-suggest"></div>
+                    <label class="cr-label" style="text-align: right; width: 50px;">Balance</label>
+                    <input type="text" id="cr_cash_balance" class="cr-input" style="width: 110px; text-align: right;" readonly>
+                </div>
+            </div>
+
+            <div id="customerReceivedFromRow" style="display: grid; grid-template-columns: 135px 30px 1fr; gap: 2px; align-items: center; background: #f8fafc; padding: 6px; border: 1px solid #cbd5e0; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);">
+                <label class="cr-label" id="lbl_received_from">RECEIVED FROM</label>
+                <div></div>
+                <div style="display: flex; gap: 8px; align-items: center; position: relative;">
+                    <input type="text" id="cr_received_from_code" class="cr-input" style="width: 110px;" placeholder="Code">
+                    <input type="text" id="cr_received_from_name" class="cr-input" style="flex: 1;" placeholder="Search Customer/Party Account...">
+                    <div id="cr_received_from_suggest" class="cr-suggest"></div>
+                    <label class="cr-label" style="text-align: right; width: 50px;">Balance</label>
+                    <input type="text" id="cr_received_from_balance" class="cr-input" style="width: 110px; text-align: right;" readonly>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Section -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; border-radius: 4px; display: flex; flex-direction: column; background: #fff; min-height: 200px; margin-top: 4px;">
+            <div id="crGridTitle" style="background: #1e3a8a; color: white; padding: 3px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between;">
+                <span>Detail of Sale Invoices Against Which Amount has been Received</span>
+            </div>
+            <div style="flex: 1; overflow-y: auto; border-bottom: 1px solid #cbd5e0;">
+                <table id="crGrid" style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e0; table-layout: fixed;">
+                    <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                        <tr id="crCustomerHeader" class="cr-grid-header">
+                            <th style="width: 30px;">#</th>
+                            <th style="width: 90px;">Invoice No.</th>
+                            <th style="width: 95px;">Invoice Date</th>
+                            <th style="width: 110px; white-space: normal; line-height: 1.1;">Cash Receipt for Amount</th>
+                            <th style="width: 60px; white-space: normal; line-height: 1.1;">W.H.T. Rate %</th>
+                            <th style="width: 85px; white-space: normal; line-height: 1.1;">W.H.T. Amount</th>
+                            <th style="width: 60px; white-space: normal; line-height: 1.1;">G.S.T. Rate %</th>
+                            <th style="width: 85px; white-space: normal; line-height: 1.1;">G.S.T. Amount</th>
+                            <th style="width: 85px; white-space: normal; line-height: 1.1;">Advance Adjusted</th>
+                            <th style="width: 85px; white-space: normal; line-height: 1.1;">Discount Given</th>
+                            <th style="width: 110px; white-space: normal; line-height: 1.1;">Total Credited to Party</th>
+                        </tr>
+                        <!-- Petty Header -->
+                        <tr id="crPettyHeader" class="cr-grid-header" style="display: none;">
+                            <th style="width: 30px;">#</th>
+                            <th style="width: 100px;">Account Code</th>
+                            <th style="width: 250px;">Account Name</th>
+                            <th style="width: 1fr;">Description</th>
+                            <th style="width: 110px;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="crGridBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Customer Totals Footer -->
+            <div id="crCustomerFooter" style="background: #e2e8f0; border-top: 1px solid #cbd5e0;">
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                    <!-- Prepayment Row -->
+                    <tr style="height: 26px;">
+                        <td colspan="3"
+                            style="text-align: right; font-weight: 700; font-size: 10px; color: #1e3a8a; padding-right: 10px; width: 215px;">
+                            Prepayment / Advance</td>
+                        <td style="width: 110px; padding: 1px 2px;">
+                            <input type="text" id="cr_prepayment" class="cr-total-input" value="0.00"
+                                style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td colspan="6"
+                            style="text-align: right; font-weight: 700; font-size: 10px; color: #1e3a8a; padding-right: 10px; width: 460px;">
+                            Total Adv</td>
+                        <td style="width: 110px; padding: 1px 2px;"><input type="text"
+                                id="cr_total_advance" class="cr-total-input" value="0.00" readonly
+                                style="border: 1px solid #94a3b8; border-radius: 2px; background: #f8fafc; height: 24px;"></td>
+                    </tr>
+                    <!-- Main Totals Row -->
+                    <tr style="height: 26px; border-top: 1px solid #cbd5e0;">
+                        <td colspan="3"
+                            style="text-align: right; font-weight: 700; font-size: 10px; color: #1e3a8a; padding-right: 10px; width: 215px;">
+                            Totals</td>
+                        <td style="width: 110px; padding: 1px 2px;"><input type="text" id="cr_total_received"
+                                class="cr-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 60px;"></td>
+                        <td style="width: 85px; padding: 1px 2px;"><input type="text" id="cr_total_wht"
+                                class="cr-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 60px;"></td>
+                        <td style="width: 85px; padding: 1px 2px;"><input type="text" id="cr_total_gst"
+                                class="cr-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 85px; padding: 1px 2px;"><input type="text" id="cr_total_adj"
+                                class="cr-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 85px; padding: 1px 2px;"><input type="text" id="cr_total_disc"
+                                class="cr-total-input" value="0.00" readonly style="border: 1px solid #94a3b8; border-radius: 2px; height: 24px;"></td>
+                        <td style="width: 110px; padding: 1px 2px; background: #1e3a8a;"><input type="text" id="cr_grand_total_customer"
+                                class="cr-total-input" value="0.00" readonly
+                                style="border: 1px solid #1e3a8a; background: transparent; color: white; height: 24px;"></td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Petty Totals Footer -->
+            <div id="crPettyFooter" style="background: #e2e8f0; border-top: 1px solid #cbd5e0; padding: 4px; display: none;">
+                <div style="display: flex; justify-content: flex-end; align-items: center;">
+                    <div style="text-align: right; font-weight: 700; font-size: 10px; color: #1e3a8a; padding-right: 10px;">
+                        Totals</div>
+                    <div style="width: 110px;"><input type="text" id="cr_grand_total_petty" class="cr-total-input"
+                            value="0.00" readonly
+                            style="background: #1e3a8a; color: white; height: 22px; font-size: 10px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grand Total Hidden Input for unified access -->
+        <input type="hidden" id="cr_grand_total" value="0.00">
+
+        <div
+            style="display: flex; flex-direction: column; gap: 2px; background: white; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label class="cr-label" style="width: 90px;">Amt In Words</label>
+                <span id="cr_amt_words" style="font-size: 9px; font-weight: 700; color: #1e3a8a;">Rupees zero and 00/100
+                    only.</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label class="cr-label" style="width: 90px;">Remarks</label>
+                <input type="text" id="cr_remarks" class="cr-input" placeholder="Enter receipt remarks..."
+                    style="height: 22px; font-size: 10px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Smart Search Suggestion List for Invoices -->
+    <div id="cr_invoice_suggest" class="cr-suggest" style="width: 450px;"></div>
+
+    <style>
+        .cr-tool-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            flex: 1;
+            height: 38px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .cr-tool-btn:hover {
+            background: #f1f5f9;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .cr-btn-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .cr-btn-add:hover { background: #3b6998 !important; }
+
+        .cr-btn-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .cr-btn-save:hover { background: #3b6998 !important; }
+
+        .cr-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .cr-btn-cancel:hover { background: #3b6998 !important; }
+
+        .cr-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .cr-btn-delete:hover { background: #c82333 !important; }
+
+        .cr-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto; }
+        .cr-btn-info:hover { background: #3b6998 !important; }
+
+        .cr-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; display: flex; align-items: center; justify-content: flex-start; text-align: left; white-space: nowrap; }
+
+        .cr-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            font-weight: normal;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border 0.2s;
+        }
+
+        .cr-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .cr-input:disabled { background: #ffffff; color: #000000; border-color: #000000; }
+
+        select.cr-input option {
+            padding: 4px;
+            font-size: 11px;
+            color: #000000;
+        }
+        select.cr-input option:checked, select.cr-input option:hover {
+            background-color: #1F4E79;
+            color: white;
+        }
+
+        .cr-nav-btn {
+            height: 22px;
+            padding: 0 6px;
+            background: white;
+            border: 1px solid #000000;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 900;
+            color: #000000;
+            border-radius: 2px;
+        }
+        .cr-nav-btn:hover { background: #f1f5f9; }
+
+        .cr-total-input {
+            width: 100%;
+            height: 22px;
+            background: #fff;
+            border: 1px solid #000000;
+            text-align: right;
+            font-weight: bold;
+            font-size: 12px;
+            color: #1e3a8a;
+            padding: 0 4px;
+            box-sizing: border-box;
+        }
+        .cr-grid-input { border: none; width: 100%; height: 100%; padding: 0 4px; font-size: 12px; outline: none; background: transparent; display: block; color: #000000; font-weight: bold; }
+        .cr-grid-input:focus { background: #eff6ff; }
+        .cr-grid-input.num { text-align: right; }
+        
+        #crGrid th {
+            background: #e2e8f0;
+            border: 1px solid #94a3b8;
+            font-size: 9px;
+            font-weight: 700;
+            color: #334155;
+            padding: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            height: 22px;
+        }
+        #crGrid td { border: 1px solid #94a3b8; padding: 0; height: 22px; position: relative; overflow: visible; }
+
+        #crGrid tr.selected-row td:not(.row-selector) {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        #crGrid tr.selected-row td:not(.row-selector) input {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        
+        .row-selector {
+            cursor: pointer;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border-top: 1px solid #ffffff !important;
+            border-left: 1px solid #ffffff !important;
+            border-bottom: 1px solid #808080 !important;
+            border-right: 1px solid #808080 !important;
+            text-align: center;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            width: 20px;
+        }
+
+        .cr-suggest { position: absolute; top: 100%; left: 0; width: 450px; background: white; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; z-index: 10000; display: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .cr-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cr-suggest div:hover, .cr-suggest div.active { background: #1F4E79; color: white; }
+        .cr-suggest div b { color: inherit; }
+    </style>
+
+    <!-- Find Modal -->
+    <div id="cr_find_modal" style="display: none; position: fixed; top: 10vh; left: 15vw; z-index: 99999; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+        <div id="cr_find_modal_content" style="background: white; width: 900px; border-radius: 4px; display: flex; flex-direction: column; font-family: Arial, sans-serif; border: 1px solid #cbd5e0;">
+            <div id="cr_find_modal_header" style="background: #1F4E79; color: white; padding: 5px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-radius: 4px 4px 0 0; cursor: move;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span id="cr_find_window_title">Find Cash Receipts</span>
+                </div>
+                <button type="button" onclick="window.CRModule.closeFindModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; font-weight: bold; padding: 0 4px; line-height: 14px;">&times;</button>
+            </div>
+            <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e0; display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Find</label>
+                    <select id="cr_find_field" style="font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px;">
+                        <option value="serial_no">Serial No.</option>
+                        <option value="receipt_date">Date</option>
+                        <option value="customer_name">Customer</option>
+                        <option value="cash_account_name">Cash Account</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Value</label>
+                    <input type="text" id="cr_find_search" oninput="window.CRModule.filterFindTable()" style="width: 200px; font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px; outline: none;">
+                </div>
+                <div style="display: flex; gap: 5px; margin-left: auto;">
+                    <button type="button" onclick="window.CRModule.filterFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 4px 12px; font-size: 11px; cursor: pointer;">Find</button>
+                    <button type="button" onclick="window.CRModule.renderFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 4px 12px; font-size: 11px; cursor: pointer;">Refresh</button>
+                </div>
+            </div>
+            <div style="padding: 5px 15px; font-size: 11px; font-style: italic; color: #555; background: #f8f9fa;">
+                Double-click a row to load the cash receipt.
+            </div>
+            <div style="height: 350px; overflow-y: auto; overflow-x: auto; background: white; margin: 0; border-top: 1px solid #cbd5e0; border-bottom: 1px solid #cbd5e0;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; white-space: nowrap;">
+                    <thead style="position: sticky; top: 0; background: #e2e8f0; z-index: 1;">
+                        <tr>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; width: 15px; text-align: center;"></th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Serial No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Customer</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;">Cash Account</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">W.H. Tax</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Sales Tax</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Adv. Adj.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Discount</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right;">Amount Rcvd</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: center;">Posted</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cr_find_table_body"></tbody>
+                </table>
+            </div>
+            <div style="padding: 8px 15px; background: #f1f5f9; display: flex; align-items: center; gap: 10px; font-size: 11px; border-radius: 0 0 4px 4px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-weight: 500; color: #334155;">Added By User</span>
+                    <input type="text" id="cr_added_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="cr_added_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                    <span style="font-weight: 500; color: #334155;">Edited By User</span>
+                    <input type="text" id="cr_edited_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="cr_edited_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

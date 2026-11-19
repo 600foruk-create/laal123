@@ -1,0 +1,705 @@
+<div class="modal-body ttr-wrapper" data-module="Tax Transaction Report">
+    <style>
+        /* Digital Invoice matched sizing */
+        .modal-container:has(.modal-body[data-module="Tax Transaction Report"]),
+        .modal-container:has(.modal-body[data-module="WHT Income Tax Report"]) {
+            max-width: 1260px !important;
+            width: 98% !important;
+            height: 94vh !important;
+            max-height: 94vh !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            border-radius: 6px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            border: 2px solid var(--theme-primary, #1F4E79) !important;
+            background: #ffffff !important;
+        }
+
+        .modal-container:has(.modal-body[data-module="Tax Transaction Report"]) .modal-header,
+        .modal-container:has(.modal-body[data-module="WHT Income Tax Report"]) .modal-header {
+            margin: 0 !important;
+            border-radius: 4px 4px 0 0 !important;
+            padding: 4px 12px !important;
+            height: 34px !important;
+            box-sizing: border-box !important;
+            background: var(--theme-primary, #0f2e5a) !important;
+            border-bottom: 2px solid var(--theme-accent, #3b82f6) !important;
+            flex-shrink: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            color: #ffffff !important;
+        }
+
+        .ttr-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            padding: 8px 12px 10px 12px;
+            background: #f1f5f9;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            font-size: 12px;
+            overflow: hidden;
+        }
+
+        /* Top Filter Section Card */
+        .ttr-filter-card {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .ttr-filter-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .ttr-filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .ttr-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #334155;
+            letter-spacing: 0.2px;
+        }
+
+        /* Segmented Button Groups */
+        .ttr-seg-group {
+            display: inline-flex;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 2px;
+            gap: 2px;
+        }
+
+        .ttr-seg-btn {
+            border: none;
+            background: transparent;
+            padding: 4px 10px;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #475569;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            outline: none;
+            white-space: nowrap;
+        }
+
+        .ttr-seg-btn:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .ttr-seg-btn.active {
+            background: var(--theme-primary, #0284c7);
+            color: #ffffff !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+        }
+
+        /* Form Inputs & Selects */
+        .ttr-input, .ttr-select {
+            height: 28px;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            padding: 2px 8px;
+            font-size: 11.5px;
+            color: #0f172a;
+            background: #ffffff;
+            outline: none;
+            transition: border-color 0.15s;
+            box-sizing: border-box;
+        }
+
+        .ttr-input:focus, .ttr-select:focus {
+            border-color: var(--theme-primary, #0284c7);
+            box-shadow: 0 0 0 1px var(--theme-primary, #0284c7);
+        }
+
+        .ttr-input-search-box {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .ttr-input-search-box .ttr-input {
+            padding-right: 24px;
+        }
+
+        .ttr-input-search-box i {
+            position: absolute;
+            right: 8px;
+            color: #94a3b8;
+            font-size: 11px;
+            pointer-events: none;
+        }
+
+        /* Suggestion Dropdown Box */
+        .ttr-suggest-popup {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1050;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+            display: none;
+            margin-top: 2px;
+        }
+
+        .ttr-suggest-row {
+            padding: 5px 8px;
+            font-size: 11.5px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .ttr-suggest-row:hover, .ttr-suggest-row.selected {
+            background-color: var(--theme-primary, #0284c7);
+            color: #ffffff;
+        }
+
+        /* Action Buttons */
+        .ttr-act-btn {
+            height: 28px;
+            padding: 0 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #ffffff;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .ttr-btn-display { background: var(--theme-primary, #0284c7); }
+        .ttr-btn-display:hover { filter: brightness(1.1); }
+        .ttr-btn-print { background: #16a34a; }
+        .ttr-btn-print:hover { background: #15803d; }
+        .ttr-btn-excel { background: #7c3aed; }
+        .ttr-btn-excel:hover { background: #6d28d9; }
+
+        /* Data Grid Container */
+        .ttr-grid-container {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px 8px 0 0;
+            overflow: auto;
+            position: relative;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+            margin-bottom: 8px;
+        }
+
+        .ttr-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            white-space: nowrap;
+        }
+
+        .ttr-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .ttr-table th {
+            border: 1px solid #cbd5e1;
+            padding: 4px 6px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 11px;
+            line-height: 1.2;
+        }
+
+        /* Group Header Colors matching user mockup */
+        .th-standard {
+            background: #0f2e5a;
+            color: #ffffff;
+        }
+
+        .th-sales-tax {
+            background: #0284c7 !important;
+            color: #ffffff !important;
+        }
+
+        .th-further-tax {
+            background: #16a34a !important;
+            color: #ffffff !important;
+        }
+
+        .th-wht-236g {
+            background: #7c3aed !important;
+            color: #ffffff !important;
+        }
+
+        .th-wht-236h {
+            background: #db2777 !important;
+            color: #ffffff !important;
+        }
+
+        .ttr-table tbody tr {
+            cursor: pointer;
+            border-bottom: 1px solid #e2e8f0;
+            transition: background 0.1s;
+        }
+
+        .ttr-table tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        .ttr-table tbody tr:hover {
+            background: #e0f2fe;
+        }
+
+        .ttr-table tbody tr.row-selected {
+            background: #bae6fd !important;
+            font-weight: 600;
+        }
+
+        .ttr-table td {
+            border: 1px solid #e2e8f0;
+            padding: 3px 6px;
+            font-size: 11px;
+            vertical-align: middle;
+        }
+
+        .cell-center { text-align: center; }
+        .cell-right { text-align: right; }
+        .cell-left { text-align: left; }
+
+        /* Badges for Transaction Types */
+        .ttr-badge-sale {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 10.5px;
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .ttr-badge-purchase {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 10.5px;
+            background: #ffedd5;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
+        }
+
+        /* Totals Footer */
+        .ttr-table tfoot {
+            position: sticky;
+            bottom: 0;
+            z-index: 9;
+            font-weight: 800;
+        }
+
+        .ttr-table tfoot td {
+            background: #f1f5f9;
+            border: 1px solid #94a3b8;
+            padding: 5px 6px;
+            font-size: 11.5px;
+        }
+
+        .tfoot-label {
+            text-align: right;
+            padding-right: 12px;
+            font-weight: 800;
+        }
+
+        .tfoot-sales-tax { background: #e0f2fe !important; color: #0369a1; }
+        .tfoot-further-tax { background: #dcfce7 !important; color: #15803d; }
+        .tfoot-wht-236g { background: #f3e8ff !important; color: #6b21a8; }
+        .tfoot-wht-236h { background: #fce7f3 !important; color: #9d174d; }
+
+        /* Bottom Summary Section */
+        .ttr-summary-bar {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+            overflow-x: auto;
+            padding: 2px 0;
+        }
+
+        .ttr-card {
+            flex: 1;
+            min-width: 125px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+
+        .ttr-card-main {
+            background: #0f2e5a;
+            color: #ffffff;
+            border-color: #0f2e5a;
+            min-width: 140px;
+        }
+
+        .ttr-card-sales {
+            border-color: #38bdf8;
+            background: #f0f9ff;
+        }
+
+        .ttr-card-purchases {
+            border-color: #fb923c;
+            background: #fff7ed;
+        }
+
+        .ttr-card-totaltax {
+            background: #0f2e5a;
+            color: #ffffff;
+            border-color: #0f2e5a;
+            min-width: 145px;
+        }
+
+        .ttr-card-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .icon-blue { background: #0284c7; color: #ffffff; }
+        .icon-green { background: #16a34a; color: #ffffff; }
+        .icon-purple { background: #7c3aed; color: #ffffff; }
+        .icon-pink { background: #db2777; color: #ffffff; }
+        .icon-dark { background: rgba(255,255,255,0.15); color: #ffffff; }
+
+        .ttr-card-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .ttr-card-title {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #475569;
+            line-height: 1.1;
+        }
+
+        .ttr-card-main .ttr-card-title,
+        .ttr-card-totaltax .ttr-card-title {
+            color: #94a3b8;
+        }
+
+        .ttr-card-value {
+            font-size: 12.5px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 1px;
+            line-height: 1.2;
+        }
+
+        .ttr-card-main .ttr-card-value,
+        .ttr-card-totaltax .ttr-card-value {
+            color: #ffffff;
+        }
+
+        .ttr-card-sub {
+            font-size: 9.5px;
+            font-weight: 600;
+            color: #64748b;
+        }
+    </style>
+
+    <!-- Top Filter Section -->
+    <div class="ttr-filter-card">
+        <!-- Row 1: Segmented buttons & Tax / Business dropdowns -->
+        <div class="ttr-filter-row">
+            <!-- Transaction Type -->
+            <div class="ttr-filter-group">
+                <span class="ttr-label">Transaction Type</span>
+                <div class="ttr-seg-group" id="ttr_seg_txn_type">
+                    <button type="button" class="ttr-seg-btn active" data-val="all"><i class="fas fa-layer-group"></i> All</button>
+                    <button type="button" class="ttr-seg-btn" data-val="sale"><i class="fas fa-shopping-cart"></i> Sale</button>
+                    <button type="button" class="ttr-seg-btn" data-val="purchase"><i class="fas fa-box"></i> Purchase</button>
+                </div>
+            </div>
+
+            <!-- Party Type -->
+            <div class="ttr-filter-group">
+                <span class="ttr-label">Party Type</span>
+                <div class="ttr-seg-group" id="ttr_seg_party_type">
+                    <button type="button" class="ttr-seg-btn active" data-val="all">All</button>
+                    <button type="button" class="ttr-seg-btn" data-val="customer"><i class="fas fa-user"></i> Customer</button>
+                    <button type="button" class="ttr-seg-btn" data-val="vendor"><i class="fas fa-truck"></i> Vendor</button>
+                </div>
+            </div>
+
+            <!-- Tax Section Dropdown -->
+            <div class="ttr-filter-group" style="min-width: 220px;">
+                <span class="ttr-label">Tax Section</span>
+                <select id="ttr_tax_section" class="ttr-select" style="width: 100%;">
+                    <option value="all">All (Sales, Further, 236G, 236H)</option>
+                    <option value="sales_tax">Sales Tax</option>
+                    <option value="further_tax">Further Tax</option>
+                    <option value="236g">WHT 236G</option>
+                    <option value="236h">WHT 236H</option>
+                </select>
+            </div>
+
+            <!-- Business Type Dropdown -->
+            <div class="ttr-filter-group" style="min-width: 170px;">
+                <span class="ttr-label">Business Type</span>
+                <select id="ttr_business_type" class="ttr-select" style="width: 100%;">
+                    <option value="all">All Business Types</option>
+                    <option value="Retailer">Retailer</option>
+                    <option value="Wholesaler">Wholesaler</option>
+                    <option value="Distributor">Distributor</option>
+                    <option value="Manufacturer">Manufacturer</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Row 2: Search inputs, Dates & Action Buttons -->
+        <div class="ttr-filter-row">
+            <!-- Party Name Search -->
+            <div class="ttr-filter-group" style="flex: 2; min-width: 180px; position: relative;">
+                <span class="ttr-label">Party Name</span>
+                <div class="ttr-input-search-box" style="width: 100%;">
+                    <input type="text" id="ttr_party_name" class="ttr-input" style="width: 100%;" placeholder="Search Customer / Vendor..." autocomplete="off">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div id="ttr_party_suggest" class="ttr-suggest-popup"></div>
+                <input type="hidden" id="ttr_party_id">
+            </div>
+
+            <!-- NTN / CNIC Search -->
+            <div class="ttr-filter-group" style="flex: 1.5; min-width: 140px;">
+                <span class="ttr-label">NTN / CNIC</span>
+                <div class="ttr-input-search-box" style="width: 100%;">
+                    <input type="text" id="ttr_ntn_cnic" class="ttr-input" style="width: 100%;" placeholder="Enter NTN or CNIC..." autocomplete="off">
+                    <i class="fas fa-search"></i>
+                </div>
+            </div>
+
+            <!-- Customer Type Dropdown -->
+            <div class="ttr-filter-group" style="flex: 1.5; min-width: 140px;">
+                <span class="ttr-label">Customer Type</span>
+                <select id="ttr_customer_type" class="ttr-select" style="width: 100%;">
+                    <option value="">All Customer Types</option>
+                </select>
+            </div>
+
+            <!-- Period From -->
+            <div class="ttr-filter-group" style="width: 125px;">
+                <span class="ttr-label">Period From</span>
+                <input type="date" id="ttr_from_date" class="ttr-input" style="width: 100%;">
+            </div>
+
+            <!-- Period To -->
+            <div class="ttr-filter-group" style="width: 125px;">
+                <span class="ttr-label">Period To</span>
+                <input type="date" id="ttr_to_date" class="ttr-input" style="width: 100%;">
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="ttr-filter-group" style="flex-direction: row; align-items: flex-end; gap: 6px; margin-left: auto;">
+                <button type="button" id="ttr_btn_display" class="ttr-act-btn ttr-btn-display" title="Fetch and display report data">
+                    <i class="fas fa-search"></i> Display
+                </button>
+                <button type="button" id="ttr_btn_print" class="ttr-act-btn ttr-btn-print" title="Print Tax Transaction Report">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                <button type="button" id="ttr_btn_excel" class="ttr-act-btn ttr-btn-excel" title="Export filtered records to Excel/CSV">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table Container -->
+    <div class="ttr-grid-container" id="ttr_table_container" tabindex="0">
+        <table class="ttr-table" id="ttr_main_table">
+            <thead>
+                <tr>
+                    <th rowspan="2" class="th-standard" style="width: 32px;">#</th>
+                    <th rowspan="2" class="th-standard" style="width: 85px;">Txn<br>Type</th>
+                    <th rowspan="2" class="th-standard" style="width: 80px;">Inv. Date</th>
+                    <th rowspan="2" class="th-standard" style="width: 85px;">Inv. No.</th>
+                    <th rowspan="2" class="th-standard" style="width: 80px;">Tax<br>Section</th>
+                    <th rowspan="2" class="th-standard" style="width: 95px;">NTN / CNIC</th>
+                    <th rowspan="2" class="th-standard" style="min-width: 140px;">Party Name</th>
+                    <th rowspan="2" class="th-standard" style="width: 95px;">Taxable<br>Amount</th>
+                    <!-- Sales Tax Group -->
+                    <th colspan="2" class="th-sales-tax">Sales Tax</th>
+                    <!-- Further Tax Group -->
+                    <th colspan="2" class="th-further-tax">Further Tax</th>
+                    <!-- WHT 236G Group -->
+                    <th colspan="2" class="th-wht-236g">WHT (236G)</th>
+                    <!-- WHT 236H Group -->
+                    <th colspan="2" class="th-wht-236h">WHT (236H)</th>
+                    <th rowspan="2" class="th-standard" style="width: 95px;">Total Tax<br>Amount</th>
+                    <th rowspan="2" class="th-standard" style="width: 100px;">Invoice<br>Total</th>
+                </tr>
+                <tr>
+                    <!-- Sales Tax Subheaders -->
+                    <th class="th-sales-tax" style="width: 50px;">Rate %</th>
+                    <th class="th-sales-tax" style="width: 80px;">Amount</th>
+                    <!-- Further Tax Subheaders -->
+                    <th class="th-further-tax" style="width: 50px;">Rate %</th>
+                    <th class="th-further-tax" style="width: 80px;">Amount</th>
+                    <!-- WHT 236G Subheaders -->
+                    <th class="th-wht-236g" style="width: 50px;">Rate %</th>
+                    <th class="th-wht-236g" style="width: 80px;">Amount</th>
+                    <!-- WHT 236H Subheaders -->
+                    <th class="th-wht-236h" style="width: 50px;">Rate %</th>
+                    <th class="th-wht-236h" style="width: 80px;">Amount</th>
+                </tr>
+            </thead>
+            <tbody id="ttr_table_body">
+                <tr>
+                    <td colspan="18" style="text-align: center; padding: 25px; color: #64748b;">
+                        Click <b>Display</b> to load tax transaction records.
+                    </td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="7" class="tfoot-label">Totals:</td>
+                    <td id="ttr_foot_taxable" class="cell-right">0.00</td>
+                    <td class="tfoot-sales-tax cell-center">-</td>
+                    <td id="ttr_foot_salestax" class="tfoot-sales-tax cell-right">0.00</td>
+                    <td class="tfoot-further-tax cell-center">-</td>
+                    <td id="ttr_foot_furthertax" class="tfoot-further-tax cell-right">0.00</td>
+                    <td class="tfoot-wht-236g cell-center">-</td>
+                    <td id="ttr_foot_wht236g" class="tfoot-wht-236g cell-right">0.00</td>
+                    <td class="tfoot-wht-236h cell-center">-</td>
+                    <td id="ttr_foot_wht236h" class="tfoot-wht-236h cell-right">0.00</td>
+                    <td id="ttr_foot_totaltax" class="cell-right">0.00</td>
+                    <td id="ttr_foot_invtotal" class="cell-right">0.00</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Bottom Summary Cards Section (8 cards matching reference screenshot) -->
+    <div class="ttr-summary-bar">
+        <!-- 1. Header Card -->
+        <div class="ttr-card ttr-card-main">
+            <div class="ttr-card-icon icon-dark"><i class="fas fa-chart-bar" style="font-size: 16px;"></i></div>
+            <div class="ttr-card-info">
+                <div class="ttr-card-value" style="font-size: 13.5px;">Summary</div>
+                <div class="ttr-card-sub" style="color: #cbd5e1;">(Selected Period)</div>
+            </div>
+        </div>
+
+        <!-- 2. Sales Transactions Card -->
+        <div class="ttr-card ttr-card-sales">
+            <div class="ttr-card-icon icon-blue"><i class="fas fa-shopping-cart"></i></div>
+            <div class="ttr-card-info">
+                <div class="ttr-card-title">Sales Transactions</div>
+                <div class="ttr-card-value" id="ttr_card_sales_count">0</div>
+                <div class="ttr-card-sub">Tax: <span id="ttr_card_sales_tax">Rs. 0.00</span></div>
+            </div>
+        </div>
+
+        <!-- 3. Purchase Transactions Card -->
+        <div class="ttr-card ttr-card-purchases">
+            <div class="ttr-card-icon icon-blue" style="background: #ea580c;"><i class="fas fa-box"></i></div>
+            <div class="ttr-card-info">
+                <div class="ttr-card-title">Purchase Transactions</div>
+                <div class="ttr-card-value" id="ttr_card_purchases_count">0</div>
+                <div class="ttr-card-sub">Tax: <span id="ttr_card_purchases_tax">Rs. 0.00</span></div>
+            </div>
+        </div>
+
+        <!-- 4. Sales Tax Card -->
+        <div class="ttr-card">
+            <div class="ttr-card-icon icon-blue"><i class="fas fa-percent"></i></div>
+            <div class="ttr-card-info">
+                <div class="ttr-card-title">Sales Tax</div>
+                <div class="ttr-card-value" id="ttr_card_total_salestax">Rs. 0.00</div>
+            </div>
+        </div>
+
+        <!-- 5. Further Tax Card -->
+        <div class="ttr-card">
+            <div class="ttr-card-icon icon-green"><i class="fas fa-percent"></i></div>
+            <div class="ttr-card-info">
+                <div class="ttr-card-title">Further Tax</div>
+                <div class="ttr-card-value" id="ttr_card_total_furthertax">Rs. 0.00</div>
+            </div>
+        </div>
+
+        <!-- 6. WHT 236G Card -->
+        <div class="ttr-card">
+            <div class="ttr-card-icon icon-purple"><i class="fas fa-percent"></i></div>
+            <div class="ttr-card-info">
+                <div class="ttr-card-title">WHT 236G</div>
+                <div class="ttr-card-value" id="ttr_card_total_wht236g">Rs. 0.00</div>
+            </div>
+        </div>
+
+        <!-- 7. WHT 236H Card -->
+        <div class="ttr-card">
+            <div class="ttr-card-icon icon-pink"><i class="fas fa-percent"></i></div>
+            <div class="ttr-card-info">
+                <div class="ttr-card-title">WHT 236H</div>
+                <div class="ttr-card-value" id="ttr_card_total_wht236h">Rs. 0.00</div>
+            </div>
+        </div>
+
+        <!-- 8. Total Tax Card -->
+        <div class="ttr-card ttr-card-totaltax">
+            <div class="ttr-card-icon icon-dark"><i class="fas fa-coins" style="font-size: 15px;"></i></div>
+            <div class="ttr-card-info">
+                <div class="ttr-card-title">Total Tax Amount</div>
+                <div class="ttr-card-value" id="ttr_card_total_taxamount">Rs. 0.00</div>
+            </div>
+        </div>
+    </div>
+</div>

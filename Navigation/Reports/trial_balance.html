@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trial Balance</title>
+    <style>
+        .tb-container {
+            padding: 10px;
+            background: #f0f0f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .tb-top-bar {
+            background: #EFEFEF;
+            border: 1px solid #777;
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 5px;
+            gap: 15px;
+        }
+
+        .tb-filters-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            max-width: 600px;
+        }
+
+        .tb-filter-row {
+            display: flex;
+            align-items: center;
+        }
+
+        .tb-filter-row label {
+            width: 160px;
+            flex: none;
+            font-weight: normal;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-sizing: border-box;
+        }
+
+        .tb-filter-row select, .tb-filter-row input[type="text"], .tb-filter-row input[type="date"] {
+            flex: 1;
+            border: 1px solid #000;
+            border-radius: 0;
+            padding: 0 5px;
+            height: 22px;
+            font-size: 13px;
+            box-sizing: border-box;
+            background: #fff;
+        }
+
+        .tb-filter-radio {
+            margin: 0 5px 0 0;
+            vertical-align: middle;
+        }
+
+        .tb-controls-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .tb-mode-toggle {
+            background: #e0e0e0;
+            border: 1px solid #999;
+            padding: 2px 10px;
+            border-radius: 3px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .tb-mode-toggle label {
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .tb-btn-group {
+            display: flex;
+            gap: 5px;
+        }
+
+        .tb-btn {
+            background: var(--theme-primary, #4a789c);
+            border: 1px solid var(--theme-primary, #4a789c);
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #ffffff;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1.1;
+            text-align: center;
+            width: 75px;
+            min-width: 75px;
+            word-wrap: break-word;
+        }
+        
+        .tb-btn:hover { background: var(--theme-btn-hover, #3b6998); border-color: var(--theme-btn-hover, #3b6998); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        .tb-suggest {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #fff;
+            border: 1px solid #ccc;
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .tb-suggest div {
+            padding: 5px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .tb-suggest div:hover {
+            background: var(--theme-primary, #1F4E79);
+            color: #fff;
+        }
+
+        .tb-table-container {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #999;
+            overflow: auto;
+            position: relative;
+        }
+
+        .tb-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .tb-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .tb-table th {
+            background: #F0F0F0;
+            border: 1px solid #ccc;
+            padding: 4px 6px;
+            font-weight: bold;
+            font-style: italic;
+            color: #333;
+            text-align: center;
+        }
+
+        .tb-table td {
+            border: 1px solid #ccc;
+            padding: 2px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tb-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .tb-table tbody tr.selected {
+            background-color: var(--theme-primary, #1F4E79) !important;
+            color: #ffffff !important;
+        }
+        .tb-table tbody tr.selected td { color: #ffffff !important; }
+
+        .tb-footer {
+            background: #E0E0E0;
+            border-top: 1px solid #000;
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            font-size: 11px;
+            gap: 0;
+        }
+        .tb-footer > div {
+            box-sizing: border-box;
+            padding: 0 1px;
+        }
+        .tb-footer-val {
+            background: #fff;
+            border: 1px solid #999;
+            padding: 2px 4px;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: right;
+            min-height: 20px;
+        }
+        
+        .tb-text-center { text-align: center; }
+        .tb-text-right { text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="tb-container">
+        <div class="tb-top-bar">
+            <div class="tb-filters-left">
+                <div class="tb-filter-row">
+                    <label><input type="radio" name="tb_filter" class="tb-filter-radio" value="all" id="tb_filter_all" checked> All Accounts</label>
+                </div>
+                <div class="tb-filter-row">
+                    <label><input type="radio" name="tb_filter" class="tb-filter-radio" value="main" id="tb_filter_main"> Main Account Type</label>
+                    <select id="tb_main_type" disabled></select>
+                </div>
+                <div class="tb-filter-row">
+                    <label style="justify-content: flex-end; padding-right: 5px;"><input type="checkbox" id="tb_sub_type_check" disabled class="tb-filter-radio"> Sub Type</label>
+                    <select id="tb_sub_type" disabled></select>
+                </div>
+                <div class="tb-filter-row">
+                    <label style="justify-content: space-between; padding-right: 5px;">
+                        <span><input type="radio" name="tb_filter" class="tb-filter-radio" value="range" id="tb_filter_range"> Range</span>
+                        <span>From</span>
+                    </label>
+                    <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                        <input type="text" id="tb_range_from" style="width:100px; flex: none;" disabled autocomplete="off" placeholder="Code">
+                        <input type="text" id="tb_range_from_name" style="flex:1; background: #f9f9f9;" disabled placeholder="Name">
+                        <div id="tb_range_from_suggest" class="tb-suggest" style="width:100%;"></div>
+                    </div>
+                </div>
+                <div class="tb-filter-row">
+                    <label style="justify-content: flex-end; padding-right: 5px;">To</label>
+                    <div style="position: relative; display: flex; flex: 1; gap: 5px;">
+                        <input type="text" id="tb_range_to" style="width:100px; flex: none;" disabled autocomplete="off" placeholder="Code">
+                        <input type="text" id="tb_range_to_name" style="flex:1; background: #f9f9f9;" disabled placeholder="Name">
+                        <div id="tb_range_to_suggest" class="tb-suggest" style="width:100%;"></div>
+                    </div>
+                </div>
+                <div class="tb-filter-row">
+                    <label style="justify-content: flex-end; padding-right: 5px;">For Period From</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="date" id="tb_from_date" style="width: 110px; flex: none;">
+                        <span style="font-weight:normal; color:#333;">To</span>
+                        <input type="date" id="tb_to_date" style="width: 110px; flex: none;">
+                        <label style="margin-left: 15px; font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="tb_show_zero_balance"> Show 0 balance accounts
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tb-controls-right">
+                <div class="tb-mode-toggle">
+                    <label><input type="radio" name="tb_mode" value="2" checked> 2 Column</label>
+                    <label><input type="radio" name="tb_mode" value="4"> 4 Column</label>
+                    <label><input type="radio" name="tb_mode" value="6"> 6 Column</label>
+                </div>
+                <div class="tb-btn-group">
+                    <button class="tb-btn" id="tb_btn_display">Display</button>
+                    <button class="tb-btn" id="tb_btn_print">Print</button>
+                    <button class="tb-btn" id="tb_btn_excel">Excel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="tb-table-container" id="tb_table_container" tabindex="0">
+            <table class="tb-table" id="tb_table">
+                <thead id="tb_thead">
+                    <!-- Headers generated via JS -->
+                </thead>
+                <tbody id="tb_tbody">
+                    <!-- Rows generated via JS -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="tb-footer" id="tb_footer">
+            <!-- Footers generated via JS -->
+        </div>
+    </div>
+
+    <!-- Ensure module gets initialized via img onload hack -->
+    <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+        if(!window.TrialBalanceModule) {
+            let s = document.createElement('script');
+            s.src = 'assets/js/trial_balance.js?v=' + Date.now();
+            s.onload = () => {
+                const checkDOM = setInterval(() => {
+                    if (document.getElementById('tb_btn_display')) {
+                        clearInterval(checkDOM);
+                        window.TrialBalanceModule.init();
+                    }
+                }, 50);
+            };
+            document.body.appendChild(s);
+        } else {
+            const checkDOM = setInterval(() => {
+                if (document.getElementById('tb_btn_display')) {
+                    clearInterval(checkDOM);
+                    window.TrialBalanceModule.init();
+                }
+            }, 50);
+        }
+    ">
+</body>
+</html>

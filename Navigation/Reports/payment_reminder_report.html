@@ -1,0 +1,689 @@
+<div id="prr_root" class="prr-container" style="display: flex; flex-direction: column; height: 100%; max-height: 100%; box-sizing: border-box; overflow: hidden; background: #f1f5f9; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+
+    <style>
+        .prr-container * {
+            box-sizing: border-box;
+        }
+
+        /* Top Buttons */
+        .prr-top-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            color: #1e293b;
+            padding: 2.5px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            height: 24px;
+        }
+        .prr-top-btn:hover {
+            background: #f8fafc;
+            border-color: #1F4E79;
+            color: #1F4E79;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .prr-btn-primary {
+            background: #1F4E79 !important;
+            color: #ffffff !important;
+            border-color: #1F4E79 !important;
+        }
+        .prr-btn-primary:hover {
+            background: #163c5e !important;
+        }
+
+        /* Filter Panel - Compact 2-row layout */
+        .prr-filter-panel {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin: 4px 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            flex-shrink: 0;
+        }
+        .prr-filter-header {
+            font-size: 11px;
+            font-weight: 800;
+            color: #1F4E79;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .prr-filter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 85px;
+            gap: 4px 12px;
+            align-items: center;
+        }
+        .prr-field-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .prr-field-label {
+            width: 105px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .prr-select, .prr-input {
+            flex: 1;
+            height: 23px;
+            padding: 1px 6px;
+            font-size: 11px;
+            border: 1px solid #94a3b8;
+            border-radius: 3px;
+            background: #ffffff;
+            color: #0f172a;
+            outline: none;
+        }
+        .prr-select:focus, .prr-input:focus {
+            border-color: #1F4E79;
+            box-shadow: 0 0 0 1px #1F4E79;
+        }
+        .prr-btn-search {
+            background: #1F4E79;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            height: 48px;
+            width: 82px;
+            font-size: 11.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            transition: all 0.2s ease;
+        }
+        .prr-btn-search:hover {
+            background: #163c5e;
+            transform: translateY(-1px);
+        }
+
+        /* 5 Summary Cards */
+        .prr-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            padding: 0 6px;
+            margin-bottom: 4px;
+            flex-shrink: 0;
+        }
+        .prr-card {
+            background: #ffffff;
+            border-radius: 4px;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            border-left: 3.5px solid;
+            height: 42px;
+        }
+        .prr-card-blue { border-left-color: #0284c7; background: #f0f9ff; }
+        .prr-card-green { border-left-color: #16a34a; background: #f0fdf4; }
+        .prr-card-yellow { border-left-color: #d97706; background: #fefce8; }
+        .prr-card-red { border-left-color: #dc2626; background: #fef2f2; }
+        .prr-card-purple { border-left-color: #7c3aed; background: #faf5ff; }
+
+        .prr-card-icon {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+        }
+        .prr-card-blue .prr-card-icon { color: #0284c7; }
+        .prr-card-green .prr-card-icon { color: #16a34a; }
+        .prr-card-yellow .prr-card-icon { color: #d97706; }
+        .prr-card-red .prr-card-icon { color: #dc2626; }
+        .prr-card-purple .prr-card-icon { color: #7c3aed; }
+
+        .prr-card-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .prr-card-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #475569;
+            white-space: nowrap;
+        }
+        .prr-card-val {
+            font-size: 12px;
+            font-weight: 900;
+            color: #0f172a;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+        .prr-card-sub {
+            font-size: 9.5px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        /* Main Table Layout */
+        .prr-table-panel {
+            flex: 1;
+            margin: 0 6px 4px 6px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            min-height: 0;
+        }
+        .prr-table-scroll {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+        .prr-main-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        .prr-main-table th {
+            background: #1F4E79;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 5px 6px;
+            border: 1px solid #cbd5e1;
+            text-align: center;
+            text-transform: uppercase;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .prr-main-table td {
+            padding: 4px 6px;
+            border: 1px solid #e2e8f0;
+            color: #0f172a;
+            vertical-align: middle;
+        }
+        .prr-main-table tr:hover {
+            background: #f1f5f9;
+        }
+        .prr-main-table tr.selected {
+            background: #e0f2fe !important;
+        }
+
+        /* Status Badges */
+        .prr-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            text-align: center;
+            min-width: 120px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+        }
+        .prr-badge-overdue {
+            background: #dc2626;
+            color: #ffffff;
+            border: 1px solid #b91c1c;
+        }
+        .prr-badge-duetoday {
+            background: #d97706;
+            color: #ffffff;
+            border: 1px solid #b45309;
+        }
+        .prr-badge-upcoming {
+            background: #0284c7;
+            color: #ffffff;
+            border: 1px solid #0369a1;
+        }
+        .prr-badge-stopped {
+            background: #16a34a;
+            color: #ffffff;
+            border: 1px solid #15803d;
+        }
+
+        /* Row Action Icons */
+        .prr-row-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 3px;
+            color: #1F4E79;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 0 1px;
+        }
+        .prr-row-action:hover {
+            background: #e2e8f0;
+            color: #0284c7;
+            transform: scale(1.1);
+        }
+
+        /* Bottom Action Panel */
+        .prr-bottom-panel {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin: 0 6px 4px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            flex-shrink: 0;
+        }
+        .prr-action-btn {
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .prr-btn-whatsapp {
+            background: #16a34a;
+            color: #ffffff;
+        }
+        .prr-btn-whatsapp:hover {
+            background: #15803d;
+        }
+        .prr-btn-sms {
+            background: #0284c7;
+            color: #ffffff;
+        }
+        .prr-btn-sms:hover {
+            background: #0369a1;
+        }
+        .prr-btn-email {
+            background: #7c3aed;
+            color: #ffffff;
+        }
+        .prr-btn-email:hover {
+            background: #6d28d9;
+        }
+        .prr-btn-action-light {
+            background: #ffffff;
+            color: #1e293b;
+            border-color: #cbd5e1;
+        }
+        .prr-btn-action-light:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        /* Modal dialog for Follow-up */
+        .prr-dialog-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 999999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .prr-dialog {
+            background: #ffffff;
+            border-radius: 6px;
+            width: 480px;
+            max-width: 95%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .prr-dialog-head {
+            background: #1F4E79;
+            color: #ffffff;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .prr-dialog-body {
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .prr-dialog-foot {
+            background: #f8fafc;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+
+    <!-- Search / Filter Options Panel with Top Actions -->
+    <div class="prr-filter-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <div class="prr-filter-header" style="margin-bottom: 0;">
+                <i class="fas fa-filter"></i> Search / Filter Options
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <button class="prr-top-btn" onclick="window.PaymentReminderModule.printReport()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                <button class="prr-top-btn" onclick="window.PaymentReminderModule.exportPDF()">
+                    <i class="fas fa-file-pdf" style="color: #b91c1c;"></i> Export PDF
+                </button>
+                <button class="prr-top-btn" onclick="window.PaymentReminderModule.exportExcel()">
+                    <i class="fas fa-file-excel" style="color: #15803d;"></i> Export Excel
+                </button>
+                <button class="prr-top-btn prr-btn-primary" onclick="window.PaymentReminderModule.search()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button class="prr-top-btn" style="background: #ef4444; color: #fff; border-color: #dc2626;" onclick="window.closeModal && window.closeModal()">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+
+        <div class="prr-filter-grid">
+            <!-- Col 1: Customer, Customer Category -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="prr-field-row">
+                    <span class="prr-field-label"><i class="fas fa-user" style="color:#0284c7;"></i> Customer</span>
+                    <select id="prr_filter_customer" class="prr-select" onchange="window.PaymentReminderModule.search()">
+                        <option value="">All Customers</option>
+                    </select>
+                </div>
+                <div class="prr-field-row">
+                    <span class="prr-field-label"><i class="fas fa-sitemap" style="color:#0284c7;"></i> Category</span>
+                    <select id="prr_filter_category" class="prr-select" onchange="window.PaymentReminderModule.search()">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Col 2: Salesperson, Location -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="prr-field-row">
+                    <span class="prr-field-label"><i class="fas fa-user-tie" style="color:#0284c7;"></i> Salesperson</span>
+                    <select id="prr_filter_salesperson" class="prr-select" onchange="window.PaymentReminderModule.search()">
+                        <option value="">All Salespersons</option>
+                    </select>
+                </div>
+                <div class="prr-field-row">
+                    <span class="prr-field-label"><i class="fas fa-map-marker-alt" style="color:#0284c7;"></i> Location</span>
+                    <select id="prr_filter_location" class="prr-select" onchange="window.PaymentReminderModule.search()">
+                        <option value="">All Locations</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Col 3: Payment Status, Reminder Status, Overdue Days -->
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; gap: 6px;">
+                    <div class="prr-field-row" style="flex: 1;">
+                        <span class="prr-field-label" style="width: 85px;"><i class="fas fa-money-check" style="color:#0284c7;"></i> Payment</span>
+                        <select id="prr_filter_payment_status" class="prr-select" onchange="window.PaymentReminderModule.search()">
+                            <option value="all">All (Pending / Paid)</option>
+                            <option value="pending">Pending Only</option>
+                            <option value="paid">Paid (Stopped) Only</option>
+                        </select>
+                    </div>
+                    <div class="prr-field-row" style="flex: 1;">
+                        <span class="prr-field-label" style="width: 85px;"><i class="fas fa-bell" style="color:#0284c7;"></i> Reminder</span>
+                        <select id="prr_filter_reminder_status" class="prr-select" onchange="window.PaymentReminderModule.search()">
+                            <option value="all">All (Pending / Sent / Stopped)</option>
+                            <option value="overdue">Overdue – Pending</option>
+                            <option value="due_today">Due Today</option>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="stopped">Payment Received – Stopped</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="prr-field-row">
+                    <span class="prr-field-label"><i class="fas fa-clock" style="color:#0284c7;"></i> Overdue Days</span>
+                    <select id="prr_filter_overdue" class="prr-select" onchange="window.PaymentReminderModule.search()">
+                        <option value="all">All Days</option>
+                        <option value="0">Due Today (0 Days)</option>
+                        <option value="1-7">1 - 7 Days</option>
+                        <option value="8-15">8 - 15 Days</option>
+                        <option value="16-30">16 - 30 Days</option>
+                        <option value="30+">30+ Days</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Col 4: Search Button -->
+            <div>
+                <button id="prr_btn_search" class="prr-btn-search" onclick="window.PaymentReminderModule.search()">
+                    <i class="fas fa-search" style="font-size: 15px;"></i>
+                    <span>Search</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5 Summary Cards -->
+    <div class="prr-cards-grid">
+        <div class="prr-card prr-card-blue">
+            <div class="prr-card-icon"><i class="fas fa-coins"></i></div>
+            <div class="prr-card-content">
+                <span class="prr-card-title">Total Receivables</span>
+                <span id="prr_card_total_rec" class="prr-card-val">Rs. 0</span>
+            </div>
+        </div>
+        <div class="prr-card prr-card-green">
+            <div class="prr-card-icon"><i class="fas fa-calendar-alt"></i></div>
+            <div class="prr-card-content">
+                <span class="prr-card-title">Upcoming Payments</span>
+                <span id="prr_card_upcoming" class="prr-card-val">Rs. 0</span>
+                <span id="prr_card_upcoming_sub" class="prr-card-sub">(0 Customers)</span>
+            </div>
+        </div>
+        <div class="prr-card prr-card-yellow">
+            <div class="prr-card-icon"><i class="fas fa-calendar-check"></i></div>
+            <div class="prr-card-content">
+                <span class="prr-card-title">Due Today</span>
+                <span id="prr_card_duetoday" class="prr-card-val" style="color: #d97706;">Rs. 0</span>
+                <span id="prr_card_duetoday_sub" class="prr-card-sub">(0 Customers)</span>
+            </div>
+        </div>
+        <div class="prr-card prr-card-red">
+            <div class="prr-card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="prr-card-content">
+                <span class="prr-card-title">Overdue Payments</span>
+                <span id="prr_card_overdue" class="prr-card-val" style="color: #dc2626;">Rs. 0</span>
+                <span id="prr_card_overdue_sub" class="prr-card-sub">(0 Customers)</span>
+            </div>
+        </div>
+        <div class="prr-card prr-card-purple">
+            <div class="prr-card-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="prr-card-content">
+                <span class="prr-card-title">Partially Paid</span>
+                <span id="prr_card_partial" class="prr-card-val" style="color: #7c3aed;">Rs. 0</span>
+                <span id="prr_card_partial_sub" class="prr-card-sub">(0 Customers)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Customer Payment Reminder Table -->
+    <div class="prr-table-panel">
+        <div class="prr-table-scroll">
+            <table id="prr_main_table" class="prr-main-table">
+                <thead>
+                    <tr>
+                        <th style="width: 32px; text-align: center;">
+                            <input type="checkbox" id="prr_check_all" onchange="window.PaymentReminderModule.toggleSelectAll(this.checked)" title="Select All">
+                        </th>
+                        <th style="width: 32px; text-align: center;">#</th>
+                        <th style="text-align: left; min-width: 170px;">Customer Name</th>
+                        <th style="width: 110px; text-align: center;">Contact No.</th>
+                        <th style="width: 80px; text-align: center;">Credit Days</th>
+                        <th style="width: 95px; text-align: center;">Due Date</th>
+                        <th style="width: 105px; text-align: right;">Total Balance</th>
+                        <th style="width: 95px; text-align: right;">Paid Amount</th>
+                        <th style="width: 105px; text-align: right;">Outstanding</th>
+                        <th style="width: 90px; text-align: center;">Overdue Days</th>
+                        <th style="width: 170px; text-align: center;">Reminder Status</th>
+                        <th style="width: 95px; text-align: center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="prr_main_tbody">
+                    <!-- Populated dynamically via JS -->
+                </tbody>
+                <tfoot id="prr_main_tfoot" style="position: sticky; bottom: 0; z-index: 10;">
+                    <!-- Total Row -->
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Reminder Action Bottom Toolbar -->
+    <div class="prr-bottom-panel">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="font-size: 11.5px; font-weight: 800; color: #1F4E79; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-paper-plane" style="color: #0284c7;"></i> Reminder Action
+            </div>
+            <span id="prr_selected_count" style="font-size: 10.5px; color: #64748b; font-weight: 600;">(0 selected)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <button type="button" class="prr-action-btn prr-btn-whatsapp" onclick="window.PaymentReminderModule.sendWhatsApp()">
+                <i class="fab fa-whatsapp" style="font-size: 14px;"></i> Send WhatsApp
+            </button>
+            <button type="button" class="prr-action-btn prr-btn-sms" onclick="window.PaymentReminderModule.sendSMS()">
+                <i class="fas fa-comment-dots"></i> Send SMS
+            </button>
+            <button type="button" class="prr-action-btn prr-btn-email" onclick="window.PaymentReminderModule.sendEmail()">
+                <i class="fas fa-envelope"></i> Send Email
+            </button>
+            <button type="button" class="prr-action-btn prr-btn-action-light" onclick="window.PaymentReminderModule.printReminderLetter()">
+                <i class="fas fa-print"></i> Print Reminder
+            </button>
+            <button type="button" class="prr-action-btn prr-btn-action-light" onclick="window.PaymentReminderModule.openFollowUpModal()">
+                <i class="fas fa-phone-alt"></i> Record Follow-up
+            </button>
+        </div>
+    </div>
+
+    <!-- Record Follow-up Modal Dialog -->
+    <div id="prr_followup_dialog" class="prr-dialog-overlay">
+        <div class="prr-dialog">
+            <div class="prr-dialog-head">
+                <span><i class="fas fa-clipboard-list"></i> Record Customer Follow-up</span>
+                <span style="cursor: pointer; font-size: 16px;" onclick="window.PaymentReminderModule.closeFollowUpModal()">&times;</span>
+            </div>
+            <div class="prr-dialog-body">
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155;">Customer:</label>
+                    <div id="prr_fu_customer_display" style="font-weight: 800; color: #1F4E79; font-size: 12px; margin-top: 2px;"></div>
+                    <input type="hidden" id="prr_fu_customer_id">
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 10.5px; font-weight: 700; color: #334155;">Promised Payment Date:</label>
+                        <input type="date" id="prr_fu_promised_date" class="prr-input" style="width: 100%; margin-top: 2px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 10.5px; font-weight: 700; color: #334155;">Promised Amount (Rs.):</label>
+                        <input type="number" step="0.01" id="prr_fu_promised_amt" class="prr-input" placeholder="0.00" style="width: 100%; margin-top: 2px;">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 10.5px; font-weight: 700; color: #334155;">Customer Response:</label>
+                        <select id="prr_fu_response" class="prr-select" style="width: 100%; margin-top: 2px;">
+                            <option value="Will pay on promised date">Will pay on promised date</option>
+                            <option value="Cheque issued">Cheque issued</option>
+                            <option value="Payment under approval">Payment under approval</option>
+                            <option value="Dispute / Billing issue">Dispute / Billing issue</option>
+                            <option value="Asked for extension">Asked for extension</option>
+                            <option value="Call not answered">Call not answered</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 10.5px; font-weight: 700; color: #334155;">Next Follow-up Date:</label>
+                        <input type="date" id="prr_fu_next_date" class="prr-input" style="width: 100%; margin-top: 2px;">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 10.5px; font-weight: 700; color: #334155;">Remarks / Details:</label>
+                    <textarea id="prr_fu_remarks" class="prr-input" style="width: 100%; height: 55px; resize: none; margin-top: 2px; padding: 4px;" placeholder="Enter follow-up conversation notes..."></textarea>
+                </div>
+            </div>
+            <div class="prr-dialog-foot">
+                <button type="button" class="prr-top-btn" onclick="window.PaymentReminderModule.closeFollowUpModal()">Cancel</button>
+                <button type="button" class="prr-top-btn prr-btn-primary" onclick="window.PaymentReminderModule.submitFollowUp()">
+                    <i class="fas fa-save"></i> Save Follow-up
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="prr_loading" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.7); z-index: 99999; justify-content: center; align-items: center; flex-direction: column; gap: 8px;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 26px; color: #1F4E79;"></i>
+        <span style="font-size: 12px; font-weight: bold; color: #1F4E79;">Loading Payment Reminder Records...</span>
+    </div>
+
+</div>
+
+<!-- Window sizing and auto-init script -->
+<script>
+    (function() {
+        // Enforce Exact Sale Invoice Modal Size
+        const root = document.getElementById('prr_root');
+        const win = root?.closest('.modal-container');
+        if (win) {
+            win.classList.remove('modal-full');
+            win.classList.add('modal-sale-invoice');
+            win.classList.add('modal-fbr-invoice');
+            win.classList.add('modal-payment-reminder');
+            win.style.setProperty('max-width', '1260px', 'important');
+            win.style.setProperty('width', '98%', 'important');
+            win.style.setProperty('height', '94vh', 'important');
+            win.style.setProperty('max-height', '94vh', 'important');
+            setTimeout(() => {
+                const rect = win.getBoundingClientRect();
+                const vW = window.innerWidth;
+                const vH = window.innerHeight;
+                let top = Math.max(10, (vH - rect.height) / 2);
+                let left = Math.max(10, (vW - rect.width) / 2);
+                win.style.top = top + 'px';
+                win.style.left = left + 'px';
+            }, 50);
+        }
+
+        if (window.PaymentReminderModule) {
+            window.PaymentReminderModule.init();
+        }
+    })();
+</script>
+

@@ -1,0 +1,63 @@
+<div class="component-header" style="margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2><i class="fas fa-users" style="color: #4a90e2; margin-right: 10px;"></i> User Logins</h2>
+            <p style="color: #666; font-size: 14px; margin-top: 5px;">Manage system users, roles, and access status.</p>
+        </div>
+        <button class="btn btn-primary" onclick="window.showAddUserForm && window.showAddUserForm()">
+            <i class="fas fa-plus"></i> Add New User
+        </button>
+    </div>
+</div>
+
+<div class="table-container" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" id="userLoginsTableContainer">
+    <!-- Table will be injected here via app.js users render -->
+    Loading users...
+</div>
+
+<script>
+    // Initialize user table using global users if available
+    setTimeout(() => {
+        const container = document.getElementById('userLoginsTableContainer');
+        if(window.users && container) {
+            let tableHtml = `
+                <table class="user-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8fafd; border-bottom: 2px solid #e8eef3;">
+                            <th style="padding: 12px; text-align: left;">Username</th>
+                            <th style="padding: 12px; text-align: left;">Role</th>
+                            <th style="padding: 12px; text-align: left;">Email</th>
+                            <th style="padding: 12px; text-align: left;">Status</th>
+                            <th style="padding: 12px; text-align: left;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            window.users.forEach(user => {
+                tableHtml += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 12px;">${user.username}</td>
+                        <td style="padding: 12px;">${user.role}</td>
+                        <td style="padding: 12px;">${user.email}</td>
+                        <td style="padding: 12px;">
+                            <span style="background: ${user.status === 'Active' ? '#d4edda' : '#f8d7da'}; color: ${user.status === 'Active' ? '#155724' : '#721c24'}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">
+                                ${user.status}
+                            </span>
+                        </td>
+                        <td style="padding: 12px;" class="user-actions">
+                            <button class="btn btn-warning btn-sm" onclick="window.editUser(${user.id})" style="margin-right: 5px;"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm" onclick="window.deleteUser(${user.id})"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = tableHtml;
+        }
+    }, 100);
+</script>

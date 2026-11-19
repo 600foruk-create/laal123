@@ -1,0 +1,282 @@
+<div id="customersContainer" data-module="Customers"
+    style="display: flex; flex-direction: column; gap: 5px; background: white; padding: 2px 4px 16px 4px; font-family: 'Segoe UI', Arial, sans-serif; box-sizing: border-box; width: 100%;">
+
+
+    <!-- Section 1: Customer Type -->
+    <div
+        style="flex-shrink: 0; display: flex; flex-direction: column; height: 125px; min-height: 125px; border: 1px solid #e2e8f0; padding: 6px 10px 8px 10px; border-radius: 4px; box-sizing: border-box;">
+        <div
+            style="font-size: 11px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 4px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px;">
+            Customer Type</div>
+        <div style="display: flex; gap: 15px; flex: 1; align-items: stretch;">
+            <!-- Left: List -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <select id="customerTypeList" size="5"
+                    style="width: 100%; height: 86px; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;"
+                    onchange="onCustomerTypeSelect(this.value)"></select>
+            </div>
+
+            <!-- Right: Fields & Buttons -->
+            <div style="flex: 1.2; display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; padding-left: 108px; gap: 4px; margin-bottom: 2px;">
+                    <button class="coa-btn coa-chart" style="margin-right: auto;" onclick="printCustomers('type')">Chart</button>
+                    <button class="coa-btn coa-add" onclick="resetCustomerTypeForm(true)">Add</button>
+                    <button class="coa-btn coa-save" onclick="saveCustomerType()">Save</button>
+                    <button class="coa-btn coa-cancel" onclick="resetCustomerTypeForm()">Cancel</button>
+                    <button class="coa-btn coa-delete" onclick="deleteCustomerType()">Delete</button>
+                </div>
+                <div
+                    style="display: grid; grid-template-columns: 100px 1fr 100px 1fr; gap: 5px 8px; align-content: start; margin-top: 4px;">
+                    <label class="coa-label">Sub Type Code</label>
+                    <input type="text" id="custSubTypeCode" class="coa-input" style="grid-column: span 3; width: 120px; background: #f8fafc; height: 23px;" readonly disabled>
+
+                    <label class="coa-label">Customer Type</label>
+                    <input type="text" id="custTypeName" class="coa-input" style="grid-column: span 3; height: 23px;" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: List of Customers -->
+    <div
+        style="display: flex; flex-direction: column; border: 1px solid #e2e8f0; padding: 5px 8px 14px 8px; border-radius: 4px; flex-shrink: 0; margin-bottom: 6px;">
+        <div
+            style="font-size: 11px; font-weight: 700; color: var(--theme-primary, #1F4E79); margin-bottom: 4px; text-transform: uppercase; border-bottom: 2px solid var(--theme-primary, #1F4E79); padding-bottom: 2px;">
+            List of Customers</div>
+        <div style="display: flex; gap: 15px; flex: 1; align-items: stretch;">
+            <!-- Left: List -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <select id="customerList" size="10"
+                    style="width: 100%; height: 100%; min-height: 380px; border: 1px solid #cbd5e0; outline: none; font-size: 13px; border-radius: 4px;"
+                    onchange="onCustomerSelect(this.value)"></select>
+            </div>
+
+            <!-- Right: Detailed Fields -->
+            <div style="flex: 1.2; display: flex; flex-direction: column; gap: 5px;">
+                <div style="display: flex; padding-left: 108px; gap: 4px; margin-bottom: 2px;">
+                    <button class="coa-btn coa-chart" onclick="printCustomers('list')">Chart</button>
+                    <button class="coa-btn coa-find" style="margin-right: auto;" onclick="openFindCustomerModal()">Find</button>
+                    <button class="coa-btn coa-add" onclick="resetCustomerForm(true)">Add</button>
+                    <button class="coa-btn coa-save" onclick="saveCustomer()">Save</button>
+                    <button class="coa-btn coa-cancel" onclick="resetCustomerForm()">Cancel</button>
+                    <button class="coa-btn coa-delete" onclick="deleteCustomer()">Delete</button>
+                </div>
+
+                <div
+                    style="display: grid; grid-template-columns: 100px 1fr 100px 1fr; gap: 2px 8px; align-content: start;">
+                    <label class="coa-label">Account Code</label>
+                    <input type="text" id="custAccountCode" class="coa-input" style="grid-column: span 3; width: 120px; background: #f8fafc;" readonly disabled>
+
+                    <label class="coa-label">Account Name</label>
+                    <input type="text" id="custAccountName" class="coa-input" style="grid-column: span 3;" disabled>
+
+                    <label class="coa-label">Contact Person</label>
+                    <input type="text" id="custContactPerson" class="coa-input" style="grid-column: span 3;" disabled>
+
+                    <label class="coa-label">Address</label>
+                    <textarea id="custAddress" class="coa-input"
+                        style="grid-column: span 3; height: 34px; resize: none; padding-top: 3px; font-size: 12px;" disabled></textarea>
+
+                    <label class="coa-label" id="custLblRegion" data-region-role="main">Region</label>
+                    <div style="display: flex; gap: 4px;">
+                        <select id="custRegion" class="coa-input" disabled onchange="loadSubRegions(this.value)">
+                            <option value="">None</option>
+                        </select>
+                        <button class="small-manage-btn" onclick="manageRegions()">..</button>
+                    </div>
+                    <label class="coa-label" id="custLblSubRegion" data-region-role="sub" style="justify-content: flex-end; padding-right: 4px;">Sub-Region</label>
+                    <select id="custSubRegion" class="coa-input" disabled onchange="loadListRegions(this.value)">
+                        <option value="">None</option>
+                    </select>
+
+                    <label class="coa-label">Telephone</label>
+                    <input type="text" id="custTelephone" class="coa-input" disabled>
+                    <label class="coa-label" id="custLblListRegion" data-region-role="list" style="justify-content: flex-end; padding-right: 4px;">List</label>
+                    <select id="custListRegion" class="coa-input" disabled>
+                        <option value="">None</option>
+                    </select>
+                    <label class="coa-label">Fax</label>
+                    <input type="text" id="custFax" class="coa-input" disabled>
+                    <label class="coa-label" style="justify-content: flex-end; padding-right: 4px;">Website</label>
+                    <input type="text" id="custWebsite" class="coa-input" disabled>
+
+                    <label class="coa-label">E-Mail</label>
+                    <input type="text" id="custEmail" class="coa-input" style="grid-column: span 3;" disabled>
+
+                    <label class="coa-label">S. T. Reg. No.</label>
+                    <input type="text" id="custStReg" class="coa-input" disabled>
+                    <label class="coa-label" style="justify-content: flex-end; padding-right: 4px;">N.T.N.</label>
+                    <input type="text" id="custNtn" class="coa-input" disabled placeholder="e.g. 1234567-8">
+
+                    <label class="coa-label">C.N.I.C.</label>
+                    <input type="text" id="custCnic" class="coa-input" disabled placeholder="13 digits e.g. 4210112345671">
+                    <label class="coa-label" style="justify-content: flex-end; padding-right: 4px;">Buyer Type</label>
+                    <div style="display: flex; gap: 4px;">
+                        <select id="custBuyerType" class="coa-input" disabled onchange="onCustBuyerTypeSelect(this.value)">
+                            <option value="">None</option>
+                        </select>
+                        <button class="small-manage-btn" onclick="manageBuyerTypes()">..</button>
+                    </div>
+
+                    <label class="coa-label">Customer Type</label>
+                    <div style="display: flex; gap: 4px;">
+                        <select id="custTaxType" class="coa-input" disabled onchange="onCustTaxTypeSelect(this.value)">
+                            <option value="">None</option>
+                        </select>
+                        <button class="small-manage-btn" onclick="manageCustomerTaxTypes()">..</button>
+                    </div>
+                    <label class="coa-label" style="justify-content: flex-end; padding-right: 4px;">Registration Type</label>
+                    <div style="display: flex; gap: 4px;">
+                        <select id="custSector" class="coa-input" disabled>
+                            <option value="">None</option>
+                        </select>
+                        <button class="small-manage-btn" onclick="manageSectors()">..</button>
+                    </div>
+
+                    <label class="coa-label">W.H Income Tax (%)</label>
+                    <input type="number" step="0.01" id="custWhTaxRate" class="coa-input" value="0.00" disabled placeholder="0.00">
+                    <label class="coa-label" style="justify-content: flex-end; padding-right: 4px;">Sale Tax (%)</label>
+                    <input type="number" step="0.01" id="custSalesTaxRate" class="coa-input" value="0.00" disabled placeholder="0.00">
+
+                    <label class="coa-label">Acc. Manager</label>
+                    <div style="display: flex; gap: 4px;">
+                        <select id="custAccManager" class="coa-input" disabled>
+                            <option value="">None</option>
+                        </select>
+                        <button class="small-manage-btn" onclick="manageManagers()">..</button>
+                    </div>
+                    <label class="coa-label" style="justify-content: flex-end; padding-right: 4px;">Further Tax (%)</label>
+                    <input type="number" step="0.01" id="custFurtherTaxRate" class="coa-input" value="0.00" disabled placeholder="0.00">
+
+                    <label class="coa-label">Credit Terms</label>
+                    <input type="text" id="custCreditTerms" class="coa-input" value="CASH" disabled>
+                    <label class="coa-label" style="justify-content: flex-end; padding-right: 4px;">Credit Limit</label>
+                    <input type="number" id="custCreditLimit" class="coa-input" value="0" disabled>
+                    <input type="hidden" id="custTaxRate" value="0.00">
+
+                    <label class="coa-label" style="align-self: start; padding-top: 3px;">Remarks</label>
+                    <textarea id="custRemarks" class="coa-input"
+                        style="grid-column: span 3; height: 38px; resize: none; padding-top: 3px; font-size: 12px;" disabled></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <style>
+        .coa-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 5px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 50px;
+            height: 28px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .coa-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .coa-btn:active { transform: translateY(1px); }
+        
+        .coa-chart { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-chart:hover { background: #3b6998 !important; }
+
+        .coa-find { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-find:hover { background: #3b6998 !important; }
+
+        .coa-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-add:hover { background: #3b6998 !important; }
+
+        .coa-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-save:hover { background: #3b6998 !important; }
+
+        .coa-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .coa-cancel:hover { background: #3b6998 !important; }
+
+        .coa-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .coa-delete:hover { background: #c82333 !important; }
+        
+        .coa-label { font-size: 11px; font-style: italic; font-weight: 500; color: #000000; display: flex; align-items: center; justify-content: flex-start; text-align: left; }
+        .coa-input { height: 22px; border: 1px solid #000000; border-radius: 2px; padding: 0 4px; font-size: 13px; color: #000000; outline: none; width: 100%; transition: border 0.2s; }
+        .coa-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+
+        #custAccountCode, #custAccountName, #custSubTypeCode, #custTypeName {
+            font-weight: bold;
+        }
+
+        .small-manage-btn {
+            padding: 0 5px;
+            height: 22px;
+            font-size: 11px;
+            cursor: pointer;
+            border: 1px solid #000;
+            background: #e2e8f0;
+            border-radius: 2px;
+        }
+
+        .small-manage-btn:hover {
+            background: #cbd5e0;
+        }
+
+        select:disabled,
+        input:disabled,
+        textarea:disabled {
+            background-color: #f8fafc;
+            color: #64748b;
+        }
+
+        #customersContainer select option { padding: 0px 6px !important; margin: 0 !important; min-height: 16px !important; height: 16px !important; line-height: 16px !important; display: flex; align-items: center; }
+        #customersContainer select { padding: 2px 0; }
+        #customersContainer select option:checked {
+            background-color: var(--theme-primary, #1F4E79) !important;
+            color: white !important;
+            box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important; -webkit-box-shadow: 0 0 10px 100px var(--theme-primary, #1F4E79) inset !important;
+        }
+    </style>
+
+    <!-- Find Customer Modal -->
+    <div id="findCustomerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; width: 800px; border-radius: 4px; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <!-- Modal Header -->
+            <div style="background: #1F4E79; color: white; padding: 10px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-radius: 4px 4px 0 0;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span>Find Customer</span>
+                </div>
+                <button onclick="closeFindCustomerModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px;">&times;</button>
+            </div>
+            
+            <!-- Modal Toolbar -->
+            <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e0; display: flex; align-items: center; gap: 10px;">
+                <label style="font-weight: 500; font-size: 13px; color: #334155;">Search Customer</label>
+                <input type="text" id="findCustomerSearchInput" oninput="filterFindCustomerTable()" style="flex: 1; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px; font-size: 13px; outline: none;">
+                <button onclick="renderFindCustomerTable()" style="background: #f1f5f9; border: 1px solid #cbd5e0; padding: 4px 12px; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 2px;">Refresh</button>
+            </div>
+            
+            <!-- Modal Table -->
+            <div style="padding: 10px 15px; height: 400px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                    <tbody id="findCustomerTableBody">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    if (typeof window.applyCustomRegionLabels === 'function') {
+        window.applyCustomRegionLabels(document.getElementById('customersContainer') || document);
+    }
+</script>
+<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
+    if (typeof window.applyCustomRegionLabels === 'function') {
+        window.applyCustomRegionLabels(document.getElementById('customersContainer') || document);
+    }
+">

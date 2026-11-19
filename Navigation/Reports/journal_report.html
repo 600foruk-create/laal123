@@ -1,0 +1,99 @@
+<div class="journal-container" style="display: flex; flex-direction: column; height: 100%; background-color: white;">
+    <style>
+        .gj-tool-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+            min-width: 60px;
+        }
+        .gj-tool-btn:hover { background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .gj-btn-info   { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .gj-btn-info:hover   { background: #3b6998 !important; }
+        
+        #journal-table th { background: #e2e8f0; border: 1px solid #94a3b8; font-size: 9px; font-weight: 700; color: #334155; padding: 2px; text-transform: uppercase; text-align: center; height: 22px; }
+        #journal-table { table-layout: fixed; }
+        #journal-table tbody td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+    <!-- Filter Section -->
+    <div class="filter-section" style="background-color: #f8f9fa; padding: 10px; border-bottom: 1px solid #ddd; display: flex; align-items: flex-end; gap: 15px;">
+        
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+            <!-- Period Row -->
+            <div style="display: flex; align-items: center;">
+                <div style="width: 120px; text-align: right; margin-right: 10px; display: flex; align-items: center; justify-content: flex-end; gap: 5px;">
+                    <input type="checkbox" id="journal-period-checkbox" onchange="window.JournalReportModule.toggleDates()" checked>
+                    <label for="journal-period-checkbox" style="font-weight: bold; font-size: 13px; color: #333; margin: 0; cursor: pointer;">Period From</label>
+                </div>
+                <input type="date" id="journal-from-date" class="form-control" style="width: 130px; border: 1px solid #aaa; border-radius: 0; height: 26px; font-size: 13px;">
+                <span style="font-weight: bold; font-size: 13px; margin: 0 10px;">To</span>
+                <input type="date" id="journal-to-date" class="form-control" style="width: 130px; border: 1px solid #aaa; border-radius: 0; height: 26px; font-size: 13px;">
+                
+                <div style="margin-left: 20px; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="journal-consolidate-checkbox" onchange="window.JournalReportModule.fetchReport()">
+                    <label for="journal-consolidate-checkbox" style="font-weight: bold; font-size: 13px; color: #333; margin: 0; cursor: pointer;">Combine Vouchers</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="gj-tool-btn gj-btn-info" onclick="window.JournalReportModule.fetchReport()">Display</button>
+            <button class="gj-tool-btn gj-btn-info" onclick="window.JournalReportModule.printReport()">Print</button>
+            <button class="gj-tool-btn gj-btn-info" onclick="window.JournalReportModule.exportExcel()">Excel</button>
+        </div>
+    </div>
+
+    <!-- Data Grid -->
+    <div style="flex: 1; overflow-y: auto; background-color: #fff; border: 1px solid #ccc; border-top: none;">
+        <table id="journal-table" style="width: 100%; height: 100%; border-collapse: collapse; font-size: 12px; font-family: 'Segoe UI', Tahoma, sans-serif;">
+            <thead style="position: sticky; top: 0; background-color: #e2e8f0; z-index: 10;">
+                <tr>
+                    <th style="width: 25px;"></th>
+                    <th style="width: 60px; text-align: left;">Tran. No.</th>
+                    <th style="width: 70px; text-align: left;">Date</th>
+                    <th style="width: 75px; text-align: left;">Account Code</th>
+                    <th style="width: 250px; text-align: left;">Account Name</th>
+                    <th style="text-align: left;">Description</th>
+                    <th style="width: 80px; text-align: right;">Debit</th>
+                    <th style="width: 80px; text-align: right;">Credit</th>
+                    <th style="width: 50px;">Posted</th>
+                    <th style="width: 65px;">Cancel</th>
+                </tr>
+            </thead>
+            <tbody id="journal-table-body">
+                <tr><td colspan="10" style="text-align:center; padding:30px; color:#999; font-style:italic;">Select a date range and click Display to view General Journal Report</td></tr>
+            </tbody>
+            <!-- Spacer tbody to push footer down -->
+            <tbody style="height: 100%;">
+                <tr><td colspan="10" style="border: none; padding: 0;"></td></tr>
+            </tbody>
+            <tfoot id="journal-table-footer" style="position: sticky; bottom: -1px; background-color: #e4e4e4; z-index: 10; box-shadow: 0 -2px 5px rgba(0,0,0,0.1);">
+                <tr>
+                    <td colspan="6" style="border: 1px solid #ccc; padding: 5px; font-weight: bold; font-size: 13px; color: #333; border-top: 2px solid #aaa; text-align: right;">
+                        Totals Rs.
+                    </td>
+                    <td style="border: 1px solid #ccc; padding: 2px; border-top: 2px solid #aaa;"><input type="text" id="journal-total-debit" style="width: 100%; border: 1px solid #aaa; border-radius: 0; height: 22px; font-size: 12px; text-align: right; background-color: #fff; box-sizing: border-box;" readonly></td>
+                    <td style="border: 1px solid #ccc; padding: 2px; border-top: 2px solid #aaa;"><input type="text" id="journal-total-credit" style="width: 100%; border: 1px solid #aaa; border-radius: 0; height: 22px; font-size: 12px; text-align: right; background-color: #fff; box-sizing: border-box;" readonly></td>
+                    <td colspan="2" style="border: 1px solid #ccc; padding: 2px; border-top: 2px solid #aaa; background-color: #e4e4e4;"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>

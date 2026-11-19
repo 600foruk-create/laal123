@@ -1,0 +1,592 @@
+<!-- Sale Return Module -->
+<div id="saleReturnContainer" data-module="Sale Return" style="width: 100%; height: 100%; min-width: 950px; min-height: 520px; display: flex; flex-direction: column; background: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; border: 1px solid #cbd5e0; border-radius: 4px; position: relative; box-sizing: border-box;">
+    
+    <div id="sr_cancelled_stamp" class="cancelled-stamp" style="display: none;">CANCELLED</div>
+    <!-- Top Toolbar -->
+    <div style="background: #e2e8f0; padding: 2px; display: flex; gap: 2px; border-bottom: 1px solid #cbd5e0; align-items: center; overflow-x: auto;">
+        <button class="si-tool-btn si-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/customers.html', 'fa-user-tie', 'Customers', window.initCustomersView, 'Customers', true)">New Customer</button>
+        <button class="si-tool-btn si-btn-info" onclick="openSecondaryModularPopup('Navigation/Maintain/chart_of_inventory.html', 'fa-boxes', 'Chart Of Inventory', window.initChartOfInventoryView, 'Chart of Inventory', true)">New Item</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="si-tool-btn si-btn-add" onclick="window.SRModule.resetForm(true)">Add</button>
+        <button class="si-tool-btn si-btn-save" onclick="window.SRModule.saveInvoice()">Save (Ctrl+S)</button>
+        <button class="si-tool-btn si-btn-cancel" onclick="window.SRModule.resetForm()">Cancel</button>
+        <button class="si-tool-btn si-btn-delete" onclick="window.SRModule.deleteInvoice()">Delete</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button id="sr_post_btn" class="si-tool-btn si-btn-info">Post</button>
+        <button class="si-tool-btn si-btn-info" onclick="window.SRModule.openFindModal()">Find</button>
+        
+        <div style="width: 1px; height: 16px; background: #cbd5e0; margin: 0 1px;"></div>
+        
+        <button class="si-tool-btn si-btn-info" onclick="window.SRModule.navigate('last')">Retrieve Last Saved</button>
+        <button class="si-tool-btn si-btn-info" onclick="window.SRModule.openPrintSettings()">Print Setting</button>
+        <div style="display: flex; gap: 4px;">
+            <button class="si-tool-btn si-btn-save" style="width: 55px; padding: 2px 0;" onclick="window.SRModule.printInvoice('print')">Print</button>
+            <button class="si-tool-btn si-btn-info" style="width: 55px; padding: 2px 0;" onclick="window.SRModule.printInvoice('excel')">Excel</button>
+            <button class="si-tool-btn si-btn-info" style="width: 55px; padding: 2px 0;" onclick="window.SRModule.printInvoice('voucher')">Voucher</button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 6px; background: white; overflow: hidden;">
+        
+        <!-- Header Info Rows -->
+        <div style="display: flex; gap: 10px; align-items: stretch; position: relative; z-index: 50;">
+            <!-- Left Side: Invoice Details -->
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <!-- Top Group -->
+                <div style="display: grid; grid-template-columns: 125px 30px 1fr; gap: 2px; align-items: center;">
+                    <label class="si-label">Serial No</label>
+                    <button class="si-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.SRModule.navigate('prev')">&lt;&lt;</button>
+                    <div style="display: flex; align-items: center; gap: 4px; position: relative;">
+                        <input type="text" id="sr_sn" class="si-input" style="width: 120px; text-align: center; color: blue; font-weight: 800; font-size: 16px;">
+                        <button class="si-nav-btn" style="font-weight: 900; width: 30px;" onclick="window.SRModule.navigate('next')">&gt;&gt;</button>
+                        <div style="display:flex; flex-direction:column; margin-left:5px;">
+                            <label style="display:flex;align-items:center;gap:2px;font-weight:bold;color:#c00;margin-bottom:0;">
+                                <input type="checkbox" id="sr_is_cancelled"> Cancel
+                            </label>
+                        </div>
+                        
+                        
+                    </div>
+
+                    <label class="si-label">Date</label>
+                    <div></div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="date" id="sr_date" class="si-input" style="width: 120px;">
+                        <input type="hidden" id="sr_type" value="Sale Return">
+                        <div id="sr_posted_stamp" style="display: none; color: #dc3545; font-size: 13px; font-weight: bold; border: 2px solid #dc3545; padding: 1px 5px; border-radius: 4px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85; white-space: nowrap;">POSTED</div>
+                    </div>
+                </div>
+
+                <!-- Middle Group -->
+                <div style="display: grid; grid-template-columns: 125px 30px 1fr; gap: 2px; align-items: center; margin-top: 2px;">
+                    <label class="si-label">Sale Invoice No.</label>
+                    <div></div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <input type="text" id="sr_si_no" class="si-input" style="width: 120px;" placeholder="Invoice No">
+                        <label class="si-label" style="margin-left: 10px;">Dated</label>
+                        <input type="date" id="sr_si_date" class="si-input" style="width: 120px;">
+                    </div>
+
+                    <label class="si-label">Nature of Credit Note</label>
+                    <div></div>
+                    <select id="sr_nature" class="si-input" style="width: 100%;">
+                        <option value="Sale Return (Increases Inventory)">Sale Return (Increases Inventory)</option>
+                        <option value="Rate Adjustment (No Change in Inventory)">Rate Adjustment (No Change in Inventory)</option>
+                    </select>
+                </div>
+
+                <!-- Bottom Group -->
+                <div style="display: grid; grid-template-columns: 125px 30px 1fr; gap: 2px; align-items: center; margin-top: 2px;">
+                    <label class="si-label">Payment Terms</label>
+                    <div></div>
+                    <input type="text" id="sr_payment_terms" class="si-input">
+
+                    <label class="si-label">Income Account</label>
+                    <div></div>
+                    <div style="display: flex; gap: 3px; position: relative;">
+                        <input type="text" id="sr_income_code" class="si-input" style="width: 120px;" placeholder="Code" value="40001002" autocomplete="off" onclick="this.select()" onfocus="this.select()">
+                        <input type="text" id="sr_income_name" class="si-input" style="flex: 1;" value="Sales Return" readonly>
+                        <div id="sr_income_suggest" class="si-suggest" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Customer Info -->
+            <fieldset style="width: 420px; border: 1px solid #94a3b8; padding: 6px 12px 10px 12px; margin: 0; border-radius: 4px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: start; height: 100%;">
+                <legend style="font-size: 11px; font-weight: 700; color: #000000; padding: 0 4px; font-style: italic;">Customer</legend>
+                <div style="display: grid; grid-template-columns: 75px 1fr; gap: 4px 6px; align-items: center;">
+                    <label class="si-label">Code</label>
+                    <div style="display: flex; gap: 3px; align-items: center; position: relative;">
+                        <input type="text" id="sr_cust_code" class="si-input" placeholder="Search customer..." autocomplete="off" onclick="this.select()" onfocus="this.select()" style="flex: 1; font-weight: bold;">
+                        <label class="si-label" style="min-width: 45px; text-align: center;">Balance</label>
+                        <input type="text" id="sr_cust_balance" class="si-input" style="flex: 1; text-align: right; font-weight: bold; color: red;" readonly>
+                        <div id="sr_cust_suggest" class="si-suggest" style="width: 100%;"></div>
+                    </div>
+
+                    <label class="si-label">Name</label>
+                    <input type="text" id="sr_cust_name" class="si-input" readonly>
+
+                    <label class="si-label">Address</label>
+                    <textarea id="sr_cust_address" class="si-input" style="height: 24px; resize: none;"></textarea>
+
+                    <label class="si-label">Telephone</label>
+                    <input type="text" id="sr_cust_phone" class="si-input">
+
+                    <label class="si-label">GST Reg. No.</label>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <input type="text" id="sr_cust_gst" class="si-input" style="flex: 1;">
+                        <label class="si-label" style="min-width: 30px; text-align: right;">NTN</label>
+                        <input type="text" id="sr_cust_ntn" class="si-input" style="flex: 1;">
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #cbd5e0; margin: 2px 0;">
+
+        <!-- Grid Section -->
+        <div style="flex: 1; border: 1px solid #cbd5e0; display: flex; flex-direction: column; background: #fff; min-height: 200px;">
+            <div style="flex: 1; overflow-y: auto;">
+                <table id="srGrid" style="width: 100%; border-collapse: collapse; background: white; table-layout: fixed;">
+                    <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 10;">
+                        <tr>
+                            <th style="width: 25px; border: 1px solid #cbd5e0;"></th>
+                            <th style="width: 70px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Item Code</th>
+                            <th style="width: 60px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">HS Code</th>
+                            <th style="width: 200px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Description</th>
+                            <th style="width: 45px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Pieces</th>
+                            <th style="width: 55px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Quantity</th>
+                            <th style="width: 40px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Unit</th>
+                            <th style="width: 50px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Rate</th>
+                            
+                            <th style="width: 80px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Value Excl. Tax</th>
+                            <th style="width: 45px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Sales Tax Rate</th>
+                            <th style="width: 65px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Sales Tax Amount</th>
+                            <th style="width: 45px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Further Tax Rate</th>
+                            <th style="width: 65px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Further Tax Amount</th>
+                            <th style="width: 85px; border: 1px solid #cbd5e0; font-size: 9px; padding: 2px; text-transform: uppercase; text-align: center; white-space: normal; line-height: 1.1; vertical-align: middle;">Value Incl. Tax</th>
+                            
+                            
+                            
+                            
+                            
+                        </tr>
+                    </thead>
+                    <tbody id="srGridBody"></tbody>
+                    <tfoot style="position: sticky; bottom: 0; background: #e2e8f0; z-index: 10;">
+                        <tr>
+                            <td colspan="4" style="text-align: right; padding-right: 12px; font-weight: 700; font-size: 10px; color: #475569; border: 1px solid #cbd5e0;">Totals</td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="sr_tot_pieces" class="si-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="sr_tot_qty" class="si-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="sr_tot_val_excl" class="si-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="sr_tot_stax_amt" class="si-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="sr_tot_ftax_amt" class="si-total-input" value="0.00" readonly></td>
+                            <td style="border: 1px solid #cbd5e0;"><input type="text" id="sr_tot_val_incl" class="si-total-input" value="0.00" readonly></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer Section -->
+        <div style="display: flex; gap: 10px; background: white; padding: 6px 0 0 0; margin-top: 2px;">
+            <div style="flex: 1; display: grid; grid-template-columns: 100px 1fr; gap: 4px; align-content: start;">
+                <label class="si-label">Inventory Location</label>
+                <div id="sr_location_wrapper" style="position: relative; width: 100%; z-index: 30;">
+                    <div id="sr_location_display" class="si-input" tabindex="0" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;" onclick="const d = document.getElementById('sr_location_dropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; window.SRModule.suggestIndex = -1;">
+                        <span id="sr_location_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Location</span>
+                        <span style="font-size: 10px; color: #666;">▼</span>
+                    </div>
+                    <input type="hidden" id="sr_location">
+                    <div id="sr_location_dropdown" class="custom-select-dropdown"></div>
+                </div>
+                <label class="si-label">Job No & Description</label>
+                <div id="sr_job_wrapper" style="position: relative; width: 100%; z-index: 29;">
+                    <div id="sr_job_display" class="si-input" tabindex="0" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;" onclick="const d = document.getElementById('sr_job_dropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; window.SRModule.suggestIndex = -1;">
+                        <span id="sr_job_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Job</span>
+                        <span style="font-size: 10px; color: #666;">▼</span>
+                    </div>
+                    <input type="hidden" id="sr_job_desc">
+                    <div id="sr_job_dropdown" class="custom-select-dropdown"></div>
+                </div>
+                <label class="si-label">Employee Reference</label>
+                <div id="sr_emp_wrapper" style="position: relative; width: 100%; z-index: 28;">
+                    <div id="sr_emp_display" class="si-input" tabindex="0" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; height: 22px; padding: 0 4px;" onclick="const d = document.getElementById('sr_emp_dropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; window.SRModule.suggestIndex = -1;">
+                        <span id="sr_emp_text" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">Select Employee</span>
+                        <span style="font-size: 10px; color: #666;">▼</span>
+                    </div>
+                    <input type="hidden" id="sr_emp_ref">
+                    <div id="sr_emp_dropdown" class="custom-select-dropdown"></div>
+                </div>
+                <label class="si-label">Remarks</label>
+                <textarea id="sr_remarks" class="si-input" style="height: 36px; resize: none;"></textarea>
+                <label class="si-label" style="min-width: 75px;">Amount in Words:</label>
+                <span id="sr_amt_words" style="font-size: 11px; font-weight: 700; color: #1e3a8a;">Rupees zero only.</span>
+            </div>
+            <div id="srTotalsBox" style="width: 300px; background: #e2e8f0; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; display: grid; grid-template-columns: 140px 1fr; gap: 4px; align-content: start; justify-content: center;">
+                <label class="si-label" style="text-align: right; font-weight: bold; font-size: 13px; font-style: italic;">Carriage and Freight</label>
+                <input type="text" id="sr_freight" class="si-input num" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" oninput="window.SRModule.calculateTotals()" onclick="this.select()" onfocus="this.select()">
+                
+                <label class="si-label" style="text-align: right; color: blue; font-weight: bold; font-size: 13px; font-style: italic;">Net Total</label>
+                <input type="text" id="sr_net_tot" class="si-input num" style="text-align: right; font-weight: bold; font-size: 14px; height: 24px; color: blue;" value="0.00" readonly>
+                
+                <div style="grid-column: span 2; height: 4px;"></div>
+                
+                <label class="si-label" style="text-align: right; font-weight: bold; font-size: 13px; font-style: italic;">Amount Paid</label>
+                <input type="text" id="sr_paid" class="si-input num" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" oninput="window.SRModule.calculateTotals()" onclick="this.select()" onfocus="this.select()">
+                
+                <label class="si-label" style="text-align: right; font-weight: bold; font-size: 13px; font-style: italic;">Balance</label>
+                <input type="text" id="sr_balance" class="si-input num" style="text-align: right; font-size: 13px; font-weight: bold; height: 22px;" value="0.00" readonly>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .si-tool-btn {
+            background: #ffffff;
+            border: 1px solid #4a789c;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            flex: 1;
+            height: 38px;
+            border-radius: 4px;
+            color: #4a789c;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .si-tool-btn:hover {
+            background: #f1f5f9;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .si-btn-add { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .si-btn-add:hover { background: #3b6998 !important; }
+
+        .si-btn-save { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .si-btn-save:hover { background: #3b6998 !important; }
+
+        .si-btn-cancel { background: #4a789c !important; color: white !important; border-color: #4a789c !important; }
+        .si-btn-cancel:hover { background: #3b6998 !important; }
+
+        .si-btn-delete { background: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+        .si-btn-delete:hover { background: #c82333 !important; }
+
+        .si-btn-info { background: #4a789c !important; color: white !important; border-color: #4a789c !important; width: auto; }
+        .si-btn-info:hover { background: #3b6998 !important; }
+
+        .si-label { font-size: 11px; font-style: italic; font-weight: 600; color: #000000; display: flex; align-items: center; justify-content: flex-start; text-align: left; white-space: nowrap; }
+
+        .si-input {
+            height: 22px;
+            border: 1px solid #000000;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 13px;
+            font-weight: normal;
+            color: #000000;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border 0.2s;
+        }
+
+        .si-input:focus { border-color: #4a789c; box-shadow: 0 0 0 1px rgba(74,120,156,0.2); }
+        .si-input:disabled { background: #ffffff; color: #000000; border-color: #000000; }
+
+        select.si-input option {
+            padding: 4px;
+            font-size: 11px;
+            color: #000000;
+        }
+        select.si-input option:checked, select.si-input option:hover {
+            background-color: #1F4E79;
+            color: white;
+        }
+
+        .si-nav-btn {
+            height: 22px;
+            padding: 0 6px;
+            background: white;
+            border: 1px solid #000000;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 900;
+            color: #000000;
+            border-radius: 2px;
+        }
+        .si-nav-btn:hover { background: #f1f5f9; }
+
+        .si-total-input {
+            width: 100%;
+            height: 22px;
+            background: #fff;
+            border: 1px solid #000000;
+            text-align: right;
+            font-weight: bold;
+            font-size: 12px;
+            color: #1e3a8a;
+            padding: 0 4px;
+            box-sizing: border-box;
+        }
+        .grid-input { border: none; width: 100%; height: 100%; padding: 0 4px; font-size: 12px; outline: none; background: transparent; display: block; color: #000000; font-weight: bold; }
+        .grid-input:focus { background: #eff6ff; }
+        .grid-input.num { text-align: right; }
+        
+        #srGrid th {
+            background: #e2e8f0;
+            border: 1px solid #94a3b8;
+            font-size: 9px;
+            font-weight: 700;
+            color: #334155;
+            padding: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            height: 22px;
+        }
+        #srGrid td { border: 1px solid #94a3b8; padding: 0; height: 22px; position: relative; }
+
+        .si-suggest { position: absolute; top: 100%; left: 0; width: 450px; background: white; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; z-index: 10000; display: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .si-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .si-suggest div:hover, .si-suggest div.active { background: #1F4E79; color: white; }
+        
+        .grid-suggest { position: absolute; top: 100%; left: 0; width: 450px; background: white; border: 1px solid #1F4E79; max-height: 250px; overflow-y: auto; z-index: 9999; display: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .grid-suggest div { padding: 4px 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .grid-suggest div:hover, .grid-suggest div.active { background: #1F4E79; color: white; }
+
+        .cancelled-stamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 35px;
+            font-weight: bold;
+            color: rgba(220, 53, 69, 0.1);
+            border: 4px solid rgba(220, 53, 69, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        /* Custom Dropdown styling */
+        .custom-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border: 1px solid #94a3b8;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        .custom-select-dropdown div { padding: 2px 4px; cursor: pointer; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .custom-select-dropdown div:hover, .custom-select-dropdown div.active { background: #1F4E79; color: white; }
+
+        #srGrid td {
+            border: 1px solid #cbd5e0;
+            padding: 0;
+            height: 20px;
+            position: relative;
+            overflow: visible;
+        }
+        
+        #srGrid tr.selected-row td:not(.row-selector) {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        #srGrid tr.selected-row td:not(.row-selector) input {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        
+        .row-selector {
+            cursor: pointer;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border-top: 1px solid #ffffff !important;
+            border-left: 1px solid #ffffff !important;
+            border-bottom: 1px solid #808080 !important;
+            border-right: 1px solid #808080 !important;
+            text-align: center;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            width: 20px;
+        }
+    </style>
+
+    <!-- Modernized Find Return Modal -->
+    <div id="sr_find_modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; width: 100%; height: 100%; border-radius: 0; display: flex; flex-direction: column; font-family: Arial, sans-serif; box-shadow: none;">
+            
+            <!-- Window Title -->
+            <div style="background: #1F4E79; color: white; padding: 3px 5px; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-radius: 0;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span id="sr_find_window_title">Find Returns</span>
+                </div>
+                <button onclick="window.SRModule.closeFindModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; font-weight: bold; padding: 0 4px; line-height: 14px;">&times;</button>
+            </div>
+            
+            <!-- Toolbar Area -->
+            <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e0; display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Find</label>
+                    <select id="sr_find_field" style="font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px;">
+                        <option value="serial_no">Serial No.</option>
+                        <option value="return_date">Date</option>
+                        <option value="sale_invoice_no">Sale Invoice No.</option>
+                        <option value="cust_name">Customer Name</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #334155;">Value</label>
+                    <input type="text" id="sr_find_search" oninput="window.SRModule.filterFindTable()" style="width: 200px; font-size: 12px; padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 2px; outline: none;">
+                </div>
+
+                <div style="display: flex; gap: 5px; margin-left: auto;">
+                    <button onclick="window.SRModule.filterFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Find</button>
+                    <button onclick="window.SRModule.renderFindTable()" style="background: #4a789c; color: white; border: none; border-radius: 2px; padding: 2px 10px; font-size: 11px; cursor: pointer;">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Table Header Hint -->
+            <div style="padding: 5px 15px; font-size: 11px; font-style: italic; color: #555; background: #f8f9fa;">
+                Double-click a row to load the return note.
+            </div>
+            
+            <!-- Modal Table -->
+            <div style="flex: 1; overflow-y: auto; overflow-x: auto; background: white; margin: 0; border-top: 1px solid #cbd5e0; border-bottom: 1px solid #cbd5e0;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; white-space: nowrap;">
+                    <thead style="position: sticky; top: 0; background: #e2e8f0; z-index: 1;">
+                        <tr>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; width: 15px; text-align: center;"></th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SRModule.sortFindGrid('serial_no')">Serial No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SRModule.sortFindGrid('return_date')">Date</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SRModule.sortFindGrid('sale_invoice_no')">Sale Invoice No.</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SRModule.sortFindGrid('cust_name')">Customer Name</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: right; cursor: pointer;" onclick="window.SRModule.sortFindGrid('net_total')">Amount</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; text-align: center; cursor: pointer;" onclick="window.SRModule.sortFindGrid('is_posted')">Posted</th>
+                            <th style="padding: 4px; border: 1px solid #cbd5e0; cursor: pointer;" onclick="window.SRModule.sortFindGrid('is_cancelled')">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sr_find_table_body">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Area -->
+            <div style="padding: 8px 15px; background: #f1f5f9; display: flex; align-items: center; gap: 10px; font-size: 11px; border-radius: 0 0 4px 4px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-weight: 500; color: #334155;">Added By User</span>
+                    <input type="text" id="sr_find_added_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="sr_find_added_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                    <span style="font-weight: 500; color: #334155;">Edited By User</span>
+                    <input type="text" id="sr_find_edited_by" readonly value="Administrator" style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 100px; text-align: center;">
+                    <span style="font-weight: 500; color: #334155; margin-left: 5px;">On</span>
+                    <input type="text" id="sr_find_edited_on" readonly style="background: white; border: 1px solid #cbd5e0; border-radius: 2px; padding: 2px 4px; font-size: 11px; width: 120px; text-align: center;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Settings Modal -->
+    <div id="srPrintSettingsModal" style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: #f0f0f0; border: 2px solid #fff; border-bottom-color: #808080; border-right-color: #808080; width: 450px; display: flex; flex-direction: column; box-shadow: 2px 2px 10px rgba(0,0,0,0.3); font-family: Arial, sans-serif; font-size: 12px;">
+            <div style="background: #1e3e6b; color: #fff; padding: 3px 5px; display: flex; align-items: center; font-weight: bold; margin: 0;">
+                <span style="margin-right: 5px;">&#9881;</span>
+                <span style="flex: 1;">Sale Return Print Settings</span>
+                <button onclick="document.getElementById('srPrintSettingsModal').style.display='none'" style="background: #c0c0c0; border: 1px solid #fff; border-bottom-color: #808080; border-right-color: #808080; font-weight: bold; cursor: pointer; padding: 0 4px;">&times;</button>
+            </div>
+            
+            <div style="padding: 20px; display: flex; flex-direction: column; gap: 20px; background: #fff;">
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-left: 40px;">
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_paper" id="sr_sett_paper_a4" value="A4" checked>
+                        A4 Size Print
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_paper" id="sr_sett_paper_a5l" value="A5L">
+                        A5 Size Print (Half of A4 Size) Landscape
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_paper" id="sr_sett_paper_a5p" value="A5P">
+                        A5 Size Print (Half of A4 Size) Portrait
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_paper" id="sr_sett_paper_pos" value="POS">
+                        Point of Sale Invoice (80mm)
+                    </label>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 0 20px;">
+                
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-left: 40px;">
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_tax" id="sr_sett_tax_yes" value="YES">
+                        Print Sales Tax Columns
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_tax" id="sr_sett_tax_no" value="NO" checked>
+                        Do Not Print Sales Tax Columns
+                    </label>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 0 20px;">
+                
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-left: 40px;">
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_hs" id="sr_sett_hs_yes" value="YES">
+                        Print HS Code
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_hs" id="sr_sett_hs_no" value="NO" checked>
+                        Do Not Print HS Code
+                    </label>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 0 20px;">
+
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-left: 40px;">
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_disc" id="sr_sett_disc_yes" value="YES" checked>
+                        Print Discount Column
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_disc" id="sr_sett_disc_no" value="NO">
+                        Do Not Print Discount Column
+                    </label>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 0 20px;">
+
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-left: 40px;">
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_header" id="sr_sett_headers" value="YES" checked>
+                        Show Company Header details (Logo, Name, etc.)
+                    </label>
+                    <label style="font-style: italic; color: #555; display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="sr_print_header" id="sr_sett_no_headers" value="NO">
+                        Do not show headers. I want to print on my own letterhead.
+                    </label>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; padding: 15px 20px; gap: 10px; background: #fff; border-top: 1px solid #ccc;">
+                <button onclick="window.SRModule.savePrintSettings()" style="width: 80px; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f0f0f0; border: 1px solid #fff; border-bottom-color: #808080; border-right-color: #808080; cursor: pointer;">
+                    <span style="color: green; font-size: 16px; font-weight: bold;">&#10004;</span>
+                    <span style="font-size: 11px;">Save</span>
+                </button>
+                <button onclick="document.getElementById('srPrintSettingsModal').style.display='none'" style="width: 80px; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f0f0f0; border: 1px solid #fff; border-bottom-color: #808080; border-right-color: #808080; cursor: pointer;">
+                    <span style="color: red; font-size: 16px; font-weight: bold;">&#10006;</span>
+                    <span style="font-size: 11px;">Cancel</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
