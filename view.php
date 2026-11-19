@@ -539,6 +539,17 @@ elseif ($type === 'ledger') {
             color: #64748b;
         }
 
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 16px;
+        }
+
+        .mobile-swipe-hint {
+            display: none;
+        }
+
         /* Print Media Styles */
         @media print {
             .no-print { display: none !important; }
@@ -550,17 +561,159 @@ elseif ($type === 'ledger') {
                 padding: 6mm !important;
                 max-width: 100% !important;
                 min-height: auto !important;
+                width: 100% !important;
+            }
+            .table-responsive {
+                overflow: visible !important;
+                width: 100% !important;
+                border: none !important;
+            }
+            .table-responsive .items-table {
+                min-width: 0 !important;
+                width: 100% !important;
             }
         }
 
         @media (max-width: 768px) {
-            .top-nav { padding: 8px 12px; flex-wrap: wrap; gap: 6px; }
-            .top-nav .brand-badge { width: 100%; justify-content: space-between; }
-            .top-nav .btn-group { width: 100%; justify-content: flex-end; }
-            .page-container { margin: 100px 8px 20px 8px; padding: 8px; }
-            .meta-cards, .lower-section { flex-direction: column; }
-            .items-table { font-size: 8.5px; }
-            .items-table th, .items-table td { padding: 3px 2px; }
+            body {
+                overflow-x: hidden !important;
+                background: #f1f5f9 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .top-nav {
+                padding: 8px 10px !important;
+                flex-direction: column !important;
+                gap: 8px !important;
+            }
+            .top-nav .brand-badge {
+                width: 100% !important;
+                justify-content: space-between !important;
+            }
+            .top-nav .btn-group {
+                width: 100% !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                gap: 6px !important;
+            }
+            .top-nav .btn-group button {
+                flex: 1 !important;
+                justify-content: center !important;
+                padding: 8px 4px !important;
+                font-size: 11.5px !important;
+            }
+
+            .page-container {
+                width: calc(100vw - 16px) !important;
+                max-width: calc(100vw - 16px) !important;
+                margin: 95px auto 20px auto !important;
+                padding: 12px 10px !important;
+                box-sizing: border-box !important;
+                overflow-x: hidden !important;
+                border-radius: 8px !important;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
+                min-height: auto !important;
+            }
+
+            .header-area {
+                flex-direction: column !important;
+                align-items: center !important;
+                text-align: center !important;
+                gap: 8px !important;
+            }
+            .header-area > div:first-child {
+                flex-direction: column !important;
+                align-items: center !important;
+                text-align: center !important;
+            }
+            .logo-box {
+                margin-right: 0 !important;
+                margin-bottom: 6px !important;
+            }
+            .company-info h1 {
+                font-size: 17px !important;
+            }
+            .company-contacts {
+                font-size: 9px !important;
+            }
+            .invoice-pill-area {
+                min-width: 0 !important;
+                width: 100% !important;
+                margin-top: 4px !important;
+            }
+            .invoice-pill {
+                font-size: 14px !important;
+                padding: 5px 14px !important;
+                display: inline-block !important;
+            }
+
+            .meta-cards {
+                flex-direction: column !important;
+                gap: 10px !important;
+                width: 100% !important;
+            }
+            .meta-card {
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .meta-table td {
+                font-size: 10.5px !important;
+            }
+            .meta-label {
+                width: 85px !important;
+            }
+
+            .mobile-swipe-hint {
+                display: flex !important;
+                align-items: center;
+                justify-content: flex-end;
+                gap: 5px;
+                font-size: 10.5px;
+                color: #0284c7;
+                font-weight: 600;
+                margin-bottom: 6px;
+            }
+
+            .table-responsive {
+                width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                border: 1px solid #b8d5f8 !important;
+                border-radius: 4px !important;
+                margin-bottom: 14px !important;
+            }
+            .table-responsive .items-table {
+                min-width: 620px !important;
+                margin-bottom: 0 !important;
+                border: none !important;
+                font-size: 9.5px !important;
+            }
+            .table-responsive .items-table th,
+            .table-responsive .items-table td {
+                padding: 4px 4px !important;
+            }
+
+            .lower-section {
+                flex-direction: column !important;
+                gap: 12px !important;
+                width: 100% !important;
+            }
+            .words-card, .summary-card {
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            .footer-signatures {
+                margin-top: 30px !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                padding: 0 !important;
+                gap: 6px !important;
+            }
+            .footer-signatures > div {
+                width: 32% !important;
+                font-size: 9px !important;
+            }
         }
     </style>
 </head>
@@ -720,6 +873,10 @@ elseif ($type === 'ledger') {
             }
             $finalStatus = $runningBal > 0 ? 'Debit' : ($runningBal < 0 ? 'Credit' : 'Nil');
             ?>
+            <div class="mobile-swipe-hint no-print">
+                <i class="fas fa-arrows-alt-h"></i> Swipe table to view all columns
+            </div>
+            <div class="table-responsive">
             <table class="items-table">
                 <thead>
                     <tr>
@@ -772,6 +929,7 @@ elseif ($type === 'ledger') {
                     </tr>
                 </tfoot>
             </table>
+            </div>
 
             <div class="lower-section">
                 <div class="words-card">
@@ -795,6 +953,10 @@ elseif ($type === 'ledger') {
         <?php else: ?>
 
             <!-- STANDARD INVOICE / QUOTATION / ORDER / CHALLAN TABLE -->
+            <div class="mobile-swipe-hint no-print">
+                <i class="fas fa-arrows-alt-h"></i> Swipe table to view all columns
+            </div>
+            <div class="table-responsive">
             <table class="items-table">
                 <thead>
                     <tr>
@@ -876,6 +1038,7 @@ elseif ($type === 'ledger') {
                     </tr>
                 </tfoot>
             </table>
+            </div>
 
             <!-- Lower Section (Remarks / Summary) -->
             <div class="lower-section">
@@ -937,7 +1100,7 @@ elseif ($type === 'ledger') {
         <?php endif; ?>
 
         <!-- Footer Signatures -->
-        <div style="margin-top: 45px; display: flex; justify-content: space-between; padding: 0 15px;">
+        <div class="footer-signatures" style="margin-top: 45px; display: flex; justify-content: space-between; padding: 0 15px;">
             <div style="text-align: center; width: 140px; border-top: 1.5px solid #000; padding-top: 4px; font-size: 10.5px; font-weight: 700;">
                 Prepared By
             </div>
