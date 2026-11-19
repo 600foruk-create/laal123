@@ -1471,19 +1471,19 @@ window.BRModule = {
         const preparedBy = 'Administrator';
         const printedBy = session.username || session.user_name || session.name || 'Administrator';
         
-        const sn = document.getElementById('br_sn').value;
-        const date = document.getElementById('br_date').value;
-        const cashAccount = document.getElementById('br_cash_code').value + ' - ' + document.getElementById('br_cash_name').value;
+        const sn = document.getElementById('br_sn')?.value || '';
+        const date = document.getElementById('br_date')?.value || '';
+        const cashAccount = (document.getElementById('br_cash_code')?.value || '') + ' - ' + (document.getElementById('br_cash_name')?.value || '');
         
-        const receivedFrom = document.getElementById('br_received_from_name').value || '';
-        const amtWords = document.getElementById('br_amt_words').innerText || '';
-        const remarks = document.getElementById('br_remarks').value || '';
+        const receivedFrom = document.getElementById('br_received_from_name')?.value || '';
+        const amtWords = document.getElementById('br_amt_words')?.innerText || '';
+        const remarks = document.getElementById('br_remarks')?.value || '';
         
-        const totWht = document.getElementById('br_total_wht').value || '0.00';
-        const totGst = document.getElementById('br_total_gst').value || '0.00';
-        const totAdv = document.getElementById('br_total_adj').value || '0.00';
-        const totDisc = document.getElementById('br_total_disc').value || '0.00';
-        const totNet = document.getElementById('br_grand_total_customer').value || '0.00';
+        const totWht = document.getElementById('br_total_wht')?.value || '0.00';
+        const totGst = document.getElementById('br_total_gst')?.value || '0.00';
+        const totAdv = document.getElementById('br_total_adj')?.value || '0.00';
+        const totDisc = document.getElementById('br_total_disc')?.value || '0.00';
+        const totNet = document.getElementById('br_grand_total_customer')?.value || document.getElementById('br_grand_total')?.value || '0.00';
         
         const isPetty = document.querySelector('input[name="br_type"]:checked')?.value === 'Petty';
         const invoiceTitle = mode === 'voucher' ? 'BANK RECEIPT VOUCHER' : 'BANK RECEIPT';
@@ -1577,7 +1577,7 @@ window.BRModule = {
             tableFooter = `
                 <tr class="totals-row">
                     <td colspan="3" style="text-align: right;">TOTALS</td>
-                    <td style="text-align: right;">${document.getElementById('br_total_rcvd').value || '0.00'}</td>
+                    <td style="text-align: right;">${document.getElementById('br_total_received')?.value || document.getElementById('br_total_rcvd')?.value || '0.00'}</td>
                     <td style="text-align: right;">${totWht}</td>
                     <td style="text-align: right;">${totGst}</td>
                     <td style="text-align: right;">${totAdv}</td>
@@ -1590,7 +1590,7 @@ window.BRModule = {
         let finalHtml = '';
 
         if (mode === 'voucher') {
-            const isPosted = document.getElementById('br_posted_stamp').style.display !== 'none';
+            const isPosted = document.getElementById('br_posted_stamp') && document.getElementById('br_posted_stamp').style.display !== 'none';
             const stampHtml = isPosted ? `<div class="v-posted-stamp">POSTED</div>` : '';
             
             let vRowsHtml = '';
@@ -1618,8 +1618,8 @@ window.BRModule = {
             });
 
             // Debit Row 1: Bank Account (Cheque received amount)
-            const cashCode = document.getElementById('br_cash_code').value || '';
-            const cashName = document.getElementById('br_cash_name').value || '';
+            const cashCode = document.getElementById('br_cash_code')?.value || '';
+            const cashName = document.getElementById('br_cash_name')?.value || '';
             
             // Credit Row: Customer / Petty Account
             let custCode = '';
@@ -1627,8 +1627,8 @@ window.BRModule = {
             if (isPetty) {
                 custName = 'Petty Cash Account';
             } else {
-                custCode = document.getElementById('br_received_from_code').value || '';
-                custName = document.getElementById('br_received_from_name').value || '';
+                custCode = document.getElementById('br_received_from_code')?.value || '';
+                custName = document.getElementById('br_received_from_name')?.value || '';
             }
 
             vRowsHtml += `
