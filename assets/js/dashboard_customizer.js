@@ -86,7 +86,7 @@
             { id: 'customer_activity', label: 'Customer Activity' },
             { id: 'vendor_activity', label: 'Vendor Activity' },
             { id: 'raw_material_activity', label: 'Raw Material Activity (Bags / Kg)' },
-            { id: 'finished_goods_activity', label: 'Finished Goods Activity (Pipes / Fittings)' },
+            { id: 'finished_goods_activity', label: 'Finished Goods Activity (Kg)' },
             { id: 'inventory_alerts', label: 'Inventory Alerts' },
             { id: 'pos_activity', label: 'POS Activity' },
             { id: 'digital_activity', label: 'Digital Invoicing / FBR' }
@@ -602,17 +602,21 @@
 
             if (allowed.includes('finished_goods_activity')) {
                 const s = (window._cachedInventoryAlertSummary && window._cachedInventoryAlertSummary.finished_goods) || {};
-                const pipesText = s.pipes_pcs !== undefined ? (s.pipes_pcs + ' Pcs') : '0 Pcs';
-                const ctnText = s.fittings_ctn !== undefined ? (s.fittings_ctn + ' Ctn') : '0 Ctn';
-                const prodText = s.today_produced !== undefined ? (s.today_produced + ' Pcs') : '0 Pcs';
+                const pipesKgText = (s.pipes_kg !== undefined ? Number(s.pipes_kg).toLocaleString('en-US') : (s.pipes_pcs || 0)) + ' Kg';
+                const ctnKgText = (s.fittings_kg !== undefined ? Number(s.fittings_kg).toLocaleString('en-US') : (s.fittings_ctn || 0)) + ' Kg';
+                const prodKgText = (s.today_produced_kg !== undefined ? Number(s.today_produced_kg).toLocaleString('en-US') : (s.today_produced || 0)) + ' Kg';
+                const totalKgText = (s.total_fg_kg !== undefined ? Number(s.total_fg_kg).toLocaleString('en-US') : ((s.pipes_kg || 0) + (s.fittings_kg || 0))) + ' Kg';
                 const currency = (window.globalCurrencySymbol || 'Rs.') + ' ';
                 const valText = s.valuation !== undefined ? (currency + parseFloat(s.valuation).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : 'Rs. 0';
                 html += `
                     <div class="summary-card" id="finishedGoodsCard" data-summary-id="finished_goods_activity" onclick="window.openFinishedGoodsReport()" style="cursor: pointer;" title="Click to view Finished Goods stock ledger">
-                        <h4><i class="fas fa-boxes" style="color:#0284c7;"></i> Finished Goods Activity</h4>
-                        <div class="summary-row"><span>Pipes Stock:</span> <span class="value" id="summaryFgPipesPcs">${pipesText}</span></div>
-                        <div class="summary-row"><span>Fittings Stock:</span> <span class="value" id="summaryFgFittingsCtn">${ctnText}</span></div>
-                        <div class="summary-row"><span>Today Produced:</span> <span class="value" id="summaryFgProducedToday">${prodText}</span></div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <h4 style="margin: 0;"><i class="fas fa-boxes" style="color:#0284c7;"></i> Finished Goods Activity</h4>
+                            <span id="summaryFgTotalKg" style="font-size: 11px; font-weight: 700; color: #1e293b; background: #e2e8f0; padding: 2px 7px; border-radius: 10px;">${totalKgText}</span>
+                        </div>
+                        <div class="summary-row"><span>Pipes Stock:</span> <span class="value" id="summaryFgPipesPcs">${pipesKgText}</span></div>
+                        <div class="summary-row"><span>Fittings Stock:</span> <span class="value" id="summaryFgFittingsCtn">${ctnKgText}</span></div>
+                        <div class="summary-row"><span>Today Produced:</span> <span class="value" id="summaryFgProducedToday">${prodKgText}</span></div>
                         <div class="summary-row"><span>Stock Value:</span> <span class="value money" id="summaryFgValuation">${valText}</span></div>
                     </div>
                 `;
@@ -819,15 +823,33 @@
                     }
                 }
 
-                // Update Finished Goods Activity Card
+                // Update Finished Goods Activity Card (In KG)
                 if (s.finished_goods) {
                     const fg = s.finished_goods;
                     const fgPipes = document.getElementById('summaryFgPipesPcs');
-                    if (fgPipes) fgPipes.textContent = (fg.pipes_pcs || 0) + ' Pcs';
+                    const pKg = fg.pipes_kg !== undefined ? fg.pipes_kg : (fg.pipes_pcs || 0);
+                    if (fgPipes) {
+                        fgPipes.textContent = Number(pKg).toLocaleString('en-US') + ' Kg';
+                        if (typeof window.applyValueColor === 'function') window.applyValueColor(fgPipes, pKg);
+                    }
                     const fgCtn = document.getElementById('summaryFgFittingsCtn');
-                    if (fgCtn) fgCtn.textContent = (fg.fittings_ctn || 0) + ' Ctn';
+                    const fKg = fg.fittings_kg !== undefined ? fg.fittings_kg : (fg.fittings_ctn || 0);
+                    if (fgCtn) {
+                        fgCtn.textContent = Number(fKg).toLocaleString('en-US') + ' Kg';
+                        if (typeof window.applyValueColor === 'function') window.applyValueColor(fgCtn, fKg);
+                    }
                     const fgProd = document.getElementById('summaryFgProducedToday');
-                    if (fgProd) fgProd.textContent = (fg.today_produced || 0) + ' Pcs';
+                    const prKg = fg.today_produced_kg !== undefined ? fg.today_produced_kg : (fg.today_produced || 0);
+                    if (fgProd) {
+                        fgProd.textContent = Number(prKg).toLocaleString('en-US') + ' Kg';
+                        if (typeof window.applyValueColor === 'function') window.applyValueColor(fgProd, prKg);
+                    }
+                    const fgTot = document.getElementById('summaryFgTotalKg');
+                    const tKg = fg.total_fg_kg !== undefined ? fg.total_fg_kg : ((fg.pipes_kg || 0) + (fg.fittings_kg || 0));
+                    if (fgTot) {
+                        fgTot.textContent = Number(tKg).toLocaleString('en-US') + ' Kg';
+                        if (typeof window.applyValueColor === 'function') window.applyValueColor(fgTot, tKg);
+                    }
                     const fgVal = document.getElementById('summaryFgValuation');
                     if (fgVal) {
                         const fgv = fg.valuation || 0;

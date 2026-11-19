@@ -294,10 +294,13 @@
                     </div>
 
                     <div class="summary-card" id="finishedGoodsCard" onclick="window.openFinishedGoodsReport()" style="cursor: pointer;" title="Click to view Finished Goods stock ledger">
-                        <h4><i class="fas fa-boxes" style="color:#0284c7;"></i> Finished Goods Activity</h4>
-                        <div class="summary-row"><span>Pipes Stock:</span> <span class="value" id="summaryFgPipesPcs">0 Pcs</span></div>
-                        <div class="summary-row"><span>Fittings Stock:</span> <span class="value" id="summaryFgFittingsCtn">0 Ctn</span></div>
-                        <div class="summary-row"><span>Today Produced:</span> <span class="value" id="summaryFgProducedToday">0 Pcs</span></div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <h4 style="margin: 0;"><i class="fas fa-boxes" style="color:#0284c7;"></i> Finished Goods Activity</h4>
+                            <span id="summaryFgTotalKg" style="font-size: 11px; font-weight: 700; color: #1e293b; background: #e2e8f0; padding: 2px 7px; border-radius: 10px;">0 Kg</span>
+                        </div>
+                        <div class="summary-row"><span>Pipes Stock:</span> <span class="value" id="summaryFgPipesPcs">0 Kg</span></div>
+                        <div class="summary-row"><span>Fittings Stock:</span> <span class="value" id="summaryFgFittingsCtn">0 Kg</span></div>
+                        <div class="summary-row"><span>Today Produced:</span> <span class="value" id="summaryFgProducedToday">0 Kg</span></div>
                         <div class="summary-row"><span>Stock Value:</span> <span class="value money" id="summaryFgValuation">Rs. 0</span></div>
                     </div>
 
@@ -324,14 +327,14 @@
         <div id="window-manager"></div>
     </div>
 
-    <script src="assets/js/app_v128.js?v=v69-negative-red"></script>
+    <script src="assets/js/app_v128.js?v=v70-fg-kg"></script>
     <script src="assets/js/inventory_price_settings.js?v=10"></script>
     <script src="assets/js/inventory_tax_rates.js?v=4"></script>
     <script src="assets/js/inventory_reorder_levels.js?v=3"></script>
     <script src="assets/js/inventory_cost_method.js?v=4"></script>
     <script src="assets/js/chart_of_services.js?v=8"></script>
-    <script src="assets/js/dashboard_customizer.js?v=9-negative-red"></script>
-    <script src="assets/js/app_v2.js?v=v170-negative-red"></script>
+    <script src="assets/js/dashboard_customizer.js?v=10-fg-kg"></script>
+    <script src="assets/js/app_v2.js?v=v171-fg-kg"></script>
     <script src="assets/js/voucher_preferences.js?v=1"></script>
     <script src="assets/js/inventory_movement_settings.js?v=2"></script>
     <script src="assets/js/jobs.js?v=6"></script>

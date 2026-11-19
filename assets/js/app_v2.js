@@ -617,15 +617,33 @@ document.addEventListener('click', function(e) {
                 }
             }
 
-            // Finished Goods Activity Card
+            // Finished Goods Activity Card (In KG)
             if (summary.finished_goods) {
                 const fg = summary.finished_goods;
                 const fgPipes = document.getElementById('summaryFgPipesPcs');
-                if (fgPipes) fgPipes.textContent = (fg.pipes_pcs || 0) + ' Pcs';
+                const pKg = fg.pipes_kg !== undefined ? fg.pipes_kg : (fg.pipes_pcs || 0);
+                if (fgPipes) {
+                    fgPipes.textContent = Number(pKg).toLocaleString('en-US') + ' Kg';
+                    if (typeof window.applyValueColor === 'function') window.applyValueColor(fgPipes, pKg);
+                }
                 const fgCtn = document.getElementById('summaryFgFittingsCtn');
-                if (fgCtn) fgCtn.textContent = (fg.fittings_ctn || 0) + ' Ctn';
+                const fKg = fg.fittings_kg !== undefined ? fg.fittings_kg : (fg.fittings_ctn || 0);
+                if (fgCtn) {
+                    fgCtn.textContent = Number(fKg).toLocaleString('en-US') + ' Kg';
+                    if (typeof window.applyValueColor === 'function') window.applyValueColor(fgCtn, fKg);
+                }
                 const fgProd = document.getElementById('summaryFgProducedToday');
-                if (fgProd) fgProd.textContent = (fg.today_produced || 0) + ' Pcs';
+                const prKg = fg.today_produced_kg !== undefined ? fg.today_produced_kg : (fg.today_produced || 0);
+                if (fgProd) {
+                    fgProd.textContent = Number(prKg).toLocaleString('en-US') + ' Kg';
+                    if (typeof window.applyValueColor === 'function') window.applyValueColor(fgProd, prKg);
+                }
+                const fgTot = document.getElementById('summaryFgTotalKg');
+                const tKg = fg.total_fg_kg !== undefined ? fg.total_fg_kg : ((fg.pipes_kg || 0) + (fg.fittings_kg || 0));
+                if (fgTot) {
+                    fgTot.textContent = Number(tKg).toLocaleString('en-US') + ' Kg';
+                    if (typeof window.applyValueColor === 'function') window.applyValueColor(fgTot, tKg);
+                }
                 const fgVal = document.getElementById('summaryFgValuation');
                 if (fgVal) {
                     fgVal.textContent = curr + parseFloat(fg.valuation || 0).toLocaleString('en-US', {

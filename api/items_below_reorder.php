@@ -121,6 +121,41 @@ function detectItemGroup($item) {
     return 'Others';
 }
 
+// Helper: Extract unit weight in KG for Pipes and Fittings
+function getItemUnitWeightKg($item) {
+    $unit = strtoupper(trim($item['unit'] ?? ''));
+    if ($unit === 'KG' || $unit === 'KGS') {
+        return 1.0;
+    }
+
+    $rawUw = trim(strval($item['unit_weight'] ?? ''));
+    if ($rawUw !== '' && $rawUw !== 'None' && $rawUw !== 'X') {
+        $clean = preg_replace('/[^0-9.]/', '', $rawUw);
+        $uw = floatval($clean);
+        if ($uw > 0) return $uw;
+    }
+
+    $qpp = floatval($item['qty_per_piece'] ?? 0);
+    if ($qpp > 0) return $qpp;
+
+    $name = strval($item['item_name'] ?? ($item['name'] ?? ''));
+    if (preg_match('/(\d+(?:\.\d+)?)\s*kg/i', $name, $m)) {
+        $val = floatval($m[1]);
+        if ($val > 0) return $val;
+    }
+
+    // Heuristics for fittings by size if not specified
+    $nameUpper = strtoupper($name);
+    if (strpos($nameUpper, '4"') !== false || strpos($nameUpper, '4 INCH') !== false || strpos($nameUpper, '110') !== false) return 0.400;
+    if (strpos($nameUpper, '3"') !== false || strpos($nameUpper, '3 INCH') !== false || strpos($nameUpper, '90') !== false) return 0.300;
+    if (strpos($nameUpper, '2"') !== false || strpos($nameUpper, '2 INCH') !== false || strpos($nameUpper, '63') !== false) return 0.200;
+    if (strpos($nameUpper, '1.5"') !== false || strpos($nameUpper, '1-1/2') !== false) return 0.150;
+    if (strpos($nameUpper, '1.25"') !== false || strpos($nameUpper, '1-1/4') !== false) return 0.125;
+    if (strpos($nameUpper, '1"') !== false || strpos($nameUpper, '1 INCH') !== false) return 0.100;
+
+    return 0.0;
+}
+
 // 1. GET ALERTS (Summary & Alert Items for Main Dashboard)
 if ($action === 'get_alerts') {
     try {
@@ -172,6 +207,8 @@ if ($action === 'get_alerts') {
         $pipesKg = 0.0;
         $fittingsCtn = 0.0;
         $fittingsPcs = 0.0;
+        $fittingsKg = 0.0;
+        $otherFgKg = 0.0;
         $fgValuation = 0.0;
 
         foreach ($allItems as $it) {
@@ -238,18 +275,41 @@ if ($action === 'get_alerts') {
                 ];
             } elseif ($grp === 'PVC Pipes') {
                 $pipesPcs += $bal;
-                $pWeight = floatval($it['unit_weight'] ?: ($it['qty_per_piece'] ?: 0));
-                $pipesKg += ($bal * $pWeight);
+                $pWeight = getItemUnitWeightKg($it);
+                $uStr = strtoupper(trim($it['unit'] ?? ''));
+                if ($uStr === 'KG' || $uStr === 'KGS') {
+                    $pipesKg += $bal;
+                } elseif ($pWeight > 0) {
+                    $pipesKg += ($bal * $pWeight);
+                } else {
+                    $pipesKg += $bal;
+                }
                 if ($bal > 0) $fgValuation += ($bal * $cost);
             } elseif ($grp === 'Fittings') {
                 $pcsPerCtn = floatval($it['carton'] ?: ($it['qty_per_piece'] ?: 1));
                 if ($pcsPerCtn <= 0) $pcsPerCtn = 1;
                 $fittingsCtn += ($bal / $pcsPerCtn);
                 $fittingsPcs += $bal;
+                $fWeight = getItemUnitWeightKg($it);
+                $uStr = strtoupper(trim($it['unit'] ?? ''));
+                if ($uStr === 'KG' || $uStr === 'KGS') {
+                    $fittingsKg += $bal;
+                } elseif ($fWeight > 0) {
+                    $fittingsKg += ($bal * $fWeight);
+                } else {
+                    $fittingsKg += ($bal * 0.200);
+                }
                 if ($bal > 0) $fgValuation += ($bal * $cost);
             } else {
                 // Other finished goods
                 if ($bal > 0) $fgValuation += ($bal * $cost);
+                $oWeight = getItemUnitWeightKg($it);
+                $uStr = strtoupper(trim($it['unit'] ?? ''));
+                if ($uStr === 'KG' || $uStr === 'KGS') {
+                    $otherFgKg += $bal;
+                } elseif ($oWeight > 0) {
+                    $otherFgKg += ($bal * $oWeight);
+                }
             }
         }
 
@@ -261,7 +321,8 @@ if ($action === 'get_alerts') {
         // Today's Activity (Issued & Produced)
         $todayStr = date('Y-m-d');
         $todayRawIssued = 0.0;
-        $todayFgProduced = 0.0;
+        $todayFgProducedKg = 0.0;
+        $todayFgProducedPcs = 0.0;
 
         try {
             $stmt_tables = $pdo->query("SHOW TABLES");
@@ -289,15 +350,35 @@ if ($action === 'get_alerts') {
                 $sPnRaw->execute([$company_id, $todayStr]);
                 $todayRawIssued += floatval($sPnRaw->fetchColumn() ?: 0);
 
-                // 2. Today Finished Goods Produced
+                // 2. Today Finished Goods Produced (Calculated in true KG)
                 $sPnFg = $pdo->prepare("
-                    SELECT COALESCE(SUM(pni.qty), 0) 
+                    SELECT pni.qty, pni.pieces, i.unit, i.name as item_name,
+                           COALESCE(i.unit_weight, 0) as unit_weight,
+                           COALESCE(i.qty_per_piece, 0) as qty_per_piece,
+                           COALESCE(i.carton, 0) as carton
                     FROM production_note_items pni 
                     JOIN production_notes p ON pni.pn_id = p.id 
+                    JOIN inv_items i ON pni.item_id = i.id
                     WHERE p.company_id = ? AND p.is_cancelled = 0 AND pni.qty > 0 AND DATE(p.date) = ?
                 ");
                 $sPnFg->execute([$company_id, $todayStr]);
-                $todayFgProduced = floatval($sPnFg->fetchColumn() ?: 0);
+                $pnFgRows = $sPnFg->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($pnFgRows as $pRow) {
+                    $q = floatval($pRow['qty'] ?? 0);
+                    $pcs = floatval($pRow['pieces'] ?? 0);
+                    $u = strtoupper(trim($pRow['unit'] ?? ''));
+                    $uWt = getItemUnitWeightKg($pRow);
+
+                    $todayFgProducedPcs += ($q > 0) ? $q : $pcs;
+                    $wKg = $q;
+                    if ($u !== 'KG' && $u !== 'KGS') {
+                        $actualPcs = ($q > 0) ? $q : $pcs;
+                        if ($uWt > 0) {
+                            $wKg = $actualPcs * $uWt;
+                        }
+                    }
+                    $todayFgProducedKg += $wKg;
+                }
             }
         } catch(Exception $eActs) {}
 
@@ -307,6 +388,8 @@ if ($action === 'get_alerts') {
             if (!$a['is_out_of_stock'] && $b['is_out_of_stock']) return 1;
             return $a['balance'] <=> $b['balance'];
         });
+
+        $totalFgKg = $pipesKg + $fittingsKg + $otherFgKg;
 
         sendResponse([
             'status' => 'success',
@@ -328,7 +411,12 @@ if ($action === 'get_alerts') {
                     'pipes_kg' => round($pipesKg, 1),
                     'fittings_ctn' => round($fittingsCtn, 0),
                     'fittings_pcs' => round($fittingsPcs, 0),
-                    'today_produced' => round($todayFgProduced, 0),
+                    'fittings_kg' => round($fittingsKg, 1),
+                    'today_produced' => round($todayFgProducedKg, 1),
+                    'today_produced_kg' => round($todayFgProducedKg, 1),
+                    'today_produced_pcs' => round($todayFgProducedPcs, 0),
+                    'total_kg' => round($totalFgKg, 1),
+                    'total_fg_kg' => round($totalFgKg, 1),
                     'valuation' => round($fgValuation, 2)
                 ]
             ],
