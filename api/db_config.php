@@ -42,8 +42,8 @@ loadEnv(__DIR__ . '/.env');
 // Smart Domain / Host Detection Fallback for Multi-Site Deployment
 $httpHost = strtolower($_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? ''));
 
-$defaultDb   = 'u245697138_forupdates';
-$defaultUser = 'u245697138_forupdates';
+$defaultDb   = 'u245697138_madrasa';
+$defaultUser = 'u245697138_madrasa';
 $defaultPass = 'Suhailahmad123@';
 
 if (strpos($httpHost, 'orchid-salmon') !== false || strpos($httpHost, 'madrasa') !== false) {
