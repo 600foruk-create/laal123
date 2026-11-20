@@ -587,3 +587,4 @@
     window.MonthlyClosingModule = MonthlyClosingModule;
 
 })(window);
+

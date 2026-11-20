@@ -606,3 +606,4 @@ switch ($action) {
         sendResponse(['status' => 'error', 'message' => 'Invalid action specified']);
         break;
 }
+
