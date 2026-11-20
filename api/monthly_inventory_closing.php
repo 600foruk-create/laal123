@@ -51,6 +51,17 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
         return $asOfDate ? " AND DATE($col) <= '$asOfDate'" : "";
     };
 
+    // Movement Preferences
+    $inv_move_in = 'purchases';
+    $inv_move_out = 'sale_invoices';
+    try {
+        $stmtSet = $pdo->prepare("SELECT setting_key, setting_value FROM settings WHERE company_id = ? AND setting_key IN ('inv_move_in', 'inv_move_out')");
+        $stmtSet->execute([$company_id]);
+        $sRows = $stmtSet->fetchAll(PDO::FETCH_KEY_PAIR);
+        if (!empty($sRows['inv_move_in'])) $inv_move_in = $sRows['inv_move_in'];
+        if (!empty($sRows['inv_move_out'])) $inv_move_out = $sRows['inv_move_out'];
+    } catch(Exception $e) {}
+
     // 1. Opening Balances
     $obMap = [];
     if (in_array("inv_opening_balances", $existing)) {
@@ -58,21 +69,53 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
         while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $obMap[$r['item_id']] = floatval($r['qty']); }
     }
 
-    // 2. Purchases (+)
+    // 2. Purchases (+) / Inward Gate Passes (+)
     $piMap = [];
     $piRateMap = [];
+
+    // Calculate Purchase Rates (always useful for Weighted Avg Valuation)
     if (in_array("purchase_invoices", $existing) && in_array("purchase_invoice_items", $existing)) {
-        $sql = "SELECT pii.item_coa_id as item_id, COALESCE(SUM(pii.quantity), 0) as qty, COALESCE(SUM(pii.amount), 0) as total_amt 
-                FROM purchase_invoice_items pii 
-                JOIN purchase_invoices p ON pii.invoice_id = p.id 
-                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 " . $dateCond('p.date') . " 
-                GROUP BY pii.item_coa_id";
-        $q = $pdo->query($sql);
-        while ($r = $q->fetch(PDO::FETCH_ASSOC)) { 
+        $sqlRate = "SELECT pii.item_coa_id as item_id, 
+                           COALESCE(SUM(pii.quantity), 0) as qty, 
+                           COALESCE(SUM(COALESCE(pii.net_amount, pii.quantity * pii.rate)), 0) as total_amt 
+                    FROM purchase_invoice_items pii 
+                    JOIN purchase_invoices p ON pii.invoice_id = p.id 
+                    WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 " . $dateCond('p.invoice_date') . " 
+                    GROUP BY pii.item_coa_id";
+        $qRate = $pdo->query($sqlRate);
+        while ($r = $qRate->fetch(PDO::FETCH_ASSOC)) {
             $qty = floatval($r['qty']);
             $amt = floatval($r['total_amt']);
-            $piMap[$r['item_id']] = $qty; 
-            if ($qty > 0) $piRateMap[$r['item_id']] = $amt / $qty;
+            if ($qty > 0 && $amt > 0) {
+                $piRateMap[$r['item_id']] = $amt / $qty;
+            }
+        }
+    }
+
+    // Inward stock quantity
+    if ($inv_move_in === 'purchases') {
+        if (in_array("purchase_invoices", $existing) && in_array("purchase_invoice_items", $existing)) {
+            $sql = "SELECT pii.item_coa_id as item_id, COALESCE(SUM(pii.quantity), 0) as qty 
+                    FROM purchase_invoice_items pii 
+                    JOIN purchase_invoices p ON pii.invoice_id = p.id 
+                    WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 " . $dateCond('p.invoice_date') . " 
+                    GROUP BY pii.item_coa_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) { 
+                $piMap[$r['item_id']] = floatval($r['qty']); 
+            }
+        }
+    } elseif ($inv_move_in === 'gate_pass') {
+        if (in_array("inward_gate_passes", $existing) && in_array("inward_gate_pass_items", $existing)) {
+            $sql = "SELECT igpi.item_id, COALESCE(SUM(igpi.qty), 0) as qty 
+                    FROM inward_gate_pass_items igpi 
+                    JOIN inward_gate_passes p ON igpi.igp_id = p.id 
+                    WHERE p.company_id = $company_id AND p.is_cancelled = 0 " . $dateCond('p.date') . " 
+                    GROUP BY igpi.item_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) { 
+                $piMap[$r['item_id']] = floatval($r['qty']); 
+            }
         }
     }
 
@@ -82,22 +125,44 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
         $sql = "SELECT pri.item_coa_id as item_id, COALESCE(SUM(pri.quantity), 0) as qty 
                 FROM purchase_return_items pri 
                 JOIN purchase_returns p ON pri.return_id = p.id 
-                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 " . $dateCond('p.date') . " 
+                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 " . $dateCond('p.return_date') . " 
                 GROUP BY pri.item_coa_id";
         $q = $pdo->query($sql);
         while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $prMap[$r['item_id']] = floatval($r['qty']); }
     }
 
-    // 4. Sale Invoices (-)
+    // 4. Outward Movements (-) (Sale Invoices / Delivery Challans / Outward Gate Passes)
     $siMap = [];
-    if (in_array("sale_invoices", $existing) && in_array("sale_invoice_items", $existing)) {
-        $sql = "SELECT sii.item_coa_id as item_id, COALESCE(SUM(sii.quantity), 0) as qty 
-                FROM sale_invoice_items sii 
-                JOIN sale_invoices s ON sii.invoice_id = s.id 
-                WHERE s.company_id = $company_id AND s.is_cancelled = 0 " . $dateCond('s.date') . " 
-                GROUP BY sii.item_coa_id";
-        $q = $pdo->query($sql);
-        while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $siMap[$r['item_id']] = floatval($r['qty']); }
+    if ($inv_move_out === 'sale_invoices') {
+        if (in_array("sale_invoices", $existing) && in_array("sale_invoice_items", $existing)) {
+            $sql = "SELECT sii.item_coa_id as item_id, COALESCE(SUM(sii.quantity), 0) as qty 
+                    FROM sale_invoice_items sii 
+                    JOIN sale_invoices s ON sii.invoice_id = s.id 
+                    WHERE s.company_id = $company_id AND s.is_cancelled = 0 AND s.is_posted = 1 " . $dateCond('s.invoice_date') . " 
+                    GROUP BY sii.item_coa_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $siMap[$r['item_id']] = floatval($r['qty']); }
+        }
+    } elseif ($inv_move_out === 'delivery_challans') {
+        if (in_array("delivery_challans", $existing) && in_array("delivery_challan_items", $existing)) {
+            $sql = "SELECT dci.item_id, COALESCE(SUM(dci.qty), 0) as qty 
+                    FROM delivery_challan_items dci 
+                    JOIN delivery_challans s ON dci.challan_id = s.id 
+                    WHERE s.company_id = $company_id AND s.is_cancelled = 0 " . $dateCond('s.date') . " 
+                    GROUP BY dci.item_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $siMap[$r['item_id']] = floatval($r['qty']); }
+        }
+    } elseif ($inv_move_out === 'gate_pass') {
+        if (in_array("outward_gate_passes", $existing) && in_array("outward_gate_pass_items", $existing)) {
+            $sql = "SELECT ogpi.item_id, COALESCE(SUM(ogpi.qty), 0) as qty 
+                    FROM outward_gate_pass_items ogpi 
+                    JOIN outward_gate_passes s ON ogpi.ogp_id = s.id 
+                    WHERE s.company_id = $company_id AND s.is_cancelled = 0 " . $dateCond('s.date') . " 
+                    GROUP BY ogpi.item_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $siMap[$r['item_id']] = floatval($r['qty']); }
+        }
     }
 
     // 5. Sale Returns (+)
@@ -106,7 +171,7 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
         $sql = "SELECT sri.item_coa_id as item_id, COALESCE(SUM(sri.quantity), 0) as qty 
                 FROM sale_return_items sri 
                 JOIN sale_returns s ON sri.return_id = s.id 
-                WHERE s.company_id = $company_id AND s.is_cancelled = 0 " . $dateCond('s.date') . " 
+                WHERE s.company_id = $company_id AND s.is_cancelled = 0 AND s.is_posted = 1 " . $dateCond('s.return_date') . " 
                 GROUP BY sri.item_coa_id";
         $q = $pdo->query($sql);
         while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $srMap[$r['item_id']] = floatval($r['qty']); }
@@ -142,22 +207,33 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
         $sql = "SELECT mii.item_id, COALESCE(SUM(mii.qty), 0) as qty 
                 FROM material_issue_note_items mii 
                 JOIN material_issue_notes m ON mii.min_id = m.id 
-                WHERE m.company_id = $company_id AND m.is_cancelled = 0 " . $dateCond('m.date') . " 
+                WHERE m.company_id = $company_id AND m.is_cancelled = 0 AND m.is_posted = 1 " . $dateCond('m.date') . " 
                 GROUP BY mii.item_id";
         $q = $pdo->query($sql);
         while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $minMap[$r['item_id']] = floatval($r['qty']); }
     }
 
-    // 9. Production Notes (Finished Goods Produced: + ; Raw Consumed: -)
-    $pnMap = [];
+    // 9. Production Notes (Finished Goods Output: + ; Raw Consumed: -)
+    $pnInMap = [];
+    $pnOutMap = [];
     if (in_array("production_notes", $existing) && in_array("production_note_items", $existing)) {
-        $sql = "SELECT pni.item_id, COALESCE(SUM(pni.qty), 0) as qty 
-                FROM production_note_items pni 
-                JOIN production_notes p ON pni.pn_id = p.id 
-                WHERE p.company_id = $company_id AND p.is_cancelled = 0 " . $dateCond('p.date') . " 
-                GROUP BY pni.item_id";
-        $q = $pdo->query($sql);
-        while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $pnMap[$r['item_id']] = floatval($r['qty']); }
+        // Produced items (qty > 0)
+        $sqlIn = "SELECT pni.item_id, COALESCE(SUM(pni.qty), 0) as qty 
+                  FROM production_note_items pni 
+                  JOIN production_notes p ON pni.pn_id = p.id 
+                  WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND pni.qty > 0 " . $dateCond('p.date') . " 
+                  GROUP BY pni.item_id";
+        $qIn = $pdo->query($sqlIn);
+        while ($r = $qIn->fetch(PDO::FETCH_ASSOC)) { $pnInMap[$r['item_id']] = floatval($r['qty']); }
+
+        // Consumed raw items (qty < 0)
+        $sqlOut = "SELECT pni.item_id, COALESCE(SUM(ABS(pni.qty)), 0) as qty 
+                   FROM production_note_items pni 
+                   JOIN production_notes p ON pni.pn_id = p.id 
+                   WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND pni.qty < 0 " . $dateCond('p.date') . " 
+                   GROUP BY pni.item_id";
+        $qOut = $pdo->query($sqlOut);
+        while ($r = $qOut->fetch(PDO::FETCH_ASSOC)) { $pnOutMap[$r['item_id']] = floatval($r['qty']); }
     }
 
     // Fetch all active items
@@ -186,9 +262,10 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
         $aia = $aiaMap[$id] ?? 0.0;
         $ria = $riaMap[$id] ?? 0.0;
         $min = $minMap[$id] ?? 0.0;
-        $pn = $pnMap[$id] ?? 0.0;
+        $pnIn = $pnInMap[$id] ?? 0.0;
+        $pnOut = $pnOutMap[$id] ?? 0.0;
 
-        $balance = $ob + $pi - $pr - $si + $sr + $aia - $ria - $min + $pn;
+        $balance = $ob + $pi - $pr - $si + $sr + $aia - $ria - $min + $pnIn - $pnOut;
 
         // Rate detection: Weighted avg purchase rate if exists, else item master purchase price
         $rate = $piRateMap[$id] ?? floatval($it['purchase_price']);
