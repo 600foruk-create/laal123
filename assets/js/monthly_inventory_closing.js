@@ -109,11 +109,17 @@
 
         updateKPIs: function() {
             let totSys = 0;
+            let totCtn = 0;
+            let totPcs = 0;
+            let totKgs = 0;
             let totPhys = 0;
             let totVal = 0;
 
             this.data.items.forEach(it => {
                 totSys += Number(it.system_stock) || 0;
+                totCtn += Number(it.system_stock_ctn) || 0;
+                totPcs += Number(it.system_stock_pcs) || 0;
+                totKgs += Number(it.system_stock_kgs) || 0;
                 totPhys += Number(it.physical_stock) || 0;
                 totVal += (Number(it.physical_stock) || 0) * (Number(it.avg_rate) || 0);
             });
@@ -122,12 +128,16 @@
 
             const kpiItems = document.getElementById('micKpiTotalItems');
             const kpiSys = document.getElementById('micKpiSystemStock');
+            const kpiUnits = document.getElementById('micKpiSystemUnits');
             const kpiPhys = document.getElementById('micKpiPhysicalStock');
             const kpiVar = document.getElementById('micKpiTotalVariance');
             const kpiVal = document.getElementById('micKpiStockValuation');
 
             if (kpiItems) kpiItems.textContent = this.data.items.length;
             if (kpiSys) kpiSys.textContent = Number(totSys).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (kpiUnits) {
+                kpiUnits.textContent = `CTN: ${Number(totCtn).toLocaleString('en-US', {maximumFractionDigits: 1})} | PCS: ${Number(totPcs).toLocaleString('en-US', {maximumFractionDigits: 0})} | KGS: ${Number(totKgs).toLocaleString('en-US', {maximumFractionDigits: 1})}`;
+            }
             if (kpiPhys) kpiPhys.textContent = Number(totPhys).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             
             if (kpiVar) {
@@ -149,13 +159,17 @@
             const isClosed = this.data.isClosed;
 
             if (this.data.items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 30px; color: #94a3b8;">No inventory items recorded in system</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; padding: 30px; color: #94a3b8;">No inventory items recorded in system</td></tr>`;
                 return;
             }
 
             let rows = '';
             this.data.items.forEach((it, idx) => {
                 const sysQty = Number(it.system_stock) || 0;
+                const sysCtn = Number(it.system_stock_ctn) || 0;
+                const sysPcs = Number(it.system_stock_pcs) || 0;
+                const sysKgs = Number(it.system_stock_kgs) || 0;
+
                 const physQty = (it.physical_stock !== undefined) ? Number(it.physical_stock) : sysQty;
                 const rate = Number(it.avg_rate) || 0;
                 const diff = Number((physQty - sysQty).toFixed(2));
@@ -176,25 +190,44 @@
                     ? 'background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569;' 
                     : 'background: #fff; border: 1.5px solid #0284c7; color: #0f172a; box-shadow: 0 0 0 1px rgba(2,132,199,0.1);';
 
+                const ctnDisplay = (sysCtn !== 0) ? sysCtn.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) : '<span style="color:#cbd5e1;">-</span>';
+                const pcsDisplay = (sysPcs !== 0) ? sysPcs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '<span style="color:#cbd5e1;">-</span>';
+                const kgsDisplay = (sysKgs !== 0) ? sysKgs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '<span style="color:#cbd5e1;">-</span>';
+
                 rows += `
                     <tr id="micRow_${idx}" class="mic-item-row" data-group="${it.group}" data-code="${(it.code || '').toLowerCase()}" data-name="${(it.name || '').toLowerCase()}" data-diff="${diff}" style="border-bottom: 1px solid #f1f5f9; ${rowBg}">
-                        <td style="padding: 5px 8px; text-align: center; color: #64748b;">${idx + 1}</td>
-                        <td style="padding: 5px 8px; font-weight: 700; color: #334155;">${it.code || '-'}</td>
-                        <td style="padding: 5px 8px; font-weight: 600; color: #1e293b;">${it.name}</td>
-                        <td style="padding: 5px 8px; color: #475569;">
+                        <td style="padding: 5px 6px; text-align: center; color: #64748b; border-right: 1px solid #f1f5f9;">${idx + 1}</td>
+                        <td style="padding: 5px 8px; font-weight: 700; color: #334155; border-right: 1px solid #f1f5f9;">${it.code || '-'}</td>
+                        <td style="padding: 5px 8px; font-weight: 600; color: #1e293b; border-right: 1px solid #f1f5f9;">${it.name}</td>
+                        <td style="padding: 5px 8px; color: #475569; border-right: 1px solid #f1f5f9;">
                             <span style="font-size: 10.5px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${it.group}</span>
                         </td>
-                        <td style="padding: 5px 8px; text-align: center; color: #64748b;">${it.unit}</td>
-                        <td style="padding: 5px 8px; text-align: right; color: #475569;">${rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td style="padding: 5px 8px; text-align: right; font-weight: 700; color: #0284c7; background: #f8fafc;">
-                            ${sysQty.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <td style="padding: 5px 6px; text-align: center; color: #64748b; border-right: 1px solid #f1f5f9;">${it.unit}</td>
+                        <td style="padding: 5px 8px; text-align: right; color: #475569; border-right: 1px solid #f1f5f9;">${rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        
+                        <!-- 3 Multi-Unit System Stock Columns -->
+                        <td style="padding: 5px 6px; text-align: right; font-weight: 600; color: #0369a1; background: #f8fafc; border-right: 1px solid #f1f5f9;">
+                            ${ctnDisplay}
                         </td>
-                        <td style="padding: 3px 8px; text-align: right;">
-                            <input type="number" step="0.01" class="mic-phys-input" value="${physQty}" ${inputDisabled}
-                                oninput="window.MonthlyClosingModule.onPhysicalChange(${idx}, this.value)"
-                                style="width: 100px; padding: 3px 6px; text-align: right; font-size: 11.5px; font-weight: 700; border-radius: 4px; outline: none; ${inputStyle}">
+                        <td style="padding: 5px 6px; text-align: right; font-weight: 600; color: #0284c7; background: #f8fafc; border-right: 1px solid #f1f5f9;">
+                            ${pcsDisplay}
                         </td>
-                        <td id="micCellDiff_${idx}" style="padding: 5px 8px; text-align: right;">
+                        <td style="padding: 5px 6px; text-align: right; font-weight: 700; color: #0369a1; background: #f0f9ff; border-right: 1.5px solid #bae6fd;">
+                            ${kgsDisplay}
+                        </td>
+
+                        <!-- Physical Count Input -->
+                        <td style="padding: 3px 8px; text-align: right; border-right: 1px solid #f1f5f9; background: #fffdf5;">
+                            <div style="display: inline-flex; align-items: center; gap: 4px;">
+                                <input type="number" step="0.01" class="mic-phys-input" value="${physQty}" ${inputDisabled}
+                                    oninput="window.MonthlyClosingModule.onPhysicalChange(${idx}, this.value)"
+                                    style="width: 85px; padding: 3px 6px; text-align: right; font-size: 11.5px; font-weight: 700; border-radius: 4px; outline: none; ${inputStyle}">
+                                <span style="font-size: 10px; color: #854d0e; font-weight: 600;">${it.unit}</span>
+                            </div>
+                        </td>
+
+                        <!-- Variance & Closing Value -->
+                        <td id="micCellDiff_${idx}" style="padding: 5px 8px; text-align: right; border-right: 1px solid #f1f5f9;">
                             ${diffBadge}
                         </td>
                         <td id="micCellVal_${idx}" style="padding: 5px 8px; text-align: right; font-weight: 700; color: #15803d;">
@@ -502,18 +535,39 @@
 
             let printRows = '';
             items.forEach((it, idx) => {
+                const sysCtn = Number(it.system_stock_ctn) || 0;
+                const sysPcs = Number(it.system_stock_pcs) || 0;
+                const sysKgs = Number(it.system_stock_kgs) || 0;
+
+                const ctnStr = (sysCtn !== 0) ? sysCtn.toLocaleString('en-US', { maximumFractionDigits: 1 }) : '-';
+                const pcsStr = (sysPcs !== 0) ? sysPcs.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '-';
+                const kgsStr = (sysKgs !== 0) ? sysKgs.toLocaleString('en-US', { maximumFractionDigits: 1 }) : '-';
+
                 printRows += `
                     <tr>
-                        <td style="padding: 5px; text-align: center; border: 1px solid #cbd5e1;">${idx + 1}</td>
-                        <td style="padding: 5px; font-weight: 700; border: 1px solid #cbd5e1;">${it.code || '-'}</td>
-                        <td style="padding: 5px; border: 1px solid #cbd5e1;">${it.name}</td>
-                        <td style="padding: 5px; border: 1px solid #cbd5e1;">${it.group}</td>
-                        <td style="padding: 5px; text-align: center; border: 1px solid #cbd5e1;">${it.unit}</td>
-                        <td style="padding: 5px; text-align: right; border: 1px solid #cbd5e1; font-weight: 700;">${Number(it.system_stock).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                        <td style="padding: 5px; text-align: center; border: 1px solid #cbd5e1; width: 140px;">
-                            <div style="border: 1px dashed #64748b; height: 22px; width: 120px; margin: 0 auto;"></div>
+                        <td style="padding: 4px; text-align: center; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                        <td style="padding: 4px 6px; font-weight: 700; border: 1px solid #cbd5e1;">${it.code || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #cbd5e1;">${it.name}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #cbd5e1;">${it.group}</td>
+                        <td style="padding: 4px; text-align: center; border: 1px solid #cbd5e1;">${it.unit}</td>
+                        
+                        <!-- Computer System Stock 3 Columns -->
+                        <td style="padding: 4px; text-align: right; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: 600;">${ctnStr}</td>
+                        <td style="padding: 4px; text-align: right; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: 600;">${pcsStr}</td>
+                        <td style="padding: 4px; text-align: right; border: 1px solid #cbd5e1; background: #f0f9ff; font-weight: 700;">${kgsStr}</td>
+                        
+                        <!-- Godown Count 3 Boxes -->
+                        <td style="padding: 3px; text-align: center; border: 1px solid #cbd5e1; width: 60px;">
+                            <div style="border: 1px dashed #64748b; height: 18px; width: 50px; margin: 0 auto;"></div>
                         </td>
-                        <td style="padding: 5px; border: 1px solid #cbd5e1; width: 100px;"></td>
+                        <td style="padding: 3px; text-align: center; border: 1px solid #cbd5e1; width: 60px;">
+                            <div style="border: 1px dashed #64748b; height: 18px; width: 50px; margin: 0 auto;"></div>
+                        </td>
+                        <td style="padding: 3px; text-align: center; border: 1px solid #cbd5e1; width: 70px;">
+                            <div style="border: 1px dashed #64748b; height: 18px; width: 60px; margin: 0 auto;"></div>
+                        </td>
+                        
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; width: 80px;"></td>
                     </tr>
                 `;
             });
@@ -524,22 +578,22 @@
                 <head>
                     <title>Physical Stock-Taking Count Sheet - ${pMonth}</title>
                     <style>
-                        body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                        th { background: #f1f5f9; padding: 6px; border: 1px solid #94a3b8; font-size: 11px; }
+                        body { font-family: Arial, sans-serif; font-size: 10.5px; margin: 15px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+                        th { background: #f1f5f9; padding: 5px; border: 1px solid #94a3b8; font-size: 10px; }
                         @media print {
-                            body { margin: 10mm; }
+                            body { margin: 8mm; }
                             button { display: none; }
                         }
                     </style>
                 </head>
                 <body>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0284c7; padding-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0284c7; padding-bottom: 8px;">
                         <div>
-                            <h2 style="margin: 0; color: #1e3a8a;">FACTORY PHYSICAL STOCK-TAKING COUNT SHEET</h2>
-                            <div style="font-size: 13px; font-weight: 700; color: #475569; margin-top: 3px;">Audit Period: ${pMonth}</div>
+                            <h2 style="margin: 0; color: #1e3a8a; font-size: 16px;">FACTORY PHYSICAL STOCK-TAKING COUNT SHEET (CTN / PCS / KGS)</h2>
+                            <div style="font-size: 12px; font-weight: 700; color: #475569; margin-top: 3px;">Audit Period: ${pMonth}</div>
                         </div>
-                        <div style="text-align: right; font-size: 11px; color: #64748b;">
+                        <div style="text-align: right; font-size: 10.5px; color: #64748b;">
                             <div>Print Date: ${new Date().toLocaleDateString('en-GB')}</div>
                             <div>Factory Location: Main Godown & Factory Floor</div>
                         </div>
@@ -547,21 +601,29 @@
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 30px;">#</th>
-                                <th style="width: 80px;">Item Code</th>
-                                <th>Item Description</th>
-                                <th style="width: 90px;">Category</th>
-                                <th style="width: 50px;">Unit</th>
-                                <th style="width: 90px;">Computer Qty</th>
-                                <th style="width: 140px;">Actual Physical Count</th>
-                                <th style="width: 100px;">Sign / Remarks</th>
+                                <th rowspan="2" style="width: 25px;">#</th>
+                                <th rowspan="2" style="width: 75px;">Item Code</th>
+                                <th rowspan="2">Item Description</th>
+                                <th rowspan="2" style="width: 80px;">Category</th>
+                                <th rowspan="2" style="width: 40px;">Unit</th>
+                                <th colspan="3" style="text-align: center; background: #e0f2fe; color: #0369a1;">Computer System Stock</th>
+                                <th colspan="3" style="text-align: center; background: #fefce8; color: #854d0e;">Godown Physical Count</th>
+                                <th rowspan="2" style="width: 80px;">Remarks</th>
+                            </tr>
+                            <tr style="font-size: 9.5px;">
+                                <th style="width: 50px; background: #f0f9ff;">CTN</th>
+                                <th style="width: 50px; background: #f0f9ff;">PCS</th>
+                                <th style="width: 65px; background: #e0f2fe;">KGS</th>
+                                <th style="width: 60px; background: #fef9c3;">CTN</th>
+                                <th style="width: 60px; background: #fef9c3;">PCS</th>
+                                <th style="width: 70px; background: #fef08a;">KGS</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${printRows}
                         </tbody>
                     </table>
-                    <div style="margin-top: 40px; display: flex; justify-content: space-between; font-weight: 700;">
+                    <div style="margin-top: 30px; display: flex; justify-content: space-between; font-weight: 700; font-size: 11px;">
                         <div>Counted By (Storekeeper): ____________________</div>
                         <div>Verified By (Factory Manager): ____________________</div>
                         <div>Approved By (Administrator): ____________________</div>

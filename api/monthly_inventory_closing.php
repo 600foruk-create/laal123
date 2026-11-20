@@ -283,6 +283,53 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
             $grp = 'Fittings';
         }
 
+        // Multi-Unit Conversion (CTN, PCS, KGS)
+        $pcsPerCtn = floatval($it['carton'] ?? 0);
+        if ($pcsPerCtn <= 0) $pcsPerCtn = floatval($it['qty_per_piece'] ?? 0);
+        $wtPerPc = floatval($it['unit_weight'] ?? 0);
+        if ($wtPerPc <= 0) $wtPerPc = floatval($it['qty_per_piece'] ?? 0);
+
+        $sysCtn = 0.0;
+        $sysPcs = 0.0;
+        $sysKgs = 0.0;
+
+        if ($grp === 'Fittings') {
+            $sysPcs = $balance;
+            if ($pcsPerCtn <= 0) {
+                $itemName = strtoupper($it['name']);
+                if (strpos($itemName, '2"') !== false) $pcsPerCtn = 100;
+                elseif (strpos($itemName, '3"') !== false) $pcsPerCtn = 50;
+                elseif (strpos($itemName, '4"') !== false) $pcsPerCtn = 30;
+                else $pcsPerCtn = 1;
+            }
+            if ($pcsPerCtn > 0) $sysCtn = round($balance / $pcsPerCtn, 2);
+            if ($wtPerPc > 0) $sysKgs = round($balance * $wtPerPc, 2);
+        } elseif ($grp === 'PVC Pipes') {
+            $u = strtolower($it['unit'] ?: '');
+            if (strpos($u, 'pc') !== false) {
+                $sysPcs = $balance;
+                if ($wtPerPc > 0) $sysKgs = round($balance * $wtPerPc, 2);
+            } else {
+                $sysKgs = $balance;
+                if ($wtPerPc > 0) $sysPcs = round($balance / $wtPerPc, 2);
+            }
+            if ($pcsPerCtn > 0 && $sysPcs != 0) $sysCtn = round($sysPcs / $pcsPerCtn, 2);
+        } elseif ($grp === 'Raw Material') {
+            $sysKgs = $balance;
+            $kgPerBag = $wtPerPc > 0 ? $wtPerPc : 25.0; // standard 25 kg bag
+            if ($kgPerBag > 0) $sysCtn = round($balance / $kgPerBag, 2);
+        } else {
+            $u = strtolower($it['unit'] ?: '');
+            if (strpos($u, 'kg') !== false) {
+                $sysKgs = $balance;
+                if ($pcsPerCtn > 0) $sysCtn = round($balance / $pcsPerCtn, 2);
+            } else {
+                $sysPcs = $balance;
+                if ($pcsPerCtn > 0) $sysCtn = round($balance / $pcsPerCtn, 2);
+                if ($wtPerPc > 0) $sysKgs = round($balance * $wtPerPc, 2);
+            }
+        }
+
         $results[] = [
             'item_id' => $id,
             'code' => $it['code'],
@@ -292,6 +339,11 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
             'main_category' => $it['main_category'] ?: '',
             'sub_category' => $it['sub_category'] ?: '',
             'system_stock' => round($balance, 2),
+            'system_stock_ctn' => round($sysCtn, 2),
+            'system_stock_pcs' => round($sysPcs, 2),
+            'system_stock_kgs' => round($sysKgs, 2),
+            'carton_size' => $pcsPerCtn,
+            'unit_weight' => $wtPerPc,
             'avg_rate' => round($rate, 2),
             'system_value' => round($balance * $rate, 2)
         ];
@@ -395,12 +447,18 @@ switch ($action) {
             $items = calculateInventorySnapshotAsOf($pdo, $company_id, $endDate);
 
             $totSys = 0.0;
+            $totCtn = 0.0;
+            $totPcs = 0.0;
+            $totKgs = 0.0;
             $totVal = 0.0;
             $rawKg = 0.0;
             $fgKg = 0.0;
 
             foreach ($items as &$it) {
                 $totSys += $it['system_stock'];
+                $totCtn += $it['system_stock_ctn'];
+                $totPcs += $it['system_stock_pcs'];
+                $totKgs += $it['system_stock_kgs'];
                 $totVal += $it['system_value'];
                 if ($it['group'] === 'Raw Material') $rawKg += $it['system_stock'];
                 if ($it['group'] === 'PVC Pipes' || $it['group'] === 'Fittings') $fgKg += $it['system_stock'];
@@ -420,6 +478,9 @@ switch ($action) {
                 'summary' => [
                     'total_items' => count($items),
                     'total_system_qty' => round($totSys, 2),
+                    'total_system_ctn' => round($totCtn, 2),
+                    'total_system_pcs' => round($totPcs, 2),
+                    'total_system_kgs' => round($totKgs, 2),
                     'total_physical_qty' => round($totSys, 2),
                     'total_variance_qty' => 0.0,
                     'total_stock_value' => round($totVal, 2),
@@ -519,6 +580,9 @@ switch ($action) {
                     'unit' => $it['unit'],
                     'group' => $it['group'],
                     'system_stock' => $sysQty,
+                    'system_stock_ctn' => $it['system_stock_ctn'] ?? 0,
+                    'system_stock_pcs' => $it['system_stock_pcs'] ?? 0,
+                    'system_stock_kgs' => $it['system_stock_kgs'] ?? 0,
                     'physical_stock' => $physQty,
                     'variance_qty' => $varQty,
                     'avg_rate' => $rate,
