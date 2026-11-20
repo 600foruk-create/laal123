@@ -70,6 +70,36 @@
         </div>
     </div>
 
+    <!-- Inventory Closing & Rollover Policy -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 11px; font-weight: 800; color: #1e3a8a; text-transform: uppercase;">
+            <i class="fas fa-calendar-check" style="color: #0284c7; margin-right: 4px;"></i> Inventory Closing & Rollover Policy
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 15px 20px; background: white;">
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: #475569;">
+                <input type="radio" name="invClosingPolicy" value="continuous" checked style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px;">
+                <div>
+                    <span style="font-weight: 700; color: #1e293b;">Continuous Live Stock (Default)</span>
+                    <div style="font-size: 11px; font-weight: normal; color: #64748b; margin-top: 2px;">Pehle se mojood continuous calculation: Stock baghair lock ke din-ba-din live update hota rahega.</div>
+                </div>
+            </label>
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: #475569;">
+                <input type="radio" name="invClosingPolicy" value="monthly" style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px;">
+                <div>
+                    <span style="font-weight: 700; color: #0284c7;"><i class="fas fa-check-double" style="margin-right: 4px;"></i> Monthly Stock Closing & Rollover (Recommended)</span>
+                    <div style="font-size: 11px; font-weight: normal; color: #64748b; margin-top: 2px;">Mahine ke aakhir me physical audit count, rate freeze aur agle mahine opening balance rollover.</div>
+                </div>
+            </label>
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: #475569;">
+                <input type="radio" name="invClosingPolicy" value="annual" style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px;">
+                <div>
+                    <span style="font-weight: 700; color: #475569;">Annual Closing Only</span>
+                    <div style="font-size: 11px; font-weight: normal; color: #64748b; margin-top: 2px;">Saalana closing policy: Saal ke aakhir me closing stock lock hoga.</div>
+                </div>
+            </label>
+        </div>
+    </div>
+
     <style>
         .inv-pref-btn {
             background: #ffffff;

@@ -2097,6 +2097,15 @@
                 body: JSON.stringify({ key: 'negative_stock_policy', value: negPolicy })
             });
 
+            // Save Inventory Closing & Rollover Policy
+            const closingPolicy = document.querySelector('input[name="sys_inv_closing_policy"]:checked')?.value || 'continuous';
+            localStorage.setItem('softifyx_inventory_closing_policy', closingPolicy);
+            await fetch('api/settings.php?action=save_setting&company_id=' + companyId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'inventory_closing_policy', value: closingPolicy })
+            });
+
             // Save Security & Modules
             await fetch('api/settings.php?action=save_global_setting', {
                 method: 'POST',
@@ -2441,6 +2450,17 @@
             localStorage.setItem('softifyx_negative_stock_policy', negVal);
             const rNeg = document.querySelector(`input[name="sys_negative_stock_policy"][value="${negVal}"]`);
             if (rNeg) rNeg.checked = true;
+
+            // Load Inventory Closing & Rollover Policy
+            const resClosePolicy = await fetch('api/settings.php?action=get_setting&key=inventory_closing_policy&company_id=' + companyId + '&_t=' + Date.now()).catch(() => null);
+            let closePolicyVal = localStorage.getItem('softifyx_inventory_closing_policy') || 'continuous';
+            if (resClosePolicy && resClosePolicy.ok) {
+                const dataClose = await resClosePolicy.json().catch(() => null);
+                if (dataClose && dataClose.value) closePolicyVal = dataClose.value;
+            }
+            localStorage.setItem('softifyx_inventory_closing_policy', closePolicyVal);
+            const rClosePolicy = document.querySelector(`input[name="sys_inv_closing_policy"][value="${closePolicyVal}"]`);
+            if (rClosePolicy) rClosePolicy.checked = true;
 
             // Load Sale Invoice Category Headers display setting
             const resCatH = await fetch('api/settings.php?action=get_setting&key=sale_invoice_show_category_headers&company_id=' + companyId + '&_t=' + Date.now()).catch(() => null);
