@@ -9608,6 +9608,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.checkUserRights = checkUserRights;
         
         function handleProfilePhotoClick() {
+            if (typeof window.openUserProfileModal === 'function') {
+                window.openUserProfileModal();
+                return;
+            }
             const hasPhoto = !!userProfilePhoto;
             const html = `
                 <div style="padding: 20px; text-align: center;">
