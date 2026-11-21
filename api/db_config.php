@@ -166,6 +166,110 @@ if (shouldRunMigration('user_login_sessions', 2)) {
     } catch (PDOException $e) {}
 }
 
+// Transaction Approvals Migration (Maker-Checker Workflow)
+if (shouldRunMigration('transaction_approvals', 1)) {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS transaction_approvals (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_id INT NOT NULL DEFAULT 1,
+            module_name VARCHAR(100) NOT NULL,
+            txn_type VARCHAR(50) NOT NULL DEFAULT 'INSERT',
+            record_id INT NOT NULL,
+            voucher_no VARCHAR(100) NOT NULL,
+            party_name VARCHAR(255) NULL,
+            amount DECIMAL(15, 2) DEFAULT 0.00,
+            txn_date DATE NOT NULL,
+            created_by_user_id INT NOT NULL,
+            created_by_username VARCHAR(100) NOT NULL,
+            approval_status VARCHAR(20) DEFAULT 'pending',
+            reviewed_by_user_id INT NULL,
+            reviewed_by_username VARCHAR(100) NULL,
+            reviewed_at DATETIME NULL,
+            rejection_reason TEXT NULL,
+            user_feedback TEXT NULL,
+            user_feedback_at DATETIME NULL,
+            notification_seen TINYINT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX (company_id),
+            INDEX (created_by_user_id),
+            INDEX (approval_status),
+            INDEX (txn_date),
+            INDEX (record_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    } catch (PDOException $e) {}
+}
+
+function recordApprovalQueueEntry($module, $action_type, $record_id, $record_title, $after_data = null) {
+    global $pdo;
+    
+    // Only track INSERT and UPDATE
+    if ($action_type !== 'INSERT' && $action_type !== 'UPDATE') {
+        return;
+    }
+    
+    $eligibleModules = [
+        'Sale Invoice', 'POS Sale', 'Purchase Invoice', 'Purchase Orders', 
+        'Purchase Returns', 'Purchase Return / Debit Note', 'Cash Payments', 
+        'Bank Payments', 'Cash Receipts', 'Bank Receipts', 'General Journal Voucher', 
+        'Sale Return', 'Sale Return/Credit Notes', 'Delivery Challans'
+    ];
+    
+    if (!in_array($module, $eligibleModules)) {
+        return;
+    }
+    
+    $company_id = $_SESSION['company_id'] ?? 1;
+    $user_id = intval($_SESSION['user_id'] ?? 0);
+    $username = $_SESSION['username'] ?? 'User';
+    $role = strtoupper($_SESSION['role'] ?? '');
+    
+    $isAdmin = ($username === 'Administrator' || $role === 'ADMIN' || $role === 'ADMINISTRATOR' || $user_id === 1);
+    $initialStatus = $isAdmin ? 'approved' : 'pending';
+    
+    $hdr = ($after_data && isset($after_data['header']) && is_array($after_data['header'])) ? $after_data['header'] : [];
+    
+    $txn_date = $hdr['date'] ?? ($hdr['invoice_date'] ?? ($hdr['payment_date'] ?? ($hdr['voucher_date'] ?? ($hdr['return_date'] ?? ($hdr['order_date'] ?? ($hdr['challan_date'] ?? date('Y-m-d')))))));
+    
+    $amount = 0.00;
+    if (isset($hdr['net_total'])) $amount = floatval($hdr['net_total']);
+    elseif (isset($hdr['total_amount'])) $amount = floatval($hdr['total_amount']);
+    elseif (isset($hdr['amount'])) $amount = floatval($hdr['amount']);
+    
+    $party_name = $hdr['customer_name'] ?? ($hdr['vendor_name'] ?? ($hdr['party_name'] ?? ($hdr['paid_to'] ?? ($hdr['received_from'] ?? ''))));
+    
+    try {
+        $chk = $pdo->prepare("SELECT id, approval_status FROM transaction_approvals WHERE company_id = ? AND module_name = ? AND record_id = ?");
+        $chk->execute([$company_id, $module, $record_id]);
+        $existing = $chk->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing) {
+            $newStatus = ($existing['approval_status'] === 'rejected') ? 'pending' : $existing['approval_status'];
+            $up = $pdo->prepare("UPDATE transaction_approvals SET 
+                txn_type = ?, 
+                voucher_no = ?, 
+                party_name = ?, 
+                amount = ?, 
+                txn_date = ?, 
+                approval_status = ?, 
+                updated_at = NOW() 
+                WHERE id = ?");
+            $up->execute([$action_type, $record_title, $party_name, $amount, $txn_date, $newStatus, $existing['id']]);
+        } else {
+            $ins = $pdo->prepare("INSERT INTO transaction_approvals (
+                company_id, module_name, txn_type, record_id, voucher_no, party_name, amount, txn_date, 
+                created_by_user_id, created_by_username, approval_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $ins->execute([
+                $company_id, $module, $action_type, $record_id, $record_title, $party_name, $amount, $txn_date,
+                $user_id, $username, $initialStatus
+            ]);
+        }
+    } catch (Exception $e) {
+        error_log("Approval Queue Error: " . $e->getMessage());
+    }
+}
+
 function logActivity($module, $action_type, $record_id, $record_title, $before_data = null, $after_data = null) {
     global $pdo;
     $company_id = $_SESSION['company_id'] ?? 1;
@@ -185,6 +289,9 @@ function logActivity($module, $action_type, $record_id, $record_title, $before_d
             $before_data ? json_encode($before_data, JSON_UNESCAPED_UNICODE) : null,
             $after_data ? json_encode($after_data, JSON_UNESCAPED_UNICODE) : null
         ]);
+
+        // Sync eligible vouchers/invoices to the Maker-Checker Approval Desk
+        recordApprovalQueueEntry($module, $action_type, $record_id, $record_title, $after_data);
 
         // Keep active session heartbeat updated
         if ($user_id > 0) {

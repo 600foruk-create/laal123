@@ -1,0 +1,404 @@
+<!-- Maker-Checker Approval Desk UI -->
+<div id="apprDeskContainer" style="display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 6px;">
+    <div class="component-header" style="flex-shrink: 0; margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+                <h2 style="margin: 0; color: #1e3a8a; font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-clipboard-check" style="color: #f59e0b;"></i> Maker-Checker Approval Desk
+                </h2>
+                <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">
+                    Review, approve, or reject vouchers and invoices posted by users with mandatory rejection reasons and audit logs.
+                </p>
+            </div>
+            
+            <!-- Quick Summary Badges -->
+            <div style="display: flex; gap: 10px;">
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 14px; text-align: center; cursor: pointer;" onclick="window.ApprovalDeskModule.setStatusFilter('pending')">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #b45309; font-weight: 700;">Pending Review</div>
+                    <div id="appr_stat_pending" style="font-size: 18px; font-weight: 800; color: #d97706;">0</div>
+                </div>
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 14px; text-align: center; cursor: pointer;" onclick="window.ApprovalDeskModule.setStatusFilter('approved')">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #166534; font-weight: 700;">Approved</div>
+                    <div id="appr_stat_approved" style="font-size: 18px; font-weight: 800; color: #15803d;">0</div>
+                </div>
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 6px 14px; text-align: center; cursor: pointer;" onclick="window.ApprovalDeskModule.setStatusFilter('rejected')">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #991b1b; font-weight: 700;">Rejected</div>
+                    <div id="appr_stat_rejected" style="font-size: 18px; font-weight: 800; color: #dc2626;">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Toolbar -->
+    <div style="flex-shrink: 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 12px; font-weight: 700; color: #334155;">Status:</span>
+            <div style="display: flex; background: #f1f5f9; padding: 2px; border-radius: 6px;">
+                <button type="button" class="appr-status-pill active" data-status="pending" onclick="window.ApprovalDeskModule.setStatusFilter('pending', this)" style="border: none; background: #d97706; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer;">Pending</button>
+                <button type="button" class="appr-status-pill" data-status="approved" onclick="window.ApprovalDeskModule.setStatusFilter('approved', this)" style="border: none; background: transparent; color: #475569; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;">Approved</button>
+                <button type="button" class="appr-status-pill" data-status="rejected" onclick="window.ApprovalDeskModule.setStatusFilter('rejected', this)" style="border: none; background: transparent; color: #475569; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;">Rejected</button>
+                <button type="button" class="appr-status-pill" data-status="all" onclick="window.ApprovalDeskModule.setStatusFilter('all', this)" style="border: none; background: transparent; color: #475569; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;">All History</button>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px; margin-left: 6px;">
+                <span style="font-size: 12px; font-weight: 700; color: #334155;">Module:</span>
+                <select id="appr_module_select" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: none;" onchange="window.ApprovalDeskModule.loadData()">
+                    <option value="all">-- All Modules --</option>
+                    <option value="Sale Invoice">Sale Invoice</option>
+                    <option value="POS Sale">POS Sale</option>
+                    <option value="Purchase Invoice">Purchase Invoice</option>
+                    <option value="Purchase Returns">Purchase Returns</option>
+                    <option value="Cash Payments">Cash Payments</option>
+                    <option value="Bank Payments">Bank Payments</option>
+                    <option value="Cash Receipts">Cash Receipts</option>
+                    <option value="Bank Receipts">Bank Receipts</option>
+                    <option value="General Journal Voucher">General Journal Voucher</option>
+                    <option value="Delivery Challans">Delivery Challans</option>
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px; margin-left: 6px;">
+                <span style="font-size: 12px; font-weight: 700; color: #334155;">User:</span>
+                <select id="appr_user_select" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: none;" onchange="window.ApprovalDeskModule.loadData()">
+                    <option value="">-- All Users --</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <button type="button" onclick="window.ApprovalDeskModule.loadData()" style="background: #0284c7; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Container -->
+    <div style="flex: 1; overflow-y: auto; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+                <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 10;">
+                    <th style="padding: 10px 12px; text-align: left; color: #475569;">#</th>
+                    <th style="padding: 10px 12px; text-align: left; color: #475569;">Date</th>
+                    <th style="padding: 10px 12px; text-align: left; color: #475569;">Voucher / Ref #</th>
+                    <th style="padding: 10px 12px; text-align: left; color: #475569;">Module</th>
+                    <th style="padding: 10px 12px; text-align: left; color: #475569;">Party / Account</th>
+                    <th style="padding: 10px 12px; text-align: right; color: #475569;">Amount</th>
+                    <th style="padding: 10px 12px; text-align: left; color: #475569;">Created By</th>
+                    <th style="padding: 10px 12px; text-align: center; color: #475569;">Status</th>
+                    <th style="padding: 10px 12px; text-align: center; color: #475569; width: 180px;">Action / Review</th>
+                </tr>
+            </thead>
+            <tbody id="appr_tbody">
+                <tr><td colspan="9" style="text-align: center; padding: 30px; color: #94a3b8;">Loading transactions...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Rejection Modal -->
+    <div id="appr_reject_modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; justify-content: center; align-items: center;">
+        <div style="background: white; border-radius: 10px; width: 90%; max-width: 520px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.25);">
+            <div style="background: #ef4444; color: white; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-times-circle"></i> Reject Transaction
+                </h3>
+                <button type="button" onclick="window.ApprovalDeskModule.closeRejectModal()" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">&times;</button>
+            </div>
+            <div style="padding: 18px;">
+                <div id="appr_reject_target_info" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; font-size: 12px; color: #991b1b;">
+                    <strong>Voucher:</strong> Loading...
+                </div>
+
+                <label style="display: block; font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+                    Rejection Reason (Mandatory):
+                </label>
+                <textarea id="appr_reject_reason" rows="3" placeholder="e.g. Incorrect rate, excessive quantity, supporting document missing, etc..." style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; font-size: 13px; outline: none; box-sizing: border-box; resize: vertical;"></textarea>
+
+                <div style="margin-top: 12px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #475569; cursor: pointer;">
+                        <input type="checkbox" id="appr_delete_source_chk" style="cursor: pointer;">
+                        <span>Permanently delete from database (Leave unchecked for safe unpost / financial reversal)</span>
+                    </label>
+                </div>
+            </div>
+            <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 10px 18px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="window.ApprovalDeskModule.closeRejectModal()" style="background: #e2e8f0; color: #334155; border: none; padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Cancel</button>
+                <button type="button" id="appr_confirm_reject_btn" onclick="window.ApprovalDeskModule.submitReject()" style="background: #ef4444; color: white; border: none; padding: 7px 20px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-times-circle"></i> Confirm Rejection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+window.ApprovalDeskModule = {
+    currentStatus: 'pending',
+    pendingItems: [],
+    targetRejectId: null,
+
+    init: function() {
+        this.loadData();
+    },
+
+    setStatusFilter: function(status, btn) {
+        this.currentStatus = status;
+        document.querySelectorAll('.appr-status-pill').forEach(b => {
+            b.style.background = 'transparent';
+            b.style.color = '#475569';
+            b.style.fontWeight = '600';
+        });
+
+        if (btn) {
+            btn.style.background = status === 'pending' ? '#d97706' : (status === 'approved' ? '#15803d' : '#0284c7');
+            btn.style.color = 'white';
+            btn.style.fontWeight = '700';
+        } else {
+            const activeBtn = document.querySelector(`.appr-status-pill[data-status="${status}"]`);
+            if (activeBtn) {
+                activeBtn.style.background = status === 'pending' ? '#d97706' : (status === 'approved' ? '#15803d' : '#0284c7');
+                activeBtn.style.color = 'white';
+                activeBtn.style.fontWeight = '700';
+            }
+        }
+        this.loadData();
+    },
+
+    loadData: async function() {
+        const tbody = document.getElementById('appr_tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: #94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+
+        const moduleSel = document.getElementById('appr_module_select');
+        const userSel = document.getElementById('appr_user_select');
+        const moduleVal = moduleSel ? moduleSel.value : 'all';
+        const userVal = userSel ? userSel.value : '';
+
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const companyId = session.company_id || 1;
+        const curUserId = session.user_id || 1;
+        const curRole = session.role || 'Admin';
+
+        try {
+            const res = await fetch(`api/approval_desk.php?action=get_all&status=${this.currentStatus}&module=${moduleVal}&user_id=${userVal}&company_id=${companyId}&current_user_id=${curUserId}&current_role=${encodeURIComponent(curRole)}`, {
+                credentials: 'same-origin'
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                this.pendingItems = data.items || [];
+
+                // Stats badges
+                if (data.stats) {
+                    const p = document.getElementById('appr_stat_pending');
+                    const a = document.getElementById('appr_stat_approved');
+                    const r = document.getElementById('appr_stat_rejected');
+                    if (p) p.textContent = data.stats.pending_cnt || 0;
+                    if (a) a.textContent = data.stats.approved_cnt || 0;
+                    if (r) r.textContent = data.stats.rejected_cnt || 0;
+
+                    // Update navbar badge if exists
+                    const navBadge = document.getElementById('navApprovalPendingBadge');
+                    if (navBadge) {
+                        const cnt = parseInt(data.stats.pending_cnt || 0);
+                        navBadge.textContent = cnt;
+                        navBadge.style.display = cnt > 0 ? 'inline-block' : 'none';
+                    }
+                }
+
+                // Populate users dropdown if empty
+                if (userSel && userSel.options.length <= 1 && data.users) {
+                    data.users.forEach(u => {
+                        const opt = document.createElement('option');
+                        opt.value = u.id;
+                        opt.textContent = u.username;
+                        userSel.appendChild(opt);
+                    });
+                }
+
+                this.renderTable(this.pendingItems);
+            } else {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 25px; color: #ef4444;">${data.error || 'Failed to load approval items.'}</td></tr>`;
+            }
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 25px; color: #ef4444;">Error: ${err.message}</td></tr>`;
+        }
+    },
+
+    renderTable: function(items) {
+        const tbody = document.getElementById('appr_tbody');
+        if (!tbody) return;
+
+        if (!items || items.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 35px; color: #94a3b8;">
+                <i class="fas fa-check-circle" style="font-size: 32px; color: #10b981; margin-bottom: 8px; display: block;"></i>
+                No records found matching this filter.
+            </td></tr>`;
+            return;
+        }
+
+        const currency = (window.globalCurrencySymbol || 'Rs.') + ' ';
+
+        tbody.innerHTML = items.map((it, idx) => {
+            let statusBadge = '';
+            if (it.approval_status === 'pending') {
+                statusBadge = '<span style="background: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 12px; font-weight: 700; font-size: 11px;"><i class="fas fa-clock"></i> Pending</span>';
+            } else if (it.approval_status === 'approved') {
+                statusBadge = '<span style="background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 12px; font-weight: 700; font-size: 11px;"><i class="fas fa-check-circle"></i> Approved</span>';
+            } else if (it.approval_status === 'rejected') {
+                statusBadge = '<span style="background: #fee2e2; color: #dc2626; padding: 3px 8px; border-radius: 12px; font-weight: 700; font-size: 11px;"><i class="fas fa-times-circle"></i> Rejected</span>';
+            }
+
+            const formattedAmount = currency + parseFloat(it.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            let remarksSection = '';
+            if (it.approval_status === 'rejected') {
+                remarksSection = `
+                    <div style="margin-top: 4px; padding: 4px 6px; background: #fff1f2; border: 1px dashed #fecdd3; border-radius: 4px; font-size: 11px; color: #9f1239;">
+                        <strong>Reason:</strong> ${it.rejection_reason || '-'}
+                        ${it.user_feedback ? `<div style="color: #0369a1; margin-top: 2px;"><strong>User Feedback:</strong> ${it.user_feedback}</div>` : ''}
+                    </div>
+                `;
+            }
+
+            return `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 10px 12px; color: #94a3b8;">${idx + 1}</td>
+                    <td style="padding: 10px 12px; color: #334155; font-weight: 600;">${it.txn_date || '-'}</td>
+                    <td style="padding: 10px 12px; font-weight: 700; color: #1e3a8a;">
+                        ${it.voucher_no || '-'}
+                        ${remarksSection}
+                    </td>
+                    <td style="padding: 10px 12px; color: #475569;">
+                        <span style="background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600;">${it.module_name}</span>
+                    </td>
+                    <td style="padding: 10px 12px; color: #334155;">${it.party_name || '-'}</td>
+                    <td style="padding: 10px 12px; text-align: right; font-weight: 700; color: #0f172a;">${formattedAmount}</td>
+                    <td style="padding: 10px 12px; color: #64748b;">
+                        <i class="fas fa-user-edit" style="font-size: 10px; margin-right: 3px;"></i> ${it.created_by_username}
+                    </td>
+                    <td style="padding: 10px 12px; text-align: center;">${statusBadge}</td>
+                    <td style="padding: 10px 12px; text-align: center;">
+                        <div style="display: flex; gap: 6px; justify-content: center;">
+                            ${it.approval_status !== 'approved' ? `
+                                <button type="button" onclick="window.ApprovalDeskModule.approveRecord(${it.id})" style="background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Approve">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                            ` : '<span style="color: #10b981; font-weight: 600; font-size: 11px;"><i class="fas fa-lock"></i> Final</span>'}
+                            
+                            ${it.approval_status !== 'rejected' ? `
+                                <button type="button" onclick="window.ApprovalDeskModule.openRejectModal(${it.id}, '${(it.voucher_no || '').replace(/'/g, "\\'")}', '${it.module_name}')" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Reject with Reason">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    approveRecord: async function(id) {
+        if (!confirm('Are you sure you want to approve this voucher/invoice?')) return;
+
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const companyId = session.company_id || 1;
+        const curUserId = session.user_id || 1;
+
+        try {
+            const res = await fetch(`api/approval_desk.php?action=approve&company_id=${companyId}&current_user_id=${curUserId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ id: id, company_id: companyId, current_user_id: curUserId })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                alert('Voucher successfully approved!');
+                this.loadData();
+            } else {
+                alert(data.error || 'Failed to approve voucher.');
+            }
+        } catch (err) {
+            alert('Server error: ' + err.message);
+        }
+    },
+
+    openRejectModal: function(id, voucherNo, moduleName) {
+        this.targetRejectId = id;
+        const modal = document.getElementById('appr_reject_modal');
+        const infoEl = document.getElementById('appr_reject_target_info');
+        const reasonInput = document.getElementById('appr_reject_reason');
+        if (infoEl) {
+            infoEl.innerHTML = `<strong>${moduleName}:</strong> ${voucherNo}`;
+        }
+        if (reasonInput) reasonInput.value = '';
+        if (modal) modal.style.display = 'flex';
+    },
+
+    closeRejectModal: function() {
+        const modal = document.getElementById('appr_reject_modal');
+        if (modal) modal.style.display = 'none';
+        this.targetRejectId = null;
+    },
+
+    submitReject: async function() {
+        if (!this.targetRejectId) return;
+
+        const reason = document.getElementById('appr_reject_reason')?.value?.trim();
+        const deleteSource = document.getElementById('appr_delete_source_chk')?.checked ? 1 : 0;
+        const btn = document.getElementById('appr_confirm_reject_btn');
+
+        if (!reason) {
+            alert('Please enter a mandatory rejection reason!');
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+        }
+
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const companyId = session.company_id || 1;
+        const curUserId = session.user_id || 1;
+
+        try {
+            const res = await fetch(`api/approval_desk.php?action=reject&company_id=${companyId}&current_user_id=${curUserId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    id: this.targetRejectId,
+                    reason: reason,
+                    delete_source: deleteSource,
+                    company_id: companyId,
+                    current_user_id: curUserId
+                })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                alert('Transaction has been rejected and the user has been notified.');
+                this.closeRejectModal();
+                this.loadData();
+            } else {
+                alert(data.error || 'Failed to reject transaction.');
+            }
+        } catch (err) {
+            alert('Server error: ' + err.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-times-circle"></i> Confirm Rejection';
+            }
+        }
+    }
+};
+
+setTimeout(() => {
+    if (window.ApprovalDeskModule) {
+        window.ApprovalDeskModule.init();
+    }
+}, 100);
+</script>

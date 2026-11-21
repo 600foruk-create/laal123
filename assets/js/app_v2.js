@@ -963,7 +963,7 @@ document.addEventListener('click', function(e) {
                     container.classList.add('modal-pos-reports');
                 }
             }
-            if (['FBR Digital Invoice', 'Digital Invoice Sales Register', 'Digital Sales Register', 'Sale Invoice', 'Inventory Balance', 'Inventory Balances', 'User Login & Session History'].includes(dataModuleTag)) {
+            if (['FBR Digital Invoice', 'Digital Invoice Sales Register', 'Digital Sales Register', 'Sale Invoice', 'Inventory Balance', 'Inventory Balances', 'Approval Desk', 'User Login & Session History'].includes(dataModuleTag)) {
                 container.classList.add('modal-fbr-invoice');
             }
             
@@ -4365,6 +4365,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 activityLogBtn.style.display = isAdmin ? 'flex' : 'none';
             }
 
+            const approvalDeskNav = document.getElementById('navApprovalDeskBtn');
+            if (approvalDeskNav) approvalDeskNav.style.display = isAdmin ? 'block' : 'none';
             const userSessionsNav = document.getElementById('navUserSessionsBtn');
             if (userSessionsNav) userSessionsNav.style.display = isAdmin ? 'block' : 'none';
             if (typeof window.applyAdminOnlyNavVisibility === 'function') {
