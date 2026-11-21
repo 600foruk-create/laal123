@@ -1004,7 +1004,7 @@ document.addEventListener('click', function(e) {
                     container.classList.add('modal-pos-reports');
                 }
             }
-            if (['FBR Digital Invoice', 'Digital Invoice Sales Register', 'Digital Sales Register', 'Sale Invoice', 'Inventory Balance', 'Inventory Balances'].includes(dataModuleTag)) {
+            if (['FBR Digital Invoice', 'Digital Invoice Sales Register', 'Digital Sales Register', 'Sale Invoice', 'Inventory Balance', 'Inventory Balances', 'User Login & Session History'].includes(dataModuleTag)) {
                 container.classList.add('modal-fbr-invoice');
             }
             
@@ -3622,6 +3622,18 @@ document.addEventListener('click', function(e) {
                     return;
                 }
 
+                if (url && (url.includes('approval_desk.html') || url.includes('user_session_logs.html') || url.includes('system_settings.html'))) {
+                    const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                    const role = (s.role || '').toUpperCase();
+                    const username = (s.username || '').toLowerCase();
+                    const uId = parseInt(s.user_id || 0);
+                    const isAdmin = (username === 'administrator' || username === 'admin' || role === 'ADMIN' || role === 'ADMINISTRATOR' || uId === 1);
+                    if (!isAdmin) {
+                        showAccessDenied('Administrator Module');
+                        return;
+                    }
+                }
+
                 // IMPORTANT: Normalize module tracking for rights enforcement
                 const activeModuleKey = moduleName || titleText;
                 
@@ -4382,6 +4394,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const activityLogBtn = document.getElementById('userActivityLogBtn');
             if (activityLogBtn) {
                 activityLogBtn.style.display = isAdmin ? 'flex' : 'none';
+            }
+
+            const userSessionsNav = document.getElementById('navUserSessionsBtn');
+            if (userSessionsNav) userSessionsNav.style.display = isAdmin ? 'block' : 'none';
+            if (typeof window.applyAdminOnlyNavVisibility === 'function') {
+                window.applyAdminOnlyNavVisibility();
             }
             
             const mobileMenuToggle = document.getElementById('mobileMenuToggle');

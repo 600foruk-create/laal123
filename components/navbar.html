@@ -32,6 +32,7 @@
                 <div class="dropdown-item" id="listOfCompaniesBtn" data-module="List Of Companies">List Of Companies</div>
                 <div class="dropdown-item" id="userLoginsBtn" data-module="User Logins">User Logins</div>
                 <div class="dropdown-item" id="userRightsBtn" data-module="User Rights">User Rights</div>
+                <div class="dropdown-item admin-only-item" id="navUserSessionsBtn" style="display: none;" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Administrator/user_session_logs.html', 'fa-user-clock', 'User Login & Session History', () => window.UserSessionsModule && window.UserSessionsModule.init(), 'User Login & Session History', true, true)">User Login & Sessions</div>
                 <div class="dropdown-item" onclick="setTimeout(window.loadSystemSettings, 200)" data-target="Navigation/Administrator/system_settings.html" data-module="System Settings">System Settings</div>
                 <div class="dropdown-item" data-target="Navigation/Administrator/passwords.html" data-module="Passwords">Passwords</div>
                 <div class="dropdown-item" data-target="Navigation/Administrator/financial_year.html" data-module="Financial Year">Financial Year</div>
@@ -286,6 +287,29 @@
 </div>
 
 <script>
+window.applyAdminOnlyNavVisibility = function() {
+    try {
+        const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const role = String(s.role || '').toUpperCase();
+        const username = String(s.username || '').toLowerCase();
+        const uId = parseInt(s.user_id || 0);
+        const isAdmin = (username === 'administrator' || username === 'admin' || role === 'ADMIN' || role === 'ADMINISTRATOR' || uId === 1);
+        
+        document.querySelectorAll('.admin-only-item').forEach(el => {
+            el.style.display = isAdmin ? 'block' : 'none';
+        });
+        const appr = document.getElementById('navApprovalDeskBtn');
+        if (appr) appr.style.display = isAdmin ? 'block' : 'none';
+        const sess = document.getElementById('navUserSessionsBtn');
+        if (sess) sess.style.display = isAdmin ? 'block' : 'none';
+        const sys = document.getElementById('navSystemSettingsBtn');
+        if (sys) sys.style.display = isAdmin ? 'block' : 'none';
+    } catch(e) {}
+};
+window.applyAdminOnlyNavVisibility();
+setTimeout(window.applyAdminOnlyNavVisibility, 300);
+setTimeout(window.applyAdminOnlyNavVisibility, 1000);
+
 if (typeof window.handleLogout !== 'function') {
     window.handleLogout = async function() {
         const adminBackup = localStorage.getItem('softifyx_admin_backup_session');

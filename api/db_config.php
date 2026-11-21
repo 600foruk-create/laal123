@@ -134,6 +134,38 @@ if (shouldRunMigration('user_activity_logs', 1)) {
     } catch (PDOException $e) {}
 }
 
+// User Login Sessions Migration
+if (shouldRunMigration('user_login_sessions', 2)) {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS user_login_sessions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_id INT NOT NULL DEFAULT 1,
+            user_id INT NOT NULL,
+            username VARCHAR(100) NOT NULL,
+            login_time DATETIME NOT NULL,
+            last_heartbeat DATETIME NULL,
+            logout_time DATETIME NULL,
+            duration_seconds INT DEFAULT 0,
+            ip_address VARCHAR(45) NULL,
+            user_agent VARCHAR(255) NULL,
+            logout_reason VARCHAR(100) DEFAULT 'Active',
+            status VARCHAR(20) DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX (company_id),
+            INDEX (user_id),
+            INDEX (login_time),
+            INDEX (last_heartbeat),
+            INDEX (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+        // Ensure last_heartbeat column exists if table was created in migration 1
+        $cols = $pdo->query("SHOW COLUMNS FROM user_login_sessions LIKE 'last_heartbeat'")->fetchAll();
+        if (empty($cols)) {
+            $pdo->exec("ALTER TABLE user_login_sessions ADD COLUMN last_heartbeat DATETIME NULL AFTER login_time, ADD INDEX (last_heartbeat)");
+        }
+    } catch (PDOException $e) {}
+}
+
 function logActivity($module, $action_type, $record_id, $record_title, $before_data = null, $after_data = null) {
     global $pdo;
     $company_id = $_SESSION['company_id'] ?? 1;
@@ -153,6 +185,13 @@ function logActivity($module, $action_type, $record_id, $record_title, $before_d
             $before_data ? json_encode($before_data, JSON_UNESCAPED_UNICODE) : null,
             $after_data ? json_encode($after_data, JSON_UNESCAPED_UNICODE) : null
         ]);
+
+        // Keep active session heartbeat updated
+        if ($user_id > 0) {
+            try {
+                $pdo->prepare("UPDATE user_login_sessions SET last_heartbeat = NOW() WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1")->execute([$user_id]);
+            } catch (Exception $hbErr) {}
+        }
     } catch (Exception $e) {
         error_log("SoftifyX Log Activity Error: " . $e->getMessage());
     }
