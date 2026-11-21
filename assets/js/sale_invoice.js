@@ -975,32 +975,36 @@ window.SIModule = {
                 }
             } catch (cpErr) {}
 
-            const custStRate = v.sales_tax_rate !== undefined && v.sales_tax_rate !== null ? parseFloat(v.sales_tax_rate) : 0;
-            const custFtRate = v.further_tax_rate !== undefined && v.further_tax_rate !== null ? parseFloat(v.further_tax_rate) : 0;
-
             const isTaxEl = document.getElementById('si_is_tax');
-            if (isTaxEl && !isTaxEl.checked && (custStRate > 0 || custFtRate > 0)) {
-                isTaxEl.checked = true;
-                this.toggleTaxMode(false);
-            }
+            const isTaxMode = isTaxEl ? isTaxEl.checked : false;
+
+            // In Non-Tax mode, do NOT auto-convert to tax invoice and do NOT apply tax rates
+            const custStRate = (isTaxMode && v.sales_tax_rate !== undefined && v.sales_tax_rate !== null) ? parseFloat(v.sales_tax_rate) : 0;
+            const custFtRate = (isTaxMode && v.further_tax_rate !== undefined && v.further_tax_rate !== null) ? parseFloat(v.further_tax_rate) : 0;
 
             // Apply rates to all rows currently in the grid
             const rows = document.querySelectorAll('#siGridBody tr');
             rows.forEach(r => {
                 const stInput = r.querySelector('.stax-rate');
                 const ftInput = r.querySelector('.ftax-rate');
-                if (stInput) stInput.value = custStRate.toFixed(2);
-                if (ftInput) ftInput.value = custFtRate.toFixed(2);
+                const stAmtInput = r.querySelector('.stax-amt');
+                const ftAmtInput = r.querySelector('.ftax-amt');
+                if (stInput) stInput.value = isTaxMode ? custStRate.toFixed(2) : '0.00';
+                if (ftInput) ftInput.value = isTaxMode ? custFtRate.toFixed(2) : '0.00';
+                if (!isTaxMode) {
+                    if (stAmtInput) stAmtInput.value = '0.00';
+                    if (ftAmtInput) ftAmtInput.value = '0.00';
+                }
                 const itemCode = r.querySelector('.item-code-search')?.value.trim();
                 if (itemCode) {
                     this.calculateRow(r);
                 }
             });
             this.calculateTotals();
-        this.updateLeadColspans();
+            this.updateLeadColspans();
             
             if (document.getElementById('si_cust_tax_pct')) {
-                const taxRate = parseFloat(v.tax_rate || 0);
+                const taxRate = isTaxMode ? parseFloat(v.tax_rate || 0) : 0;
                 document.getElementById('si_cust_tax_pct').value = taxRate;
                 const whtType = v.wht_type || 'WHT-236G/236H';
                 if (document.getElementById('si_cust_tax_wht')) {
@@ -1011,7 +1015,7 @@ window.SIModule = {
                     if (whtType !== 'WHT-236G/236H' && !whtType.toUpperCase().includes('WHT')) {
                         displayWht = 'WHT ' + whtType;
                     }
-                    document.getElementById('si_cust_tax_lbl').innerText = displayWht + ' (' + taxRate + '%)';
+                    document.getElementById('si_cust_tax_lbl').innerText = isTaxMode ? (displayWht + ' (' + taxRate + '%)') : displayWht;
                 }
                 setTimeout(() => this.calculateTotals(), 100);
             }
@@ -1592,18 +1596,21 @@ window.SIModule = {
         const rate = parseFloat(data.rate || data.sales_price || data.selling_price || 0);
 
         let stRate = 0, ftRate = 0;
-        if (data.sales_tax_rate !== undefined && data.sales_tax_rate !== null && data.sales_tax_rate !== '') {
-            stRate = parseFloat(data.sales_tax_rate) || 0;
-        } else if (data.tax_rate !== undefined && data.tax_rate !== null && data.tax_rate !== '') {
-            stRate = parseFloat(data.tax_rate) || 0;
-        } else if (this.selectedCustomer && parseFloat(this.selectedCustomer.sales_tax_rate) > 0) {
-            stRate = parseFloat(this.selectedCustomer.sales_tax_rate) || 0;
-        }
+        const isTaxActive = document.getElementById('si_is_tax')?.checked;
+        if (isTaxActive) {
+            if (data.sales_tax_rate !== undefined && data.sales_tax_rate !== null && data.sales_tax_rate !== '') {
+                stRate = parseFloat(data.sales_tax_rate) || 0;
+            } else if (data.tax_rate !== undefined && data.tax_rate !== null && data.tax_rate !== '') {
+                stRate = parseFloat(data.tax_rate) || 0;
+            } else if (this.selectedCustomer && parseFloat(this.selectedCustomer.sales_tax_rate) > 0) {
+                stRate = parseFloat(this.selectedCustomer.sales_tax_rate) || 0;
+            }
 
-        if (data.further_tax_rate !== undefined && data.further_tax_rate !== null && data.further_tax_rate !== '') {
-            ftRate = parseFloat(data.further_tax_rate) || 0;
-        } else if (this.selectedCustomer && parseFloat(this.selectedCustomer.further_tax_rate) > 0) {
-            ftRate = parseFloat(this.selectedCustomer.further_tax_rate) || 0;
+            if (data.further_tax_rate !== undefined && data.further_tax_rate !== null && data.further_tax_rate !== '') {
+                ftRate = parseFloat(data.further_tax_rate) || 0;
+            } else if (this.selectedCustomer && parseFloat(this.selectedCustomer.further_tax_rate) > 0) {
+                ftRate = parseFloat(this.selectedCustomer.further_tax_rate) || 0;
+            }
         }
 
         let stAmt = (data.sales_tax_amount !== undefined && data.sales_tax_amount !== null && data.sales_tax_amount !== '') ? parseFloat(data.sales_tax_amount) : 0;
@@ -1896,18 +1903,21 @@ window.SIModule = {
         }
 
         let stRate = 0, ftRate = 0;
-        if (this.selectedCustomer && parseFloat(this.selectedCustomer.sales_tax_rate) > 0) {
-            stRate = parseFloat(this.selectedCustomer.sales_tax_rate) || 0;
-        } else if (item.sales_tax_rate !== undefined && item.sales_tax_rate !== null && item.sales_tax_rate !== '') {
-            stRate = parseFloat(item.sales_tax_rate) || 0;
-        } else if (item.tax_rate !== undefined && item.tax_rate !== null && item.tax_rate !== '') {
-            stRate = parseFloat(item.tax_rate) || 0;
-        }
+        const isTaxActive = document.getElementById('si_is_tax')?.checked;
+        if (isTaxActive) {
+            if (this.selectedCustomer && parseFloat(this.selectedCustomer.sales_tax_rate) > 0) {
+                stRate = parseFloat(this.selectedCustomer.sales_tax_rate) || 0;
+            } else if (item.sales_tax_rate !== undefined && item.sales_tax_rate !== null && item.sales_tax_rate !== '') {
+                stRate = parseFloat(item.sales_tax_rate) || 0;
+            } else if (item.tax_rate !== undefined && item.tax_rate !== null && item.tax_rate !== '') {
+                stRate = parseFloat(item.tax_rate) || 0;
+            }
 
-        if (this.selectedCustomer && parseFloat(this.selectedCustomer.further_tax_rate) > 0) {
-            ftRate = parseFloat(this.selectedCustomer.further_tax_rate) || 0;
-        } else if (item.further_tax_rate !== undefined && item.further_tax_rate !== null && item.further_tax_rate !== '') {
-            ftRate = parseFloat(item.further_tax_rate) || 0;
+            if (this.selectedCustomer && parseFloat(this.selectedCustomer.further_tax_rate) > 0) {
+                ftRate = parseFloat(this.selectedCustomer.further_tax_rate) || 0;
+            } else if (item.further_tax_rate !== undefined && item.further_tax_rate !== null && item.further_tax_rate !== '') {
+                ftRate = parseFloat(item.further_tax_rate) || 0;
+            }
         }
 
         if (tr && tr.classList.contains('si-empty-row')) {
@@ -2422,6 +2432,42 @@ window.SIModule = {
         
         taxCols.forEach(el => el.style.display = isTax ? '' : 'none');
         nonTaxCols.forEach(el => el.style.display = isTax ? 'none' : '');
+
+        // Recalculate row rates based on active Tax / Non-Tax mode
+        const rows = document.querySelectorAll('#siGridBody tr.si-item-row:not(.si-empty-row)');
+        const custStRate = (isTax && this.selectedCustomer && this.selectedCustomer.sales_tax_rate !== undefined && this.selectedCustomer.sales_tax_rate !== null) 
+            ? parseFloat(this.selectedCustomer.sales_tax_rate) : 0;
+        const custFtRate = (isTax && this.selectedCustomer && this.selectedCustomer.further_tax_rate !== undefined && this.selectedCustomer.further_tax_rate !== null) 
+            ? parseFloat(this.selectedCustomer.further_tax_rate) : 0;
+
+        rows.forEach(r => {
+            const stInput = r.querySelector('.stax-rate');
+            const ftInput = r.querySelector('.ftax-rate');
+            const stAmtInput = r.querySelector('.stax-amt');
+            const ftAmtInput = r.querySelector('.ftax-amt');
+            if (stInput) stInput.value = isTax ? custStRate.toFixed(2) : '0.00';
+            if (ftInput) ftInput.value = isTax ? custFtRate.toFixed(2) : '0.00';
+            if (!isTax) {
+                if (stAmtInput) stAmtInput.value = '0.00';
+                if (ftAmtInput) ftAmtInput.value = '0.00';
+            }
+            this.calculateRow(r);
+        });
+
+        // WHT Tax handling on mode toggle
+        if (document.getElementById('si_cust_tax_pct')) {
+            const taxRate = (isTax && this.selectedCustomer) ? parseFloat(this.selectedCustomer.tax_rate || 0) : 0;
+            document.getElementById('si_cust_tax_pct').value = taxRate;
+            const whtType = (this.selectedCustomer && this.selectedCustomer.wht_type) || 'WHT-236G/236H';
+            if (document.getElementById('si_cust_tax_lbl')) {
+                let displayWht = whtType;
+                if (whtType !== 'WHT-236G/236H' && !whtType.toUpperCase().includes('WHT')) {
+                    displayWht = 'WHT ' + whtType;
+                }
+                document.getElementById('si_cust_tax_lbl').innerText = isTax ? (displayWht + ' (' + taxRate + '%)') : displayWht;
+            }
+        }
+
         this.calculateTotals();
         this.updateLeadColspans();
         
