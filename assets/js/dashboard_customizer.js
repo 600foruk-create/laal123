@@ -111,7 +111,10 @@
         getConfig: function() {
             if (this.currentConfig && this.currentConfig.record_new) return this.currentConfig;
             try {
-                const stored = localStorage.getItem(STORAGE_KEY);
+                const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                const uId = session.user_id || 0;
+                const userKey = uId ? `softifyx_dashboard_customization_user_${uId}` : null;
+                const stored = (userKey ? localStorage.getItem(userKey) : null) || localStorage.getItem(STORAGE_KEY);
                 if (stored) {
                     const parsed = JSON.parse(stored);
                     if (parsed && (parsed.record_new || parsed.view || parsed.kpi_cards)) {
@@ -129,6 +132,30 @@
             } catch(e) {}
             this.currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
             return this.currentConfig;
+        },
+
+        saveUserDashboardConfig: function(userConfig) {
+            try {
+                const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                const uId = session.user_id || 0;
+                const userKey = uId ? `softifyx_dashboard_customization_user_${uId}` : STORAGE_KEY;
+                const existing = this.getConfig();
+
+                this.currentConfig = {
+                    record_new: userConfig.record_new !== undefined ? userConfig.record_new : (existing.record_new || DEFAULT_CONFIG.record_new),
+                    view: userConfig.view !== undefined ? userConfig.view : (existing.view || DEFAULT_CONFIG.view),
+                    kpi_cards: userConfig.kpi_cards !== undefined ? userConfig.kpi_cards : (existing.kpi_cards || DEFAULT_CONFIG.kpi_cards),
+                    middle_cards: userConfig.middle_cards !== undefined ? userConfig.middle_cards : (existing.middle_cards || DEFAULT_CONFIG.middle_cards),
+                    bottom_widgets: userConfig.bottom_widgets !== undefined ? userConfig.bottom_widgets : (existing.bottom_widgets || DEFAULT_CONFIG.bottom_widgets),
+                    right_summary: userConfig.right_summary !== undefined ? userConfig.right_summary : (existing.right_summary || DEFAULT_CONFIG.right_summary)
+                };
+                localStorage.setItem(userKey, JSON.stringify(this.currentConfig));
+                this.applyAll();
+                return true;
+            } catch(e) {
+                console.error('saveUserDashboardConfig error:', e);
+                return false;
+            }
         },
 
         fetchConfigFromDB: async function() {

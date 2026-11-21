@@ -26,21 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($company) {
             $companyId = $company['id'];
             $companyName = $company['name'];
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN off_day VARCHAR(20) NULL");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN enable_geofencing TINYINT(1) DEFAULT 0");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN latitude DECIMAL(10, 8) NULL");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN longitude DECIMAL(11, 8) NULL");
-            } catch(Exception $e) {}
-            try {
-                $pdo->exec("ALTER TABLE company_branches ADD COLUMN radius_meters INT DEFAULT 100");
-            } catch(Exception $e) {}
+            if (shouldRunMigration('company_branches_fields', 1)) {
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN off_day VARCHAR(20) NULL"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN enable_geofencing TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN latitude DECIMAL(10, 8) NULL"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN longitude DECIMAL(11, 8) NULL"); } catch(Exception $e) {}
+                try { $pdo->exec("ALTER TABLE company_branches ADD COLUMN radius_meters INT DEFAULT 100"); } catch(Exception $e) {}
+            }
 
             $stmt = $pdo->prepare("
                 SELECT u.*, b.branch_name, b.branch_code, b.invoice_series, b.opening_time, b.closing_time, b.off_day,
@@ -48,11 +40,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 FROM users u 
                 LEFT JOIN company_branches b ON u.branch_id = b.id 
                 WHERE (TRIM(u.username) = ? OR LOWER(TRIM(u.username)) = LOWER(?)) 
-                  AND (TRIM(u.password) = ? OR u.password = ?) 
                   AND u.company_id = ?
             ");
-            $stmt->execute([$username, $username, $password, $password, $companyId]);
-            $user = $stmt->fetch();
+            $stmt->execute([$username, $username, $companyId]);
+            $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($candidates as $cand) {
+                if (verifyAndUpgradePassword($password, $cand['password'], $cand['id'], $pdo)) {
+                    $user = $cand;
+                    break;
+                }
+            }
         }
         
         // 3. Fallback: If company wasn't provided or user wasn't in that company (e.g. company selection hidden on login), find user by credentials
@@ -64,21 +61,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 LEFT JOIN company_branches b ON u.branch_id = b.id 
                 LEFT JOIN companies c ON u.company_id = c.id
                 WHERE (TRIM(u.username) = ? OR LOWER(TRIM(u.username)) = LOWER(?)) 
-                  AND (TRIM(u.password) = ? OR u.password = ?) 
                   AND (c.status IS NULL OR c.status != 0 OR u.role = 'Admin' OR u.username = 'Administrator' OR u.id = 1)
-                ORDER BY (u.username = 'Administrator' OR u.id = 1) DESC, u.id ASC LIMIT 1
+                ORDER BY (u.username = 'Administrator' OR u.id = 1) DESC, u.id ASC
             ");
-            $stmt->execute([$username, $username, $password, $password]);
-            $user = $stmt->fetch();
-            if ($user) {
-                $userRoleUpper = strtoupper(trim($user['role'] ?? ''));
-                $isAdmin = ($userRoleUpper === 'ADMIN' || $userRoleUpper === 'ADMINISTRATOR' || intval($user['id']) === 1);
-                if ($isAdmin && $company) {
-                    $companyId = $company['id'];
-                    $companyName = $company['name'];
-                } else {
-                    $companyId = $user['company_id'];
-                    $companyName = $user['company_name'] ?? ($company['name'] ?? 'Default Business');
+            $stmt->execute([$username, $username]);
+            $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($candidates as $cand) {
+                if (verifyAndUpgradePassword($password, $cand['password'], $cand['id'], $pdo)) {
+                    $user = $cand;
+                    $userRoleUpper = strtoupper(trim($user['role'] ?? ''));
+                    $isAdmin = ($userRoleUpper === 'ADMIN' || $userRoleUpper === 'ADMINISTRATOR' || intval($user['id']) === 1);
+                    if ($isAdmin && $company) {
+                        $companyId = $company['id'];
+                        $companyName = $company['name'];
+                    } else {
+                        $companyId = $user['company_id'];
+                        $companyName = $user['company_name'] ?? ($company['name'] ?? 'Default Business');
+                    }
+                    break;
                 }
             }
         }
@@ -208,9 +208,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['branch_lat'] = $user['branch_lat'] ?? null;
             $_SESSION['branch_lng'] = $user['branch_lng'] ?? null;
             $_SESSION['radius_meters'] = $user['radius_meters'] ?? 100;
+
+            // Track User Login Session for Admin Audit History
+            $loginSessionId = 0;
+            try {
+                // 1. Close any older active sessions for this user so only the new live session remains active
+                $closeOld = $pdo->prepare("
+                    UPDATE user_login_sessions 
+                    SET logout_time = NOW(), 
+                        duration_seconds = TIMESTAMPDIFF(SECOND, login_time, NOW()), 
+                        logout_reason = 'New Login / Closed', 
+                        status = 'ended' 
+                    WHERE user_id = ? AND status = 'active'
+                ");
+                $closeOld->execute([$user['id']]);
+
+                // 2. Insert new session
+                $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+                if (strpos($clientIp, ',') !== false) {
+                    $clientIp = trim(explode(',', $clientIp)[0]);
+                }
+                $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown Browser', 0, 250);
+                $sessStmt = $pdo->prepare("INSERT INTO user_login_sessions (company_id, user_id, username, login_time, last_heartbeat, ip_address, user_agent, logout_reason, status) VALUES (?, ?, ?, NOW(), NOW(), ?, ?, 'Active', 'active')");
+                $sessStmt->execute([$companyId, $user['id'], $user['username'], $clientIp, $userAgent]);
+                $loginSessionId = intval($pdo->lastInsertId());
+                $_SESSION['login_session_id'] = $loginSessionId;
+            } catch (Exception $e) {
+                // Fallback if last_heartbeat column isn't migrated yet
+                try {
+                    $sessStmt = $pdo->prepare("INSERT INTO user_login_sessions (company_id, user_id, username, login_time, ip_address, user_agent, logout_reason, status) VALUES (?, ?, ?, NOW(), ?, ?, 'Active', 'active')");
+                    $sessStmt->execute([$companyId, $user['id'], $user['username'], $clientIp, $userAgent]);
+                    $loginSessionId = intval($pdo->lastInsertId());
+                    $_SESSION['login_session_id'] = $loginSessionId;
+                } catch (Exception $e2) {
+                    error_log("Login session record error: " . $e2->getMessage());
+                }
+            }
             
             sendResponse([
                 'status' => 'success',
+                'session_id' => $loginSessionId,
                 'user' => [
                     'id' => $user['id'],
                     'username' => $user['username'],
@@ -232,11 +269,97 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             sendResponse(['error' => 'Invalid credentials'], 401);
         }
     }
+
+    if ($action === 'change_my_password') {
+        $userId = intval($data['user_id'] ?? ($_SESSION['user_id'] ?? 0));
+        $currentPass = trim($data['current_password'] ?? '');
+        $newPass = trim($data['new_password'] ?? '');
+        $confirmPass = trim($data['confirm_password'] ?? '');
+
+        if (!$userId) {
+            sendResponse(['status' => 'error', 'message' => 'User not identified. Please log in again.'], 401);
+        }
+        if (empty($currentPass)) {
+            sendResponse(['status' => 'error', 'message' => 'Please enter your current password.'], 400);
+        }
+        if (empty($newPass) || strlen($newPass) < 3) {
+            sendResponse(['status' => 'error', 'message' => 'New password must be at least 3 characters long.'], 400);
+        }
+        if ($newPass !== $confirmPass) {
+            sendResponse(['status' => 'error', 'message' => 'New password and confirm password do not match.'], 400);
+        }
+
+        // Fetch user from database
+        $stmt = $pdo->prepare("SELECT id, username, password FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $uRow = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$uRow) {
+            sendResponse(['status' => 'error', 'message' => 'User account not found.'], 404);
+        }
+
+        // Verify current password (supports both Bcrypt hashes and plain text)
+        $isCurrentValid = false;
+        if (password_verify($currentPass, $uRow['password'])) {
+            $isCurrentValid = true;
+        } elseif ($uRow['password'] === $currentPass || trim($uRow['password']) === $currentPass) {
+            $isCurrentValid = true;
+        }
+
+        if (!$isCurrentValid) {
+            sendResponse(['status' => 'error', 'message' => 'Current password entered is incorrect.'], 400);
+        }
+
+        // Update password for this specific user
+        $stmtUp = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
+        $stmtUp->execute([$newPass, $userId]);
+
+        logActivity('User Profile', 'UPDATE_PASSWORD', $userId, "User '{$uRow['username']}' updated their own password.");
+
+        sendResponse(['status' => 'success', 'message' => 'Password updated successfully!']);
+    }
 }
 
-if ($action === 'logout') {
-    session_destroy();
+if ($action === 'logout' || $action === 'record_logout') {
+    $sessId = intval($data['session_id'] ?? ($_GET['session_id'] ?? ($_SESSION['login_session_id'] ?? 0)));
+    $reason = trim($data['reason'] ?? ($_GET['reason'] ?? 'Manual Logout'));
+    if ($sessId > 0) {
+        try {
+            $upSess = $pdo->prepare("UPDATE user_login_sessions SET logout_time = NOW(), duration_seconds = TIMESTAMPDIFF(SECOND, login_time, NOW()), logout_reason = ?, status = 'ended' WHERE id = ?");
+            $upSess->execute([$reason, $sessId]);
+        } catch (Exception $e) {}
+    } else if (isset($_SESSION['user_id'])) {
+        // Fallback: update latest active session for this user
+        try {
+            $upSess2 = $pdo->prepare("UPDATE user_login_sessions SET logout_time = NOW(), duration_seconds = TIMESTAMPDIFF(SECOND, login_time, NOW()), logout_reason = ?, status = 'ended' WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1");
+            $upSess2->execute([$reason, $_SESSION['user_id']]);
+        } catch (Exception $e) {}
+    }
+    
+    if ($action === 'logout') {
+        session_destroy();
+    }
     sendResponse(['status' => 'success']);
+}
+
+if ($action === 'heartbeat') {
+    $hUserId = intval($_SESSION['user_id'] ?? ($data['user_id'] ?? ($_GET['user_id'] ?? 0)));
+    if ($hUserId > 0) {
+        try {
+            $sessId = intval($_SESSION['login_session_id'] ?? 0);
+            if ($sessId > 0) {
+                $hbStmt = $pdo->prepare("UPDATE user_login_sessions SET last_heartbeat = NOW() WHERE id = ?");
+                $hbStmt->execute([$sessId]);
+            } else {
+                $hbStmt = $pdo->prepare("UPDATE user_login_sessions SET last_heartbeat = NOW() WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1");
+                $hbStmt->execute([$hUserId]);
+            }
+            sendResponse(['status' => 'success']);
+        } catch (Exception $e) {
+            sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    sendResponse(['status' => 'ignored']);
 }
 
 if ($action === 'check') {

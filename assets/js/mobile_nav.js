@@ -34,6 +34,10 @@
                     <i class="fas fa-cubes"></i>
                     <span>Stock &amp; FG</span>
                 </button>
+                <button type="button" class="mob-tab" id="mobTabProfile" onclick="MobileNav.closeDrawer(); if(window.openUserProfileModal) window.openUserProfileModal();">
+                    <i class="fas fa-user-cog"></i>
+                    <span>Profile</span>
+                </button>
             `;
             document.body.appendChild(bar);
 
