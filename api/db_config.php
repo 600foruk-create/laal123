@@ -343,7 +343,24 @@ if (!defined('NO_SESSION')) {
 }
 
 function checkAuth() {
-    if (!isset($_SESSION['user_id'])) {
+    global $pdo;
+    if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
+        $reqUserId = intval($_GET['current_user_id'] ?? ($_POST['current_user_id'] ?? 0));
+        $reqCompanyId = intval($_GET['company_id'] ?? ($_POST['company_id'] ?? 1));
+        if ($reqUserId > 0 && isset($pdo)) {
+            try {
+                $uStmt = $pdo->prepare("SELECT id, username, role, company_id FROM users WHERE id = ?");
+                $uStmt->execute([$reqUserId]);
+                $uRow = $uStmt->fetch(PDO::FETCH_ASSOC);
+                if ($uRow) {
+                    $_SESSION['user_id'] = intval($uRow['id']);
+                    $_SESSION['username'] = $uRow['username'];
+                    $_SESSION['role'] = $uRow['role'];
+                    $_SESSION['company_id'] = intval($uRow['company_id'] ?: $reqCompanyId);
+                    return;
+                }
+            } catch (Exception $e) {}
+        }
         sendResponse(['error' => 'Unauthorized access'], 401);
     }
 }

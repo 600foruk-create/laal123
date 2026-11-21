@@ -12,6 +12,18 @@
         keyboardListenerAttached: false,
         selectedRowIndex: -1,
 
+        _getAuthParams: function() {
+            const companyId = localStorage.getItem('company_id') || 1;
+            let currentUserId = '';
+            try {
+                const u = JSON.parse(localStorage.getItem('user') || '{}');
+                currentUserId = u.id || localStorage.getItem('user_id') || '';
+            } catch(e) {
+                currentUserId = localStorage.getItem('user_id') || '';
+            }
+            return `company_id=${encodeURIComponent(companyId)}&current_user_id=${encodeURIComponent(currentUserId)}`;
+        },
+
         /**
          * Initialize the view - Sets up defaults and triggers log loading
          */
@@ -175,7 +187,7 @@
             loadingOpt.textContent = 'Loading...';
             serialSelect.appendChild(loadingOpt);
 
-            fetch('api/activity_log.php?action=get_module_serials&module_name=' + encodeURIComponent(moduleName))
+            fetch('api/activity_log.php?action=get_module_serials&module_name=' + encodeURIComponent(moduleName) + '&' + this._getAuthParams(), { credentials: 'same-origin' })
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
                     // Remove loading option
@@ -223,7 +235,7 @@
             const startDate = startInput ? startInput.value : '';
             const endDate = endInput ? endInput.value : '';
 
-            let url = 'api/activity_log.php?action=get_logs&filter=' + this.activeFilter;
+            let url = 'api/activity_log.php?action=get_logs&filter=' + this.activeFilter + '&' + this._getAuthParams();
             if (userId) url += '&user_id=' + userId;
             if (moduleName) url += '&module_name=' + encodeURIComponent(moduleName);
             if (serialName) url += '&record_title=' + encodeURIComponent(serialName);
@@ -231,7 +243,7 @@
                 url += '&start_date=' + startDate + '&end_date=' + endDate;
             }
 
-            fetch(url)
+            fetch(url, { credentials: 'same-origin' })
                 .then(res => res.json())
                 .then(data => {
                     if (refreshIcon) refreshIcon.classList.remove('fa-spin');
@@ -846,7 +858,7 @@
             }
 
             try {
-                const response = await fetch('api/activity_log.php?action=clear_history');
+                const response = await fetch('api/activity_log.php?action=clear_history&' + this._getAuthParams(), { credentials: 'same-origin' });
                 const data = await response.json();
                 
                 if (data.status === 'success') {

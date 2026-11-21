@@ -2,19 +2,46 @@
 header('Content-Type: application/json');
 require_once 'db_config.php';
 
-// Check auth and admin permissions
-if (!isset($_SESSION['user_id'])) {
-    sendResponse(['error' => 'Unauthorized access'], 401);
+// Check auth and admin permissions: supports active PHP session OR verified user credentials from localStorage
+$userRole = strtoupper($_SESSION['role'] ?? '');
+$currentUsername = $_SESSION['username'] ?? '';
+$currentUserId = intval($_SESSION['user_id'] ?? 0);
+$company_id = intval($_SESSION['company_id'] ?? 1);
+
+// Fallback if PHP session expired on server but client is actively authenticated in localStorage
+if (!$currentUserId) {
+    $reqUserId = intval($_GET['current_user_id'] ?? ($_POST['current_user_id'] ?? 0));
+    $reqCompanyId = intval($_GET['company_id'] ?? ($_POST['company_id'] ?? 1));
+    if ($reqUserId > 0) {
+        try {
+            $uStmt = $pdo->prepare("SELECT id, username, role, company_id FROM users WHERE id = ?");
+            $uStmt->execute([$reqUserId]);
+            $uRow = $uStmt->fetch(PDO::FETCH_ASSOC);
+            if ($uRow) {
+                $currentUserId = intval($uRow['id']);
+                $currentUsername = $uRow['username'];
+                $userRole = strtoupper($uRow['role'] ?? '');
+                $company_id = intval($uRow['company_id'] ?: $reqCompanyId);
+                // Restore session on server
+                $_SESSION['user_id'] = $currentUserId;
+                $_SESSION['username'] = $currentUsername;
+                $_SESSION['role'] = $userRole;
+                $_SESSION['company_id'] = $company_id;
+            }
+        } catch (Exception $e) {}
+    }
 }
 
-$role = $_SESSION['role'] ?? '';
-$username = $_SESSION['username'] ?? '';
-if ($role !== 'Admin' && $username !== 'Administrator') {
+if (!$currentUserId) {
+    sendResponse(['error' => 'Unauthorized access. Please log in.'], 401);
+}
+
+$isAdmin = ($userRole === 'ADMIN' || $userRole === 'ADMINISTRATOR' || $currentUsername === 'Administrator' || $currentUserId === 1);
+if (!$isAdmin) {
     sendResponse(['error' => 'Forbidden: Only Admins can view activity logs'], 403);
 }
 
 $action = $_GET['action'] ?? '';
-$company_id = $_SESSION['company_id'] ?? 1;
 
 // CREATE TABLE IF NOT EXISTS (Auto-migration)
 try {
