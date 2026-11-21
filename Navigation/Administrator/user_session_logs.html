@@ -148,8 +148,15 @@ window.UserSessionsModule = {
         const userSel = document.getElementById('u_sess_user_select');
         const userId = userSel ? userSel.value : '';
 
+        const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+        const companyId = session.company_id || 1;
+        const curUserId = session.user_id || 1;
+        const curRole = session.role || 'Admin';
+
         try {
-            const res = await fetch(`api/user_sessions.php?action=get_sessions&filter=${this.currentFilter}&user_id=${userId}`);
+            const res = await fetch(`api/user_sessions.php?action=get_sessions&filter=${this.currentFilter}&user_id=${userId}&company_id=${companyId}&current_user_id=${curUserId}&current_role=${encodeURIComponent(curRole)}`, {
+                credentials: 'same-origin'
+            });
             const data = await res.json();
 
             if (data.status === 'success') {
@@ -238,7 +245,13 @@ window.UserSessionsModule = {
         modalBody.innerHTML = '<div style="text-align: center; padding: 30px; color: #94a3b8;"><i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Loading session activities...</div>';
 
         try {
-            const res = await fetch(`api/user_sessions.php?action=get_session_activities&session_id=${sessionId}`);
+            const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const companyId = session.company_id || 1;
+            const curUserId = session.user_id || 1;
+
+            const res = await fetch(`api/user_sessions.php?action=get_session_activities&session_id=${sessionId}&company_id=${companyId}&current_user_id=${curUserId}`, {
+                credentials: 'same-origin'
+            });
             const data = await res.json();
 
             if (data.status === 'success') {
