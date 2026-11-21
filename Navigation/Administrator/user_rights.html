@@ -1,35 +1,317 @@
-<div data-module="User Rights">
-    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 5px; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <label style="font-weight: 600; color: #1e293b; font-size: 14px;">Select User:</label>
-            <select class="form-control" id="urUserSelect" style="width: 220px; height: 38px; border-radius: 6px; border: 1px solid #cbd5e1;" onchange="loadUserRightsForm()">
-                <!-- Populated by initUserRightsView -->
+<div data-module="User Rights" id="userRightsContainer" style="display: flex; flex-direction: column; gap: 10px; max-width: 980px; margin: 0 auto;">
+    <style>
+        .ur-top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: #f8fafc;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+        }
+        .ur-user-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ur-user-box label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            white-space: nowrap;
+        }
+        .ur-user-box select {
+            height: 34px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            font-size: 13px;
+            font-weight: 600;
+            color: #0f172a;
+            background: #fff;
+            outline: none;
+        }
+        .ur-preset-box {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ur-preset-box select {
+            height: 34px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            font-size: 12px;
+            color: #334155;
+            background: #fff;
+            outline: none;
+        }
+        .ur-preset-box button {
+            height: 34px;
+            padding: 0 12px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 6px;
+            background: #0284c7;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .ur-preset-box button:hover {
+            background: #0369a1;
+        }
+        .ur-search-box {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 4px 10px;
+            height: 34px;
+            flex: 1;
+            min-width: 220px;
+            max-width: 320px;
+        }
+        .ur-search-box input {
+            border: none;
+            outline: none;
+            font-size: 12px;
+            width: 100%;
+            background: transparent;
+        }
+        .ur-tab-strip {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            overflow-x: auto;
+            padding: 4px 2px;
+            border-bottom: 2px solid #e2e8f0;
+            scrollbar-width: thin;
+        }
+        .ur-tab-btn {
+            background: none;
+            border: none;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 6px;
+            white-space: nowrap;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .ur-tab-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .ur-tab-btn.ur-tab-active {
+            background: #0b3b60;
+            color: #fff;
+            font-weight: 700;
+        }
+        .ur-tab-count {
+            background: rgba(0, 0, 0, 0.08);
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+        .ur-tab-btn.ur-tab-active .ur-tab-count {
+            background: rgba(255, 255, 255, 0.25);
+            color: #fff;
+        }
+        .ur-bulk-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8fafc;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            font-size: 11.5px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .ur-bulk-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .ur-bulk-btn {
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ur-bulk-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #94a3b8;
+        }
+        .ur-bulk-btn.btn-all-allow {
+            color: #15803d;
+            border-color: #86efac;
+            background: #f0fdf4;
+        }
+        .ur-bulk-btn.btn-all-revoke {
+            color: #b91c1c;
+            border-color: #fca5a5;
+            background: #fef2f2;
+        }
+        .ur-table-wrapper {
+            max-height: 52vh;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .ur-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .ur-table th {
+            position: sticky;
+            top: 0;
+            background: #0b3b60;
+            color: #fff;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 8px 10px;
+            border-bottom: 1px solid #082842;
+            z-index: 5;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .ur-row:hover {
+            background: #f8fafc;
+        }
+        .ur-admin-banner {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+
+    <!-- Admin Full Access Notice -->
+    <div id="urAdminNotice" class="ur-admin-banner">
+        <i class="fas fa-crown" style="color: #f59e0b; font-size: 14px;"></i>
+        <span><b>Administrator Access:</b> This user has Master / Admin privileges and automatically holds full unrestricted access across all modules.</span>
+    </div>
+
+    <!-- Top Toolbar -->
+    <div class="ur-top-bar">
+        <div class="ur-user-box">
+            <label><i class="fas fa-user" style="color: #0284c7;"></i> User:</label>
+            <select id="urUserSelect">
+                <!-- Dynamically populated -->
             </select>
         </div>
+
+        <div class="ur-preset-box">
+            <label style="font-size: 12px; font-weight: 600; color: #475569; margin: 0;">Template:</label>
+            <select id="urPresetSelect">
+                <option value="">-- Apply Quick Role Preset --</option>
+                <option value="cashier">Cashier / Billing Counter (Sales, POS, Receipts)</option>
+                <option value="accountant">Accountant / Finance (Ledgers, Vouchers, Reports)</option>
+                <option value="store">Store Keeper (Store, Materials, Inventory)</option>
+                <option value="viewer">Auditor / Read-Only (View & Print Only)</option>
+                <option value="admin">Administrator (Full Access)</option>
+                <option value="revoke">Revoke All (No Access)</option>
+            </select>
+            <button type="button" onclick="const p = document.getElementById('urPresetSelect').value; if(p) window.UserRightsManager.applyPreset(p);">
+                <i class="fas fa-magic"></i> Apply
+            </button>
+        </div>
+
+        <div class="ur-search-box">
+            <i class="fas fa-search" style="color: #94a3b8; font-size: 12px;"></i>
+            <input type="text" id="urSearchInput" placeholder="Search module name or category..." autocomplete="off">
+            <i class="fas fa-times-circle" style="color: #cbd5e1; cursor: pointer; font-size: 12px;" onclick="document.getElementById('urSearchInput').value = ''; window.UserRightsManager.searchTerm = ''; window.UserRightsManager.renderTable();"></i>
+        </div>
     </div>
-    
-    <p style="text-align: right; color: #64748b; font-style: italic; font-size: 11px; margin-bottom: 8px; margin-top: 5px;">
-        <i class="fas fa-info-circle"></i> Double-click on <b>Right Allowed Status</b> to toggle access.
-    </p>
-    
-    <div style="max-height: 48vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-        <table class="ur-table" style="width: 100%; border-collapse: collapse;">
-            <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 10;">
+
+    <!-- Category Tabs -->
+    <div class="ur-tab-strip" id="urCategoryTabs">
+        <!-- Rendered by UserRightsManager -->
+    </div>
+
+    <!-- Quick Bulk Actions Bar -->
+    <div class="ur-bulk-bar">
+        <div style="font-weight: 600; color: #475569;">
+            <i class="fas fa-tasks" style="color: #0284c7;"></i> Quick Actions for Visible Modules:
+        </div>
+        <div class="ur-bulk-actions">
+            <button type="button" class="ur-bulk-btn btn-all-allow" onclick="window.UserRightsManager.bulkSet('allowed', true)">
+                <i class="fas fa-check-double"></i> Allow All
+            </button>
+            <button type="button" class="ur-bulk-btn btn-all-revoke" onclick="window.UserRightsManager.bulkSet('allowed', false)">
+                <i class="fas fa-ban"></i> Revoke All
+            </button>
+            <span style="color: #cbd5e1;">|</span>
+            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('view', true)">All View</button>
+            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('create', true)">All Create</button>
+            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('edit', true)">All Edit</button>
+            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('delete', true)">All Delete</button>
+            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('print', true)">All Print</button>
+        </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="ur-table-wrapper">
+        <table class="ur-table">
+            <thead>
                 <tr>
-                    <th style="width: 45%; text-align: left; padding: 12px 15px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Right Type</th>
-                    <th style="width: 25%; text-align: center; padding: 12px 5px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Right Allowed Status</th>
-                    <th style="width: 15%; text-align: center; padding: 12px 5px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Editor</th>
-                    <th style="width: 15%; text-align: center; padding: 12px 5px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Viewer</th>
+                    <th style="width: 35px; text-align: center;">#</th>
+                    <th style="text-align: left; width: 320px;">Module / Screen</th>
+                    <th style="text-align: center; width: 110px;">Access Status</th>
+                    <th style="text-align: center; width: 65px;" title="View records">View</th>
+                    <th style="text-align: center; width: 65px;" title="Create new records">Create</th>
+                    <th style="text-align: center; width: 65px;" title="Edit existing records">Edit</th>
+                    <th style="text-align: center; width: 65px;" title="Delete records">Delete</th>
+                    <th style="text-align: center; width: 65px;" title="Print / Export">Print</th>
                 </tr>
             </thead>
             <tbody id="urTableBody">
-                <!-- Populated by initUserRightsView -->
+                <!-- Dynamically populated -->
             </tbody>
         </table>
     </div>
-    
-    <div class="modal-actions">
-        <button class="btn btn-primary" onclick="saveUserRights()"><i class="fas fa-check"></i> Save Changes</button>
-        <button class="btn btn-secondary" onclick="closeModal()"><i class="fas fa-times"></i> Cancel</button>
+
+    <!-- Footer Action Buttons -->
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid #e2e8f0;">
+        <div>
+            <span id="urToastMsg" style="display: none; background: #ecfdf5; color: #15803d; border: 1px solid #86efac; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700;">
+                <i class="fas fa-check-circle"></i> User rights updated successfully!
+            </span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-primary" id="urSaveBtn" onclick="window.UserRightsManager.saveChanges()" style="padding: 6px 18px; font-weight: 700; font-size: 12.5px;">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="closeModal()" style="padding: 6px 14px; font-size: 12.5px;">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
     </div>
 </div>

@@ -414,7 +414,14 @@ document.addEventListener('click', function(e) {
                             window.currentUserRights = {};
                             if (Array.isArray(rightsArr)) {
                                 rightsArr.forEach(r => {
-                                    window.currentUserRights[r.module_name.trim()] = { allowed: parseInt(r.is_allowed) === 1, can_edit: parseInt(r.can_edit) === 1, can_view: parseInt(r.can_view) === 1 };
+                                    window.currentUserRights[r.module_name.trim()] = { 
+                                        allowed: parseInt(r.is_allowed) === 1, 
+                                        can_edit: parseInt(r.can_edit) === 1, 
+                                        can_view: parseInt(r.can_view) === 1,
+                                        can_create: parseInt(r.can_create !== undefined ? r.can_create : r.can_edit) === 1,
+                                        can_delete: parseInt(r.can_delete !== undefined ? r.can_delete : r.can_edit) === 1,
+                                        can_print: parseInt(r.can_print !== undefined ? r.can_print : (r.can_view || r.can_edit)) === 1
+                                    };
                                 });
                             }
                             setupMenuButtons();
@@ -2661,6 +2668,10 @@ document.addEventListener('click', function(e) {
             }
         };
         function initUserRightsView() {
+            if (window.UserRightsManager && typeof window.UserRightsManager.init === 'function') {
+                window.UserRightsManager.init();
+                return;
+            }
             let userOptions = '';
             users.forEach(u => {
                 userOptions += `<option value="${u.id}">${u.username}</option>`;
@@ -3510,7 +3521,27 @@ document.addEventListener('click', function(e) {
             const isFYMismatched = window.isReadOnly;
 
             // If user is Editor, they bypass restrictions UNLESS FY is mismatched
-            if (isEditor && !isFYMismatched) return;
+            if (isEditor && !isFYMismatched) {
+                if (right.can_delete === 0 || right.can_delete === false) {
+                    container.querySelectorAll('button, a, .btn').forEach(btn => {
+                        const btnText = (btn.innerText || '').toLowerCase();
+                        const btnHtml = btn.innerHTML.toLowerCase();
+                        if (btnText.includes('delete') || btnText.includes('remove') || btnHtml.includes('fa-trash') || btnHtml.includes('fa-trash-alt')) {
+                            btn.style.display = 'none';
+                        }
+                    });
+                }
+                if (right.can_print === 0 || right.can_print === false) {
+                    container.querySelectorAll('button, a, .btn').forEach(btn => {
+                        const btnText = (btn.innerText || '').toLowerCase();
+                        const btnHtml = btn.innerHTML.toLowerCase();
+                        if (btnText.includes('print') || btnText.includes('voucher') || btnHtml.includes('fa-print') || btnHtml.includes('fa-whatsapp')) {
+                            btn.style.display = 'none';
+                        }
+                    });
+                }
+                return;
+            }
             
             // If user is NOT an Editor but IS a Viewer, they get read-only mode
             // If user has NEITHER but somehow got here, restricted mode appy anyway

@@ -27,7 +27,7 @@ try {
         $pdo->exec("ALTER TABLE users ADD COLUMN branch_id INT DEFAULT NULL");
     }
 
-    // MIGRATION: Add can_edit and can_view columns to user_rights
+    // MIGRATION: Add can_edit, can_view, can_create, can_delete, can_print columns to user_rights
     $stmt = $pdo->query("SHOW COLUMNS FROM user_rights LIKE 'can_edit'");
     if (!$stmt->fetch()) {
         $pdo->exec("ALTER TABLE user_rights ADD COLUMN can_edit TINYINT(1) DEFAULT 0");
@@ -36,6 +36,24 @@ try {
     if (!$stmt->fetch()) {
         $pdo->exec("ALTER TABLE user_rights ADD COLUMN can_view TINYINT(1) DEFAULT 0");
     }
+    try {
+        $stmt = $pdo->query("SHOW COLUMNS FROM user_rights LIKE 'can_create'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("ALTER TABLE user_rights ADD COLUMN can_create TINYINT(1) DEFAULT 0");
+        }
+    } catch (Exception $e) {}
+    try {
+        $stmt = $pdo->query("SHOW COLUMNS FROM user_rights LIKE 'can_delete'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("ALTER TABLE user_rights ADD COLUMN can_delete TINYINT(1) DEFAULT 0");
+        }
+    } catch (Exception $e) {}
+    try {
+        $stmt = $pdo->query("SHOW COLUMNS FROM user_rights LIKE 'can_print'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("ALTER TABLE user_rights ADD COLUMN can_print TINYINT(1) DEFAULT 0");
+        }
+    } catch (Exception $e) {}
 
     // MIGRATION: Update users role enum to Admin/User and migrate old roles
     try {
@@ -91,6 +109,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $r['is_allowed'] = 1;
                 $r['can_edit'] = 1;
                 $r['can_view'] = 1;
+                $r['can_create'] = 1;
+                $r['can_delete'] = 1;
+                $r['can_print'] = 1;
             }
         } elseif ($user && (strtoupper($user['role']) === 'POS')) {
             // POS Role: Guarantee full permissions for POS operational modules
@@ -110,6 +131,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     $r['is_allowed'] = 1;
                     $r['can_edit'] = 1;
                     $r['can_view'] = 1;
+                    $r['can_create'] = 1;
+                    $r['can_delete'] = 0;
+                    $r['can_print'] = 1;
                 }
             }
             foreach ($posModules as $pm) {
@@ -119,7 +143,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                         'module_name' => $pm,
                         'is_allowed' => 1,
                         'can_edit' => 1,
-                        'can_view' => 1
+                        'can_view' => 1,
+                        'can_create' => 1,
+                        'can_delete' => 0,
+                        'can_print' => 1
                     ];
                 }
             }
@@ -487,17 +514,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_rights') {
         try {
             $userId = $data['user_id'];
-            $stmt_before = $pdo->prepare("SELECT module_name, is_allowed, can_edit, can_view FROM user_rights WHERE user_id = ?");
+            $stmt_before = $pdo->prepare("SELECT * FROM user_rights WHERE user_id = ?");
             $stmt_before->execute([$userId]);
             $before_data = $stmt_before->fetchAll();
 
             $pdo->prepare("DELETE FROM user_rights WHERE user_id = ?")->execute([$userId]);
-            $stmt = $pdo->prepare("INSERT INTO user_rights (user_id, module_name, is_allowed, can_edit, can_view) VALUES (?, ?, ?, ?, ?)");
-            foreach ($data['rights'] as $right) {
-                $stmt->execute([$userId, $right['module'], $right['allowed'], $right['can_edit'], $right['can_view']]);
+
+            // Check if granular columns exist
+            $hasGranular = true;
+            try {
+                $chk = $pdo->query("SHOW COLUMNS FROM user_rights LIKE 'can_create'");
+                $hasGranular = ($chk && $chk->fetch()) ? true : false;
+            } catch (Exception $e) { $hasGranular = false; }
+
+            if ($hasGranular) {
+                $stmt = $pdo->prepare("INSERT INTO user_rights (user_id, module_name, is_allowed, can_edit, can_view, can_create, can_delete, can_print) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                foreach ($data['rights'] as $right) {
+                    $cCreate = isset($right['can_create']) ? intval($right['can_create']) : intval($right['can_edit'] ?? 0);
+                    $cDelete = isset($right['can_delete']) ? intval($right['can_delete']) : intval($right['can_edit'] ?? 0);
+                    $cPrint  = isset($right['can_print']) ? intval($right['can_print']) : (intval($right['can_view'] ?? 0) || intval($right['can_edit'] ?? 0) ? 1 : 0);
+                    $stmt->execute([
+                        $userId,
+                        $right['module'],
+                        intval($right['allowed']),
+                        intval($right['can_edit']),
+                        intval($right['can_view']),
+                        $cCreate,
+                        $cDelete,
+                        $cPrint
+                    ]);
+                }
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO user_rights (user_id, module_name, is_allowed, can_edit, can_view) VALUES (?, ?, ?, ?, ?)");
+                foreach ($data['rights'] as $right) {
+                    $stmt->execute([$userId, $right['module'], intval($right['allowed']), intval($right['can_edit']), intval($right['can_view'])]);
+                }
             }
 
-            $stmt_after = $pdo->prepare("SELECT module_name, is_allowed, can_edit, can_view FROM user_rights WHERE user_id = ?");
+            $stmt_after = $pdo->prepare("SELECT * FROM user_rights WHERE user_id = ?");
             $stmt_after->execute([$userId]);
             $after_data = $stmt_after->fetchAll();
 
