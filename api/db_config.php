@@ -14,53 +14,12 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS
 // Set default timezone to Pakistan Standard Time (PKT / UTC+5)
 date_default_timezone_set('Asia/Karachi');
 
-// Load environment variables from .env file if available
-if (!function_exists('loadEnv')) {
-    function loadEnv($path) {
-        if (!file_exists($path)) return;
-        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line) || strpos($line, '#') === 0) continue;
-            if (strpos($line, '=') !== false) {
-                list($key, $val) = explode('=', $line, 2);
-                $key = trim($key);
-                $val = trim($val);
-                $val = trim($val, "\"'");
-                if (getenv($key) === false) {
-                    putenv("$key=$val");
-                    $_ENV[$key] = $val;
-                    $_SERVER[$key] = $val;
-                }
-            }
-        }
-    }
-}
-loadEnv(__DIR__ . '/../.env');
-loadEnv(__DIR__ . '/.env');
-
-// Smart Domain / Host Detection Fallback for Multi-Site Deployment
-$httpHost = strtolower($_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? ''));
-
-$defaultDb   = 'u245697138_madrasa';
-$defaultUser = 'u245697138_madrasa';
-$defaultPass = 'Suhailahmad123@';
-
-if (strpos($httpHost, 'orchid-salmon') !== false || strpos($httpHost, 'madrasa') !== false) {
-    $defaultDb   = 'u245697138_madrasa';
-    $defaultUser = 'u245697138_madrasa';
-    $defaultPass = 'Suhailahmad123@';
-} elseif (strpos($httpHost, 'goldenrod-grasshopper') !== false || strpos($httpHost, 'forupdates') !== false) {
-    $defaultDb   = 'u245697138_forupdates';
-    $defaultUser = 'u245697138_forupdates';
-    $defaultPass = 'Suhailahmad123@';
-}
-
-$host    = getenv('DB_HOST') ?: 'localhost';
-$db      = getenv('DB_NAME') ?: $defaultDb;
-$user    = getenv('DB_USER') ?: $defaultUser;
-$pass    = getenv('DB_PASS') !== false ? getenv('DB_PASS') : $defaultPass;
-$charset = getenv('DB_CHARSET') ?: 'utf8mb4';
+// Database Connection Configuration (Easy to configure for any domain / server)
+$host = 'localhost';
+$db   = 'u245697138_forupdates';
+$user = 'u245697138_forupdates';
+$pass = 'Suhailahmad123@';
+$charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
 $options = [
