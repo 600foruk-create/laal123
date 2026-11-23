@@ -64,9 +64,13 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
 
     // 1. Opening Balances
     $obMap = [];
+    $obRateMap = [];
     if (in_array("inv_opening_balances", $existing)) {
-        $q = $pdo->query("SELECT item_id, COALESCE(SUM(quantity), 0) as qty, COALESCE(SUM(pieces), 0) as pcs FROM inv_opening_balances WHERE company_id = $company_id GROUP BY item_id");
-        while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $obMap[$r['item_id']] = floatval($r['qty']); }
+        $q = $pdo->query("SELECT item_id, COALESCE(SUM(quantity), 0) as qty, COALESCE(SUM(pieces), 0) as pcs, AVG(NULLIF(rate, 0)) as avg_r FROM inv_opening_balances WHERE company_id = $company_id GROUP BY item_id");
+        while ($r = $q->fetch(PDO::FETCH_ASSOC)) { 
+            $obMap[$r['item_id']] = floatval($r['qty']); 
+            if (!empty($r['avg_r'])) $obRateMap[$r['item_id']] = floatval($r['avg_r']);
+        }
     }
 
     // 2. Purchases (+) / Inward Gate Passes (+)
@@ -131,17 +135,27 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
         while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $prMap[$r['item_id']] = floatval($r['qty']); }
     }
 
-    // 4. Outward Movements (-) (Sale Invoices / Delivery Challans / Outward Gate Passes)
+    // 4. Outward Movements (-) & Sale Rates (for Finished Goods)
     $siMap = [];
-    if ($inv_move_out === 'sale_invoices') {
-        if (in_array("sale_invoices", $existing) && in_array("sale_invoice_items", $existing)) {
-            $sql = "SELECT sii.item_coa_id as item_id, COALESCE(SUM(sii.quantity), 0) as qty 
-                    FROM sale_invoice_items sii 
-                    JOIN sale_invoices s ON sii.invoice_id = s.id 
-                    WHERE s.company_id = $company_id AND s.is_cancelled = 0 AND s.is_posted = 1 " . $dateCond('s.invoice_date') . " 
-                    GROUP BY sii.item_coa_id";
-            $q = $pdo->query($sql);
-            while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $siMap[$r['item_id']] = floatval($r['qty']); }
+    $siRateMap = [];
+    if (in_array("sale_invoices", $existing) && in_array("sale_invoice_items", $existing)) {
+        $sql = "SELECT sii.item_coa_id as item_id, 
+                       COALESCE(SUM(sii.quantity), 0) as qty,
+                       COALESCE(SUM(COALESCE(sii.net_amount, sii.quantity * sii.rate)), 0) as total_amt 
+                FROM sale_invoice_items sii 
+                JOIN sale_invoices s ON sii.invoice_id = s.id 
+                WHERE s.company_id = $company_id AND s.is_cancelled = 0 AND s.is_posted = 1 " . $dateCond('s.invoice_date') . " 
+                GROUP BY sii.item_coa_id";
+        $q = $pdo->query($sql);
+        while ($r = $q->fetch(PDO::FETCH_ASSOC)) { 
+            $qty = floatval($r['qty']);
+            $amt = floatval($r['total_amt']);
+            if ($qty > 0 && $amt > 0) {
+                $siRateMap[$r['item_id']] = $amt / $qty;
+            }
+            if ($inv_move_out === 'sale_invoices') {
+                $siMap[$r['item_id']] = $qty; 
+            }
         }
     } elseif ($inv_move_out === 'delivery_challans') {
         if (in_array("delivery_challans", $existing) && in_array("delivery_challan_items", $existing)) {
@@ -213,18 +227,27 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
         while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $minMap[$r['item_id']] = floatval($r['qty']); }
     }
 
-    // 9. Production Notes (Finished Goods Output: + ; Raw Consumed: -)
+    // 9. Production Notes (Finished Goods Output: + ; Raw Consumed: - ; Production Rates)
     $pnInMap = [];
     $pnOutMap = [];
+    $pnRateMap = [];
     if (in_array("production_notes", $existing) && in_array("production_note_items", $existing)) {
         // Produced items (qty > 0)
-        $sqlIn = "SELECT pni.item_id, COALESCE(SUM(pni.qty), 0) as qty 
+        $sqlIn = "SELECT pni.item_id, COALESCE(SUM(pni.qty), 0) as qty,
+                         COALESCE(SUM(pni.qty * COALESCE(pni.rate, 0)), 0) as total_amt 
                   FROM production_note_items pni 
                   JOIN production_notes p ON pni.pn_id = p.id 
                   WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND pni.qty > 0 " . $dateCond('p.date') . " 
                   GROUP BY pni.item_id";
         $qIn = $pdo->query($sqlIn);
-        while ($r = $qIn->fetch(PDO::FETCH_ASSOC)) { $pnInMap[$r['item_id']] = floatval($r['qty']); }
+        while ($r = $qIn->fetch(PDO::FETCH_ASSOC)) { 
+            $qVal = floatval($r['qty']);
+            $aAmt = floatval($r['total_amt']);
+            $pnInMap[$r['item_id']] = $qVal; 
+            if ($qVal > 0 && $aAmt > 0) {
+                $pnRateMap[$r['item_id']] = $aAmt / $qVal;
+            }
+        }
 
         // Consumed raw items (qty < 0)
         $sqlOut = "SELECT pni.item_id, COALESCE(SUM(ABS(pni.qty)), 0) as qty 
@@ -251,6 +274,8 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
     $stmtItems->execute([$company_id]);
     $items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
 
+    $avgRawRatePerKg = (!empty($piRateMap)) ? round(array_sum($piRateMap) / count($piRateMap), 2) : 240.0;
+
     $results = [];
     foreach ($items as $it) {
         $id = $it['id'];
@@ -267,20 +292,52 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
 
         $balance = $ob + $pi - $pr - $si + $sr + $aia - $ria - $min + $pnIn - $pnOut;
 
-        // Rate detection: Weighted avg purchase rate if exists, else item master purchase price
-        $rate = $piRateMap[$id] ?? floatval($it['purchase_price']);
-        if ($rate <= 0) $rate = floatval($it['selling_price']);
-
         // Detect Group: Raw Material vs Finished Goods (Pipes/Fittings)
         $mCat = strtolower($it['main_category'] ?? '');
         $cType = strtolower($it['category_type'] ?? '');
+        $iName = strtolower($it['name'] ?? '');
         $grp = 'Others';
-        if (strpos($mCat, 'raw') !== false || strpos($cType, 'raw') !== false) {
+        if (strpos($mCat, 'raw') !== false || strpos($cType, 'raw') !== false || strpos($iName, 'resin') !== false || strpos($iName, 'calcium') !== false || strpos($iName, 'stabilizer') !== false) {
             $grp = 'Raw Material';
-        } elseif (strpos($mCat, 'pipe') !== false || strpos($cType, 'pipe') !== false) {
+        } elseif (strpos($mCat, 'pipe') !== false || strpos($cType, 'pipe') !== false || strpos($iName, 'pipe') !== false) {
             $grp = 'PVC Pipes';
-        } elseif (strpos($mCat, 'fitting') !== false || strpos($cType, 'fitting') !== false) {
+        } elseif (strpos($mCat, 'fitting') !== false || strpos($cType, 'fitting') !== false || strpos($iName, 'elbow') !== false || strpos($iName, 'tee') !== false || strpos($iName, 'socket') !== false || strpos($iName, 'cap') !== false) {
             $grp = 'Fittings';
+        }
+
+        // Rate detection:
+        $rate = 0.0;
+        if ($grp === 'Raw Material') {
+            $rate = $piRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price']));
+            if ($rate <= 0) $rate = floatval($it['selling_price']);
+            if ($rate <= 0) $rate = $avgRawRatePerKg;
+        } else {
+            // Finished Goods (Pipes, Fittings, Others)
+            $rate = $pnRateMap[$id] ?? ($siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price'])));
+            if ($rate <= 0 && !empty($it['valuation_cost'])) $rate = floatval($it['valuation_cost']);
+            if ($rate <= 0 && !empty($it['selling_price'])) $rate = floatval($it['selling_price']);
+            if ($rate <= 0 && $avgRawRatePerKg > 0) {
+                // Weight-based compound cost
+                $wt = floatval($it['unit_weight'] ?? 0);
+                if ($wt <= 0) $wt = floatval($it['qty_per_piece'] ?? 0);
+                if ($wt <= 0 && preg_match('/(\d+(?:\.\d+)?)\s*kg/i', $it['name'], $mMatch)) {
+                    $wt = floatval($mMatch[1]);
+                }
+                if ($wt <= 0) {
+                    $nu = strtoupper($it['name']);
+                    if (strpos($nu, '4"') !== false) $wt = 0.400;
+                    elseif (strpos($nu, '3"') !== false) $wt = 0.300;
+                    elseif (strpos($nu, '2"') !== false) $wt = 0.200;
+                    elseif (strpos($nu, '1.5"') !== false) $wt = 0.150;
+                    elseif (strpos($nu, '1.25"') !== false) $wt = 0.125;
+                    elseif (strpos($nu, '1"') !== false) $wt = 0.100;
+                }
+                if ($wt > 0) {
+                    $rate = round($wt * $avgRawRatePerKg, 2);
+                } else {
+                    $rate = $avgRawRatePerKg;
+                }
+            }
         }
 
         // Multi-Unit Conversion (CTN, PCS, KGS)
@@ -345,7 +402,7 @@ function calculateInventorySnapshotAsOf($pdo, $company_id, $asOfDate) {
             'carton_size' => $pcsPerCtn,
             'unit_weight' => $wtPerPc,
             'avg_rate' => round($rate, 2),
-            'system_value' => round($balance * $rate, 2)
+            'system_value' => ($balance > 0) ? round($balance * $rate, 2) : 0.0
         ];
     }
 
