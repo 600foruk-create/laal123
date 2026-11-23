@@ -504,11 +504,15 @@ window.InventoryBalancesModule = {
                 visibleItems.forEach((row) => {
                     const isFittings = grp.group_name === 'Fittings';
                     const dashSec = isFittings && row.ob_sec === 0 && row.in_sec === 0 && row.out_sec === 0 && row.cb_sec === 0;
+                    const itemCode = row.item_code || row.code || '';
+                    const itemName = row.item_name || row.name || '';
+                    const safeName = String(itemName).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const safeCode = String(itemCode).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                     html += `
-                        <tr onclick="window.InventoryBalancesModule.highlightRow(this, ${row.item_id})" style="cursor: pointer;">
+                        <tr onclick="window.InventoryBalancesModule.highlightRow(this, ${row.item_id})" ondblclick="window.InventoryBalancesModule.openItemLedger(${row.item_id}, '${safeCode}', '${safeName}')" title="Double-click to open Item Ledger" style="cursor: pointer;">
                             <td style="text-align: center; color: #64748b; font-weight: bold;">${globalItemIndex++}</td>
-                            <td style="font-weight: 600; color: #0f172a;" title="${row.item_name}">${row.item_name}</td>
+                            <td style="font-weight: 600; color: #0f172a;" title="${itemName} (Double-click to open Ledger)">${itemName}</td>
                             <td style="text-align: center; font-weight: bold; color: #1F4E79;">${row.unit_display}</td>
 
                             <td style="text-align: right;">${self.formatCell(row.ob_primary)}</td>
@@ -605,6 +609,37 @@ window.InventoryBalancesModule = {
         const allTr = document.querySelectorAll('#ib_main_tbody tr');
         allTr.forEach(r => r.classList.remove('selected'));
         if (trEl) trEl.classList.add('selected');
+    },
+
+    openItemLedger: function(itemId, itemCode, itemName) {
+        if (!itemId) return;
+        const isPeriod = document.getElementById('ib_mode_period')?.checked;
+        const fromDate = isPeriod ? (document.getElementById('ib_from_date')?.value || '') : '';
+        const toDate = isPeriod ? (document.getElementById('ib_to_date')?.value || '') : (document.getElementById('ib_as_of_date')?.value || '');
+
+        window.__pendingDirectLedgerItem = { itemId, itemCode, itemName, fromDate, toDate };
+
+        const trigger = () => {
+            if (window.ViewInventoryLedgersModule && typeof window.ViewInventoryLedgersModule.loadDirectItem === 'function') {
+                window.ViewInventoryLedgersModule.loadDirectItem(itemId, itemCode, itemName, fromDate, toDate);
+            }
+        };
+
+        if (typeof window.openModularPopup === 'function') {
+            window.openModularPopup(
+                'Navigation/Reports/view_inventory_ledgers.html',
+                'fa-book',
+                'View Inventory Ledgers',
+                () => {
+                    trigger();
+                },
+                'Inventory Ledgers',
+                true,
+                true
+            );
+        } else {
+            trigger();
+        }
     },
 
     printReport: async function() {

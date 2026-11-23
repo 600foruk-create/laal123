@@ -15,8 +15,66 @@ window.ViewInventoryLedgersModule = {
             await self.fetchLookupData();
             self.setupSmartSearch();
             self.setDefaultDates();
+
+            // Check if there is a pending direct load from Inventory Balances drill-down
+            if (window.__pendingDirectLedgerItem) {
+                const p = window.__pendingDirectLedgerItem;
+                delete window.__pendingDirectLedgerItem;
+                setTimeout(() => {
+                    self.loadDirectItem(p.itemId, p.itemCode, p.itemName, p.fromDate, p.toDate);
+                }, 100);
+            }
         } catch (e) {
             alert('Init Error: ' + e.message);
+        }
+    },
+
+    loadDirectItem: async function(itemId, itemCode, itemName, fromDate, toDate) {
+        try {
+            const self = window.ViewInventoryLedgersModule;
+            if (!self.isInitialized) {
+                await self.init();
+            } else if (!self.items || self.items.length === 0) {
+                await self.fetchLookupData();
+            }
+
+            const vc = self.getEl('vil_item_code');
+            const vn = self.getEl('vil_item_name');
+            if (!vc || !vn) {
+                setTimeout(() => self.loadDirectItem(itemId, itemCode, itemName, fromDate, toDate), 100);
+                return;
+            }
+
+            // Find matching item in self.items if itemCode or itemName is missing
+            if ((!itemCode || !itemName) && self.items && self.items.length > 0) {
+                const found = self.items.find(it => String(it.id) === String(itemId));
+                if (found) {
+                    if (!itemCode) itemCode = found.item_code;
+                    if (!itemName) itemName = found.item_name;
+                }
+            }
+
+            vc.value = itemCode || '';
+            vc.setAttribute('data-id', itemId);
+            vn.value = itemName || '';
+
+            if (fromDate || toDate) {
+                const chkPeriod = self.getEl('vil_use_period');
+                const fromEl = self.getEl('vil_from_date');
+                const toEl = self.getEl('vil_to_date');
+
+                if (chkPeriod) {
+                    chkPeriod.checked = true;
+                    if (fromEl) fromEl.disabled = false;
+                    if (toEl) toEl.disabled = false;
+                }
+                if (fromEl && fromDate) fromEl.value = fromDate;
+                if (toEl && toDate) toEl.value = toDate;
+            }
+
+            self.fetchLedger();
+        } catch (err) {
+            console.error('loadDirectItem error:', err);
         }
     },
     
