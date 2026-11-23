@@ -50,8 +50,18 @@
             </div>
         </div>
 
-        <!-- Right Side of Bar 1: Layout Mode, Scale Toggle, Groups -->
-        <div style="display: flex; align-items: center; gap: 7px; flex-shrink: 0;">
+        <!-- Right Side of Bar 1: Grouping Mode, Layout Mode, Scale Toggle, Groups -->
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+            <!-- Grouping Mode Switch (Main Accounts vs Sub Types) -->
+            <div style="display: flex; align-items: center; gap: 2px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 3px; padding: 1.5px 3px;" title="Group accounts by Main Account Type or Sub Account Type">
+                <button type="button" id="bsBtnGroupMain" onclick="window.BalanceSheetModule.setGrouping('main')" style="border: none; background: #0284c7; color: white; font-weight: 700; padding: 2px 7px; border-radius: 2px; cursor: pointer; font-size: 10px;">
+                    <i class="fas fa-sitemap"></i> Main Accounts
+                </button>
+                <button type="button" id="bsBtnGroupSub" onclick="window.BalanceSheetModule.setGrouping('sub')" style="border: none; background: transparent; color: #0369a1; font-weight: 600; padding: 2px 7px; border-radius: 2px; cursor: pointer; font-size: 10px;">
+                    Sub Types
+                </button>
+            </div>
+
             <!-- Layout Mode Switch -->
             <div style="display: flex; align-items: center; gap: 2px; background: #e2e8f0; border-radius: 3px; padding: 1.5px 3px;">
                 <button type="button" id="bsBtnLayoutSide" class="bs-tab-btn active" onclick="window.BalanceSheetModule.switchLayout('side')" style="border: none; background: white; color: #1e293b; font-weight: 700; padding: 2px 8px; border-radius: 2px; cursor: pointer; font-size: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">

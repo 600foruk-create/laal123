@@ -12,6 +12,7 @@
             companyName: 'SoftifyX Financials',
             companyInfo: null,
             layoutMode: 'side', // 'side' or 'vertical'
+            groupBy: 'main', // 'main' (Main Account Types) or 'sub' (Sub Account Types)
             isComparative: false,
             scale: 'actual', // 'actual', 'k', 'm'
             activeAgingTab: 'debtors',
@@ -130,6 +131,20 @@
             }
         },
 
+        setGrouping: function(mode) {
+            this.data.groupBy = mode;
+            const btnMain = document.getElementById('bsBtnGroupMain');
+            const btnSub = document.getElementById('bsBtnGroupSub');
+            if (mode === 'main') {
+                if (btnMain) { btnMain.style.background = '#0284c7'; btnMain.style.color = '#ffffff'; btnMain.style.fontWeight = '700'; }
+                if (btnSub) { btnSub.style.background = 'transparent'; btnSub.style.color = '#0369a1'; btnSub.style.fontWeight = '600'; }
+            } else {
+                if (btnMain) { btnMain.style.background = 'transparent'; btnMain.style.color = '#0369a1'; btnMain.style.fontWeight = '600'; }
+                if (btnSub) { btnSub.style.background = '#0284c7'; btnSub.style.color = '#ffffff'; btnSub.style.fontWeight = '700'; }
+            }
+            this.loadReport();
+        },
+
         loadReport: async function() {
             const onDate = document.getElementById('bsAsOnDate')?.value || '';
             const compDate = (this.data.isComparative) ? (document.getElementById('bsComparativeDate')?.value || '') : '';
@@ -145,7 +160,7 @@
             if (liabBox) liabBox.innerHTML = loaderHtml;
             if (vertBox) vertBox.innerHTML = loaderHtml;
 
-            let url = `api/balance_sheet.php?action=get_balance_sheet&company_id=${this.data.company_id}&as_on_date=${onDate}&voucher_status=${vStatus}&smart_reclass=${smartReclass}`;
+            let url = `api/balance_sheet.php?action=get_balance_sheet&company_id=${this.data.company_id}&as_on_date=${onDate}&voucher_status=${vStatus}&smart_reclass=${smartReclass}&group_by=${this.data.groupBy || 'main'}`;
             if (compDate) {
                 url += `&comparative_date=${compDate}`;
             }
@@ -506,6 +521,7 @@
                                 <td style="padding: 3px 6px; color: ${isSys ? '#15803d' : '#1e293b'}; font-weight: ${isSys ? '700' : '500'};">
                                     ${isSys ? '<i class="fas fa-bolt" style="color: #16a34a; margin-right: 4px;"></i>' : ''}
                                     ${it.name}
+                                    ${(it.sub_head && it.sub_head !== grp.sub_head) ? `<span style="font-size: 8px; color: #0284c7; background: #e0f2fe; padding: 1px 4px; border-radius: 2px; margin-left: 5px; font-weight: 600;">${it.sub_head}</span>` : ''}
                                     ${isContra ? '<span style="font-size: 8px; color: #dc2626; margin-left: 3px;">(Contra)</span>' : ''}
                                     ${isReclass ? `<span style="font-size: 7.5px; font-weight: 700; background: #fef3c7; color: #92400e; padding: 1px 3px; border-radius: 2px; margin-left: 3px;" title="Negative balance reclassified for standard accounting">${it.reclass_type || 'Reclassified'}</span>` : ''}
                                     ${agingBadgeHtml}

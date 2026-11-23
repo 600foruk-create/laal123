@@ -684,6 +684,7 @@ try {
                         'id' => $accId,
                         'code' => $code,
                         'name' => $name,
+                        'main_head' => (!empty($mainName) && $mainName !== 'Uncategorized') ? $mainName : 'Fixed Assets',
                         'sub_head' => $subName,
                         'amount' => round($val, 2),
                         'comp_amount' => round($compVal, 2),
@@ -702,11 +703,13 @@ try {
                 if ($smart_reclass && $netBalance < -0.01) {
                     $isBankOrCash = (strpos($nameLower, 'bank') !== false || strpos($nameLower, 'cash') !== false || strpos($subName, 'Bank') !== false || strpos($subName, 'Cash') !== false);
                     $targetSubHead = $isBankOrCash ? 'Bank Overdrafts (Credit Balances)' : 'Advances from Customers';
+                    $targetMainHead = $isBankOrCash ? 'Bank Overdrafts' : 'Advances from Customers';
 
                     $currentLiabilities[] = [
                         'id' => $accId,
                         'code' => $code,
                         'name' => $name,
+                        'main_head' => $targetMainHead,
                         'sub_head' => $targetSubHead,
                         'amount' => round(abs($netBalance), 2),
                         'comp_amount' => round(abs($compNetBalance), 2),
@@ -719,16 +722,32 @@ try {
 
                 // Normal Current Asset (Debit positive)
                 if (abs($netBalance) > 0.01 || abs($compNetBalance) > 0.01) {
-                    $isCustomer = (strpos($nameLower, 'customer') !== false || strpos(strtolower($subName), 'customer') !== false || strpos($mainLower, 'receivable') !== false);
+                    $isCustomer = (strpos($nameLower, 'customer') !== false || strpos(strtolower($subName), 'customer') !== false || strpos($mainLower, 'receivable') !== false || strpos($mainLower, 'customer') !== false);
                     $aging = null;
                     if ($isCustomer && $netBalance > 0.01) {
                         $aging = computeFifoAging($txs, $as_on_date, $netBalance, true);
+                    }
+
+                    $cMainHead = 'Other Current Assets';
+                    if ($isCustomer) {
+                        $cMainHead = 'Customers';
+                    } elseif (strpos($nameLower, 'cash') !== false || strpos(strtolower($subName), 'cash') !== false || strpos($mainLower, 'cash') !== false) {
+                        $cMainHead = 'Cash In Hand';
+                    } elseif (strpos($nameLower, 'bank') !== false || strpos(strtolower($subName), 'bank') !== false || strpos($mainLower, 'bank') !== false) {
+                        $cMainHead = 'Banks';
+                    } elseif (strpos($mainLower, 'inventor') !== false || strpos($mainLower, 'stock') !== false || strpos($nameLower, 'stock') !== false) {
+                        $cMainHead = 'Inventories';
+                    } elseif (strpos($mainLower, 'advance') !== false || strpos(strtolower($subName), 'advance') !== false || strpos(strtolower($subName), 'prepayment') !== false || strpos($nameLower, 'advance') !== false) {
+                        $cMainHead = 'Advances & Prepayments';
+                    } elseif (!empty($mainName) && $mainName !== 'Uncategorized') {
+                        $cMainHead = $mainName;
                     }
 
                     $currentAssets[] = [
                         'id' => $accId,
                         'code' => $code,
                         'name' => $name,
+                        'main_head' => $cMainHead,
                         'sub_head' => $subName,
                         'amount' => round($netBalance, 2),
                         'comp_amount' => round($compNetBalance, 2),
@@ -776,10 +795,12 @@ try {
                 $compFinalEqVal = $isDrawing ? -abs($compDebit - $compCredit) : $compLiabEquityVal;
 
                 if (abs($finalEqVal) > 0.01 || abs($compFinalEqVal) > 0.01) {
+                    $eqMainHead = (!empty($mainName) && $mainName !== 'Uncategorized') ? $mainName : 'Capital & Reserves';
                     $ownerEquity[] = [
                         'id' => $accId,
                         'code' => $code,
                         'name' => $name,
+                        'main_head' => $eqMainHead,
                         'sub_head' => $subName,
                         'amount' => round($finalEqVal, 2),
                         'comp_amount' => round($compFinalEqVal, 2),
@@ -796,10 +817,12 @@ try {
 
             if ($isLongTermLiab) {
                 if (abs($liabEquityVal) > 0.01 || abs($compLiabEquityVal) > 0.01) {
+                    $ncMainHead = (!empty($mainName) && $mainName !== 'Uncategorized') ? $mainName : 'Non-Current Liabilities';
                     $nonCurrentLiabilities[] = [
                         'id' => $accId,
                         'code' => $code,
                         'name' => $name,
+                        'main_head' => $ncMainHead,
                         'sub_head' => $subName,
                         'amount' => round($liabEquityVal, 2),
                         'comp_amount' => round($compLiabEquityVal, 2),
@@ -818,6 +841,7 @@ try {
                     'id' => $accId,
                     'code' => $code,
                     'name' => $name,
+                    'main_head' => 'Advances & Prepayments',
                     'sub_head' => 'Advances to Suppliers & Vendors',
                     'amount' => round(abs($liabEquityVal), 2),
                     'comp_amount' => round(abs($compLiabEquityVal), 2),
@@ -836,10 +860,18 @@ try {
                     $aging = computeFifoAging($txs, $as_on_date, $liabEquityVal, false);
                 }
 
+                $clMainHead = 'Current Liabilities';
+                if ($isVendor) {
+                    $clMainHead = (!empty($mainName) && $mainName !== 'Uncategorized') ? $mainName : 'Creditors / Vendors';
+                } elseif (!empty($mainName) && $mainName !== 'Uncategorized') {
+                    $clMainHead = $mainName;
+                }
+
                 $currentLiabilities[] = [
                     'id' => $accId,
                     'code' => $code,
                     'name' => $name,
+                    'main_head' => $clMainHead,
                     'sub_head' => $subName,
                     'amount' => round($liabEquityVal, 2),
                     'comp_amount' => round($compLiabEquityVal, 2),
@@ -864,6 +896,7 @@ try {
             'id' => 'net_profit',
             'code' => 'P&L',
             'name' => 'Current Period Net Profit / (Loss)',
+            'main_head' => 'Profit & Loss Statement (Live)',
             'sub_head' => 'Profit & Loss Statement (Live)',
             'amount' => round($currentPeriodNetProfit, 2),
             'comp_amount' => round($compCurrentPeriodNetProfit, 2),
@@ -872,14 +905,22 @@ try {
             'is_reclassified' => false
         ];
 
-        // Helper to group by sub_head with Variance calculations
-        $groupAccounts = function($items) {
+        $groupBy = isset($_GET['group_by']) ? trim($_GET['group_by']) : 'main'; // 'main' or 'sub'
+
+        // Helper to group by main_head or sub_head with Variance calculations
+        $groupAccounts = function($items) use ($groupBy) {
             $groups = [];
             foreach ($items as $item) {
-                $sh = $item['sub_head'] ?: 'General';
-                if (!isset($groups[$sh])) {
-                    $groups[$sh] = [
-                        'sub_head' => $sh,
+                if ($groupBy === 'sub') {
+                    $groupKey = !empty($item['sub_head']) ? $item['sub_head'] : 'General';
+                } else {
+                    $groupKey = !empty($item['main_head']) ? $item['main_head'] : (!empty($item['sub_head']) ? $item['sub_head'] : 'General');
+                }
+                if (!isset($groups[$groupKey])) {
+                    $groups[$groupKey] = [
+                        'group_name' => $groupKey,
+                        'sub_head' => $groupKey, // keep sub_head for compatibility with UI
+                        'main_head' => $item['main_head'] ?? $groupKey,
                         'total' => 0,
                         'comp_total' => 0,
                         'diff' => 0,
@@ -895,9 +936,9 @@ try {
                 $item['diff'] = $diff;
                 $item['pct'] = $pct;
 
-                $groups[$sh]['total'] += $amt;
-                $groups[$sh]['comp_total'] += $compAmt;
-                $groups[$sh]['items'][] = $item;
+                $groups[$groupKey]['total'] += $amt;
+                $groups[$groupKey]['comp_total'] += $compAmt;
+                $groups[$groupKey]['items'][] = $item;
             }
 
             foreach ($groups as &$g) {
@@ -1002,7 +1043,7 @@ try {
         try {
             $stmtItems = $pdo->prepare("
                 SELECT 
-                    i.id, i.name, i.current_stock, i.purchase_price,
+                    i.id, i.name, i.current_stock, i.purchase_price, i.selling_price,
                     COALESCE(i.category_type, sm.category_type, '') as cat_type,
                     COALESCE(sm.name, '') as main_cat_name
                 FROM inv_items i
@@ -1016,6 +1057,9 @@ try {
             foreach ($itemRows as $ir) {
                 $cStock = floatval($ir['current_stock'] ?? 0);
                 $pPrice = floatval($ir['purchase_price'] ?? 0);
+                if ($pPrice <= 0 && !empty($ir['selling_price'])) {
+                    $pPrice = floatval($ir['selling_price']);
+                }
                 $itemVal = $cStock * $pPrice;
 
                 $cType = strtolower($ir['cat_type']);
