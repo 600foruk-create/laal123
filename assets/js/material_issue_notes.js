@@ -339,34 +339,43 @@
 
             const formulaQtyInput = document.getElementById('min_formula_qty');
             if (formulaQtyInput) {
+                const applyMultiplier = (multVal) => {
+                    let multiplier = parseFloat(multVal) || 1;
+                    if (multiplier < 1) multiplier = 1;
+                    
+                    document.querySelectorAll('#min_grid tbody tr').forEach(row => {
+                        const baseQty = parseFloat(row.dataset.baseQty) || 0;
+                        const basePieces = parseFloat(row.dataset.basePieces) || 0;
+                        
+                        const qtyInput = row.querySelector('.min-qty');
+                        const piecesInput = row.querySelector('.min-pieces');
+                        
+                        let hasChange = false;
+                        if (qtyInput && row.dataset.baseQty !== undefined) {
+                            qtyInput.value = (baseQty * multiplier).toFixed(4);
+                            hasChange = true;
+                        }
+                        if (piecesInput && row.dataset.basePieces !== undefined) {
+                            const pVal = basePieces * multiplier;
+                            piecesInput.value = (Math.abs(pVal - Math.round(pVal)) < 0.0001) ? Math.round(pVal) : parseFloat(pVal.toFixed(2));
+                            hasChange = true;
+                        }
+                        
+                        if(hasChange) this.calculateRow(row);
+                    });
+                    this.calculateTotals();
+                };
+
                 formulaQtyInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
                         e.target.blur();
-                        let multiplier = parseFloat(e.target.value) || 1;
-                        if (multiplier < 1) multiplier = 1;
-                        
-                        document.querySelectorAll('#min_grid tbody tr').forEach(row => {
-                            const baseQty = parseFloat(row.dataset.baseQty) || 0;
-                            const basePieces = parseFloat(row.dataset.basePieces) || 0;
-                            
-                            const qtyInput = row.querySelector('.min-qty');
-                            const piecesInput = row.querySelector('.min-pieces');
-                            
-                            let hasChange = false;
-                            if (qtyInput && row.dataset.baseQty !== undefined) {
-                                qtyInput.value = (baseQty * multiplier).toFixed(4);
-                                hasChange = true;
-                            }
-                            if (piecesInput && row.dataset.basePieces !== undefined) {
-                                piecesInput.value = (basePieces * multiplier).toFixed(2);
-                                hasChange = true;
-                            }
-                            
-                            if(hasChange) this.calculateRow(row);
-                        });
-                        this.calculateTotals();
+                        applyMultiplier(e.target.value);
                     }
+                });
+
+                formulaQtyInput.addEventListener('change', (e) => {
+                    applyMultiplier(e.target.value);
                 });
             }
         },
@@ -567,13 +576,39 @@
             
             if (!codeInput || !piecesInput || !qtyInput || !rateInput || !amountInput) return;
 
-            const factor = parseFloat(codeInput.dataset.qtyPerPiece) || 0;
+            let factor = parseFloat(codeInput.dataset.qtyPerPiece) || 0;
             const pieces = parseFloat(piecesInput.value) || 0;
             let qty = parseFloat(qtyInput.value) || 0;
             
-            if (pieces > 0 && factor > 0 && triggerInput && (triggerInput.classList.contains('min-pieces') || triggerInput.classList.contains('min-item-code'))) {
-                qty = pieces * factor;
-                qtyInput.value = qty.toFixed(4);
+            // If factor not set in dataset, derive dynamically from formula base values or existing ratio
+            if (factor <= 0) {
+                const bPieces = parseFloat(row.dataset.basePieces) || 0;
+                const bQty = parseFloat(row.dataset.baseQty) || 0;
+                if (bPieces > 0 && bQty > 0) {
+                    factor = bQty / bPieces;
+                    codeInput.dataset.qtyPerPiece = factor;
+                } else if (pieces > 0 && qty > 0) {
+                    factor = qty / pieces;
+                    codeInput.dataset.qtyPerPiece = factor;
+                }
+            }
+            
+            // Two-Way Calculation:
+            // 1. If user typed in PIECES -> calculate QUANTITY = pieces * factor
+            if (triggerInput && (triggerInput.classList.contains('min-pieces') || triggerInput.classList.contains('min-item-code'))) {
+                if (pieces > 0 && factor > 0) {
+                    qty = pieces * factor;
+                    qtyInput.value = qty.toFixed(4);
+                }
+            } 
+            // 2. If user typed in QUANTITY -> calculate PIECES = quantity / factor
+            else if (triggerInput && triggerInput.classList.contains('min-qty')) {
+                if (qty > 0 && factor > 0) {
+                    const calcPieces = qty / factor;
+                    piecesInput.value = (Math.abs(calcPieces - Math.round(calcPieces)) < 0.0001) 
+                        ? Math.round(calcPieces) 
+                        : parseFloat(calcPieces.toFixed(2));
+                }
             }
             
             const rate = parseFloat(rateInput.value) || 0;
