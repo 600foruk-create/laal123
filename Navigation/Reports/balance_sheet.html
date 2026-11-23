@@ -240,8 +240,8 @@
             </span>
         </div>
 
-        <!-- Manufacturing Inventory 3-Way Split (Feature 3) -->
-        <div style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; padding: 2px 8px;">
+        <!-- Manufacturing Inventory 3-Way Split (Feature 3 Linked with Monthly Closing) -->
+        <div style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; padding: 2px 8px; cursor: pointer;" onclick="if(window.parent && window.parent.loadPage){window.parent.loadPage('Navigation/Maintain/monthly_inventory_closing.html');}else{window.open('Navigation/Maintain/monthly_inventory_closing.html');}" title="Click to view Monthly Stock Closing & Godown Audit">
             <span style="font-weight: 700; color: #334155; display: flex; align-items: center; gap: 4px;">
                 <i class="fas fa-boxes" style="color: #d97706;"></i> Store & Floor Stock:
             </span>
@@ -250,6 +250,8 @@
             <span title="Floor WIP from Production Costing">Floor WIP: <strong id="bsInvWipVal" style="color: #d97706;">Rs. 0</strong></span>
             <span style="color: #cbd5e1;">•</span>
             <span title="Pipes & Fittings ready for sale">Finished Goods: <strong id="bsInvFgVal" style="color: #15803d;">Rs. 0</strong></span>
+            <span style="color: #cbd5e1;">•</span>
+            <span title="Total Audited Godown Stock Valuation">Total: <strong id="bsInvTotalVal" style="color: #0284c7; font-weight: 800;">Rs. 0</strong></span>
         </div>
 
     </div>

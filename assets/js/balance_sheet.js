@@ -295,9 +295,11 @@
             const elRaw = document.getElementById('bsInvRawVal');
             const elWip = document.getElementById('bsInvWipVal');
             const elFg = document.getElementById('bsInvFgVal');
+            const elTotal = document.getElementById('bsInvTotalVal');
             if (elRaw) elRaw.textContent = `Rs. ${this.formatCurrency(inv3way.raw_materials)}`;
             if (elWip) elWip.textContent = `Rs. ${this.formatCurrency(inv3way.wip)}`;
             if (elFg) elFg.textContent = `Rs. ${this.formatCurrency(inv3way.finished_goods)}`;
+            if (elTotal) elTotal.textContent = `Rs. ${this.formatCurrency(inv3way.total_inventory)}`;
 
             // 4. Suspense Warning Banner
             const suspenseBanner = document.getElementById('bsSuspenseBanner');
@@ -513,13 +515,19 @@
                             agingBadgeHtml = `<span style="font-size: 7.5px; font-weight: 700; background: ${badgeBg}; color: ${badgeCol}; padding: 1px 4px; border-radius: 2px; margin-left: 4px;" title="${tooltip}">${label}</span>`;
                         }
 
-                        const clickAttr = isSys ? '' : `style="cursor: pointer;" onclick="window.BalanceSheetModule.drillDown(${it.id}, '${it.code}', '${it.name.replace(/'/g, "\\'")}')" title="Click to view full Ledger Khata"`;
+                        let clickAttr = '';
+                        const isInvItem = it.id && typeof it.id === 'string' && it.id.startsWith('inv_');
+                        if (isInvItem) {
+                            clickAttr = `style="cursor: pointer;" onclick="if(window.parent && window.parent.loadPage){window.parent.loadPage('Navigation/Maintain/monthly_inventory_closing.html');}else{window.open('Navigation/Maintain/monthly_inventory_closing.html');}" title="Click to view Monthly Stock Closing & Godown Audit"`;
+                        } else if (!isSys) {
+                            clickAttr = `style="cursor: pointer;" onclick="window.BalanceSheetModule.drillDown(${it.id}, '${it.code}', '${it.name.replace(/'/g, "\\'")}')" title="Click to view full Ledger Khata"`;
+                        }
 
                         html += `
                             <tr class="bs-acc-row" ${clickAttr}>
                                 <td style="padding: 3px 6px 3px 24px; font-family: monospace; color: #64748b; width: 60px;">${it.code}</td>
-                                <td style="padding: 3px 6px; color: ${isSys ? '#15803d' : '#1e293b'}; font-weight: ${isSys ? '700' : '500'};">
-                                    ${isSys ? '<i class="fas fa-bolt" style="color: #16a34a; margin-right: 4px;"></i>' : ''}
+                                <td style="padding: 3px 6px; color: ${isInvItem ? '#b45309' : (isSys ? '#15803d' : '#1e293b')}; font-weight: ${(isSys || isInvItem) ? '700' : '500'};">
+                                    ${isInvItem ? '<i class="fas fa-boxes" style="color: #d97706; margin-right: 4px;"></i>' : (isSys ? '<i class="fas fa-bolt" style="color: #16a34a; margin-right: 4px;"></i>' : '')}
                                     ${it.name}
                                     ${(it.sub_head && it.sub_head !== grp.sub_head) ? `<span style="font-size: 8px; color: #0284c7; background: #e0f2fe; padding: 1px 4px; border-radius: 2px; margin-left: 5px; font-weight: 600;">${it.sub_head}</span>` : ''}
                                     ${isContra ? '<span style="font-size: 8px; color: #dc2626; margin-left: 3px;">(Contra)</span>' : ''}
