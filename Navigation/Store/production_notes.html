@@ -22,6 +22,7 @@
         <button class="so-tool-btn so-btn-info" onclick="window.PNModule.openFindModal()">Find</button>
         <button class="so-tool-btn so-btn-info" onclick="window.PNModule.navigate('last')">Retrieve Last<br>Saved</button>
         <button class="so-tool-btn so-btn-info" onclick="window.PNModule.printPN()">Print</button>
+        <button id="pn_btn_sync_rates" class="so-tool-btn so-btn-info" style="background: #0f766e; color: #fff; font-weight: 600;" onclick="window.PNModule.openSyncRatesModal()" title="Auto-update missing/zero rates on saved vouchers">Auto-Update<br>0-Rates</button>
         <div style="flex: 2;"></div>
     </div>
 
@@ -274,6 +275,55 @@
             </div>
             <div style="padding: 5px 15px; background: #e2e8f0; font-size: 11px; color: #334155; display: flex; gap: 20px;">
                 <div style="display: flex; gap: 5px;"><span>Added on:</span> <input type="text" id="pn_find_added_on" style="width: 120px; font-size: 10px; background: #f1f5f9; border: 1px solid #cbd5e0;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-Sync 0-Rates Modal -->
+    <div id="pn_sync_rates_modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); z-index: 1050; align-items: center; justify-content: center;">
+        <div style="background: white; width: 520px; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif;">
+            <div style="background: #0f766e; color: white; padding: 10px 14px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa fa-sync-alt" style="margin-right: 6px;"></i> Auto-Update 0-Rate Vouchers (PN)</span>
+                <button onclick="window.PNModule.closeSyncRatesModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 18px; font-weight: bold; line-height: 1;">&times;</button>
+            </div>
+            
+            <div style="padding: 16px; font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 12px;">
+                <div id="pn_sync_status_box" style="padding: 12px; border-radius: 4px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="pn_sync_spinner" class="fa fa-spinner fa-spin" style="color: #0f766e;"></span>
+                        <span id="pn_sync_status_text" style="font-weight: 600;">Scanning vouchers for 0.00 rates...</span>
+                    </div>
+                </div>
+
+                <div id="pn_sync_controls" style="display: none; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label style="font-weight: 600; font-size: 12px; color: #1e293b;">1. Target Vouchers (Kisko update karna hai):</label>
+                        <select id="pn_sync_target" style="padding: 6px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;">
+                            <option value="all">All Vouchers with 0.00 Rates (Tamam Vouchers)</option>
+                            <option value="single">Current Voucher Only (Sirf Mojooda Voucher)</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label style="font-weight: 600; font-size: 12px; color: #1e293b;">2. Valuation Rule (Rate kahan se uthaye):</label>
+                        <select id="pn_sync_method" style="padding: 6px 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px;">
+                            <option value="last_purchase">Last Purchase Rate (Pichli Kharidari - Recommended)</option>
+                            <option value="avg_purchase">Average Purchase Rate (Ausat Kharidari)</option>
+                            <option value="item_master">Item Master Price (Chart of Inventory Rate)</option>
+                        </select>
+                    </div>
+
+                    <div style="background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #f59e0b; padding: 8px 10px; font-size: 11.5px; color: #92400e; border-radius: 2px;">
+                        <strong>Note:</strong> Yeh process sirf un rows ko update karega jahan rate 0.00 hai. Jin vouchers mein pehle se rates hain wo bilkul mehfooz rahenge.
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding: 10px 16px; background: #f1f5f9; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px;">
+                <button onclick="window.PNModule.closeSyncRatesModal()" style="padding: 6px 14px; background: #64748b; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Cancel</button>
+                <button id="pn_btn_run_sync" onclick="window.PNModule.runSyncRates()" style="padding: 6px 16px; background: #0f766e; color: white; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; display: none;">
+                    Start Auto-Update
+                </button>
             </div>
         </div>
     </div>

@@ -1260,6 +1260,140 @@
 
             printFrame.contentWindow.focus();
             setTimeout(() => { printFrame.contentWindow.print(); }, 500);
+        },
+
+        openSyncRatesModal: async function() {
+            const modal = document.getElementById('pn_sync_rates_modal');
+            if (!modal) return;
+            modal.style.display = 'flex';
+
+            const statusBox = document.getElementById('pn_sync_status_box');
+            const spinner = document.getElementById('pn_sync_spinner');
+            const statusText = document.getElementById('pn_sync_status_text');
+            const controls = document.getElementById('pn_sync_controls');
+            const runBtn = document.getElementById('pn_btn_run_sync');
+
+            if (spinner) spinner.style.display = 'inline-block';
+            if (controls) controls.style.display = 'none';
+            if (runBtn) runBtn.style.display = 'none';
+            if (statusBox) {
+                statusBox.style.background = '#f8fafc';
+                statusBox.style.border = '1px solid #e2e8f0';
+            }
+            if (statusText) statusText.innerHTML = 'Scanning database for vouchers with 0.00 rates...';
+
+            try {
+                const res = await fetch('api/production_notes.php?action=check_zero_rates');
+                const data = await res.json();
+
+                if (spinner) spinner.style.display = 'none';
+
+                if (data.status === 'success') {
+                    const count = data.zero_voucher_count || 0;
+                    const itemsCount = data.total_zero_items || 0;
+
+                    if (count === 0) {
+                        statusBox.style.background = '#f0fdf4';
+                        statusBox.style.border = '1px solid #bbf7d0';
+                        statusText.innerHTML = `<span style="color:#16a34a; font-weight:bold;">✓ Sab theek hai!</span> Database mein koi 0.00 rate wala voucher nahi mila. Tamam vouchers ke rates pehle se mukammal hain.`;
+                    } else {
+                        statusBox.style.background = '#eff6ff';
+                        statusBox.style.border = '1px solid #bfdbfe';
+                        statusText.innerHTML = `<span style="color:#2563eb; font-weight:bold;">${count} Vouchers</span> mein total <span style="font-weight:bold;">${itemsCount} items</span> ke rates 0.00 paye gaye hain.`;
+                        if (controls) controls.style.display = 'flex';
+                        if (runBtn) {
+                            runBtn.style.display = 'inline-block';
+                            runBtn.innerHTML = `Start Auto-Update (${count} Vouchers)`;
+                            runBtn.disabled = false;
+                        }
+                    }
+                } else {
+                    statusText.innerHTML = `<span style="color:red;">Error:</span> ${data.error || 'Failed to check records'}`;
+                }
+            } catch (err) {
+                if (spinner) spinner.style.display = 'none';
+                if (statusText) statusText.innerHTML = `<span style="color:red;">Error:</span> ${err.message}`;
+            }
+        },
+
+        closeSyncRatesModal: function() {
+            const modal = document.getElementById('pn_sync_rates_modal');
+            if (modal) modal.style.display = 'none';
+        },
+
+        runSyncRates: async function() {
+            const targetMode = document.getElementById('pn_sync_target')?.value || 'all';
+            const valMethod = document.getElementById('pn_sync_method')?.value || 'last_purchase';
+            const curSn = parseInt(document.getElementById('pn_sn')?.value) || 0;
+
+            const runBtn = document.getElementById('pn_btn_run_sync');
+            const statusBox = document.getElementById('pn_sync_status_box');
+            const statusText = document.getElementById('pn_sync_status_text');
+            const spinner = document.getElementById('pn_sync_spinner');
+
+            if (runBtn) {
+                runBtn.disabled = true;
+                runBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Updating...';
+            }
+            if (spinner) spinner.style.display = 'inline-block';
+            if (statusText) statusText.innerHTML = 'Updating rates and recalculating amounts in database...';
+
+            try {
+                const res = await fetch('api/production_notes.php?action=batch_update_zero_rates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        valuation_method: valMethod,
+                        target_mode: targetMode,
+                        target_sn: curSn
+                    })
+                });
+                const result = await res.json();
+
+                if (spinner) spinner.style.display = 'none';
+
+                if (result.status === 'success') {
+                    if (statusBox) {
+                        statusBox.style.background = '#f0fdf4';
+                        statusBox.style.border = '1px solid #bbf7d0';
+                    }
+                    if (statusText) {
+                        statusText.innerHTML = `
+                            <div style="color: #16a34a; font-weight: bold; font-size: 14px; margin-bottom: 4px;">
+                                <i class="fa fa-check-circle"></i> Kamyabi se update ho gaya!
+                            </div>
+                            <div style="font-size: 12px; color: #166534;">
+                                <strong>${result.updated_vouchers} Vouchers</strong> aur <strong>${result.updated_items} items</strong> ke rates auto-calculate ho kar database mein update ho gaye.
+                            </div>
+                        `;
+                    }
+                    const controls = document.getElementById('pn_sync_controls');
+                    if (controls) controls.style.display = 'none';
+                    if (runBtn) runBtn.style.display = 'none';
+
+                    // Reload current voucher on screen to show new rates
+                    if (curSn > 0) {
+                        this.navigate('this');
+                    }
+                } else {
+                    if (runBtn) {
+                        runBtn.disabled = false;
+                        runBtn.innerHTML = 'Retry Auto-Update';
+                    }
+                    if (statusText) {
+                        statusText.innerHTML = `<span style="color:red;">Error:</span> ${result.error || 'Update failed'}`;
+                    }
+                }
+            } catch (err) {
+                if (spinner) spinner.style.display = 'none';
+                if (runBtn) {
+                    runBtn.disabled = false;
+                    runBtn.innerHTML = 'Retry Auto-Update';
+                }
+                if (statusText) {
+                    statusText.innerHTML = `<span style="color:red;">Error:</span> ${err.message}`;
+                }
+            }
         }
     };
 })();

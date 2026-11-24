@@ -291,6 +291,147 @@ switch ($action) {
         }
         break;
 
+    case 'check_zero_rates':
+        try {
+            $stmt = $pdo->prepare("
+                SELECT m.id, m.serial_no, m.date, m.is_posted, COUNT(mi.id) as zero_items_count, SUM(mi.qty) as zero_qty
+                FROM material_issue_notes m
+                JOIN material_issue_note_items mi ON m.id = mi.min_id
+                WHERE m.company_id = ? AND m.is_cancelled = 0 AND (mi.rate <= 0 OR mi.amount <= 0)
+                GROUP BY m.id, m.serial_no, m.date, m.is_posted
+                ORDER BY m.serial_no ASC
+            ");
+            $stmt->execute([$company_id]);
+            $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $total_zero_items = 0;
+            foreach ($vouchers as $v) {
+                $total_zero_items += intval($v['zero_items_count']);
+            }
+
+            sendResponse([
+                'status' => 'success',
+                'zero_voucher_count' => count($vouchers),
+                'total_zero_items' => $total_zero_items,
+                'vouchers' => $vouchers
+            ]);
+        } catch (Exception $e) {
+            sendResponse(['error' => $e->getMessage()], 500);
+        }
+        break;
+
+    case 'batch_update_zero_rates':
+        $data = json_decode(file_get_contents('php://input'), true) ?? [];
+        $val_method = $data['valuation_method'] ?? 'last_purchase';
+        $target_mode = $data['target_mode'] ?? 'all';
+        $target_sn = intval($data['target_sn'] ?? 0);
+
+        try {
+            // Pre-fetch last purchase rates
+            $lastRates = [];
+            $qL = $pdo->prepare("
+                SELECT pii.item_coa_id as item_id, pii.rate
+                FROM purchase_invoice_items pii
+                JOIN purchase_invoices pi ON pii.invoice_id = pi.id
+                WHERE pi.company_id = ? AND pi.is_posted = 1 AND pi.is_cancelled = 0 AND pii.rate > 0
+                ORDER BY pi.invoice_date DESC, pi.id DESC
+            ");
+            $qL->execute([$company_id]);
+            while ($r = $qL->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($r['item_id']);
+                if (!isset($lastRates[$iid])) {
+                    $lastRates[$iid] = floatval($r['rate']);
+                }
+            }
+
+            // Average rates
+            $avgRates = [];
+            if ($val_method === 'avg_purchase') {
+                $qA = $pdo->prepare("
+                    SELECT pii.item_coa_id as item_id, AVG(pii.rate) as avg_rate
+                    FROM purchase_invoice_items pii
+                    JOIN purchase_invoices pi ON pii.invoice_id = pi.id
+                    WHERE pi.company_id = ? AND pi.is_posted = 1 AND pi.is_cancelled = 0 AND pii.rate > 0
+                    GROUP BY pii.item_coa_id
+                ");
+                $qA->execute([$company_id]);
+                while ($r = $qA->fetch(PDO::FETCH_ASSOC)) {
+                    $avgRates[intval($r['item_id'])] = round(floatval($r['avg_rate']), 2);
+                }
+            }
+
+            // Master prices fallback
+            $masterRates = [];
+            $qM = $pdo->prepare("SELECT id, purchase_price, selling_price FROM inv_items WHERE company_id = ?");
+            $qM->execute([$company_id]);
+            while ($r = $qM->fetch(PDO::FETCH_ASSOC)) {
+                $pr = floatval($r['purchase_price'] ?: $r['selling_price']);
+                if ($pr > 0) $masterRates[intval($r['id'])] = $pr;
+            }
+
+            $pdo->beginTransaction();
+
+            $snCond = ($target_mode === 'single' && $target_sn > 0) ? " AND m.serial_no = " . intval($target_sn) : "";
+
+            $findItemsStmt = $pdo->prepare("
+                SELECT mi.id as item_row_id, mi.min_id, mi.item_id, mi.qty, m.serial_no
+                FROM material_issue_note_items mi
+                JOIN material_issue_notes m ON mi.min_id = m.id
+                WHERE m.company_id = ? AND m.is_cancelled = 0 AND (mi.rate <= 0 OR mi.amount <= 0) $snCond
+            ");
+            $findItemsStmt->execute([$company_id]);
+            $itemsToUpdate = $findItemsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $updateItemStmt = $pdo->prepare("UPDATE material_issue_note_items SET rate = ?, amount = ? WHERE id = ?");
+            $affectedMins = [];
+            $updatedItemCount = 0;
+
+            foreach ($itemsToUpdate as $row) {
+                $iid = intval($row['item_id']);
+                $qty = floatval($row['qty']);
+                
+                $rateToApply = 0;
+                if ($val_method === 'avg_purchase' && !empty($avgRates[$iid])) {
+                    $rateToApply = $avgRates[$iid];
+                } else if ($val_method === 'item_master' && !empty($masterRates[$iid])) {
+                    $rateToApply = $masterRates[$iid];
+                } else {
+                    $rateToApply = $lastRates[$iid] ?? ($masterRates[$iid] ?? 0);
+                }
+
+                if ($rateToApply > 0) {
+                    $amount = round($qty * $rateToApply, 2);
+                    $updateItemStmt->execute([$rateToApply, $amount, $row['item_row_id']]);
+                    $affectedMins[$row['min_id']] = true;
+                    $updatedItemCount++;
+                }
+            }
+
+            // Recalculate total_amount for all affected material_issue_notes
+            $updateMinTotalStmt = $pdo->prepare("
+                UPDATE material_issue_notes m
+                SET total_amount = (SELECT COALESCE(SUM(amount), 0) FROM material_issue_note_items WHERE min_id = m.id)
+                WHERE m.id = ?
+            ");
+            foreach (array_keys($affectedMins) as $minId) {
+                $updateMinTotalStmt->execute([$minId]);
+            }
+
+            $pdo->commit();
+
+            logActivity('Material Issue Notes', 'BATCH_RATE_SYNC', 0, "Batch updated $updatedItemCount items across " . count($affectedMins) . " MIN vouchers using $val_method");
+
+            sendResponse([
+                'status' => 'success',
+                'updated_vouchers' => count($affectedMins),
+                'updated_items' => $updatedItemCount
+            ]);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            sendResponse(['error' => $e->getMessage()], 500);
+        }
+        break;
+
     case 'toggle_post':
         $id = json_decode(file_get_contents('php://input'), true)['id'] ?? 0;
         if (!$id) sendResponse(['error' => 'Invalid ID'], 400);

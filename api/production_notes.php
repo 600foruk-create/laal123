@@ -124,6 +124,147 @@ switch ($action) {
         }
         break;
 
+    case 'check_zero_rates':
+        try {
+            $stmt = $pdo->prepare("
+                SELECT p.id, p.serial_no, p.date, p.is_posted, COUNT(pi.id) as zero_items_count, SUM(pi.qty) as zero_qty
+                FROM production_notes p
+                JOIN production_note_items pi ON p.id = pi.pn_id
+                WHERE p.company_id = ? AND p.is_cancelled = 0 AND (pi.rate <= 0 OR pi.amount <= 0)
+                GROUP BY p.id, p.serial_no, p.date, p.is_posted
+                ORDER BY p.serial_no ASC
+            ");
+            $stmt->execute([$company_id]);
+            $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $total_zero_items = 0;
+            foreach ($vouchers as $v) {
+                $total_zero_items += intval($v['zero_items_count']);
+            }
+
+            sendResponse([
+                'status' => 'success',
+                'zero_voucher_count' => count($vouchers),
+                'total_zero_items' => $total_zero_items,
+                'vouchers' => $vouchers
+            ]);
+        } catch (Exception $e) {
+            sendResponse(['error' => $e->getMessage()], 500);
+        }
+        break;
+
+    case 'batch_update_zero_rates':
+        $data = json_decode(file_get_contents('php://input'), true) ?? [];
+        $val_method = $data['valuation_method'] ?? 'last_purchase';
+        $target_mode = $data['target_mode'] ?? 'all';
+        $target_sn = intval($data['target_sn'] ?? 0);
+
+        try {
+            // Pre-fetch last purchase rates
+            $lastRates = [];
+            $qL = $pdo->prepare("
+                SELECT pii.item_coa_id as item_id, pii.rate
+                FROM purchase_invoice_items pii
+                JOIN purchase_invoices pi ON pii.invoice_id = pi.id
+                WHERE pi.company_id = ? AND pi.is_posted = 1 AND pi.is_cancelled = 0 AND pii.rate > 0
+                ORDER BY pi.invoice_date DESC, pi.id DESC
+            ");
+            $qL->execute([$company_id]);
+            while ($r = $qL->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($r['item_id']);
+                if (!isset($lastRates[$iid])) {
+                    $lastRates[$iid] = floatval($r['rate']);
+                }
+            }
+
+            // Average rates
+            $avgRates = [];
+            if ($val_method === 'avg_purchase') {
+                $qA = $pdo->prepare("
+                    SELECT pii.item_coa_id as item_id, AVG(pii.rate) as avg_rate
+                    FROM purchase_invoice_items pii
+                    JOIN purchase_invoices pi ON pii.invoice_id = pi.id
+                    WHERE pi.company_id = ? AND pi.is_posted = 1 AND pi.is_cancelled = 0 AND pii.rate > 0
+                    GROUP BY pii.item_coa_id
+                ");
+                $qA->execute([$company_id]);
+                while ($r = $qA->fetch(PDO::FETCH_ASSOC)) {
+                    $avgRates[intval($r['item_id'])] = round(floatval($r['avg_rate']), 2);
+                }
+            }
+
+            // Master prices fallback
+            $masterRates = [];
+            $qM = $pdo->prepare("SELECT id, purchase_price, selling_price FROM inv_items WHERE company_id = ?");
+            $qM->execute([$company_id]);
+            while ($r = $qM->fetch(PDO::FETCH_ASSOC)) {
+                $pr = floatval($r['purchase_price'] ?: $r['selling_price']);
+                if ($pr > 0) $masterRates[intval($r['id'])] = $pr;
+            }
+
+            $pdo->beginTransaction();
+
+            $snCond = ($target_mode === 'single' && $target_sn > 0) ? " AND p.serial_no = " . intval($target_sn) : "";
+
+            $findItemsStmt = $pdo->prepare("
+                SELECT pi.id as item_row_id, pi.pn_id, pi.item_id, pi.qty, p.serial_no
+                FROM production_note_items pi
+                JOIN production_notes p ON pi.pn_id = p.id
+                WHERE p.company_id = ? AND p.is_cancelled = 0 AND (pi.rate <= 0 OR pi.amount <= 0) $snCond
+            ");
+            $findItemsStmt->execute([$company_id]);
+            $itemsToUpdate = $findItemsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $updateItemStmt = $pdo->prepare("UPDATE production_note_items SET rate = ?, amount = ? WHERE id = ?");
+            $affectedPns = [];
+            $updatedItemCount = 0;
+
+            foreach ($itemsToUpdate as $row) {
+                $iid = intval($row['item_id']);
+                $qty = floatval($row['qty']);
+                
+                $rateToApply = 0;
+                if ($val_method === 'avg_purchase' && !empty($avgRates[$iid])) {
+                    $rateToApply = $avgRates[$iid];
+                } else if ($val_method === 'item_master' && !empty($masterRates[$iid])) {
+                    $rateToApply = $masterRates[$iid];
+                } else {
+                    $rateToApply = $lastRates[$iid] ?? ($masterRates[$iid] ?? 0);
+                }
+
+                if ($rateToApply > 0) {
+                    $amount = round($qty * $rateToApply, 2);
+                    $updateItemStmt->execute([$rateToApply, $amount, $row['item_row_id']]);
+                    $affectedPns[$row['pn_id']] = true;
+                    $updatedItemCount++;
+                }
+            }
+
+            // Recalculate total_amount for all affected production_notes
+            $updatePnTotalStmt = $pdo->prepare("
+                UPDATE production_notes p
+                SET total_amount = (SELECT COALESCE(SUM(amount), 0) FROM production_note_items WHERE pn_id = p.id)
+                WHERE p.id = ?
+            ");
+            foreach (array_keys($affectedPns) as $pnId) {
+                $updatePnTotalStmt->execute([$pnId]);
+            }
+
+            $pdo->commit();
+
+            logActivity('Production Notes', 'BATCH_RATE_SYNC', 0, "Batch updated $updatedItemCount items across " . count($affectedPns) . " PN vouchers using $val_method");
+
+            sendResponse([
+                'status' => 'success',
+                'updated_vouchers' => count($affectedPns),
+                'updated_items' => $updatedItemCount
+            ]);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            sendResponse(['error' => $e->getMessage()], 500);
+        }
+        break;
+
     case 'save':
         $data = json_decode(file_get_contents('php://input'), true);
         if (!$data) sendResponse(['error' => 'Invalid data'], 400);
