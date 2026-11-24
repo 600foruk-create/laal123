@@ -125,6 +125,21 @@ if (shouldRunMigration('user_login_sessions', 2)) {
     } catch (PDOException $e) {}
 }
 
+// User Login Attempts Migration (Brute-Force & Hacker Lockout Protection)
+if (shouldRunMigration('user_login_attempts', 1)) {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS user_login_attempts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ip_address VARCHAR(45) NOT NULL,
+            username VARCHAR(100) NOT NULL,
+            attempt_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            is_successful TINYINT(1) DEFAULT 0,
+            INDEX (ip_address, attempt_time),
+            INDEX (username, attempt_time)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    } catch (PDOException $e) {}
+}
+
 // Transaction Approvals Migration (Maker-Checker Workflow)
 if (shouldRunMigration('transaction_approvals', 1)) {
     try {

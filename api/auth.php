@@ -12,6 +12,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $password = trim($data['password'] ?? '');
         $companyName = trim($data['company'] ?? '');
         
+        $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+        if (strpos($clientIp, ',') !== false) {
+            $clientIp = trim(explode(',', $clientIp)[0]);
+        }
+
+        // Security Lockout Parameters: 5 failed attempts = 15 minutes lockout
+        $maxAttempts = 5;
+        $lockoutMinutes = 15;
+        $lockoutSeconds = $lockoutMinutes * 60;
+
+        // Check recent failed attempts for this username OR IP address within 15 minutes
+        $checkStmt = $pdo->prepare("
+            SELECT COUNT(*) as failed_count, MAX(attempt_time) as last_attempt_time 
+            FROM user_login_attempts 
+            WHERE (LOWER(TRIM(username)) = LOWER(?) OR ip_address = ?) 
+              AND is_successful = 0 
+              AND attempt_time >= (NOW() - INTERVAL $lockoutMinutes MINUTE)
+        ");
+        $checkStmt->execute([$username, $clientIp]);
+        $attemptStats = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+        $failedCount = intval($attemptStats['failed_count'] ?? 0);
+        $lastAttemptTime = $attemptStats['last_attempt_time'] ?? null;
+
+        if ($failedCount >= $maxAttempts && $lastAttemptTime) {
+            $elapsedSeconds = time() - strtotime($lastAttemptTime);
+            $remainingSeconds = $lockoutSeconds - $elapsedSeconds;
+
+            if ($remainingSeconds > 0) {
+                $remMinutes = ceil($remainingSeconds / 60);
+                sendResponse([
+                    'status' => 'error',
+                    'is_locked' => true,
+                    'failed_attempts' => $failedCount,
+                    'remaining_seconds' => $remainingSeconds,
+                    'remaining_minutes' => $remMinutes,
+                    'error' => "Security Lockout: Your account has been temporarily locked for {$lockoutMinutes} minutes due to {$maxAttempts} consecutive failed login attempts.\nPlease wait {$remMinutes} minute(s) before trying again."
+                ], 429);
+                exit;
+            } else {
+                // Lockout window expired, clear past failed attempts for clean retry
+                try {
+                    $pdo->prepare("DELETE FROM user_login_attempts WHERE (LOWER(TRIM(username)) = LOWER(?) OR ip_address = ?) AND is_successful = 0")->execute([$username, $clientIp]);
+                } catch(Exception $e) {}
+                $failedCount = 0;
+            }
+        }
+        
         // 1. Try to find Company by name if provided
         $company = null;
         if (!empty($companyName) && $companyName !== 'default') {
@@ -212,6 +260,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Track User Login Session for Admin Audit History
             $loginSessionId = 0;
             try {
+                // Clear past failed attempts upon successful login
+                $pdo->prepare("DELETE FROM user_login_attempts WHERE (LOWER(TRIM(username)) = LOWER(?) OR ip_address = ?)")->execute([$username, $clientIp]);
+                $pdo->prepare("INSERT INTO user_login_attempts (ip_address, username, attempt_time, is_successful) VALUES (?, ?, NOW(), 1)")->execute([$clientIp, $username]);
+            } catch (Exception $e) {}
+
+            try {
                 // 1. Close any older active sessions for this user so only the new live session remains active
                 $closeOld = $pdo->prepare("
                     UPDATE user_login_sessions 
@@ -266,8 +320,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]
             ]);
         } else {
-            sendResponse(['error' => 'Invalid credentials'], 401);
+            // Record failed login attempt
+            try {
+                $pdo->prepare("INSERT INTO user_login_attempts (ip_address, username, attempt_time, is_successful) VALUES (?, ?, NOW(), 0)")->execute([$clientIp, $username]);
+            } catch (Exception $e) {}
+
+            $newFailedCount = $failedCount + 1;
+            $remainingAttempts = max(0, $maxAttempts - $newFailedCount);
+
+            // Artificial delay (0.4s) to prevent automated high-speed brute force attacks
+            usleep(400000);
+
+            if ($remainingAttempts <= 0) {
+                sendResponse([
+                    'status' => 'error',
+                    'is_locked' => true,
+                    'failed_attempts' => $newFailedCount,
+                    'remaining_seconds' => $lockoutSeconds,
+                    'remaining_minutes' => $lockoutMinutes,
+                    'error' => "Security Alert: You have entered an incorrect password {$maxAttempts} times.\nAccess has been locked for {$lockoutMinutes} minutes for your security."
+                ], 429);
+            } else {
+                sendResponse([
+                    'status' => 'error',
+                    'is_locked' => false,
+                    'failed_attempts' => $newFailedCount,
+                    'remaining_attempts' => $remainingAttempts,
+                    'error' => "Invalid username or password!\n(Attempt {$newFailedCount} of {$maxAttempts}. {$remainingAttempts} attempt(s) remaining before a {$lockoutMinutes}-minute security lockout)."
+                ], 401);
+            }
         }
+    }
+
+    if ($action === 'check_lockout') {
+        $username = trim($data['username'] ?? ($_GET['username'] ?? ''));
+        $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+        if (strpos($clientIp, ',') !== false) {
+            $clientIp = trim(explode(',', $clientIp)[0]);
+        }
+        $maxAttempts = 5;
+        $lockoutMinutes = 15;
+        $lockoutSeconds = $lockoutMinutes * 60;
+
+        $checkStmt = $pdo->prepare("
+            SELECT COUNT(*) as failed_count, MAX(attempt_time) as last_attempt_time 
+            FROM user_login_attempts 
+            WHERE (LOWER(TRIM(username)) = LOWER(?) OR ip_address = ?) 
+              AND is_successful = 0 
+              AND attempt_time >= (NOW() - INTERVAL $lockoutMinutes MINUTE)
+        ");
+        $checkStmt->execute([$username, $clientIp]);
+        $stats = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        $failedCount = intval($stats['failed_count'] ?? 0);
+        $lastAttemptTime = $stats['last_attempt_time'] ?? null;
+
+        if ($failedCount >= $maxAttempts && $lastAttemptTime) {
+            $elapsedSeconds = time() - strtotime($lastAttemptTime);
+            $remainingSeconds = $lockoutSeconds - $elapsedSeconds;
+            if ($remainingSeconds > 0) {
+                sendResponse([
+                    'is_locked' => true,
+                    'failed_attempts' => $failedCount,
+                    'remaining_seconds' => $remainingSeconds,
+                    'remaining_minutes' => ceil($remainingSeconds / 60)
+                ]);
+                exit;
+            }
+        }
+        sendResponse([
+            'is_locked' => false,
+            'failed_attempts' => $failedCount,
+            'remaining_attempts' => max(0, $maxAttempts - $failedCount)
+        ]);
+        exit;
+    }
+
+    if ($action === 'admin_unlock_user') {
+        $targetUser = trim($data['username'] ?? ($_GET['username'] ?? ''));
+        if (empty($targetUser)) {
+            sendResponse(['status' => 'error', 'message' => 'Username required'], 400);
+        }
+        $pdo->prepare("DELETE FROM user_login_attempts WHERE LOWER(TRIM(username)) = LOWER(?)")->execute([$targetUser]);
+        sendResponse(['status' => 'success', 'message' => "Security lockout cleared for user: $targetUser"]);
+        exit;
     }
 
     if ($action === 'change_my_password') {
