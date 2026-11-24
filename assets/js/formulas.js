@@ -242,14 +242,38 @@
             
             if (!codeInput || !piecesInput || !qtyInput || !rateInput || !amountInput) return;
 
-            const factor = parseFloat(codeInput.dataset.qtyPerPiece) || 0;
-            const pieces = parseFloat(piecesInput.value) || 0;
+            let factor = parseFloat(codeInput.dataset.qtyPerPiece) || 0;
+            if (factor <= 0) {
+                const bp = parseFloat(piecesInput.value) || 0;
+                const bq = parseFloat(qtyInput.value) || 0;
+                if (bp > 0 && bq > 0) {
+                    factor = bq / bp;
+                    codeInput.dataset.qtyPerPiece = factor;
+                }
+            }
+
+            let pieces = parseFloat(piecesInput.value) || 0;
             let qty = parseFloat(qtyInput.value) || 0;
             
-            // Auto-calculate qty ONLY when user actively changes pieces or selects item code, NEVER overwrite if user manually typed in qty or during totals calculation
-            if (pieces > 0 && factor > 0 && triggerInput && (triggerInput.classList.contains('ria-pieces') || triggerInput.classList.contains('ria-item-code'))) {
-                qty = pieces * factor;
-                qtyInput.value = qty.toFixed(4);
+            // Auto-calculate qty from pieces or pieces from qty based on active input
+            if (factor > 0 && triggerInput) {
+                if (triggerInput.classList.contains('ria-pieces') || triggerInput.classList.contains('ria-item-code')) {
+                    if (pieces > 0) {
+                        qty = pieces * factor;
+                        qtyInput.value = qty.toFixed(4);
+                    } else if (piecesInput.value.trim() === '') {
+                        qty = 0;
+                        qtyInput.value = '';
+                    }
+                } else if (triggerInput.classList.contains('ria-qty')) {
+                    if (qty > 0) {
+                        pieces = qty / factor;
+                        piecesInput.value = Number.isInteger(pieces) ? pieces.toString() : parseFloat(pieces.toFixed(2)).toString();
+                    } else if (qtyInput.value.trim() === '') {
+                        pieces = 0;
+                        piecesInput.value = '';
+                    }
+                }
             }
             
             const rate = parseFloat(rateInput.value) || 0;
