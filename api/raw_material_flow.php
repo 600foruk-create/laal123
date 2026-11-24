@@ -612,12 +612,6 @@ if ($action === 'get_flow_statement') {
                 }
             }
         } catch (Exception $e) {}
-                    'last_rate' => floatval($rRow['last_rate']),
-                    'max_rate' => floatval($rRow['max_rate']),
-                    'min_rate' => floatval($rRow['min_rate'])
-                ];
-            }
-        } catch (Exception $e) {}
 
         // 6. Compile Rows with Unit Conversion and Costing Method Evaluation
         $rows = [];
