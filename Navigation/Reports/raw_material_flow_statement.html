@@ -83,15 +83,15 @@
         <!-- Row 2: Secondary Filters + Unit Conversion + Extended Costing Methods -->
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 4px; border-top: 1px dashed #e2e8f0;">
             <div style="display: flex; align-items: center; gap: 5px;">
-                <label class="rmf-label">Raw Material:</label>
-                <select id="rmfRawMaterial" class="rmf-input" style="width: 155px;" onchange="window.RawMaterialFlowModule.loadReport()">
+                <label class="rmf-label" id="rmfItemLabel">Item / Product:</label>
+                <select id="rmfRawMaterial" class="rmf-input" style="width: 165px;" onchange="window.RawMaterialFlowModule.loadReport()">
                     <option value="all">All</option>
                 </select>
             </div>
 
             <div style="display: flex; align-items: center; gap: 5px;">
                 <label class="rmf-label">Category:</label>
-                <select id="rmfCategory" class="rmf-input" style="width: 135px;" onchange="window.RawMaterialFlowModule.loadReport()">
+                <select id="rmfCategory" class="rmf-input" style="width: 155px;" onchange="window.RawMaterialFlowModule.onCategoryChange()">
                     <option value="all">All</option>
                 </select>
             </div>
@@ -143,7 +143,7 @@
                     <!-- Row 1: Group Headers matching Dynamic Theme -->
                     <tr>
                         <th rowspan="2" class="rmf-th-theme" style="padding: 6px 4px; text-align: center; width: 35px;">Sr.</th>
-                        <th rowspan="2" class="rmf-th-theme" style="padding: 6px 8px; min-width: 180px;">Raw Material</th>
+                        <th rowspan="2" class="rmf-th-theme" style="padding: 6px 8px; min-width: 180px;" id="rmfThItemCol">Item / Description</th>
                         <th rowspan="2" class="rmf-th-theme" style="padding: 6px 4px; text-align: center; width: 55px;" id="rmfThUnitCol">Unit</th>
                         
                         <!-- Opening Stock (Yellow Accent #fef9c3) -->
@@ -151,9 +151,9 @@
                             Opening Stock <span id="rmfThOpeningPeriod" style="font-size: 9.5px; font-weight: 600; display: block;">(Previous Closing)</span>
                         </th>
 
-                        <!-- Purchases (Light Blue Accent) -->
+                        <!-- Inward / Purchases / Production (Light Blue Accent) -->
                         <th colspan="2" style="padding: 4px 6px; text-align: center; border: 1px solid #cbd5e1; background: #e0f2fe; color: #0369a1; font-weight: 700;" id="rmfThPurchasesHeader">
-                            Purchases <span id="rmfThPurchasesPeriod" style="font-size: 9.5px; font-weight: 600; display: block;">(Period Purchases)</span>
+                            Purchases / Production <span id="rmfThPurchasesPeriod" style="font-size: 9.5px; font-weight: 600; display: block;">(Inward Flow)</span>
                         </th>
 
                         <!-- Total Available -->
@@ -161,9 +161,9 @@
                             Total Available
                         </th>
 
-                        <!-- Consumption -->
-                        <th colspan="2" style="padding: 4px 6px; text-align: center; border: 1px solid #cbd5e1; background: #fee2e2; color: #b91c1c; font-weight: 700;">
-                            Consumption <span style="font-size: 9.5px; font-weight: 600; display: block;">(Production / Issue)</span>
+                        <!-- Outward / Issue / Sales -->
+                        <th colspan="2" style="padding: 4px 6px; text-align: center; border: 1px solid #cbd5e1; background: #fee2e2; color: #b91c1c; font-weight: 700;" id="rmfThConsumptionHeader">
+                            Issue / Sales <span id="rmfThConsumptionPeriod" style="font-size: 9.5px; font-weight: 600; display: block;">(Outward Flow)</span>
                         </th>
 
                         <!-- Closing Stock (Green Accent #dcfce7) -->

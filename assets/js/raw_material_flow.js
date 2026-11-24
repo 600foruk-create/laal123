@@ -169,11 +169,15 @@
                     this.data.companyName = this.data.companyInfo.name;
                 }
 
-                // 1. Populate Raw Materials
+                this.data.allItems = json.all_items || json.raw_materials || [];
+                this.data.rawMaterials = json.raw_materials || [];
+                this.data.categories = json.categories || [];
+
+                // 1. Populate Items / Raw Materials
                 const rmSel = document.getElementById('rmfRawMaterial');
                 if (rmSel) {
                     rmSel.innerHTML = '<option value="all">All</option>';
-                    json.raw_materials.forEach(rm => {
+                    (json.raw_materials || json.all_items || []).forEach(rm => {
                         const opt = document.createElement('option');
                         opt.value = rm.id;
                         opt.textContent = `${rm.name} (${rm.code || rm.unit || 'KG'})`;
@@ -185,7 +189,7 @@
                 const catSel = document.getElementById('rmfCategory');
                 if (catSel) {
                     catSel.innerHTML = '<option value="all">All</option>';
-                    json.categories.forEach(c => {
+                    (json.categories || []).forEach(c => {
                         const opt = document.createElement('option');
                         opt.value = c.id;
                         opt.textContent = c.name;
@@ -197,7 +201,7 @@
                 const supSel = document.getElementById('rmfSupplier');
                 if (supSel) {
                     supSel.innerHTML = '<option value="all">All</option>';
-                    json.suppliers.forEach(s => {
+                    (json.suppliers || []).forEach(s => {
                         const opt = document.createElement('option');
                         opt.value = s.id;
                         opt.textContent = s.name;
@@ -208,6 +212,49 @@
             } catch (err) {
                 console.error("Error loading Raw Material Flow meta:", err);
             }
+        },
+
+        onCategoryChange: function() {
+            const catSel = document.getElementById('rmfCategory');
+            const rmSel = document.getElementById('rmfRawMaterial');
+            const catId = catSel?.value || 'all';
+            const catText = (catSel?.options[catSel.selectedIndex]?.text || '').trim().toUpperCase();
+
+            // Update item label dynamically
+            const itemLabel = document.getElementById('rmfItemLabel');
+            const thItemCol = document.getElementById('rmfThItemCol');
+            const isRaw = catId === 'all' || catText.includes('RAW') || catText.includes('MATERIAL') || catText.includes('RESIN') || catText.includes('CHEMICAL');
+
+            if (itemLabel) itemLabel.textContent = isRaw ? 'Raw Material:' : 'Item / Product:';
+            if (thItemCol) thItemCol.textContent = isRaw ? 'Raw Material' : 'Item / Description';
+
+            if (rmSel) {
+                rmSel.innerHTML = '<option value="all">All</option>';
+                const all = this.data.allItems || [];
+                let filtered = all;
+
+                if (catId !== 'all') {
+                    const cid = parseInt(catId);
+                    filtered = all.filter(it => {
+                        const itCatId = parseInt(it.category_id || 0);
+                        const itCatName = (it.category_name || '').trim().toUpperCase();
+                        const itBrandName = (it.brand_name || '').trim().toUpperCase();
+                        const itType = (it.category_type || '').trim().toUpperCase();
+                        return itCatId === cid || itCatName === catText || itBrandName === catText || itType === catText;
+                    });
+                } else if (this.data.rawMaterials && this.data.rawMaterials.length > 0) {
+                    filtered = this.data.rawMaterials;
+                }
+
+                filtered.forEach(it => {
+                    const opt = document.createElement('option');
+                    opt.value = it.id;
+                    opt.textContent = `${it.name} (${it.code || it.unit || 'Pcs'})`;
+                    rmSel.appendChild(opt);
+                });
+            }
+
+            this.loadReport();
         },
 
         loadReport: async function() {
@@ -292,7 +339,7 @@
             tbody.innerHTML = '';
 
             if (rows.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 25px; color: #64748b;">No raw materials found for the selected period and criteria.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 25px; color: #64748b;">No items found for the selected period and criteria.</td></tr>`;
             } else {
                 rows.forEach((r, idx) => {
                     const tr = document.createElement('tr');

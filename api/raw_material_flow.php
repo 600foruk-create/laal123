@@ -20,16 +20,18 @@ if ($action === 'get_meta') {
         $stmtCats->execute([$company_id]);
         $categories = $stmtCats->fetchAll(PDO::FETCH_ASSOC);
 
-        // Raw Material Items with unit conversion factors from Chart of Inventory
+        // Items with unit conversion factors, categories & brands
         $stmtItems = $pdo->prepare("
             SELECT i.id, i.code, i.name, i.unit, i.purchase_price, i.category_type,
                    COALESCE(i.unit_weight, 0) as unit_weight,
                    COALESCE(i.qty_per_piece, 0) as qty_per_piece,
                    COALESCE(i.carton, 0) as carton,
-                   sc.main_id as category_id, mc.name as category_name
+                   sc.main_id as category_id, mc.name as category_name,
+                   b.id as brand_id, b.name as brand_name
             FROM inv_items i
             LEFT JOIN inv_sub_categories sc ON i.sub_id = sc.id
             LEFT JOIN inv_main_categories mc ON sc.main_id = mc.id
+            LEFT JOIN inv_brands b ON i.brand_id = b.id
             WHERE i.company_id = ? AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
             ORDER BY i.name ASC
         ");
@@ -159,10 +161,13 @@ if ($action === 'get_flow_statement') {
                    COALESCE(i.unit_weight, 0) as unit_weight,
                    COALESCE(i.qty_per_piece, 0) as qty_per_piece,
                    COALESCE(i.carton, 0) as carton,
-                   i.category_type, sc.main_id as category_id, mc.name as category_name
+                   i.category_type, 
+                   sc.main_id as category_id, mc.name as category_name,
+                   b.id as brand_id, b.name as brand_name
             FROM inv_items i
             LEFT JOIN inv_sub_categories sc ON i.sub_id = sc.id
             LEFT JOIN inv_main_categories mc ON sc.main_id = mc.id
+            LEFT JOIN inv_brands b ON i.brand_id = b.id
             WHERE i.company_id = ? AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
         ";
         $itemParams = [$company_id];
@@ -173,8 +178,22 @@ if ($action === 'get_flow_statement') {
         }
 
         if ($category_filter !== 'all' && intval($category_filter) > 0) {
-            $itemSql .= " AND sc.main_id = ?";
-            $itemParams[] = intval($category_filter);
+            $catId = intval($category_filter);
+            $cStmt = $pdo->prepare("SELECT name, category_type FROM inv_main_categories WHERE id = ?");
+            $cStmt->execute([$catId]);
+            $cRow = $cStmt->fetch(PDO::FETCH_ASSOC);
+            $cName = $cRow['name'] ?? '';
+
+            if ($cName) {
+                $itemSql .= " AND (sc.main_id = ? OR mc.name = ? OR i.category_type = ? OR b.name = ?)";
+                $itemParams[] = $catId;
+                $itemParams[] = $cName;
+                $itemParams[] = $cName;
+                $itemParams[] = $cName;
+            } else {
+                $itemSql .= " AND sc.main_id = ?";
+                $itemParams[] = $catId;
+            }
         }
 
         $itemSql .= " ORDER BY i.name ASC";
@@ -205,6 +224,9 @@ if ($action === 'get_flow_statement') {
                     $itemsToProcess[] = $it;
                 }
             }
+        } else {
+            // When a specific category (e.g. LASANI FITTING) or item is chosen, process candidate items directly!
+            $itemsToProcess = $candidateItems;
         }
 
         if (empty($itemsToProcess)) {
@@ -256,7 +278,7 @@ if ($action === 'get_flow_statement') {
             SELECT pii.item_coa_id as item_id, SUM(pii.quantity) as qty, SUM(pii.net_amount) as amount
             FROM purchase_invoice_items pii
             JOIN purchase_invoices pi ON pii.invoice_id = pi.id
-            WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.invoice_date < '$startDate'
+            WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.is_posted = 1 AND pi.invoice_date < '$startDate'
               AND pii.item_coa_id IN ($idList)
             GROUP BY pii.item_coa_id
         ");
@@ -267,13 +289,52 @@ if ($action === 'get_flow_statement') {
             ];
         }
 
+        // Production Notes before start date (Finished Goods IN when qty > 0)
+        try {
+            $stmtHPN_IN = $pdo->query("
+                SELECT pp.item_id, SUM(pp.qty) as qty, SUM(pp.amount) as amount
+                FROM production_note_items pp
+                JOIN production_notes p ON pp.pn_id = p.id
+                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND p.date < '$startDate' AND pp.qty > 0
+                  AND pp.item_id IN ($idList)
+                GROUP BY pp.item_id
+            ");
+            while ($row = $stmtHPN_IN->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($row['item_id']);
+                if (!isset($histPurchases[$iid])) {
+                    $histPurchases[$iid] = ['qty' => 0, 'amount' => 0];
+                }
+                $histPurchases[$iid]['qty'] += floatval($row['qty']);
+                $histPurchases[$iid]['amount'] += floatval($row['amount']);
+            }
+        } catch (Exception $e) {}
+
+        // Add Inventory Adjustments before start date (IN)
+        try {
+            $stmtHADJ_IN = $pdo->query("
+                SELECT ai.item_id, SUM(ai.qty) as qty
+                FROM add_inventory_adjustment_items ai
+                JOIN add_inventory_adjustments a ON ai.adjustment_id = a.id
+                WHERE a.company_id = $company_id AND a.is_cancelled = 0 AND a.date < '$startDate'
+                  AND ai.item_id IN ($idList)
+                GROUP BY ai.item_id
+            ");
+            while ($row = $stmtHADJ_IN->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($row['item_id']);
+                if (!isset($histPurchases[$iid])) {
+                    $histPurchases[$iid] = ['qty' => 0, 'amount' => 0];
+                }
+                $histPurchases[$iid]['qty'] += floatval($row['qty']);
+            }
+        } catch (Exception $e) {}
+
         // Purchase returns before start date
         try {
             $stmtHPR = $pdo->query("
                 SELECT pri.item_coa_id as item_id, SUM(pri.quantity) as qty, SUM(pri.net_amount) as amount
                 FROM purchase_return_items pri
                 JOIN purchase_returns pr ON pri.return_id = pr.id
-                WHERE pr.company_id = $company_id AND pr.is_cancelled = 0 AND pr.return_date < '$startDate'
+                WHERE pr.company_id = $company_id AND pr.is_cancelled = 0 AND pr.is_posted = 1 AND pr.return_date < '$startDate'
                   AND pri.item_coa_id IN ($idList)
                 GROUP BY pri.item_coa_id
             ");
@@ -295,7 +356,7 @@ if ($action === 'get_flow_statement') {
                 SELECT mii.item_id, SUM(mii.qty) as qty
                 FROM material_issue_note_items mii
                 JOIN material_issue_notes m ON mii.min_id = m.id
-                WHERE m.company_id = $company_id AND m.is_cancelled = 0 AND m.date < '$startDate'
+                WHERE m.company_id = $company_id AND m.is_cancelled = 0 AND m.is_posted = 1 AND m.date < '$startDate'
                   AND mii.item_id IN ($idList)
                 GROUP BY mii.item_id
             ");
@@ -311,7 +372,7 @@ if ($action === 'get_flow_statement') {
                 SELECT pp.item_id, SUM(ABS(pp.qty)) as qty
                 FROM production_note_items pp
                 JOIN production_notes p ON pp.pn_id = p.id
-                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.date < '$startDate' AND pp.qty < 0
+                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND p.date < '$startDate' AND pp.qty < 0
                   AND pp.item_id IN ($idList)
                 GROUP BY pp.item_id
             ");
@@ -321,17 +382,33 @@ if ($action === 'get_flow_statement') {
             }
         } catch (Exception $e) {}
 
-        // Direct Sales before start date
+        // Sales before start date (Fixed sii.invoice_id)
         try {
             $stmtHSI = $pdo->query("
                 SELECT sii.item_coa_id as item_id, SUM(sii.quantity) as qty
                 FROM sale_invoice_items sii
-                JOIN sale_invoices si ON sii.sale_invoice_id = si.id
-                WHERE si.company_id = $company_id AND si.is_cancelled = 0 AND si.invoice_date < '$startDate'
+                JOIN sale_invoices si ON sii.invoice_id = si.id
+                WHERE si.company_id = $company_id AND si.is_cancelled = 0 AND si.is_posted = 1 AND si.invoice_date < '$startDate'
                   AND sii.item_coa_id IN ($idList)
                 GROUP BY sii.item_coa_id
             ");
             while ($row = $stmtHSI->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($row['item_id']);
+                $histConsumptionQty[$iid] = ($histConsumptionQty[$iid] ?? 0) + floatval($row['qty']);
+            }
+        } catch (Exception $e) {}
+
+        // Reduce Inventory Adjustments before start date (OUT)
+        try {
+            $stmtHADJ_RED = $pdo->query("
+                SELECT ri.item_id, SUM(ri.qty) as qty
+                FROM reduce_inventory_adjustment_items ri
+                JOIN reduce_inventory_adjustments r ON ri.adjustment_id = r.id
+                WHERE r.company_id = $company_id AND r.is_cancelled = 0 AND r.date < '$startDate'
+                  AND ri.item_id IN ($idList)
+                GROUP BY ri.item_id
+            ");
+            while ($row = $stmtHADJ_RED->fetch(PDO::FETCH_ASSOC)) {
                 $iid = intval($row['item_id']);
                 $histConsumptionQty[$iid] = ($histConsumptionQty[$iid] ?? 0) + floatval($row['qty']);
             }
@@ -344,7 +421,7 @@ if ($action === 'get_flow_statement') {
             SELECT pii.item_coa_id as item_id, SUM(pii.quantity) as qty, SUM(pii.net_amount) as amount
             FROM purchase_invoice_items pii
             JOIN purchase_invoices pi ON pii.invoice_id = pi.id
-            WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 
+            WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.is_posted = 1
               AND pi.invoice_date BETWEEN '$startDate' AND '$endDate'
               AND pii.item_coa_id IN ($idList) $supplierCondition
             GROUP BY pii.item_coa_id
@@ -356,13 +433,54 @@ if ($action === 'get_flow_statement') {
             ];
         }
 
+        // Production Notes (IN when qty > 0) during current period
+        try {
+            $stmtPPN_IN = $pdo->query("
+                SELECT pp.item_id, SUM(pp.qty) as qty, SUM(pp.amount) as amount
+                FROM production_note_items pp
+                JOIN production_notes p ON pp.pn_id = p.id
+                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1
+                  AND p.date BETWEEN '$startDate' AND '$endDate' AND pp.qty > 0
+                  AND pp.item_id IN ($idList)
+                GROUP BY pp.item_id
+            ");
+            while ($row = $stmtPPN_IN->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($row['item_id']);
+                if (!isset($periodPurchases[$iid])) {
+                    $periodPurchases[$iid] = ['qty' => 0, 'amount' => 0];
+                }
+                $periodPurchases[$iid]['qty'] += floatval($row['qty']);
+                $periodPurchases[$iid]['amount'] += floatval($row['amount']);
+            }
+        } catch (Exception $e) {}
+
+        // Add Inventory Adjustments during period (IN)
+        try {
+            $stmtPADJ_IN = $pdo->query("
+                SELECT ai.item_id, SUM(ai.qty) as qty
+                FROM add_inventory_adjustment_items ai
+                JOIN add_inventory_adjustments a ON ai.adjustment_id = a.id
+                WHERE a.company_id = $company_id AND a.is_cancelled = 0
+                  AND a.date BETWEEN '$startDate' AND '$endDate'
+                  AND ai.item_id IN ($idList)
+                GROUP BY ai.item_id
+            ");
+            while ($row = $stmtPADJ_IN->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($row['item_id']);
+                if (!isset($periodPurchases[$iid])) {
+                    $periodPurchases[$iid] = ['qty' => 0, 'amount' => 0];
+                }
+                $periodPurchases[$iid]['qty'] += floatval($row['qty']);
+            }
+        } catch (Exception $e) {}
+
         // Purchase returns during period
         try {
             $stmtPPR = $pdo->query("
                 SELECT pri.item_coa_id as item_id, SUM(pri.quantity) as qty, SUM(pri.net_amount) as amount
                 FROM purchase_return_items pri
                 JOIN purchase_returns pr ON pri.return_id = pr.id
-                WHERE pr.company_id = $company_id AND pr.is_cancelled = 0 
+                WHERE pr.company_id = $company_id AND pr.is_cancelled = 0 AND pr.is_posted = 1
                   AND pr.return_date BETWEEN '$startDate' AND '$endDate'
                   AND pri.item_coa_id IN ($idList)
                 GROUP BY pri.item_coa_id
@@ -376,7 +494,7 @@ if ($action === 'get_flow_statement') {
             }
         } catch (Exception $e) {}
 
-        // Current Period Consumption
+        // Current Period Consumption / Outward
         $periodConsumptionQty = [];
 
         // MIN during period
@@ -385,7 +503,7 @@ if ($action === 'get_flow_statement') {
                 SELECT mii.item_id, SUM(mii.qty) as qty
                 FROM material_issue_note_items mii
                 JOIN material_issue_notes m ON mii.min_id = m.id
-                WHERE m.company_id = $company_id AND m.is_cancelled = 0 
+                WHERE m.company_id = $company_id AND m.is_cancelled = 0 AND m.is_posted = 1
                   AND m.date BETWEEN '$startDate' AND '$endDate'
                   AND mii.item_id IN ($idList)
                 GROUP BY mii.item_id
@@ -396,13 +514,13 @@ if ($action === 'get_flow_statement') {
             }
         } catch (Exception $e) {}
 
-        // Production Notes during period
+        // Production Notes during period (qty < 0)
         try {
             $stmtPPN = $pdo->query("
                 SELECT pp.item_id, SUM(ABS(pp.qty)) as qty
                 FROM production_note_items pp
                 JOIN production_notes p ON pp.pn_id = p.id
-                WHERE p.company_id = $company_id AND p.is_cancelled = 0 
+                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1
                   AND p.date BETWEEN '$startDate' AND '$endDate' AND pp.qty < 0
                   AND pp.item_id IN ($idList)
                 GROUP BY pp.item_id
@@ -413,18 +531,35 @@ if ($action === 'get_flow_statement') {
             }
         } catch (Exception $e) {}
 
-        // Direct Sales during period
+        // Sales during period (Fixed sii.invoice_id)
         try {
             $stmtPSI = $pdo->query("
                 SELECT sii.item_coa_id as item_id, SUM(sii.quantity) as qty
                 FROM sale_invoice_items sii
-                JOIN sale_invoices si ON sii.sale_invoice_id = si.id
-                WHERE si.company_id = $company_id AND si.is_cancelled = 0 
+                JOIN sale_invoices si ON sii.invoice_id = si.id
+                WHERE si.company_id = $company_id AND si.is_cancelled = 0 AND si.is_posted = 1
                   AND si.invoice_date BETWEEN '$startDate' AND '$endDate'
                   AND sii.item_coa_id IN ($idList)
                 GROUP BY sii.item_coa_id
             ");
             while ($row = $stmtPSI->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($row['item_id']);
+                $periodConsumptionQty[$iid] = ($periodConsumptionQty[$iid] ?? 0) + floatval($row['qty']);
+            }
+        } catch (Exception $e) {}
+
+        // Reduce Adjustments during period (OUT)
+        try {
+            $stmtPADJ_RED = $pdo->query("
+                SELECT ri.item_id, SUM(ri.qty) as qty
+                FROM reduce_inventory_adjustment_items ri
+                JOIN reduce_inventory_adjustments r ON ri.adjustment_id = r.id
+                WHERE r.company_id = $company_id AND r.is_cancelled = 0
+                  AND r.date BETWEEN '$startDate' AND '$endDate'
+                  AND ri.item_id IN ($idList)
+                GROUP BY ri.item_id
+            ");
+            while ($row = $stmtPADJ_RED->fetch(PDO::FETCH_ASSOC)) {
                 $iid = intval($row['item_id']);
                 $periodConsumptionQty[$iid] = ($periodConsumptionQty[$iid] ?? 0) + floatval($row['qty']);
             }
@@ -440,12 +575,43 @@ if ($action === 'get_flow_statement') {
                        SUBSTRING_INDEX(GROUP_CONCAT(pii.rate ORDER BY pi.invoice_date DESC, pi.id DESC), ',', 1) as last_rate
                 FROM purchase_invoice_items pii
                 JOIN purchase_invoices pi ON pii.invoice_id = pi.id
-                WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.invoice_date <= '$endDate'
+                WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.is_posted = 1 AND pi.invoice_date <= '$endDate'
                   AND pii.item_coa_id IN ($idList)
                 GROUP BY pii.item_coa_id
             ");
             while ($rRow = $stmtRates->fetch(PDO::FETCH_ASSOC)) {
                 $costRatesMap[intval($rRow['item_id'])] = [
+                    'last_rate' => floatval($rRow['last_rate']),
+                    'max_rate' => floatval($rRow['max_rate']),
+                    'min_rate' => floatval($rRow['min_rate'])
+                ];
+            }
+        } catch (Exception $e) {}
+
+        // Also fetch rates from production notes for finished goods
+        try {
+            $stmtPnRates = $pdo->query("
+                SELECT pp.item_id,
+                       MAX(pp.rate) as max_rate,
+                       MIN(NULLIF(pp.rate, 0)) as min_rate,
+                       SUBSTRING_INDEX(GROUP_CONCAT(pp.rate ORDER BY p.date DESC, p.id DESC), ',', 1) as last_rate
+                FROM production_note_items pp
+                JOIN production_notes p ON pp.pn_id = p.id
+                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND p.date <= '$endDate'
+                  AND pp.item_id IN ($idList) AND pp.rate > 0
+                GROUP BY pp.item_id
+            ");
+            while ($rRow = $stmtPnRates->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($rRow['item_id']);
+                if (!isset($costRatesMap[$iid])) {
+                    $costRatesMap[$iid] = [
+                        'last_rate' => floatval($rRow['last_rate']),
+                        'max_rate' => floatval($rRow['max_rate']),
+                        'min_rate' => floatval($rRow['min_rate'])
+                    ];
+                }
+            }
+        } catch (Exception $e) {}
                     'last_rate' => floatval($rRow['last_rate']),
                     'max_rate' => floatval($rRow['max_rate']),
                     'min_rate' => floatval($rRow['min_rate'])
