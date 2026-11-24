@@ -111,8 +111,8 @@
                     </div>
                 </div>
 
-                <!-- Valuation Filters (Formula Mode Only) -->
-                <div id="min_valuation_container" style="display: none; align-items: center; margin-bottom: 5px;">
+                <!-- Valuation Filters -->
+                <div id="min_valuation_container" style="display: flex; align-items: center; margin-bottom: 5px;">
                     <label class="so-label" style="width: 90px; font-size: 10px;">Valuation</label>
                     <select id="min_valuation_method" class="so-input" style="width: 120px;" onchange="window.MINModule.toggleValuationDates()">
                         <option value="last_purchase">Last Purchase</option>
@@ -123,9 +123,9 @@
 
                     <div id="min_valuation_dates" style="display: none; flex: 1; margin-left: 10px; align-items: center; gap: 5px;">
                         <label style="font-size: 10px;">From:</label>
-                        <input type="date" id="min_val_from_date" class="so-input" style="flex: 1; height: 22px;">
+                        <input type="date" id="min_val_from_date" class="so-input" style="flex: 1; height: 22px;" onchange="window.MINModule.toggleValuationDates()">
                         <label style="font-size: 10px;">To:</label>
-                        <input type="date" id="min_val_to_date" class="so-input" style="flex: 1; height: 22px;">
+                        <input type="date" id="min_val_to_date" class="so-input" style="flex: 1; height: 22px;" onchange="window.MINModule.toggleValuationDates()">
                     </div>
                 </div>
 

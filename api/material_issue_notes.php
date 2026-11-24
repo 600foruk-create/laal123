@@ -137,7 +137,37 @@ switch ($action) {
             } catch (Exception $e) {}
             
             $items = [];
-            try { $items = $pdo->query("SELECT id, code as item_code, name as item_name, unit, qty_per_piece, hs_code, selling_price as sale_rate, purchase_price as purchase_rate FROM inv_items WHERE company_id = $company_id AND (is_inactive = 0 OR is_inactive IS NULL) ORDER BY code, name")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
+            try { 
+                $items = $pdo->query("SELECT id, code as item_code, name as item_name, unit, qty_per_piece, hs_code, selling_price as sale_rate, purchase_price as purchase_rate FROM inv_items WHERE company_id = $company_id AND (is_inactive = 0 OR is_inactive IS NULL) ORDER BY code, name")->fetchAll(PDO::FETCH_ASSOC); 
+
+                // Pre-populate latest posted purchase rate from purchase invoices for 0ms instant rate auto-fill
+                $lastRates = [];
+                try {
+                    $qL = $pdo->prepare("
+                        SELECT pii.item_coa_id as item_id, pii.rate
+                        FROM purchase_invoice_items pii
+                        JOIN purchase_invoices pi ON pii.invoice_id = pi.id
+                        WHERE pi.company_id = ? AND pi.is_posted = 1 AND pi.is_cancelled = 0 AND pii.rate > 0
+                        ORDER BY pi.invoice_date DESC, pi.id DESC
+                    ");
+                    $qL->execute([$company_id]);
+                    while ($r = $qL->fetch(PDO::FETCH_ASSOC)) {
+                        $iid = intval($r['item_id']);
+                        if (!isset($lastRates[$iid])) {
+                            $lastRates[$iid] = floatval($r['rate']);
+                        }
+                    }
+                } catch (Exception $eL) {}
+
+                foreach ($items as &$it) {
+                    $iid = intval($it['id']);
+                    $it['last_purchase_rate'] = $lastRates[$iid] ?? 0;
+                    if (empty($it['purchase_rate']) || floatval($it['purchase_rate']) <= 0) {
+                        $it['purchase_rate'] = $it['last_purchase_rate'];
+                    }
+                }
+                unset($it);
+            } catch (Exception $e) {}
 
             $formulas = [];
             try { $formulas = $pdo->query("SELECT id, serial_no, formula_name, category_id FROM formulas WHERE company_id = $company_id AND (is_cancelled = 0 OR is_cancelled IS NULL)")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
@@ -211,6 +241,51 @@ switch ($action) {
             }
 
             sendResponse($items);
+        } catch (Exception $e) {
+            sendResponse(['error' => $e->getMessage()], 500);
+        }
+        break;
+
+    case 'get_valuation_rates':
+        try {
+            $val_method = $_GET['valuation_method'] ?? 'last_purchase';
+            $from = $_GET['from_date'] ?? '';
+            $to = $_GET['to_date'] ?? '';
+
+            $rates = [];
+            if ($val_method === 'min_purchase') {
+                $q = $pdo->prepare("SELECT pii.item_coa_id as item_id, MIN(pii.rate) as rate FROM purchase_invoice_items pii JOIN purchase_invoices pi ON pii.invoice_id = pi.id WHERE pi.company_id = ? AND pi.is_posted = 1 AND pi.is_cancelled = 0 AND pii.rate > 0 GROUP BY pii.item_coa_id");
+                $q->execute([$company_id]);
+                while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                    $rates[intval($r['item_id'])] = floatval($r['rate']);
+                }
+            } else if ($val_method === 'max_purchase') {
+                $q = $pdo->prepare("SELECT pii.item_coa_id as item_id, MAX(pii.rate) as rate FROM purchase_invoice_items pii JOIN purchase_invoices pi ON pii.invoice_id = pi.id WHERE pi.company_id = ? AND pi.is_posted = 1 AND pi.is_cancelled = 0 AND pii.rate > 0 GROUP BY pii.item_coa_id");
+                $q->execute([$company_id]);
+                while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                    $rates[intval($r['item_id'])] = floatval($r['rate']);
+                }
+            } else if ($val_method === 'avg_purchase') {
+                $dCond = ($from && $to) ? " AND pi.invoice_date BETWEEN ? AND ?" : "";
+                $p = [$company_id];
+                if ($from && $to) { $p[] = $from; $p[] = $to; }
+                $q = $pdo->prepare("SELECT pii.item_coa_id as item_id, AVG(pii.rate) as rate FROM purchase_invoice_items pii JOIN purchase_invoices pi ON pii.invoice_id = pi.id WHERE pi.company_id = ? AND pi.is_posted = 1 AND pi.is_cancelled = 0 AND pii.rate > 0 $dCond GROUP BY pii.item_coa_id");
+                $q->execute($p);
+                while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                    $rates[intval($r['item_id'])] = round(floatval($r['rate']), 2);
+                }
+            } else {
+                // last_purchase
+                $q = $pdo->prepare("SELECT pii.item_coa_id as item_id, pii.rate FROM purchase_invoice_items pii JOIN purchase_invoices pi ON pii.invoice_id = pi.id WHERE pi.company_id = ? AND pi.is_posted = 1 AND pi.is_cancelled = 0 AND pii.rate > 0 ORDER BY pi.invoice_date DESC, pi.id DESC");
+                $q->execute([$company_id]);
+                while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                    $iid = intval($r['item_id']);
+                    if (!isset($rates[$iid])) {
+                        $rates[$iid] = floatval($r['rate']);
+                    }
+                }
+            }
+            sendResponse(['status' => 'success', 'rates' => $rates]);
         } catch (Exception $e) {
             sendResponse(['error' => $e->getMessage()], 500);
         }

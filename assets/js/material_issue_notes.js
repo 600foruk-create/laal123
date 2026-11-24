@@ -104,7 +104,7 @@
             document.getElementById('min_formula_qty').style.display = isFormula ? 'block' : 'none';
 
             if (document.getElementById('min_valuation_container')) {
-                document.getElementById('min_valuation_container').style.display = isFormula ? 'flex' : 'none';
+                document.getElementById('min_valuation_container').style.display = 'flex';
             }
 
             if (!isFormula) {
@@ -113,13 +113,60 @@
             }
         },
 
-        toggleValuationDates: function() {
-            const method = document.getElementById('min_valuation_method').value;
+        toggleValuationDates: async function() {
+            const method = document.getElementById('min_valuation_method') ? document.getElementById('min_valuation_method').value : 'last_purchase';
             const dateContainer = document.getElementById('min_valuation_dates');
             if (dateContainer) {
                 dateContainer.style.display = (method === 'avg_purchase') ? 'flex' : 'none';
             }
-            this.loadFormulaItems();
+            
+            const isFormula = document.getElementById('min_use_formula') ? document.getElementById('min_use_formula').checked : false;
+            const formulaId = document.getElementById('min_formula_id') ? document.getElementById('min_formula_id').value : '';
+            if (isFormula && formulaId) {
+                this.loadFormulaItems();
+            } else {
+                await this.applyValuationRatesToGrid(method);
+            }
+        },
+
+        applyValuationRatesToGrid: async function(valMethod = null) {
+            if (!valMethod) {
+                valMethod = document.getElementById('min_valuation_method') ? document.getElementById('min_valuation_method').value : 'last_purchase';
+            }
+            const fromDate = document.getElementById('min_val_from_date') ? document.getElementById('min_val_from_date').value : '';
+            const toDate = document.getElementById('min_val_to_date') ? document.getElementById('min_val_to_date').value : '';
+            
+            try {
+                const res = await fetch(`api/material_issue_notes.php?action=get_valuation_rates&valuation_method=${valMethod}&from_date=${fromDate}&to_date=${toDate}`);
+                const data = await res.json();
+                const ratesMap = (data && data.rates) ? data.rates : {};
+                
+                // Cache rates on inventoryItems so subsequent item selections use the chosen method
+                if (this.data && this.data.inventoryItems) {
+                    this.data.inventoryItems.forEach(it => {
+                        if (ratesMap[it.id] !== undefined) {
+                            it.active_valuation_rate = ratesMap[it.id];
+                        }
+                    });
+                }
+                
+                // Update all active rows in grid
+                document.querySelectorAll('#min_grid tbody tr').forEach(row => {
+                    const codeInput = row.querySelector('.min-item-code');
+                    const itemId = codeInput ? codeInput.dataset.id : null;
+                    if (itemId && ratesMap[itemId] !== undefined) {
+                        const newRate = parseFloat(ratesMap[itemId]) || 0;
+                        const rateInput = row.querySelector('.min-rate');
+                        if (rateInput) {
+                            rateInput.value = newRate > 0 ? newRate.toFixed(2) : '';
+                            this.calculateRow(row, rateInput);
+                        }
+                    }
+                });
+                this.calculateTotals();
+            } catch (err) {
+                console.error("Valuation rates apply error:", err);
+            }
         },
 
         loadFormulaItems: async function() {
@@ -552,8 +599,38 @@
                 row.querySelector('.min-desc').value = item.item_name;
                 row.querySelector('.min-unit').value = item.unit || 'Pcs';
                 
-                const rate = parseFloat(item.purchase_rate || item.sale_rate) || 0;
-                row.querySelector('.min-rate').value = rate > 0 ? rate : '';
+                const valMethod = document.getElementById('min_valuation_method') ? document.getElementById('min_valuation_method').value : 'last_purchase';
+                let rate = 0;
+                if (item.active_valuation_rate !== undefined && parseFloat(item.active_valuation_rate) > 0) {
+                    rate = parseFloat(item.active_valuation_rate);
+                } else if (item.last_purchase_rate && parseFloat(item.last_purchase_rate) > 0) {
+                    rate = parseFloat(item.last_purchase_rate);
+                } else if (item.purchase_rate && parseFloat(item.purchase_rate) > 0) {
+                    rate = parseFloat(item.purchase_rate);
+                } else if (item.sale_rate && parseFloat(item.sale_rate) > 0) {
+                    rate = parseFloat(item.sale_rate);
+                }
+                
+                row.querySelector('.min-rate').value = rate > 0 ? rate.toFixed(2) : '';
+
+                // If valuation method is custom and not yet cached on this item, fetch on the fly
+                if (valMethod !== 'last_purchase' && (!item.active_valuation_rate || item.active_valuation_rate <= 0)) {
+                    const fromDate = document.getElementById('min_val_from_date') ? document.getElementById('min_val_from_date').value : '';
+                    const toDate = document.getElementById('min_val_to_date') ? document.getElementById('min_val_to_date').value : '';
+                    fetch(`api/material_issue_notes.php?action=get_valuation_rates&valuation_method=${valMethod}&from_date=${fromDate}&to_date=${toDate}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data && data.rates && data.rates[item.id] !== undefined) {
+                                const dynamicRate = parseFloat(data.rates[item.id]) || 0;
+                                if (dynamicRate > 0) {
+                                    item.active_valuation_rate = dynamicRate;
+                                    row.querySelector('.min-rate').value = dynamicRate.toFixed(2);
+                                    this.calculateRow(row);
+                                    this.calculateTotals();
+                                }
+                            }
+                        }).catch(() => {});
+                }
                 
                 row.querySelector('.min-pieces').value = '';
                 
