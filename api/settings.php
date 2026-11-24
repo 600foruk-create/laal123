@@ -24,6 +24,145 @@ $action = $_GET['action'] ?? '';
 $company_id = intval($_GET['company_id'] ?? ($_POST['company_id'] ?? 1));
 
 switch ($action) {
+    case 'get_all_settings':
+        $targetCompanyId = intval($_GET['company_id'] ?? $company_id);
+        if ($targetCompanyId <= 0) $targetCompanyId = 1;
+
+        // Fetch global (company_id = 0) and company-specific settings in ONE combined query
+        // Company-specific value takes priority if exists
+        $stmt = $pdo->prepare("
+            SELECT setting_key, setting_value, company_id 
+            FROM settings 
+            WHERE company_id IN (0, ?) 
+            ORDER BY (company_id = ?) ASC, id ASC
+        ");
+        $stmt->execute([$targetCompanyId, $targetCompanyId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $fetched = [];
+        foreach ($rows as $r) {
+            $fetched[$r['setting_key']] = $r['setting_value'];
+        }
+
+        $defaults = [
+            'login_user_dropdown' => '1',
+            'login_show_username' => '1',
+            'login_show_company' => '1',
+            'login_show_financial_year' => '1',
+            'security_404_active' => '1',
+            'security_404_code' => 'open',
+            'security_404_timeout' => '3',
+            'security_404_target_erp' => '1',
+            'security_404_target_digital_invoice' => '1',
+            'security_404_target_pos' => '1',
+            'hidden_reveal_code' => 'unlock',
+            'backup_override_code' => '',
+            'default_sale_invoice' => 'non_tax',
+            'default_purchase_invoice' => 'non_tax',
+            'default_min_mode' => 'job',
+            'negative_stock_policy' => 'allow',
+            'inventory_closing_policy' => 'continuous',
+            'sale_invoice_show_category_headers' => '1',
+            'sale_invoice_show_category_subtotals' => '1',
+            'module_fbr_enabled' => '0',
+            'module_pos_enabled' => '0',
+            'pos_allow_add_branch' => '1',
+            'pos_allow_fbr_integration' => '1',
+            'fbr_allow_integration_settings' => '1',
+            'custom_label_main_region' => 'Main Region',
+            'custom_label_sub_region' => 'Sub Region',
+            'custom_label_list_region' => 'List'
+        ];
+
+        $merged = array_merge($defaults, $fetched);
+
+        echo json_encode([
+            'status' => 'success',
+            'company_id' => $targetCompanyId,
+            'settings' => $merged
+        ]);
+        break;
+
+    case 'save_all_settings':
+        $data = json_decode(file_get_contents('php://input'), true) ?: [];
+        $targetCompanyId = intval($data['company_id'] ?? $company_id);
+        if ($targetCompanyId <= 0) $targetCompanyId = 1;
+
+        $globalKeys = [
+            'security_404_active',
+            'security_404_code',
+            'security_404_timeout',
+            'backup_override_code',
+            'hidden_reveal_code',
+            'security_404_target_erp',
+            'security_404_target_digital_invoice',
+            'security_404_target_pos',
+            'login_user_dropdown',
+            'login_show_username',
+            'login_show_company',
+            'login_show_financial_year'
+        ];
+
+        $syncToGlobalKeys = [
+            'pos_allow_add_branch',
+            'pos_allow_fbr_integration',
+            'fbr_allow_integration_settings',
+            'module_fbr_enabled',
+            'module_pos_enabled'
+        ];
+
+        $settingsToSave = $data['settings'] ?? [];
+        if (!is_array($settingsToSave)) $settingsToSave = [];
+
+        try {
+            $pdo->beginTransaction();
+
+            $stmtDelGlobal = $pdo->prepare("DELETE FROM settings WHERE company_id = 0 AND setting_key = ?");
+            $stmtInsGlobal = $pdo->prepare("INSERT INTO settings (company_id, setting_key, setting_value) VALUES (0, ?, ?)");
+
+            $stmtDelCo = $pdo->prepare("DELETE FROM settings WHERE company_id = ? AND setting_key = ?");
+            $stmtInsCo = $pdo->prepare("INSERT INTO settings (company_id, setting_key, setting_value) VALUES (?, ?, ?)");
+
+            foreach ($settingsToSave as $k => $v) {
+                $val = strval($v ?? '');
+
+                if (in_array($k, $globalKeys)) {
+                    // Global setting (company_id = 0)
+                    $stmtDelGlobal->execute([$k]);
+                    $stmtInsGlobal->execute([$k, $val]);
+
+                    // Also save for company if login setting
+                    if (strpos($k, 'login_') === 0 && $targetCompanyId > 0) {
+                        $stmtDelCo->execute([$targetCompanyId, $k]);
+                        $stmtInsCo->execute([$targetCompanyId, $k, $val]);
+                    }
+                } else {
+                    // Company-specific setting
+                    $stmtDelCo->execute([$targetCompanyId, $k]);
+                    $stmtInsCo->execute([$targetCompanyId, $k, $val]);
+
+                    if (in_array($k, $syncToGlobalKeys)) {
+                        $stmtDelGlobal->execute([$k]);
+                        $stmtInsGlobal->execute([$k, $val]);
+                    }
+                }
+            }
+
+            $pdo->commit();
+            logActivity('Settings', 'UPDATE', 'all', 'Consolidated System Settings Update', [], $settingsToSave);
+
+            echo json_encode([
+                'status' => 'success',
+                'company_id' => $targetCompanyId,
+                'count' => count($settingsToSave)
+            ]);
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
     case 'save_login_settings':
         $data = json_decode(file_get_contents('php://input'), true);
         $settings = $data['settings'] ?? $data;

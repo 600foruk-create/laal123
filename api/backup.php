@@ -5,8 +5,84 @@ require_once 'db_config.php';
 ini_set('memory_limit', '512M');
 ini_set('max_execution_time', '300');
 
+$action = $_GET['action'] ?? '';
 $format = strtolower($_GET['format'] ?? 'json'); // Default to json for frontend integration
 $filename = 'softifyx_backup_' . date('Y-m-d_H-i-s');
+
+// Automated Daily Server-Side Backup
+if ($action === 'auto_save') {
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $backupDir = __DIR__ . '/../storage/backups';
+        if (!is_dir($backupDir)) {
+            @mkdir($backupDir, 0755, true);
+        }
+
+        $dailyFile = $backupDir . '/softifyx_backup_' . date('Y_m_d') . '.sql';
+        $fh = fopen($dailyFile, 'w');
+        if (!$fh) {
+            sendResponse(['status' => 'error', 'message' => 'Unable to write backup file'], 500);
+        }
+
+        $tables_stmt = $pdo->query("SHOW TABLES");
+        $tables = $tables_stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        fwrite($fh, "-- SoftifyX Automated Daily Backup: " . date('Y-m-d H:i:s') . "\n");
+        fwrite($fh, "SET FOREIGN_KEY_CHECKS=0;\n");
+        fwrite($fh, "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";\n");
+        fwrite($fh, "SET time_zone = \"+05:00\";\n\n");
+
+        foreach ($tables as $table) {
+            $create_stmt = $pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_ASSOC);
+            $create_sql = $create_stmt['Create Table'] ?? '';
+            fwrite($fh, "DROP TABLE IF EXISTS `$table`;\n" . $create_sql . ";\n\n");
+
+            $stmt = $pdo->query("SELECT * FROM `$table`");
+            $rows_batch = [];
+            $sample_row = null;
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $sample_row = $row;
+                $escaped = [];
+                foreach ($row as $val) {
+                    $escaped[] = ($val === null) ? "NULL" : $pdo->quote($val);
+                }
+                $rows_batch[] = "(" . implode(", ", $escaped) . ")";
+                if (count($rows_batch) >= 100) {
+                    $cols = array_map(function($c) { return "`$c`"; }, array_keys($sample_row));
+                    fwrite($fh, "INSERT INTO `$table` (" . implode(", ", $cols) . ") VALUES\n" . implode(",\n", $rows_batch) . ";\n");
+                    $rows_batch = [];
+                }
+            }
+            if (!empty($rows_batch) && $sample_row) {
+                $cols = array_map(function($c) { return "`$c`"; }, array_keys($sample_row));
+                fwrite($fh, "INSERT INTO `$table` (" . implode(", ", $cols) . ") VALUES\n" . implode(",\n", $rows_batch) . ";\n\n");
+            }
+        }
+        fwrite($fh, "SET FOREIGN_KEY_CHECKS=1;\n");
+        fclose($fh);
+
+        // Keep last 7 daily backups, prune older
+        $existingBackups = glob($backupDir . '/softifyx_backup_*.sql');
+        if (count($existingBackups) > 7) {
+            sort($existingBackups);
+            $toDelete = array_slice($existingBackups, 0, count($existingBackups) - 7);
+            foreach ($toDelete as $f) {
+                @unlink($f);
+            }
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'file' => basename($dailyFile),
+            'size' => filesize($dailyFile),
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+        exit;
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        exit;
+    }
+}
 
 try {
     $tables_stmt = $pdo->query("SHOW TABLES");

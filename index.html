@@ -998,85 +998,30 @@
                     }
                 }
 
-                await fetch('api/settings.php?action=save_global_setting', {
+                await fetch(`api/settings.php?action=save_all_settings&company_id=${companyId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'security_404_active', value: isActive })
-                });
-                await fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'security_404_code', value: code })
-                });
-                await fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'security_404_timeout', value: timeoutVal })
-                });
-                await fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'security_404_target_erp', value: targetErp })
-                });
-                await fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'security_404_target_digital_invoice', value: targetDigitalInvoice })
-                });
-                await fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'security_404_target_pos', value: targetPos })
-                });
-                await fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'backup_override_code', value: overrideCode })
-                });
-                await fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'hidden_reveal_code', value: revealCode })
-                });
-                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'default_sale_invoice', value: defaultSale })
-                });
-                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'default_purchase_invoice', value: defaultPurchase })
-                });
-                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'default_min_mode', value: defaultMinMode })
-                });
-                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'module_fbr_enabled', value: moduleFbrEnabled })
-                });
-                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'module_pos_enabled', value: modulePosEnabled })
-                });
-                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'pos_allow_add_branch', value: posAllowAddBranch })
-                });
-                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'pos_allow_fbr_integration', value: posAllowFbr })
-                });
-                await fetch(`api/settings.php?action=save_setting&company_id=${companyId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'fbr_allow_integration_settings', value: fbrAllowIntegrationSettings })
+                    body: JSON.stringify({
+                        company_id: companyId,
+                        settings: {
+                            security_404_active: isActive,
+                            security_404_code: code,
+                            security_404_timeout: timeoutVal,
+                            security_404_target_erp: targetErp,
+                            security_404_target_digital_invoice: targetDigitalInvoice,
+                            security_404_target_pos: targetPos,
+                            backup_override_code: overrideCode,
+                            hidden_reveal_code: revealCode,
+                            default_sale_invoice: defaultSale,
+                            default_purchase_invoice: defaultPurchase,
+                            default_min_mode: defaultMinMode,
+                            module_fbr_enabled: moduleFbrEnabled,
+                            module_pos_enabled: modulePosEnabled,
+                            pos_allow_add_branch: posAllowAddBranch,
+                            pos_allow_fbr_integration: posAllowFbr,
+                            fbr_allow_integration_settings: fbrAllowIntegrationSettings
+                        }
+                    })
                 });
 
                 if (window.saveRegionLabelsOnly) {

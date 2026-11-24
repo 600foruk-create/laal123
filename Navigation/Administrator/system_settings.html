@@ -2385,34 +2385,12 @@
             // Immediate 0ms local storage persistence
             localStorage.setItem('softifyx_login_display_settings', JSON.stringify(loginSettingsObj));
 
+            // Single call handles both company and global settings in backend
             fetch('api/settings.php?action=save_login_settings&company_id=' + companyId, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ company_id: companyId, settings: loginSettingsObj })
             }).catch(e => console.warn(e));
-
-            Promise.all([
-                fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'login_user_dropdown', value: valDropdown })
-                }),
-                fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'login_show_username', value: valUser })
-                }),
-                fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'login_show_company', value: valCompany })
-                }),
-                fetch('api/settings.php?action=save_global_setting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'login_show_financial_year', value: valYear })
-                })
-            ]).catch(e => console.warn(e));
 
             const fbLogin = document.getElementById('save_feedback_msg_login');
             if (fbLogin) {
