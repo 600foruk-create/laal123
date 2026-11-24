@@ -619,6 +619,7 @@
             border-radius: 8px;
             padding: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
         }
 
         .widget-title {
@@ -657,6 +658,7 @@
             background: #1f4668;
             border-radius: 4px 4px 0 0;
             transition: height 0.3s;
+            max-height: 55px !important;
         }
 
         .bar-label {
@@ -902,11 +904,14 @@
         }
 
         .modal-container.modal-system-settings,
-        .modal-container:has(.modal-body[data-module="System Settings"]) {
-            width: 1200px !important;
+        .modal-container:has(.modal-body[data-module="System Settings"]),
+        .modal-container.modal-user-rights,
+        .modal-container:has(.modal-body[data-module="User Rights"]),
+        .modal-container:has(#userRightsContainer) {
+            width: 1240px !important;
             max-width: calc(100vw - 30px) !important;
-            height: 86vh !important;
-            max-height: 88vh !important;
+            height: calc(100vh - 80px) !important;
+            max-height: calc(100vh - 75px) !important;
             padding: 0 !important;
             border-radius: 8px !important;
             border: 2px solid var(--theme-primary, #1F4E79) !important;
@@ -917,10 +922,79 @@
             margin: 0 !important;
             overflow: hidden !important;
             background: #ffffff !important;
+            z-index: 50050 !important;
+        }
+
+        /* User Rights Modal Header & Window Controls */
+        .modal-container.modal-user-rights .modal-header,
+        .modal-container:has(.modal-body[data-module="User Rights"]) .modal-header,
+        .modal-container:has(#userRightsContainer) .modal-header {
+            margin: 0 !important;
+            border-radius: 6px 6px 0 0 !important;
+            padding: 6px 14px !important;
+            height: 38px !important;
+            min-height: 38px !important;
+            box-sizing: border-box !important;
+            background: var(--theme-primary, #1F4E79) !important;
+            border-bottom: 2px solid var(--theme-accent, #F5A623) !important;
+            color: #ffffff !important;
+            flex-shrink: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            z-index: 25 !important;
+        }
+
+        .modal-container.modal-user-rights .modal-header h2,
+        .modal-container:has(.modal-body[data-module="User Rights"]) .modal-header h2,
+        .modal-container:has(#userRightsContainer) .modal-header h2 {
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            color: #ffffff !important;
+            margin: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+
+        .modal-container.modal-user-rights .modal-controls,
+        .modal-container:has(.modal-body[data-module="User Rights"]) .modal-controls,
+        .modal-container:has(#userRightsContainer) .modal-controls {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+        }
+
+        .modal-container.modal-user-rights .modal-controls button,
+        .modal-container:has(.modal-body[data-module="User Rights"]) .modal-controls button,
+        .modal-container:has(#userRightsContainer) .modal-controls button {
+            background: rgba(255, 255, 255, 0.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            color: #ffffff !important;
+            width: 26px !important;
+            height: 26px !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 12px !important;
+            transition: all 0.15s !important;
+        }
+
+        .modal-container.modal-user-rights .modal-controls button:hover,
+        .modal-container:has(.modal-body[data-module="User Rights"]) .modal-controls button:hover,
+        .modal-container:has(#userRightsContainer) .modal-controls button:hover {
+            background: #ef4444 !important;
+            border-color: #ef4444 !important;
+            color: #ffffff !important;
         }
 
         .modal-container.modal-system-settings .modal-body,
-        .modal-container:has(.modal-body[data-module="System Settings"]) .modal-body {
+        .modal-container:has(.modal-body[data-module="System Settings"]) .modal-body,
+        .modal-container.modal-user-rights .modal-body,
+        .modal-container:has(.modal-body[data-module="User Rights"]) .modal-body,
+        .modal-container:has(#userRightsContainer) .modal-body {
             padding: 0 !important;
             margin: 0 !important;
             flex: 1 !important;
@@ -2453,13 +2527,13 @@
         .modal-container.modal-balance-sheet,
         .modal-container:has(.modal-body[data-module="Balance Sheet"]),
         .modal-container:has(.modal-body[data-module="Balance Sheet (Statement of Financial Position)"]),
+        .modal-container:has(.modal-body[data-module="FBR Digital Invoice"]),
+        .modal-container:has(.modal-body[data-module="Digital Invoice Sales Register"]),
+        .modal-container:has(.modal-body[data-module="Digital Sales Register"]),
         .modal-container:has(.modal-body[data-module="Approval Desk"]),
         .modal-container:has(#apprDeskContainer),
         .modal-container:has(.modal-body[data-module="User Login & Session History"]),
         .modal-container:has(#userSessionLogsContainer),
-        .modal-container:has(.modal-body[data-module="FBR Digital Invoice"]),
-        .modal-container:has(.modal-body[data-module="Digital Invoice Sales Register"]),
-        .modal-container:has(.modal-body[data-module="Digital Sales Register"]),
         .modal-container.modal-fbr-invoice,
         .modal-container.modal-fbr-register {
             max-width: 1260px !important;
@@ -2527,11 +2601,11 @@
         .modal-container.modal-balance-sheet .modal-body,
         .modal-body[data-module="Balance Sheet"],
         .modal-body[data-module="Balance Sheet (Statement of Financial Position)"],
-        .modal-body[data-module="Approval Desk"],
-        .modal-body[data-module="User Login & Session History"],
         .modal-body[data-module="FBR Digital Invoice"],
         .modal-body[data-module="Digital Invoice Sales Register"],
         .modal-body[data-module="Digital Sales Register"],
+        .modal-body[data-module="Approval Desk"],
+        .modal-body[data-module="User Login & Session History"],
         .modal-container.modal-fbr-invoice .modal-body,
         .modal-container.modal-fbr-register .modal-body {
             overflow: hidden !important;

@@ -1,14 +1,18 @@
-<div data-module="User Rights" id="userRightsContainer" style="display: flex; flex-direction: column; gap: 10px; max-width: 980px; margin: 0 auto;">
+<div data-module="User Rights" id="userRightsContainer" style="width: 100%; height: 100%; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; padding: 10px 16px; overflow: hidden; background: #f8fafc;">
     <style>
+        #userRightsContainer {
+            font-family: inherit;
+        }
         .ur-top-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            background: #f8fafc;
-            padding: 10px 14px;
+            background: #ffffff;
+            padding: 8px 14px;
             border-radius: 8px;
             border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
             flex-wrap: wrap;
         }
         .ur-user-box {
@@ -22,17 +26,27 @@
             color: #1e293b;
             margin: 0;
             white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .ur-user-box select {
             height: 34px;
+            min-width: 220px;
             padding: 4px 10px;
             border-radius: 6px;
             border: 1px solid #cbd5e1;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             color: #0f172a;
-            background: #fff;
+            background: #f8fafc;
             outline: none;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+        .ur-user-box select:focus {
+            border-color: var(--theme-primary, #1F4E79);
+            background: #ffffff;
         }
         .ur-preset-box {
             display: flex;
@@ -41,12 +55,13 @@
         }
         .ur-preset-box select {
             height: 34px;
-            padding: 4px 8px;
+            padding: 4px 10px;
             border-radius: 6px;
             border: 1px solid #cbd5e1;
             font-size: 12px;
+            font-weight: 600;
             color: #334155;
-            background: #fff;
+            background: #ffffff;
             outline: none;
         }
         .ur-preset-box button {
@@ -55,27 +70,30 @@
             font-size: 12px;
             font-weight: 700;
             border-radius: 6px;
-            background: #0284c7;
-            color: #fff;
+            background: var(--theme-primary, #1F4E79);
+            color: #ffffff;
             border: none;
             cursor: pointer;
             transition: background 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
         }
         .ur-preset-box button:hover {
-            background: #0369a1;
+            background: var(--theme-btn-hover, #153550);
         }
         .ur-search-box {
             display: flex;
             align-items: center;
             gap: 6px;
-            background: #fff;
+            background: #ffffff;
             border: 1px solid #cbd5e1;
             border-radius: 6px;
             padding: 4px 10px;
             height: 34px;
             flex: 1;
-            min-width: 220px;
-            max-width: 320px;
+            min-width: 200px;
+            max-width: 300px;
         }
         .ur-search-box input {
             border: none;
@@ -90,63 +108,67 @@
             gap: 4px;
             overflow-x: auto;
             padding: 4px 2px;
-            border-bottom: 2px solid #e2e8f0;
+            background: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
             scrollbar-width: thin;
         }
         .ur-tab-btn {
             background: none;
             border: none;
-            padding: 6px 12px;
+            padding: 6px 11px;
             font-size: 12px;
             font-weight: 600;
-            color: #64748b;
+            color: #475569;
             cursor: pointer;
             border-radius: 6px;
             white-space: nowrap;
             transition: all 0.15s;
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
         }
         .ur-tab-btn:hover {
             background: #f1f5f9;
             color: #0f172a;
         }
         .ur-tab-btn.ur-tab-active {
-            background: #0b3b60;
-            color: #fff;
+            background: var(--theme-primary, #1F4E79) !important;
+            color: #ffffff !important;
             font-weight: 700;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         .ur-tab-count {
             background: rgba(0, 0, 0, 0.08);
             padding: 1px 6px;
             border-radius: 10px;
-            font-size: 10px;
+            font-size: 10.5px;
+            font-weight: 700;
         }
         .ur-tab-btn.ur-tab-active .ur-tab-count {
             background: rgba(255, 255, 255, 0.25);
-            color: #fff;
+            color: #ffffff;
         }
         .ur-bulk-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: #f8fafc;
+            background: #ffffff;
             padding: 6px 12px;
             border-radius: 6px;
             border: 1px solid #e2e8f0;
-            font-size: 11.5px;
+            font-size: 12px;
             flex-wrap: wrap;
             gap: 8px;
         }
         .ur-bulk-actions {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             flex-wrap: wrap;
         }
         .ur-bulk-btn {
-            background: #fff;
+            background: #ffffff;
             border: 1px solid #cbd5e1;
             padding: 3px 8px;
             border-radius: 4px;
@@ -155,6 +177,9 @@
             color: #475569;
             cursor: pointer;
             transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
         .ur-bulk-btn:hover {
             background: #f1f5f9;
@@ -165,19 +190,28 @@
             color: #15803d;
             border-color: #86efac;
             background: #f0fdf4;
+            font-weight: 700;
+        }
+        .ur-bulk-btn.btn-all-allow:hover {
+            background: #dcfce7;
         }
         .ur-bulk-btn.btn-all-revoke {
             color: #b91c1c;
             border-color: #fca5a5;
             background: #fef2f2;
+            font-weight: 700;
+        }
+        .ur-bulk-btn.btn-all-revoke:hover {
+            background: #fee2e2;
         }
         .ur-table-wrapper {
-            max-height: 52vh;
+            flex: 1;
+            min-height: 200px;
             overflow-y: auto;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #cbd5e1;
             border-radius: 6px;
-            background: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         .ur-table {
             width: 100%;
@@ -186,18 +220,105 @@
         .ur-table th {
             position: sticky;
             top: 0;
-            background: #0b3b60;
-            color: #fff;
+            background: var(--theme-primary, #1F4E79) !important;
+            color: #ffffff !important;
             font-size: 11.5px;
             font-weight: 700;
             padding: 8px 10px;
-            border-bottom: 1px solid #082842;
-            z-index: 5;
+            border-bottom: 2px solid var(--theme-accent, #F5A623) !important;
+            z-index: 10;
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
+        .ur-row {
+            transition: background 0.12s;
+        }
         .ur-row:hover {
-            background: #f8fafc;
+            background: #f1f5f9 !important;
+        }
+        .ur-row.row-allowed {
+            background: #ffffff;
+        }
+        .ur-row.row-denied {
+            background: #fafafa;
+            opacity: 0.85;
+        }
+        .ur-group-header-row td {
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-top: 2px solid #cbd5e1;
+            border-bottom: 1px solid #cbd5e1;
+            border-left: 4px solid var(--theme-primary, #1F4E79);
+        }
+        .ur-group-header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .ur-group-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 13px;
+            color: #0f172a;
+        }
+        .ur-group-count {
+            background: #cbd5e1;
+            color: #334155;
+            padding: 1px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .ur-group-tools {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .ur-grp-btn {
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+            transition: all 0.12s;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .ur-grp-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .ur-grp-btn.btn-grp-allow {
+            color: #15803d;
+            border-color: #86efac;
+            background: #f0fdf4;
+            font-weight: 700;
+        }
+        .ur-grp-btn.btn-grp-allow:hover {
+            background: #dcfce7;
+        }
+        .ur-grp-btn.btn-grp-revoke {
+            color: #b91c1c;
+            border-color: #fca5a5;
+            background: #fef2f2;
+            font-weight: 700;
+        }
+        .ur-grp-btn.btn-grp-revoke:hover {
+            background: #fee2e2;
+        }
+        .ur-grp-divider {
+            color: #94a3b8;
+            font-size: 11px;
+            margin: 0 2px;
         }
         .ur-admin-banner {
             display: none;
@@ -206,7 +327,7 @@
             background: #eff6ff;
             border: 1px solid #bfdbfe;
             color: #1e40af;
-            padding: 8px 12px;
+            padding: 7px 12px;
             border-radius: 6px;
             font-size: 12px;
             font-weight: 600;
@@ -222,16 +343,24 @@
     <!-- Top Toolbar -->
     <div class="ur-top-bar">
         <div class="ur-user-box">
-            <label><i class="fas fa-user" style="color: #0284c7;"></i> User:</label>
+            <label><i class="fas fa-user-circle" style="color: var(--theme-primary, #1F4E79); font-size: 16px;"></i> Select User:</label>
             <select id="urUserSelect">
                 <!-- Dynamically populated -->
             </select>
         </div>
 
+        <!-- Overall Assigned Modules Counter (e.g., 14 / 136) -->
+        <div id="urOverallBadge" style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1.5px solid var(--theme-primary, #1F4E79); padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1e293b;">
+            <i class="fas fa-shield-alt" style="color: var(--theme-accent, #F5A623);"></i>
+            <span>Assigned:</span>
+            <b id="urOverallRatio" style="color: var(--theme-primary, #1F4E79); font-size: 13px;">0 / 136</b>
+            <span id="urOverallPct" style="background: var(--theme-primary, #1F4E79); color: #ffffff; padding: 1px 7px; border-radius: 10px; font-size: 10.5px; font-weight: 700;">0%</span>
+        </div>
+
         <div class="ur-preset-box">
-            <label style="font-size: 12px; font-weight: 600; color: #475569; margin: 0;">Template:</label>
+            <label style="font-size: 12px; font-weight: 600; color: #475569; margin: 0;">Role Preset:</label>
             <select id="urPresetSelect">
-                <option value="">-- Apply Quick Role Preset --</option>
+                <option value="">-- Apply Quick Role Template --</option>
                 <option value="cashier">Cashier / Billing Counter (Sales, POS, Receipts)</option>
                 <option value="accountant">Accountant / Finance (Ledgers, Vouchers, Reports)</option>
                 <option value="store">Store Keeper (Store, Materials, Inventory)</option>
@@ -251,15 +380,16 @@
         </div>
     </div>
 
-    <!-- Category Tabs -->
+    <!-- Category Tabs Bar (Matching Top Navbar Menus) -->
     <div class="ur-tab-strip" id="urCategoryTabs">
         <!-- Rendered by UserRightsManager -->
     </div>
 
-    <!-- Quick Bulk Actions Bar -->
+    <!-- Quick Bulk Actions Bar for Active View -->
     <div class="ur-bulk-bar">
-        <div style="font-weight: 600; color: #475569;">
-            <i class="fas fa-tasks" style="color: #0284c7;"></i> Quick Actions for Visible Modules:
+        <div style="font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px;">
+            <i class="fas fa-tasks" style="color: var(--theme-primary, #1F4E79);"></i>
+            <span>Quick Actions for <span id="urActiveMenuLabel" style="color: var(--theme-primary, #1F4E79); text-decoration: underline;">Visible Modules</span>:</span>
         </div>
         <div class="ur-bulk-actions">
             <button type="button" class="ur-bulk-btn btn-all-allow" onclick="window.UserRightsManager.bulkSet('allowed', true)">
@@ -269,11 +399,21 @@
                 <i class="fas fa-ban"></i> Revoke All
             </button>
             <span style="color: #cbd5e1;">|</span>
-            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('view', true)">All View</button>
-            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('create', true)">All Create</button>
-            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('edit', true)">All Edit</button>
-            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('delete', true)">All Delete</button>
-            <button type="button" class="ur-bulk-btn" onclick="window.UserRightsManager.bulkSet('print', true)">All Print</button>
+            <button type="button" class="ur-bulk-btn" id="bulkBtn-view" onclick="window.UserRightsManager.bulkSet('view')" title="Click to Toggle All View ON / OFF">
+                <i class="fas fa-sync-alt" style="font-size: 9.5px;"></i> All View
+            </button>
+            <button type="button" class="ur-bulk-btn" id="bulkBtn-create" onclick="window.UserRightsManager.bulkSet('create')" title="Click to Toggle All Create ON / OFF">
+                <i class="fas fa-sync-alt" style="font-size: 9.5px;"></i> All Create
+            </button>
+            <button type="button" class="ur-bulk-btn" id="bulkBtn-edit" onclick="window.UserRightsManager.bulkSet('edit')" title="Click to Toggle All Edit ON / OFF">
+                <i class="fas fa-sync-alt" style="font-size: 9.5px;"></i> All Edit
+            </button>
+            <button type="button" class="ur-bulk-btn" id="bulkBtn-delete" onclick="window.UserRightsManager.bulkSet('delete')" title="Click to Toggle All Delete ON / OFF">
+                <i class="fas fa-sync-alt" style="font-size: 9.5px;"></i> All Delete
+            </button>
+            <button type="button" class="ur-bulk-btn" id="bulkBtn-print" onclick="window.UserRightsManager.bulkSet('print')" title="Click to Toggle All Print ON / OFF">
+                <i class="fas fa-sync-alt" style="font-size: 9.5px;"></i> All Print
+            </button>
         </div>
     </div>
 
@@ -282,18 +422,18 @@
         <table class="ur-table">
             <thead>
                 <tr>
-                    <th style="width: 35px; text-align: center;">#</th>
-                    <th style="text-align: left; width: 320px;">Module / Screen</th>
-                    <th style="text-align: center; width: 110px;">Access Status</th>
-                    <th style="text-align: center; width: 65px;" title="View records">View</th>
-                    <th style="text-align: center; width: 65px;" title="Create new records">Create</th>
-                    <th style="text-align: center; width: 65px;" title="Edit existing records">Edit</th>
-                    <th style="text-align: center; width: 65px;" title="Delete records">Delete</th>
-                    <th style="text-align: center; width: 65px;" title="Print / Export">Print</th>
+                    <th style="width: 40px; text-align: center;">#</th>
+                    <th style="text-align: left; min-width: 340px;">Module / Screen</th>
+                    <th style="text-align: center; width: 125px;">Access Status</th>
+                    <th style="text-align: center; width: 75px;" title="View records">View</th>
+                    <th style="text-align: center; width: 75px;" title="Create new records">Create</th>
+                    <th style="text-align: center; width: 75px;" title="Edit existing records">Edit</th>
+                    <th style="text-align: center; width: 75px;" title="Delete records">Delete</th>
+                    <th style="text-align: center; width: 75px;" title="Print / Export">Print</th>
                 </tr>
             </thead>
             <tbody id="urTableBody">
-                <!-- Dynamically populated -->
+                <!-- Dynamically populated with Group Headers and Rows -->
             </tbody>
         </table>
     </div>
@@ -301,17 +441,32 @@
     <!-- Footer Action Buttons -->
     <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid #e2e8f0;">
         <div>
-            <span id="urToastMsg" style="display: none; background: #ecfdf5; color: #15803d; border: 1px solid #86efac; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700;">
+            <span id="urToastMsg" style="display: none; background: #ecfdf5; color: #15803d; border: 1px solid #86efac; padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 700;">
                 <i class="fas fa-check-circle"></i> User rights updated successfully!
             </span>
         </div>
         <div style="display: flex; gap: 8px;">
-            <button type="button" class="btn btn-primary" id="urSaveBtn" onclick="window.UserRightsManager.saveChanges()" style="padding: 6px 18px; font-weight: 700; font-size: 12.5px;">
+            <button type="button" class="btn btn-primary" id="urSaveBtn" onclick="window.UserRightsManager.saveChanges()" style="padding: 7px 22px; font-weight: 700; font-size: 13px; background: var(--theme-primary, #1F4E79); border-color: var(--theme-primary, #1F4E79);">
                 <i class="fas fa-save"></i> Save Changes
             </button>
-            <button type="button" class="btn btn-secondary" onclick="closeModal()" style="padding: 6px 14px; font-size: 12.5px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()" style="padding: 7px 16px; font-size: 13px;">
                 <i class="fas fa-times"></i> Cancel
             </button>
         </div>
     </div>
+
+    <!-- Ensure UserRightsManager is loaded and initialized -->
+    <script src="assets/js/user_rights_manager.js?v=20261123v1"></script>
+    <script>
+    (function() {
+        function runURManager() {
+            if (window.UserRightsManager && typeof window.UserRightsManager.init === 'function') {
+                window.UserRightsManager.init();
+            } else {
+                setTimeout(runURManager, 40);
+            }
+        }
+        setTimeout(runURManager, 10);
+    })();
+    </script>
 </div>

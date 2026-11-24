@@ -143,10 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                         'module_name' => $pm,
                         'is_allowed' => 1,
                         'can_edit' => 1,
-                        'can_view' => 1,
-                        'can_create' => 1,
-                        'can_delete' => 0,
-                        'can_print' => 1
+                        'can_view' => 1
                     ];
                 }
             }
@@ -253,40 +250,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             $targetDate = $report_date ?: date('Y-m-d');
 
-            // 1. POS Specific Calculations (Today)
-            $posCond = "company_id = ? AND is_cancelled = 0 AND (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != ''))";
-            if ($sess_role === 'POS' && $sess_branch > 0) {
-                $posCond .= " AND inventory_location_id = " . $sess_branch;
+            // 1. POS Specific Calculations (Today) - Guarded and branch-aware
+            $posInvCount = 0;
+            $posSalesTotal = 0.0;
+            $posCashSales = 0.0;
+            $posCardSales = 0.0;
+            $posTaxTotal = 0.0;
+            $posReturnsTotal = 0.0;
+            $posNetTotal = 0.0;
+
+            try {
+                $posCond = "company_id = ? AND is_cancelled = 0 AND (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != ''))";
+                $posParams = [$company_id];
+                if ($sess_role === 'POS' && $sess_branch > 0) {
+                    $posCond .= " AND inventory_location_id = ?";
+                    $posParams[] = $sess_branch;
+                }
+                $posParams[] = $targetDate;
+
+                $stmtPos = $pdo->prepare("
+                    SELECT 
+                        COUNT(id) as pos_inv_count,
+                        COALESCE(SUM(net_total), 0) as pos_sales_total,
+                        COALESCE(SUM(COALESCE(sales_tax, 0)), 0) as pos_tax_total,
+                        COALESCE(SUM(CASE WHEN payment_terms = 'Cash' OR payment_terms IS NULL OR payment_terms = '' THEN COALESCE(NULLIF(amount_received, 0), net_total) ELSE 0 END), 0) as pos_cash_sales,
+                        COALESCE(SUM(CASE WHEN payment_terms != 'Cash' AND payment_terms IS NOT NULL AND payment_terms != '' THEN net_total ELSE 0 END), 0) as pos_card_sales
+                    FROM sale_invoices 
+                    WHERE $posCond AND DATE(invoice_date) = ?
+                ");
+                $stmtPos->execute($posParams);
+                $posRow = $stmtPos->fetch(PDO::FETCH_ASSOC) ?: [];
+
+                $posInvCount = intval($posRow['pos_inv_count'] ?? 0);
+                $posSalesTotal = floatval($posRow['pos_sales_total'] ?? 0);
+                $posCashSales = floatval($posRow['pos_cash_sales'] ?? 0);
+                $posCardSales = floatval($posRow['pos_card_sales'] ?? 0);
+                $posTaxTotal = floatval($posRow['pos_tax_total'] ?? 0);
+            } catch (Exception $ePos) {
+                // If POS sales query encounters an issue, defaults to 0 without breaking dashboard
             }
-            $stmtPos = $pdo->prepare("
-                SELECT 
-                    COUNT(id) as pos_inv_count,
-                    COALESCE(SUM(net_total), 0) as pos_sales_total,
-                    COALESCE(SUM(COALESCE(sales_tax, 0)), 0) as pos_tax_total,
-                    COALESCE(SUM(CASE WHEN payment_terms = 'Cash' OR payment_terms IS NULL OR payment_terms = '' THEN net_total ELSE 0 END), 0) as pos_cash_sales,
-                    COALESCE(SUM(CASE WHEN payment_terms != 'Cash' AND payment_terms IS NOT NULL AND payment_terms != '' THEN net_total ELSE 0 END), 0) as pos_card_sales
-                FROM sale_invoices 
-                WHERE $posCond AND DATE(invoice_date) = ?
-            ");
-            $stmtPos->execute([$company_id, $targetDate]);
-            $posRow = $stmtPos->fetch(PDO::FETCH_ASSOC) ?: [];
 
-            // POS Returns (Today)
-            $posRetCond = "company_id = ? AND is_cancelled = 0 AND (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != ''))";
-            $stmtPosRet = $pdo->prepare("
-                SELECT COALESCE(SUM(net_total), 0) as pos_ret_total 
-                FROM sale_returns 
-                WHERE $posRetCond AND DATE(return_date) = ?
-            ");
-            $stmtPosRet->execute([$company_id, $targetDate]);
-            $posRetRow = $stmtPosRet->fetch(PDO::FETCH_ASSOC) ?: [];
+            // POS Returns (Today) - Dynamically checks columns in sale_returns to prevent SQL crash
+            try {
+                if ($pdo->query("SHOW TABLES LIKE 'sale_returns'")->fetch()) {
+                    $retWhere = ["company_id = ?", "is_cancelled = 0", "DATE(return_date) = ?"];
+                    $retParams = [$company_id, $targetDate];
+                    if ($sess_role === 'POS' && $sess_branch > 0) {
+                        $retWhere[] = "inventory_location_id = ?";
+                        $retParams[] = $sess_branch;
+                    }
 
-            $posInvCount = intval($posRow['pos_inv_count'] ?? 0);
-            $posSalesTotal = floatval($posRow['pos_sales_total'] ?? 0);
-            $posCashSales = floatval($posRow['pos_cash_sales'] ?? 0);
-            $posCardSales = floatval($posRow['pos_card_sales'] ?? 0);
-            $posTaxTotal = floatval($posRow['pos_tax_total'] ?? 0);
-            $posReturnsTotal = floatval($posRetRow['pos_ret_total'] ?? 0);
+                    $srCols = $pdo->query("SHOW COLUMNS FROM sale_returns")->fetchAll(PDO::FETCH_COLUMN);
+                    $hasPosRetNo = in_array('pos_return_no', $srCols);
+                    $hasReturnType = in_array('return_type', $srCols);
+                    $hasInvType = in_array('invoice_type', $srCols);
+
+                    $filterOr = [];
+                    if ($hasPosRetNo) $filterOr[] = "(pos_return_no IS NOT NULL AND pos_return_no != '')";
+                    if ($hasReturnType) $filterOr[] = "return_type = 'POS'";
+                    if ($hasInvType) $filterOr[] = "invoice_type = 'POS'";
+
+                    if (!empty($filterOr)) {
+                        $retWhere[] = "(" . implode(' OR ', $filterOr) . ")";
+                    }
+
+                    $stmtPosRet = $pdo->prepare("
+                        SELECT COALESCE(SUM(net_total), 0) as pos_ret_total 
+                        FROM sale_returns 
+                        WHERE " . implode(' AND ', $retWhere)
+                    );
+                    $stmtPosRet->execute($retParams);
+                    $posReturnsTotal = floatval($stmtPosRet->fetchColumn() ?: 0);
+                }
+            } catch (Exception $ePosRet) {
+                $posReturnsTotal = 0.0;
+            }
+
             $posNetTotal = max(0, $posSalesTotal - $posReturnsTotal);
 
             $summary['pos_invoices'] = $posInvCount;
@@ -320,8 +359,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                         COALESCE(SUM(CASE WHEN fbr_status = 'Submitted' THEN total_sales_tax ELSE 0 END), 0) as fbr_tax_uploaded
                     FROM fbr_digital_invoices 
                     WHERE company_id = ? AND is_cancelled = 0 AND (workflow_status IS NULL OR workflow_status != 'Cancelled')
+                      AND DATE(invoice_date) = ?
                 ");
-                $stmtFbr->execute([$company_id]);
+                $stmtFbr->execute([$company_id, $targetDate]);
                 $fbrRow = $stmtFbr->fetch(PDO::FETCH_ASSOC) ?: [];
 
                 $fbrActiveInvoices = intval($fbrRow['total_fbr_inv'] ?? 0);
@@ -334,13 +374,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     $cnCount = 0;
                     $dnCount = 0;
                     if ($pdo->query("SHOW TABLES LIKE 'fbr_digital_credit_notes'")->fetch()) {
-                        $sCn = $pdo->prepare("SELECT COUNT(id) FROM fbr_digital_credit_notes WHERE company_id = ? AND is_cancelled = 0");
-                        $sCn->execute([$company_id]);
+                        $sCn = $pdo->prepare("SELECT COUNT(id) FROM fbr_digital_credit_notes WHERE company_id = ? AND is_cancelled = 0 AND DATE(note_date) = ?");
+                        $sCn->execute([$company_id, $targetDate]);
                         $cnCount = intval($sCn->fetchColumn() ?: 0);
                     }
                     if ($pdo->query("SHOW TABLES LIKE 'fbr_digital_debit_notes'")->fetch()) {
-                        $sDn = $pdo->prepare("SELECT COUNT(id) FROM fbr_digital_debit_notes WHERE company_id = ? AND is_cancelled = 0");
-                        $sDn->execute([$company_id]);
+                        $sDn = $pdo->prepare("SELECT COUNT(id) FROM fbr_digital_debit_notes WHERE company_id = ? AND is_cancelled = 0 AND DATE(note_date) = ?");
+                        $sDn->execute([$company_id, $targetDate]);
                         $dnCount = intval($sDn->fetchColumn() ?: 0);
                     }
                     $fbrNotesCount = $cnCount + $dnCount;
@@ -369,14 +409,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     }
                 }
             } catch(Exception $eDiSet) {}
-
-            $summary['pos_invoices'] = $posInvCount;
-            $summary['pos_sales'] = $posSalesTotal;
-            $summary['pos_cash_sales'] = $posCashSales;
-            $summary['pos_card_sales'] = $posCardSales;
-            $summary['pos_tax_total'] = $posTaxTotal;
-            $summary['pos_returns'] = $posReturnsTotal;
-            $summary['pos_net_total'] = $posNetTotal;
 
             $summary['digital_invoices'] = $fbrActiveInvoices;
             $summary['digital_sales'] = $fbrSalesTotal;

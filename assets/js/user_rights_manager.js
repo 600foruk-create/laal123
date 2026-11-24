@@ -1,163 +1,198 @@
 /**
  * SoftifyX ERP - Advanced User Rights & Permissions Manager
- * Categorized tabs, granular CRUD permissions, quick role presets, and instant search
+ * Menu-wise grouping matching the ERP top navigation bar, granular CRUD permissions,
+ * 1-click group-wise selection, quick role presets, and instant search.
  */
 
 (function(window) {
     'use strict';
 
+    const CATEGORY_ICONS = {
+        'Administrator': 'fa-user-shield',
+        'Maintain': 'fa-cogs',
+        'Purchases': 'fa-shopping-cart',
+        'Sales': 'fa-file-invoice-dollar',
+        'Store': 'fa-warehouse',
+        'SMS & Reminders': 'fa-sms',
+        'Notes': 'fa-sticky-note',
+        'Adjustment': 'fa-balance-scale',
+        'Digital Invoicing': 'fa-qrcode',
+        'POS': 'fa-cash-register',
+        'Reports': 'fa-chart-line'
+    };
+
     const USER_RIGHTS_MODULES = [
-        // 1. Administration
-        { category: 'Administration', name: 'My Company', desc: 'Company Profile & Setup' },
-        { category: 'Administration', name: 'My Logo', desc: 'Company Logo & Branding' },
-        { category: 'Administration', name: 'List Of Companies', desc: 'Manage Multiple Companies' },
-        { category: 'Administration', name: 'User Logins', desc: 'Manage Users & Credentials' },
-        { category: 'Administration', name: 'User Rights', desc: 'Role Permissions & Access Control' },
-        { category: 'Administration', name: 'Passwords', desc: 'Change User Passwords' },
-        { category: 'Administration', name: 'Financial Year', desc: 'Financial Years & Lock Periods' },
-        { category: 'Administration', name: 'Clear Transactions', desc: 'Clear Test Data / Transactions' },
-        { category: 'Administration', name: 'Currency', desc: 'Currency & Symbol Settings' },
-        { category: 'Administration', name: 'BackUp Utility', desc: 'Database Backup & Restore' },
-        { category: 'Administration', name: 'System Settings', desc: 'Global ERP Configuration & Theme' },
-        { category: 'Administration', name: 'Approval Desk', desc: 'Voucher & Document Approvals' },
-        { category: 'Administration', name: 'User Login & Session History', desc: 'Active Sessions & Audit Trail' },
+        // 1. Administrator Menu
+        { category: 'Administrator', name: 'My Company', desc: 'Company Profile, Address & Information' },
+        { category: 'Administrator', name: 'My Logo', desc: 'Company Header & Voucher Logo' },
+        { category: 'Administrator', name: 'List Of Companies', desc: 'Manage Multiple Branches / Companies' },
+        { category: 'Administrator', name: 'User Logins', desc: 'Manage Users, Passwords & Branch Roles' },
+        { category: 'Administrator', name: 'User Rights', desc: 'Role Permissions & Screen Access Control' },
+        { category: 'Administrator', name: 'Approval Desk', desc: 'Voucher & Transaction Approvals' },
+        { category: 'Administrator', name: 'User Login & Session History', desc: 'Active Login Sessions & IP Audit Log' },
+        { category: 'Administrator', name: 'System Settings', desc: 'Global ERP Settings, Theme & Preferences' },
+        { category: 'Administrator', name: 'Passwords', desc: 'Change User Login Passwords' },
+        { category: 'Administrator', name: 'Financial Year', desc: 'Financial Years, Closing Dates & Lock Periods' },
+        { category: 'Administrator', name: 'Clear Transactions', desc: 'Clear Test Data / Erase Transactions' },
+        { category: 'Administrator', name: 'Currency', desc: 'Base & Multi-Currency Settings' },
+        { category: 'Administrator', name: 'BackUp Utility', desc: 'Database Backup & Restore' },
+        { category: 'Administrator', name: 'User Activity Logs', desc: 'User Action Logs & Audit Trail' },
 
-        // 2. Maintain / Masters
-        { category: 'Maintain / Masters', name: 'Chart of Accounts', desc: 'Accounts & GL Tree' },
-        { category: 'Maintain / Masters', name: 'Customers', desc: 'Customer Accounts & Information' },
-        { category: 'Maintain / Masters', name: 'Vendors/Suppliers', desc: 'Supplier & Vendor Accounts' },
-        { category: 'Maintain / Masters', name: 'Bank Accounts', desc: 'Bank Books & Accounts' },
-        { category: 'Maintain / Masters', name: 'Accounts Opening Balances', desc: 'Initial Account Balances' },
-        { category: 'Maintain / Masters', name: 'Chart Of Inventory', desc: 'Items Master & Categories' },
-        { category: 'Maintain / Masters', name: 'Inventory Opening Balances', desc: 'Initial Stock Balances' },
-        { category: 'Maintain / Masters', name: 'Inventory Brands', desc: 'Item Brands & Makes' },
-        { category: 'Maintain / Masters', name: 'Inventory Locations', desc: 'Warehouses & Godowns' },
-        { category: 'Maintain / Masters', name: 'Item Price Settings', desc: 'Selling Rates & Wholesale Pricing' },
-        { category: 'Maintain / Masters', name: 'Item Sales Tax Rates', desc: 'Tax Slabs & GST %' },
-        { category: 'Maintain / Masters', name: 'Item Pre-Order Levels', desc: 'Reorder Levels & Safety Stock' },
-        { category: 'Maintain / Masters', name: 'Item Cost Valuation Method', desc: 'FIFO / Weighted Average Method' },
-        { category: 'Maintain / Masters', name: 'Chart Of Services', desc: 'Service Items & Charges' },
-        { category: 'Maintain / Masters', name: 'Voucher Posting Preferences', desc: 'Auto Post & Numbering' },
-        { category: 'Maintain / Masters', name: 'Inventory Movement Settings', desc: 'Stock In/Out Source & Negative Policy' },
-        { category: 'Maintain / Masters', name: 'Monthly Inventory Closing', desc: 'Monthly Stock Audit & Freeze' },
-        { category: 'Maintain / Masters', name: 'Customer Regions', desc: 'Cities, Areas & Territories' },
-        { category: 'Maintain / Masters', name: 'Customer Types & Rates', desc: 'Customer Tax Categories' },
-        { category: 'Maintain / Masters', name: 'Buyer Types & Rates', desc: 'FBR Buyer Types & Withholding' },
-        { category: 'Maintain / Masters', name: 'Business Sectors', desc: 'Industry & Business Sectors' },
-        { category: 'Maintain / Masters', name: 'Employees', desc: 'Staff & Sales Personnel' },
-        { category: 'Maintain / Masters', name: 'Jobs', desc: 'Project & Job Costing' },
-        { category: 'Maintain / Masters', name: 'Drivers', desc: 'Transport Drivers & Logistics' },
-        { category: 'Maintain / Masters', name: 'HS Codes', desc: 'Customs HS Tariff Codes' },
-        { category: 'Maintain / Masters', name: 'Price List Management', desc: 'Price Revisions & Bulk Price Update' },
+        // 2. Maintain Menu
+        { category: 'Maintain', name: 'Chart of Accounts', desc: 'General Ledger Accounts & Tree' },
+        { category: 'Maintain', name: 'Customers', desc: 'Customer Accounts & Credit Profiles' },
+        { category: 'Maintain', name: 'Vendors/Suppliers', desc: 'Supplier & Vendor Accounts' },
+        { category: 'Maintain', name: 'Bank Accounts', desc: 'Bank Books & Bank Account Master' },
+        { category: 'Maintain', name: 'Accounts Opening Balances', desc: 'Initial Account Balances' },
+        { category: 'Maintain', name: 'Chart Of Inventory', desc: 'Item Codes, Names & Categories' },
+        { category: 'Maintain', name: 'Inventory Opening Balances', desc: 'Initial Warehouse Stock Balances' },
+        { category: 'Maintain', name: 'Inventory Brands', desc: 'Item Brands & Makes' },
+        { category: 'Maintain', name: 'HS Codes', desc: 'Customs HS Tariff Codes' },
+        { category: 'Maintain', name: 'Item Classes', desc: 'Inventory Item Classification' },
+        { category: 'Maintain', name: 'Item Lengths', desc: 'Item Standard Length Attributes' },
+        { category: 'Maintain', name: 'Item Sizes', desc: 'Item Diameter & Size Attributes' },
+        { category: 'Maintain', name: 'Item Fitting Types', desc: 'Pipe & Fitting Categories' },
+        { category: 'Maintain', name: 'Inventory Locations', desc: 'Warehouses, Godowns & Sections' },
+        { category: 'Maintain', name: 'Item Price Settings', desc: 'Selling Rates & Wholesale Pricing' },
+        { category: 'Maintain', name: 'Price List Management', desc: 'Price Revisions & Bulk Price Update' },
+        { category: 'Maintain', name: 'Item Sales Tax Rates', desc: 'Tax Slabs & GST Percentages' },
+        { category: 'Maintain', name: 'Item Pre-Order Levels', desc: 'Reorder Levels & Safety Stock' },
+        { category: 'Maintain', name: 'Item Cost Valuation Method', desc: 'FIFO / Weighted Average Method' },
+        { category: 'Maintain', name: 'Chart Of Services', desc: 'Service Items & Charges Master' },
+        { category: 'Maintain', name: 'Voucher Posting Preferences', desc: 'Auto Post & Numbering Preferences' },
+        { category: 'Maintain', name: 'Inventory Movement Settings', desc: 'Stock In/Out Source & Negative Stock Policy' },
+        { category: 'Maintain', name: 'Monthly Inventory Closing', desc: 'Monthly Stock Audit & Freeze' },
+        { category: 'Maintain', name: 'Customer Regions', desc: 'Cities, Areas & Territories' },
+        { category: 'Maintain', name: 'Customer Types & Rates', desc: 'Customer Tax Categories' },
+        { category: 'Maintain', name: 'Buyer Types', desc: 'FBR Buyer Types & Tax Slabs' },
+        { category: 'Maintain', name: 'Business Sectors', desc: 'Industry & Business Sectors' },
+        { category: 'Maintain', name: 'Employees', desc: 'Staff, Order Bookers & Salespersons' },
+        { category: 'Maintain', name: 'Jobs', desc: 'Project & Job Costing Master' },
+        { category: 'Maintain', name: 'Drivers', desc: 'Transport Drivers & Logistics' },
 
-        // 3. Sales & Billing
-        { category: 'Sales & Billing', name: 'Sale Invoice', desc: 'Tax & Non-Tax Sale Invoices' },
-        { category: 'Sales & Billing', name: 'Sales Tax Invoices', desc: 'Standard Sales Tax Invoices' },
-        { category: 'Sales & Billing', name: 'Sale Invoices (Non Tax)', desc: 'Non-Tax Commercial Invoices' },
-        { category: 'Sales & Billing', name: 'Quotations', desc: 'Sales Quotations & Estimates' },
-        { category: 'Sales & Billing', name: 'Sale Orders', desc: 'Customer Sales Orders' },
-        { category: 'Sales & Billing', name: 'Delivery Challans', desc: 'Outward Delivery Notes' },
-        { category: 'Sales & Billing', name: 'Sale Return / Credit Notes', desc: 'Sale Returns & Credit Notes' },
-        { category: 'Sales & Billing', name: 'Cash Receipts', desc: 'Cash Received From Customers' },
-        { category: 'Sales & Billing', name: 'Bank Receipts', desc: 'Bank / Cheque Received From Customers' },
-        { category: 'Sales & Billing', name: 'Customer Follow-Up', desc: 'Collection Follow-Up & Calls' },
-
-        // 4. Purchases
+        // 3. Purchases Menu
         { category: 'Purchases', name: 'Purchase Orders', desc: 'Vendor Purchase Orders' },
         { category: 'Purchases', name: 'Purchase Invoice', desc: 'Vendor Purchase Bills' },
-        { category: 'Purchases', name: 'Purchases (Sales Tax)', desc: 'Tax Purchase Invoices' },
-        { category: 'Purchases', name: 'Purchases (Non Tax)', desc: 'Non-Tax Purchase Invoices' },
+        { category: 'Purchases', name: 'Purchases (Sales Tax)', desc: 'Standard Tax Purchase Invoices' },
+        { category: 'Purchases', name: 'Purchases (Non Tax)', desc: 'Non-Tax Commercial Purchase Bills' },
         { category: 'Purchases', name: 'Purchase Return / Debit Note', desc: 'Purchase Returns & Debit Notes' },
-        { category: 'Purchases', name: 'Cash Payments', desc: 'Cash Paid To Suppliers & Expenses' },
-        { category: 'Purchases', name: 'Bank Payments', desc: 'Bank / Cheque Payments To Vendors' },
+        { category: 'Purchases', name: 'Cash Payments', desc: 'Cash Paid to Suppliers & Expenses (CPV)' },
+        { category: 'Purchases', name: 'Bank Payments', desc: 'Bank / Cheque Payments to Suppliers (BPV)' },
 
-        // 5. Store & Production
-        { category: 'Store & Production', name: 'Inward Gate Passes', desc: 'Raw Material / Goods Arrival' },
-        { category: 'Store & Production', name: 'Outward Gate Passes', desc: 'Goods Dispatch Gate Passes' },
-        { category: 'Store & Production', name: 'Material Issue Notes', desc: 'Raw Material Consumption' },
-        { category: 'Store & Production', name: 'Production Notes', desc: 'Finished Goods Production' },
-        { category: 'Store & Production', name: 'Inventory Transfers', desc: 'Godown To Godown Transfers' },
-        { category: 'Store & Production', name: 'Add Inventory Adjustments', desc: 'Manual Stock Additions' },
-        { category: 'Store & Production', name: 'Reduce Inventory Adjustments', desc: 'Stock Wastage & Reductions' },
-        { category: 'Store & Production', name: 'Auto Adjustments', desc: 'Automated Stock Corrections' },
-        { category: 'Store & Production', name: 'Formulas', desc: 'BOM / Production Recipes' },
-        { category: 'Store & Production', name: 'Monthly Stock Closing & Audit', desc: 'Physical Count Verification' },
+        // 4. Sales Menu
+        { category: 'Sales', name: 'Customer Follow-Up', desc: 'Collection Follow-Up & Call History' },
+        { category: 'Sales', name: 'Quotations', desc: 'Sales Quotations & Price Estimates' },
+        { category: 'Sales', name: 'Sale Orders', desc: 'Customer Sales Orders & Bookings' },
+        { category: 'Sales', name: 'Delivery Challans', desc: 'Outward Delivery Challans & Dispatch' },
+        { category: 'Sales', name: 'Sale Invoice', desc: 'Main Sales Invoicing Screen' },
+        { category: 'Sales', name: 'Sales Tax Invoices', desc: 'Standard FBR Sales Tax Invoices' },
+        { category: 'Sales', name: 'Sale Invoices (Non Tax)', desc: 'Non-Tax Commercial Invoices' },
+        { category: 'Sales', name: 'Sale Return / Credit Notes', desc: 'Customer Sale Returns & Credit Notes' },
+        { category: 'Sales', name: 'Cash Receipts', desc: 'Cash Received From Customers (CRV)' },
+        { category: 'Sales', name: 'Bank Receipts', desc: 'Bank / Cheque Receipts From Customers (BRV)' },
 
-        // 6. Retail & POS
-        { category: 'Retail & POS', name: 'POS Sale', desc: 'Point of Sale Retail Counter' },
-        { category: 'Retail & POS', name: 'POS Sales Register', desc: 'POS Daily Invoices Register' },
-        { category: 'Retail & POS', name: 'POS Sales Return', desc: 'Counter Sales Returns' },
-        { category: 'Retail & POS', name: 'POS Hold / Recall Register', desc: 'Held Carts & Pending Orders' },
-        { category: 'Retail & POS', name: 'POS Day Closing', desc: 'Cash Drawer Reconciliation & Shift Close' },
-        { category: 'Retail & POS', name: 'POS Reports', desc: 'Retail Summary & Sales Reports' },
+        // 5. Store Menu
+        { category: 'Store', name: 'Inward Gate Passes', desc: 'Raw Material / Goods Arrival Note (IGP)' },
+        { category: 'Store', name: 'Outward Gate Passes', desc: 'Goods Dispatch Gate Passes (OGP)' },
+        { category: 'Store', name: 'Material Issue Notes', desc: 'Raw Material Consumption to Production (MIN)' },
+        { category: 'Store', name: 'Production Notes', desc: 'Finished Goods Production Entry (PN)' },
+        { category: 'Store', name: 'Inventory Transfers', desc: 'Godown to Godown Stock Transfers' },
+        { category: 'Store', name: 'Add Inventory Adjustments', desc: 'Manual Stock Additions' },
+        { category: 'Store', name: 'Reduce Inventory Adjustments', desc: 'Stock Wastage & Reductions' },
+        { category: 'Store', name: 'Auto Adjustments', desc: 'Automated Stock Discrepancy Corrections' },
+        { category: 'Store', name: 'Formulas', desc: 'BOM / Production Recipe Formulas' },
+        { category: 'Store', name: 'Monthly Stock Closing & Audit', desc: 'Physical Count Verification & Closing' },
 
-        // 7. Digital Invoicing (FBR)
-        { category: 'Digital Invoicing (FBR)', name: 'FBR Digital Invoice', desc: 'Live FBR Invoicing Portal' },
-        { category: 'Digital Invoicing (FBR)', name: 'Digital Invoice Sales Register', desc: 'FBR Verified Invoices Register' },
-        { category: 'Digital Invoicing (FBR)', name: 'FBR Digital Credit Note', desc: 'FBR Credit Notes' },
-        { category: 'Digital Invoicing (FBR)', name: 'FBR Digital Debit Note', desc: 'FBR Debit Notes' },
-        { category: 'Digital Invoicing (FBR)', name: 'FBR Invoice Cancellation', desc: 'Cancel FBR Invoices' },
-        { category: 'Digital Invoicing (FBR)', name: 'Digital Invoice - Integration Settings', desc: 'FBR API Sandbox / Live Keys' },
-        { category: 'Digital Invoicing (FBR)', name: 'Digital Invoice Reports', desc: 'FBR Sync Audit & Annexures' },
-        { category: 'Digital Invoicing (FBR)', name: 'Digital Invoice Integration Log', desc: 'API Transmission Logs' },
+        // 6. SMS & Reminders Menu
+        { category: 'SMS & Reminders', name: 'Payment Reminder (Credit Control)', desc: 'Overdue Ageing Payment Alerts' },
+        { category: 'SMS & Reminders', name: 'Send Ledger Summary', desc: 'Customer Ledger WhatsApp / SMS' },
+        { category: 'SMS & Reminders', name: 'SMS Templates', desc: 'Custom Message & WhatsApp Templates' },
+        { category: 'SMS & Reminders', name: 'Bulk Messages', desc: 'Mass Marketing & Announcement SMS' },
 
-        // 8. SMS & Reminders
-        { category: 'SMS & Reminders', name: 'Payment Reminder (Credit Control)', desc: 'Credit Ageing Payment Reminders' },
-        { category: 'SMS & Reminders', name: 'Send Ledger Summary', desc: 'Direct Ledger Balance Messages' },
-        { category: 'SMS & Reminders', name: 'SMS Templates', desc: 'Custom Message Drafts' },
-        { category: 'SMS & Reminders', name: 'Bulk Messages', desc: 'Mass Marketing & Broadcast SMS' },
+        // 7. Notes Menu
+        { category: 'Notes', name: 'Journal Notes', desc: 'Internal Department Memos & Sticky Notes' },
+        { category: 'Notes', name: 'Notifications from Admin', desc: 'System-wide Admin Broadcast Notices' },
 
-        // 9. Notes & General Journal
-        { category: 'Notes & General Journal', name: 'General Journal Voucher', desc: 'JV / Adjustment Journal Entries' },
-        { category: 'Notes & General Journal', name: 'Journal Notes', desc: 'Internal Department Notes & Memos' },
-        { category: 'Notes & General Journal', name: 'Notifications from Admin', desc: 'System Broadcast Notifications' },
+        // 8. Adjustment Menu
+        { category: 'Adjustment', name: 'General Journal Voucher', desc: 'JV / Adjustment Journal Entries (GJV)' },
 
-        // 10. Financial Reports
-        { category: 'Financial Reports', name: 'Trial Balance', desc: 'Standard & Grouped Trial Balance' },
-        { category: 'Financial Reports', name: 'Balance Sheet', desc: 'Assets, Liabilities & Equity Statement' },
-        { category: 'Financial Reports', name: 'Income Statement', desc: 'Profit & Loss Statement' },
-        { category: 'Financial Reports', name: 'View Account Ledger', desc: 'On-Screen Interactive GL Ledger' },
-        { category: 'Financial Reports', name: 'Print Accounts Ledgers', desc: 'Printable / PDF Customer & GL Ledgers' },
-        { category: 'Financial Reports', name: 'Cash & Bank Balances', desc: 'Cash in Hand & Bank Balances' },
-        { category: 'Financial Reports', name: 'Customer Balances', desc: 'Accounts Receivable Balances' },
-        { category: 'Financial Reports', name: 'Vendor Balances', desc: 'Accounts Payable Balances' },
-        { category: 'Financial Reports', name: 'Journal Report', desc: 'Daily Book / Transaction Journal' },
-        { category: 'Financial Reports', name: 'Print Voucher', desc: 'Print Any Journal / Cash Voucher' },
-        { category: 'Financial Reports', name: 'Job Ledgers', desc: 'Job / Project Expense Ledgers' },
-        { category: 'Financial Reports', name: 'Tax Transaction Report', desc: 'Tax Audit & Sales Tax Summary' },
+        // 9. Digital Invoicing Menu
+        { category: 'Digital Invoicing', name: 'Digital Invoice - Integration Settings', desc: 'FBR API Sandbox / Live Keys' },
+        { category: 'Digital Invoicing', name: 'FBR Digital Invoice', desc: 'Live FBR Invoicing Portal' },
+        { category: 'Digital Invoicing', name: 'Digital Invoice Sales Register', desc: 'FBR Verified Invoices Register' },
+        { category: 'Digital Invoicing', name: 'FBR Digital Credit Note', desc: 'FBR Annexure-C Credit Notes' },
+        { category: 'Digital Invoicing', name: 'FBR Digital Debit Note', desc: 'FBR Annexure-C Debit Notes' },
+        { category: 'Digital Invoicing', name: 'FBR Invoice Cancellation', desc: 'Cancel / Void FBR Invoices' },
+        { category: 'Digital Invoicing', name: 'Digital Invoice Reports', desc: 'FBR Sync Audit & Annexure Reports' },
+        { category: 'Digital Invoicing', name: 'Digital Invoice Integration Log', desc: 'API Transmission & Response Logs' },
 
-        // 11. Sales & Purchase Reports
-        { category: 'Sales & Purchase Reports', name: 'Sale Summary', desc: 'Total Sales Overview' },
-        { category: 'Sales & Purchase Reports', name: 'Sale Register', desc: 'Date-wise Sales Invoices Register' },
-        { category: 'Sales & Purchase Reports', name: 'Party Sale Summary', desc: 'Customer-wise Sales Analysis' },
-        { category: 'Sales & Purchase Reports', name: 'Recovery/Receipts Reports', desc: 'Payment Recovery & Receipts' },
-        { category: 'Sales & Purchase Reports', name: 'Sale Activity Report - Invoice Wise', desc: 'Detailed Sales Invoices Breakdown' },
-        { category: 'Sales & Purchase Reports', name: 'Sale Activity Report - Party Wise', desc: 'Customer Sales & Item History' },
-        { category: 'Sales & Purchase Reports', name: 'Item Sale Summary', desc: 'Item-wise Quantity Sold' },
-        { category: 'Sales & Purchase Reports', name: 'Item Sale Analysis', desc: 'Item Margin & Sales Volume' },
-        { category: 'Sales & Purchase Reports', name: 'Services Analysis', desc: 'Service Revenue Breakdown' },
-        { category: 'Sales & Purchase Reports', name: 'Accounts Receivable Aging', desc: 'Customer Ageing (30/60/90 Days)' },
-        { category: 'Sales & Purchase Reports', name: 'Purchase Summary', desc: 'Total Purchases Overview' },
-        { category: 'Sales & Purchase Reports', name: 'Purchase Register', desc: 'Date-wise Purchase Register' },
-        { category: 'Sales & Purchase Reports', name: 'Party Purchase Summary', desc: 'Supplier-wise Purchase Analysis' },
-        { category: 'Sales & Purchase Reports', name: 'Payments Reports', desc: 'Vendor Payment History' },
-        { category: 'Sales & Purchase Reports', name: 'Purchase Activity Report - Invoice Wise', desc: 'Purchase Bills Detail' },
-        { category: 'Sales & Purchase Reports', name: 'Purchase Activity Report - Party Wise', desc: 'Vendor Purchases History' },
-        { category: 'Sales & Purchase Reports', name: 'Item Purchase Summary', desc: 'Item-wise Purchases Total' },
-        { category: 'Sales & Purchase Reports', name: 'Item Purchase Analysis', desc: 'Item Purchase Pricing History' },
-        { category: 'Sales & Purchase Reports', name: 'Accounts Payable Aging', desc: 'Vendor Ageing (30/60/90 Days)' },
-        { category: 'Sales & Purchase Reports', name: 'Purchase Order Tracking', desc: 'Pending vs Received POs' },
-        { category: 'Sales & Purchase Reports', name: 'Sale Order Tracking', desc: 'Pending vs Dispatched SOs' },
+        // 10. POS Menu
+        { category: 'POS', name: 'POS Dashboard', desc: 'Retail POS Counter Dashboard' },
+        { category: 'POS', name: 'POS Sale', desc: 'Barcode / Touch POS Quick Billing' },
+        { category: 'POS', name: 'POS Sales Register', desc: 'POS Daily Retail Invoices Register' },
+        { category: 'POS', name: 'POS Sales Return', desc: 'Retail Counter Return & Exchange' },
+        { category: 'POS', name: 'POS Hold / Recall Register', desc: 'Held Carts & Pending Retail Tickets' },
+        { category: 'POS', name: 'POS Day Closing', desc: 'Shift Cash Reconciliation & Day Close' },
+        { category: 'POS', name: 'POS Reports', desc: 'Retail Sales & Summary Reports' },
 
-        // 12. Inventory Reports
-        { category: 'Inventory Reports', name: 'View Inventory Ledgers', desc: 'Item Stock In / Out Ledger' },
-        { category: 'Inventory Reports', name: 'Print Inventory Ledgers', desc: 'Printable Stock Ledger Sheet' },
-        { category: 'Inventory Reports', name: 'Inventory Balances', desc: 'Current Live Godown Balances' },
-        { category: 'Inventory Reports', name: 'Item-Wise Profit/Loss', desc: 'Gross Profit per Item Analysis' },
-        { category: 'Inventory Reports', name: 'Material Consumption Report', desc: 'Raw Material Consumption' },
-        { category: 'Inventory Reports', name: 'Production Report', desc: 'Finished Goods Manufactured' },
-        { category: 'Inventory Reports', name: 'Item Below Re-Order Level', desc: 'Low Stock Alerts & Shortages' },
-        { category: 'Inventory Reports', name: 'Product Serials Tracking', desc: 'Serial Numbers & Barcode Tracking' }
+        // 11. Reports Menu
+        { category: 'Reports', name: 'View Account Ledger', desc: 'Interactive On-Screen General Ledger' },
+        { category: 'Reports', name: 'Print Accounts Ledgers', desc: 'Printable / PDF Customer & GL Ledgers' },
+        { category: 'Reports', name: 'Cash & Bank Balances', desc: 'Live Cash in Hand & Bank Balances' },
+        { category: 'Reports', name: 'Customer Balances', desc: 'Accounts Receivable (Customer Balances)' },
+        { category: 'Reports', name: 'Vendor Balances', desc: 'Accounts Payable (Supplier Balances)' },
+        { category: 'Reports', name: 'Journal Report', desc: 'Daily Transaction Book & Journal Report' },
+        { category: 'Reports', name: 'Print Voucher', desc: 'Print Any Posted Voucher' },
+        { category: 'Reports', name: 'Tax Transaction Report', desc: 'Withholding & Sales Tax Audit Report' },
+        { category: 'Reports', name: 'Trial Balance', desc: 'Standard & Grouped Trial Balance' },
+        { category: 'Reports', name: 'Income Statement', desc: 'Profit & Loss Statement (P&L)' },
+        { category: 'Reports', name: 'Balance Sheet', desc: 'Statement of Financial Position' },
+        { category: 'Reports', name: 'Sale Summary', desc: 'Total Sales Summary Overview' },
+        { category: 'Reports', name: 'Sale Register', desc: 'Date-wise Sales Invoices Register' },
+        { category: 'Reports', name: 'Party Sale Summary', desc: 'Customer-wise Sales Volume & Value' },
+        { category: 'Reports', name: 'Accounts Receivable Aging', desc: 'Customer Ageing (30/60/90 Days)' },
+        { category: 'Reports', name: 'Sale Order Tracking', desc: 'Pending vs Dispatched Sales Orders' },
+        { category: 'Reports', name: 'Recovery / Receipt Report', desc: 'Customer Payment Recovery History' },
+        { category: 'Reports', name: 'Sale Activity Report - Invoice Wise', desc: 'Detailed Sales Invoices Breakdown' },
+        { category: 'Reports', name: 'Sale Activity Report - Party Wise', desc: 'Customer Sales & Item History' },
+        { category: 'Reports', name: 'Item Sale Summary', desc: 'Item-wise Quantity Sold' },
+        { category: 'Reports', name: 'Item Sale Analysis', desc: 'Item Margin & Sales Volume' },
+        { category: 'Reports', name: 'Services Analysis', desc: 'Service Revenue Breakdown' },
+        { category: 'Reports', name: 'Purchase Summary', desc: 'Total Purchases Overview' },
+        { category: 'Reports', name: 'Purchase Register', desc: 'Date-wise Purchase Bills Register' },
+        { category: 'Reports', name: 'Party Purchase Summary', desc: 'Supplier-wise Purchase Analysis' },
+        { category: 'Reports', name: 'Accounts Payable Aging', desc: 'Supplier Ageing (30/60/90 Days)' },
+        { category: 'Reports', name: 'Purchase Order Tracking', desc: 'Pending vs Received Purchase Orders' },
+        { category: 'Reports', name: 'Payments Reports', desc: 'Supplier Payment History' },
+        { category: 'Reports', name: 'Purchase Activity Report - Invoice Wise', desc: 'Purchase Bills Detail' },
+        { category: 'Reports', name: 'Purchase Activity Report - Party Wise', desc: 'Vendor Purchases History' },
+        { category: 'Reports', name: 'Item Purchase Summary', desc: 'Item-wise Purchases Total' },
+        { category: 'Reports', name: 'Item Purchase Analysis', desc: 'Item Purchase Cost Trend' },
+        { category: 'Reports', name: 'Inventory Balances', desc: 'Current Live Godown Stock Balances' },
+        { category: 'Reports', name: 'View Inventory Ledgers', desc: 'Item In / Out Movement Stock Ledger' },
+        { category: 'Reports', name: 'Print Inventory Ledgers', desc: 'Printable Stock Ledger Sheet' },
+        { category: 'Reports', name: 'Item Below Re-Order Level', desc: 'Low Stock Alerts & Shortages' },
+        { category: 'Reports', name: 'Product Serials Tracking', desc: 'Serial Numbers & Barcode Tracking' },
+        { category: 'Reports', name: 'Item-Wise Profit/Loss', desc: 'Gross Profit per Item Analysis' },
+        { category: 'Reports', name: 'Production Report', desc: 'Finished Goods Manufactured Summary' },
+        { category: 'Reports', name: 'Material Consumption Report', desc: 'Raw Material Consumed in Factory' },
+        { category: 'Reports', name: 'Raw Material Flow Statement', desc: 'Raw Material Flow at Average Cost' },
+        { category: 'Reports', name: 'Production Costing & WIP Statement', desc: 'WIP & Cost of Production Statement' },
+        { category: 'Reports', name: 'Job Ledgers', desc: 'Job / Project Costing Ledgers' }
+    ];
+
+    const ORDERED_CATEGORIES = [
+        'Administrator',
+        'Maintain',
+        'Purchases',
+        'Sales',
+        'Store',
+        'SMS & Reminders',
+        'Notes',
+        'Adjustment',
+        'Digital Invoicing',
+        'POS',
+        'Reports'
     ];
 
     const UserRightsManager = {
@@ -189,8 +224,7 @@
                 this.usersList = window.users;
             } else {
                 try {
-                    const companyId = localStorage.getItem('company_id') || 1;
-                    const res = await fetch(`api/admin.php?action=get_users&company_id=${companyId}`, { credentials: 'same-origin' });
+                    const res = await fetch('api/admin.php?action=get_users');
                     if (res.ok) {
                         this.usersList = await res.json();
                     }
@@ -216,24 +250,32 @@
             const tabsContainer = document.getElementById('urCategoryTabs');
             if (!tabsContainer) return;
 
-            const categories = ['All'];
-            this.modules.forEach(m => {
-                if (!categories.includes(m.category)) categories.push(m.category);
-            });
+            const totalOverall = this.modules.length;
+            const assignedOverall = this.modules.filter(m => this.isCurrentAdmin || (this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed)).length;
 
-            let html = '';
-            categories.forEach(cat => {
-                const count = (cat === 'All') 
-                    ? this.modules.length 
-                    : this.modules.filter(m => m.category === cat).length;
+            let html = `
+                <button type="button" class="ur-tab-btn ${this.activeCategory === 'All' ? 'ur-tab-active' : ''}" data-category="All" onclick="window.UserRightsManager.switchCategory('All')">
+                    <i class="fas fa-th-large"></i> All Menus <span class="ur-tab-count" id="tabCount-All">${assignedOverall} / ${totalOverall}</span>
+                </button>
+            `;
+
+            ORDERED_CATEGORIES.forEach(cat => {
+                const totalInCat = this.modules.filter(m => m.category === cat).length;
+                const assignedInCat = this.modules.filter(m => m.category === cat && (this.isCurrentAdmin || (this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed))).length;
+                const icon = CATEGORY_ICONS[cat] || 'fa-folder';
                 const activeCls = (cat === this.activeCategory) ? 'ur-tab-active' : '';
+                const catSafeId = cat.replace(/[^a-zA-Z0-9]/g, '_');
+                const badgeStyle = (assignedInCat > 0) ? 'background: #0284c7; color: #ffffff;' : '';
+
                 html += `
                     <button type="button" class="ur-tab-btn ${activeCls}" data-category="${cat}" onclick="window.UserRightsManager.switchCategory('${cat}')">
-                        ${cat} <span class="ur-tab-count">${count}</span>
+                        <i class="fas ${icon}"></i> ${cat} <span class="ur-tab-count" id="tabCount-${catSafeId}" style="${badgeStyle}">${assignedInCat} / ${totalInCat}</span>
                     </button>
                 `;
             });
+
             tabsContainer.innerHTML = html;
+            this.updateSummaryBadges();
         },
 
         switchCategory: function(cat) {
@@ -245,7 +287,14 @@
                     btn.classList.remove('ur-tab-active');
                 }
             });
+
+            const activeLabel = document.getElementById('urActiveMenuLabel');
+            if (activeLabel) {
+                activeLabel.textContent = (cat === 'All') ? 'All Modules' : `${cat} Menu`;
+            }
+
             this.renderTable();
+            this.updateSummaryBadges();
         },
 
         attachEventListeners: function() {
@@ -282,8 +331,7 @@
             this.currentRightsMap = {};
 
             try {
-                const companyId = localStorage.getItem('company_id') || 1;
-                const res = await fetch(`api/admin.php?action=get_rights&user_id=${this.currentUserId}&company_id=${companyId}&_cb=${Date.now()}`, { credentials: 'same-origin' });
+                const res = await fetch(`api/admin.php?action=get_rights&user_id=${this.currentUserId}&_cb=${Date.now()}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data)) {
@@ -305,6 +353,7 @@
             }
 
             this.renderTable();
+            this.updateSummaryBadges();
         },
 
         renderTable: function() {
@@ -324,68 +373,127 @@
             }
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: #94a3b8;"><i class="fas fa-search" style="font-size: 20px; margin-bottom: 8px; display: block;"></i>No matching modules found</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: #94a3b8;"><i class="fas fa-search" style="font-size: 26px; margin-bottom: 8px; display: block;"></i>No matching modules found</td></tr>`;
                 return;
             }
 
+            // Group filtered items by ordered categories
+            const groups = {};
+            ORDERED_CATEGORIES.forEach(c => { groups[c] = []; });
+            filtered.forEach(m => {
+                if (!groups[m.category]) groups[m.category] = [];
+                groups[m.category].push(m);
+            });
+
             let rows = '';
-            filtered.forEach((m, idx) => {
-                const existing = this.currentRightsMap[m.name] || {};
-                
-                // If user is Admin, force all to 1
-                const isAllowed = this.isCurrentAdmin ? true : !!existing.allowed;
-                const canView = this.isCurrentAdmin ? true : (existing.view !== undefined ? existing.view : isAllowed);
-                const canCreate = this.isCurrentAdmin ? true : (existing.create !== undefined ? existing.create : isAllowed);
-                const canEdit = this.isCurrentAdmin ? true : (existing.edit !== undefined ? existing.edit : isAllowed);
-                const canDelete = this.isCurrentAdmin ? true : (existing.delete !== undefined ? existing.delete : false);
-                const canPrint = this.isCurrentAdmin ? true : (existing.print !== undefined ? existing.print : isAllowed);
+            let globalIndex = 1;
 
-                const statusColor = isAllowed ? '#10b981' : '#ef4444';
-                const statusBg = isAllowed ? '#ecfdf5' : '#fef2f2';
-                const statusText = isAllowed ? 'Allowed' : 'Not Allowed';
-                const disabledAttr = this.isCurrentAdmin ? 'disabled title="Administrator has unrestricted access"' : '';
+            ORDERED_CATEGORIES.forEach(cat => {
+                const list = groups[cat] || [];
+                if (list.length === 0) return;
 
+                const icon = CATEGORY_ICONS[cat] || 'fa-folder';
+                const totalInCat = this.modules.filter(m => m.category === cat).length;
+                const assignedInCat = this.modules.filter(m => m.category === cat && (this.isCurrentAdmin || (this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed))).length;
+                const catSafeId = cat.replace(/[^a-zA-Z0-9]/g, '_');
+                const grpBadgeStyle = (assignedInCat > 0) ? 'background: #dcfce7; color: #15803d; border: 1px solid #86efac;' : '';
+
+                // Render Group Header Row with Group-wise 1-Click Action Buttons
                 rows += `
-                    <tr class="ur-row ${isAllowed ? 'row-allowed' : 'row-denied'}" data-module="${m.name}" data-category="${m.category}" style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s;">
-                        <td style="padding: 8px 10px; color: #64748b; font-size: 11px; text-align: center; width: 35px;">${idx + 1}</td>
-                        <td style="padding: 8px 12px; width: 320px;">
-                            <div style="font-weight: 700; color: #1e293b; font-size: 12.5px;">${m.name}</div>
-                            <div style="font-size: 10.5px; color: #64748b; display: flex; align-items: center; gap: 6px; margin-top: 2px;">
-                                <span style="background: #f1f5f9; color: #475569; padding: 1px 6px; border-radius: 4px; font-weight: 600;">${m.category}</span>
-                                <span>${m.desc || ''}</span>
+                    <tr class="ur-group-header-row" data-group="${cat}">
+                        <td colspan="8">
+                            <div class="ur-group-header-inner">
+                                <div class="ur-group-info">
+                                    <i class="fas ${icon}" style="color: #1F4E79; font-size: 14px;"></i>
+                                    <span style="font-weight: 700; color: #0f172a; font-size: 13px;">${cat} Menu</span>
+                                    <span class="ur-group-count" id="grpCount-${catSafeId}" style="${grpBadgeStyle}">${assignedInCat} / ${totalInCat} Assigned</span>
+                                </div>
+                                <div class="ur-group-tools">
+                                    <span style="font-size: 11px; font-weight: 700; color: #475569;">Group Actions:</span>
+                                    <button type="button" class="ur-grp-btn btn-grp-allow" onclick="window.UserRightsManager.toggleEntireGroup('${cat}', true)" title="Check/Allow all modules in ${cat}">
+                                        <i class="fas fa-check-circle"></i> Allow Group
+                                    </button>
+                                    <button type="button" class="ur-grp-btn btn-grp-revoke" onclick="window.UserRightsManager.toggleEntireGroup('${cat}', false)" title="Uncheck/Revoke all modules in ${cat}">
+                                        <i class="fas fa-times-circle"></i> Revoke Group
+                                    </button>
+                                    <span class="ur-grp-divider">|</span>
+                                    <button type="button" class="ur-grp-btn" onclick="window.UserRightsManager.setGroupPermission('${cat}', 'view')" title="Click to Toggle View All ON / OFF in ${cat}">View</button>
+                                    <button type="button" class="ur-grp-btn" onclick="window.UserRightsManager.setGroupPermission('${cat}', 'create')" title="Click to Toggle Create All ON / OFF in ${cat}">Create</button>
+                                    <button type="button" class="ur-grp-btn" onclick="window.UserRightsManager.setGroupPermission('${cat}', 'edit')" title="Click to Toggle Edit All ON / OFF in ${cat}">Edit</button>
+                                    <button type="button" class="ur-grp-btn" onclick="window.UserRightsManager.setGroupPermission('${cat}', 'delete')" title="Click to Toggle Delete All ON / OFF in ${cat}">Delete</button>
+                                    <button type="button" class="ur-grp-btn" onclick="window.UserRightsManager.setGroupPermission('${cat}', 'print')" title="Click to Toggle Print All ON / OFF in ${cat}">Print</button>
+                                </div>
                             </div>
-                        </td>
-                        <td style="text-align: center; width: 110px;">
-                            <label class="ur-toggle-pill" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}44; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; user-select: none;">
-                                <input type="checkbox" class="ur-chk-allowed" ${isAllowed ? 'checked' : ''} ${disabledAttr} onchange="window.UserRightsManager.onAllowedToggle(this, '${m.name}')" style="display: none;">
-                                <i class="fas ${isAllowed ? 'fa-check-circle' : 'fa-times-circle'}"></i>
-                                <span>${statusText}</span>
-                            </label>
-                        </td>
-                        <td style="text-align: center; width: 65px;">
-                            <input type="checkbox" class="ur-chk-view" ${canView ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #0284c7;">
-                        </td>
-                        <td style="text-align: center; width: 65px;">
-                            <input type="checkbox" class="ur-chk-create" ${canCreate ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #10b981;">
-                        </td>
-                        <td style="text-align: center; width: 65px;">
-                            <input type="checkbox" class="ur-chk-edit" ${canEdit ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #f59e0b;">
-                        </td>
-                        <td style="text-align: center; width: 65px;">
-                            <input type="checkbox" class="ur-chk-delete" ${canDelete ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #ef4444;">
-                        </td>
-                        <td style="text-align: center; width: 65px;">
-                            <input type="checkbox" class="ur-chk-print" ${canPrint ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #6366f1;">
                         </td>
                     </tr>
                 `;
+
+                // Render Individual Modules in this Group
+                list.forEach(m => {
+                    const existing = this.currentRightsMap[m.name] || {};
+
+                    const isAllowed = this.isCurrentAdmin ? true : !!existing.allowed;
+                    const canView = this.isCurrentAdmin ? true : (existing.view !== undefined ? existing.view : isAllowed);
+                    const canCreate = this.isCurrentAdmin ? true : (existing.create !== undefined ? existing.create : isAllowed);
+                    const canEdit = this.isCurrentAdmin ? true : (existing.edit !== undefined ? existing.edit : isAllowed);
+                    const canDelete = this.isCurrentAdmin ? true : (existing.delete !== undefined ? existing.delete : false);
+                    const canPrint = this.isCurrentAdmin ? true : (existing.print !== undefined ? existing.print : isAllowed);
+
+                    const statusColor = isAllowed ? '#10b981' : '#ef4444';
+                    const statusBg = isAllowed ? '#ecfdf5' : '#fef2f2';
+                    const statusText = isAllowed ? 'Allowed' : 'Not Allowed';
+                    const disabledAttr = this.isCurrentAdmin ? 'disabled title="Administrator has unrestricted access"' : '';
+
+                    rows += `
+                        <tr class="ur-row ${isAllowed ? 'row-allowed' : 'row-denied'}" data-module="${m.name}" data-category="${m.category}" style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 7px 10px; color: #64748b; font-size: 11px; text-align: center; width: 40px;">${globalIndex++}</td>
+                            <td style="padding: 7px 12px;">
+                                <div style="font-weight: 700; color: #1e293b; font-size: 12.5px;">${m.name}</div>
+                                <div style="font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                                    <span style="background: #e2e8f0; color: #334155; padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 10px;">${m.category}</span>
+                                    <span>${m.desc || ''}</span>
+                                </div>
+                            </td>
+                            <td style="text-align: center; width: 125px;">
+                                <label class="ur-toggle-pill" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}44; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; user-select: none;">
+                                    <input type="checkbox" class="ur-chk-allowed" ${isAllowed ? 'checked' : ''} ${disabledAttr} onchange="window.UserRightsManager.onAllowedToggle(this, '${m.name}')" style="display: none;">
+                                    <i class="fas ${isAllowed ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                                    <span>${statusText}</span>
+                                </label>
+                            </td>
+                            <td style="text-align: center; width: 75px;">
+                                <input type="checkbox" class="ur-chk-view" ${canView ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #0284c7;">
+                            </td>
+                            <td style="text-align: center; width: 75px;">
+                                <input type="checkbox" class="ur-chk-create" ${canCreate ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #10b981;">
+                            </td>
+                            <td style="text-align: center; width: 75px;">
+                                <input type="checkbox" class="ur-chk-edit" ${canEdit ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #f59e0b;">
+                            </td>
+                            <td style="text-align: center; width: 75px;">
+                                <input type="checkbox" class="ur-chk-delete" ${canDelete ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #ef4444;">
+                            </td>
+                            <td style="text-align: center; width: 75px;">
+                                <input type="checkbox" class="ur-chk-print" ${canPrint ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #6366f1;">
+                            </td>
+                        </tr>
+                    `;
+                });
             });
 
             tbody.innerHTML = rows;
+
+            if (window.applyERPThemeToElement && window.getCurrentERPTheme) {
+                const root = document.querySelector('.modal-container.modal-user-rights') || 
+                             document.querySelector('.modal-container:has(#userRightsContainer)') || 
+                             document.getElementById('userRightsContainer');
+                if (root) window.applyERPThemeToElement(root, window.getCurrentERPTheme());
+            }
         },
 
         onAllowedToggle: function(chk, moduleName) {
             const row = chk.closest('tr');
+            if (!row) return;
             const isChecked = chk.checked;
 
             const pill = row.querySelector('.ur-toggle-pill');
@@ -396,6 +504,14 @@
                 pill.style.color = color;
                 pill.style.borderColor = color + '44';
                 pill.innerHTML = `<input type="checkbox" class="ur-chk-allowed" ${isChecked ? 'checked' : ''} onchange="window.UserRightsManager.onAllowedToggle(this, '${moduleName}')" style="display: none;"><i class="fas ${isChecked ? 'fa-check-circle' : 'fa-times-circle'}"></i> <span>${isChecked ? 'Allowed' : 'Not Allowed'}</span>`;
+            }
+
+            if (isChecked) {
+                row.classList.remove('row-denied');
+                row.classList.add('row-allowed');
+            } else {
+                row.classList.remove('row-allowed');
+                row.classList.add('row-denied');
             }
 
             const subChecks = row.querySelectorAll('.ur-chk-view, .ur-chk-create, .ur-chk-edit, .ur-chk-delete, .ur-chk-print');
@@ -412,17 +528,20 @@
             });
 
             this.updateRightsMapFromRow(row);
+            this.updateSummaryBadges();
         },
 
         onSubCheckChange: function(moduleName) {
             const row = document.querySelector(`tr[data-module="${moduleName}"]`);
             if (row) {
                 this.updateRightsMapFromRow(row);
+                this.updateSummaryBadges();
             }
         },
 
         updateRightsMapFromRow: function(row) {
             const mod = row.getAttribute('data-module');
+            if (!mod) return;
             const isAllowed = row.querySelector('.ur-chk-allowed')?.checked || false;
             const canView = row.querySelector('.ur-chk-view')?.checked || false;
             const canCreate = row.querySelector('.ur-chk-create')?.checked || false;
@@ -440,33 +559,189 @@
             };
         },
 
-        // Bulk Actions for currently visible / filtered category
+        // Update real-time summary counters (Overall & Category-wise, e.g. 14 / 136)
+        updateSummaryBadges: function() {
+            const totalOverall = this.modules.length;
+            const assignedOverall = this.modules.filter(m => this.isCurrentAdmin || (this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed)).length;
+            const pct = Math.round((assignedOverall / totalOverall) * 100);
+
+            // 1. Overall badge
+            const ratioEl = document.getElementById('urOverallRatio');
+            if (ratioEl) ratioEl.textContent = `${assignedOverall} / ${totalOverall}`;
+            const pctEl = document.getElementById('urOverallPct');
+            if (pctEl) pctEl.textContent = `${pct}%`;
+
+            // 2. Tab counts (All & Category-wise)
+            const allTabCount = document.getElementById('tabCount-All');
+            if (allTabCount) allTabCount.textContent = `${assignedOverall} / ${totalOverall}`;
+
+            ORDERED_CATEGORIES.forEach(cat => {
+                const totalInCat = this.modules.filter(m => m.category === cat).length;
+                const assignedInCat = this.modules.filter(m => m.category === cat && (this.isCurrentAdmin || (this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed))).length;
+                const catSafeId = cat.replace(/[^a-zA-Z0-9]/g, '_');
+
+                const tabEl = document.getElementById(`tabCount-${catSafeId}`);
+                if (tabEl) {
+                    tabEl.textContent = `${assignedInCat} / ${totalInCat}`;
+                    if (assignedInCat > 0) {
+                        tabEl.style.background = 'var(--theme-primary, #1F4E79)';
+                        tabEl.style.color = '#ffffff';
+                        tabEl.dataset.hasAssigned = 'true';
+                    } else {
+                        tabEl.style.background = 'rgba(0,0,0,0.08)';
+                        tabEl.style.color = '#475569';
+                        tabEl.dataset.hasAssigned = 'false';
+                    }
+                }
+
+                const grpEl = document.getElementById(`grpCount-${catSafeId}`);
+                if (grpEl) {
+                    grpEl.textContent = `${assignedInCat} / ${totalInCat} Assigned`;
+                    if (assignedInCat > 0) {
+                        grpEl.style.background = '#dcfce7';
+                        grpEl.style.color = '#15803d';
+                        grpEl.style.borderColor = '#86efac';
+                    } else {
+                        grpEl.style.background = '#cbd5e1';
+                        grpEl.style.color = '#334155';
+                        grpEl.style.borderColor = 'transparent';
+                    }
+                }
+            });
+
+            if (window.applyERPThemeToElement && window.getCurrentERPTheme) {
+                const root = document.querySelector('.modal-container.modal-user-rights') || 
+                             document.querySelector('.modal-container:has(#userRightsContainer)') || 
+                             document.getElementById('userRightsContainer');
+                if (root) window.applyERPThemeToElement(root, window.getCurrentERPTheme());
+            }
+        },
+
+        // 1-Click Toggle for an Entire Menu Group (e.g., 'Sales', 'Purchases', 'Maintain')
+        toggleEntireGroup: function(categoryName, isAllowed) {
+            if (this.isCurrentAdmin) return;
+
+            // Update in data map
+            this.modules.forEach(m => {
+                if (m.category === categoryName) {
+                    this.currentRightsMap[m.name] = {
+                        allowed: isAllowed,
+                        view: isAllowed,
+                        create: isAllowed,
+                        edit: isAllowed,
+                        delete: false,
+                        print: isAllowed
+                    };
+                }
+            });
+
+            // Update visible DOM rows
+            const rows = document.querySelectorAll(`tr.ur-row[data-category="${categoryName}"]`);
+            rows.forEach(row => {
+                const mod = row.getAttribute('data-module');
+                const chk = row.querySelector('.ur-chk-allowed');
+                if (chk) {
+                    chk.checked = isAllowed;
+                    this.onAllowedToggle(chk, mod);
+                }
+            });
+            this.updateSummaryBadges();
+        },
+
+        // Set Specific Granular Permission for an Entire Menu Group with 1-Click Toggle (Check All / Uncheck All)
+        setGroupPermission: function(categoryName, permType, state) {
+            if (this.isCurrentAdmin) return;
+
+            // If state not explicitly passed, determine toggle state (if all already checked, uncheck all)
+            let targetState = state;
+            if (targetState === null || targetState === undefined) {
+                let allChecked = true;
+                let hasAllowed = false;
+                this.modules.forEach(m => {
+                    if (m.category === categoryName) {
+                        const r = this.currentRightsMap[m.name] || {};
+                        if (r.allowed) {
+                            hasAllowed = true;
+                            if (!r[permType]) allChecked = false;
+                        }
+                    }
+                });
+                targetState = (hasAllowed && allChecked) ? false : true;
+            }
+
+            this.modules.forEach(m => {
+                if (m.category === categoryName) {
+                    const r = this.currentRightsMap[m.name] || {};
+                    if (r.allowed) {
+                        r[permType] = targetState;
+                    }
+                }
+            });
+
+            const rows = document.querySelectorAll(`tr.ur-row[data-category="${categoryName}"]`);
+            rows.forEach(row => {
+                const isAllowed = row.querySelector('.ur-chk-allowed')?.checked;
+                if (isAllowed) {
+                    const chk = row.querySelector(`.ur-chk-${permType}`);
+                    if (chk && !chk.disabled) {
+                        chk.checked = targetState;
+                    }
+                    this.updateRightsMapFromRow(row);
+                }
+            });
+            this.updateSummaryBadges();
+        },
+
+        // Bulk Actions for currently visible / filtered category with 1-Click Toggle (Check All / Uncheck All)
         bulkSet: function(type, state) {
             if (this.isCurrentAdmin) return;
             const tbody = document.getElementById('urTableBody');
             if (!tbody) return;
 
             const rows = tbody.querySelectorAll('tr.ur-row');
-            rows.forEach(row => {
-                const mod = row.getAttribute('data-module');
-                if (type === 'allowed') {
+            if (type === 'allowed') {
+                const targetState = (state !== null && state !== undefined) ? state : true;
+                rows.forEach(row => {
+                    const mod = row.getAttribute('data-module');
                     const chk = row.querySelector('.ur-chk-allowed');
-                    if (chk && chk.checked !== state) {
-                        chk.checked = state;
+                    if (chk && chk.checked !== targetState) {
+                        chk.checked = targetState;
                         this.onAllowedToggle(chk, mod);
                     }
-                } else {
-                    // View, Create, Edit, Delete, Print
+                });
+            } else {
+                // Determine toggle state if not explicitly passed:
+                // If every currently allowed visible row has this permission checked -> UNCHECK ALL (false)
+                // Otherwise -> CHECK ALL (true)
+                let targetState = state;
+                if (targetState === null || targetState === undefined) {
+                    let allChecked = true;
+                    let hasAllowed = false;
+                    rows.forEach(row => {
+                        const isAllowed = row.querySelector('.ur-chk-allowed')?.checked;
+                        if (isAllowed) {
+                            hasAllowed = true;
+                            const targetChk = row.querySelector(`.ur-chk-${type}`);
+                            if (targetChk && !targetChk.checked) {
+                                allChecked = false;
+                            }
+                        }
+                    });
+                    targetState = (hasAllowed && allChecked) ? false : true;
+                }
+
+                rows.forEach(row => {
                     const isAllowed = row.querySelector('.ur-chk-allowed')?.checked;
                     if (isAllowed) {
                         const targetChk = row.querySelector(`.ur-chk-${type}`);
                         if (targetChk && !targetChk.disabled) {
-                            targetChk.checked = state;
+                            targetChk.checked = targetState;
                         }
                     }
                     this.updateRightsMapFromRow(row);
-                }
-            });
+                });
+            }
+            this.updateSummaryBadges();
         },
 
         // Preset Templates
@@ -489,17 +764,17 @@
                     allowed = true; v = true; c = true; e = true; d = true; p = true;
                 } else if (roleKey === 'cashier') {
                     // Cashier: Sales, POS, Cash receipts, view ledgers
-                    if (['Sales & Billing', 'Retail & POS'].includes(m.category) || ['Cash Receipts', 'Customer Balances', 'Sale Invoice'].includes(m.name)) {
+                    if (['Sales', 'POS'].includes(m.category) || ['Cash Receipts', 'Customer Balances', 'Sale Invoice'].includes(m.name)) {
                         allowed = true; v = true; c = true; e = false; d = false; p = true;
                     }
                 } else if (roleKey === 'accountant') {
-                    // Accountant: Maintain, Purchases, Sales, Vouchers, Ledgers, Reports
-                    if (!['Administration', 'Retail & POS'].includes(m.category) && !['Clear Transactions', 'System Settings'].includes(m.name)) {
+                    // Accountant: Maintain, Purchases, Sales, Adjustment, Ledgers, Reports
+                    if (!['Administrator', 'POS'].includes(m.category) && !['Clear Transactions', 'System Settings'].includes(m.name)) {
                         allowed = true; v = true; c = true; e = true; d = false; p = true;
                     }
                 } else if (roleKey === 'store') {
-                    // Store keeper: Store & Production, Stock reports
-                    if (m.category === 'Store & Production' || m.category === 'Inventory Reports' || ['Monthly Inventory Closing', 'Chart Of Inventory'].includes(m.name)) {
+                    // Store keeper: Store, Stock reports
+                    if (m.category === 'Store' || ['Monthly Inventory Closing', 'Chart Of Inventory', 'Inventory Balances', 'View Inventory Ledgers', 'Material Consumption Report', 'Production Report'].includes(m.name)) {
                         allowed = true; v = true; c = true; e = false; d = false; p = true;
                     }
                 } else if (roleKey === 'viewer') {
@@ -520,6 +795,7 @@
             });
 
             this.renderTable();
+            this.updateSummaryBadges();
         },
 
         saveChanges: async function() {
@@ -558,11 +834,9 @@
             });
 
             try {
-                const companyId = localStorage.getItem('company_id') || 1;
-                const res = await fetch(`api/admin.php?action=save_rights&company_id=${companyId}`, {
+                const res = await fetch('api/admin.php?action=save_rights', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
                     body: JSON.stringify({ user_id: userId, rights: payload })
                 });
 
@@ -599,5 +873,17 @@
     };
 
     window.UserRightsManager = UserRightsManager;
+
+    // Listen for real-time ERP Theme changes so open modal updates instantly
+    window.addEventListener('erpThemeChanged', function(e) {
+        if (window.applyERPThemeToElement) {
+            const root = document.querySelector('.modal-container.modal-user-rights') || 
+                         document.querySelector('.modal-container:has(#userRightsContainer)') || 
+                         document.getElementById('userRightsContainer');
+            if (root) {
+                window.applyERPThemeToElement(root, e.detail || (window.getCurrentERPTheme ? window.getCurrentERPTheme() : null));
+            }
+        }
+    });
 
 })(window);
