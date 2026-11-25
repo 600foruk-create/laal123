@@ -15,6 +15,7 @@
             groupBy: 'main', // 'main' (Main Account Types) or 'sub' (Sub Account Types)
             isComparative: false,
             scale: 'actual', // 'actual', 'k', 'm'
+            taxMode: null, // 'tax' or 'non_tax' (auto-resolved on first load)
             activeAgingTab: 'debtors',
             currentDrillCoa: null,
             currentDrillName: null,
@@ -27,6 +28,7 @@
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             this.data.company_id = window.selectedCompanyId || session.company_id || 1;
             this.data.companyName = session.company_name || 'SoftifyX Financials';
+            this.data.taxMode = null;
 
             this.setDefaultDates();
             this.loadReport();
@@ -96,6 +98,24 @@
             this.loadReport();
         },
 
+        onTaxModeChange: async function() {
+            const sel = document.getElementById('bsTaxMode');
+            const newMode = sel?.value || 'tax';
+            this.data.taxMode = newMode;
+            try {
+                await fetch(`api/settings.php?action=save_setting&company_id=${this.data.company_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company_id: this.data.company_id,
+                        key: 'balance_sheet_tax_mode',
+                        value: newMode
+                    })
+                });
+            } catch (e) {}
+            this.loadReport();
+        },
+
         toggleComparative: function() {
             const chk = document.getElementById('bsEnableComparative');
             const compInput = document.getElementById('bsComparativeDate');
@@ -161,6 +181,9 @@
             if (vertBox) vertBox.innerHTML = loaderHtml;
 
             let url = `api/balance_sheet.php?action=get_balance_sheet&company_id=${this.data.company_id}&as_on_date=${onDate}&voucher_status=${vStatus}&smart_reclass=${smartReclass}&group_by=${this.data.groupBy || 'main'}`;
+            if (this.data.taxMode) {
+                url += `&tax_mode=${encodeURIComponent(this.data.taxMode)}`;
+            }
             if (compDate) {
                 url += `&comparative_date=${compDate}`;
             }
@@ -202,6 +225,14 @@
             const ratios = data.financial_ratios || {};
             const inv3way = data.inventory_3way || {};
             const isComp = !!data.comparative_date;
+
+            if (data.tax_mode) {
+                this.data.taxMode = data.tax_mode;
+                const taxSel = document.getElementById('bsTaxMode');
+                if (taxSel && taxSel.value !== data.tax_mode) {
+                    taxSel.value = data.tax_mode;
+                }
+            }
 
             // 1. Update Top KPI Summary Cards
             if (isComp && kpi.comp_total_assets !== undefined) {
@@ -1195,12 +1226,13 @@
             const kpi = data.kpi || {};
             const asOn = data.as_on_date_formatted || data.as_on_date;
             const coName = this.data.companyName || 'SoftifyX Financials';
+            const taxModeLabel = data.tax_mode_label || (data.tax_mode === 'non_tax' ? 'Non-Tax (Full Bill)' : 'Tax (Excl. GST)');
 
             let tableHtml = `
                 <table border="1">
                     <tr><th colspan="4" style="font-size:16px; font-weight:bold; text-align:center;">${coName}</th></tr>
                     <tr><th colspan="4" style="font-size:13px; font-weight:bold; text-align:center;">BALANCE SHEET (STATEMENT OF FINANCIAL POSITION)</th></tr>
-                    <tr><th colspan="4" style="font-size:11px; text-align:center;">As on Date: ${asOn}</th></tr>
+                    <tr><th colspan="4" style="font-size:11px; text-align:center;">As on Date: ${asOn} | Valuation Mode: ${taxModeLabel}</th></tr>
                     <tr><th colspan="4"></th></tr>
                     <tr style="background:#0284c7; color:white;"><th colspan="4">ASSETS</th></tr>
                     <tr><th>Code</th><th>Account Title</th><th>Category</th><th>Amount (PKR)</th></tr>
@@ -1308,7 +1340,7 @@
                         <div style="text-align: right;">
                             <div style="font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase;">Statement of Financial Position</div>
                             <div style="font-size: 11px; font-weight: 700; color: #0284c7; margin-top: 2px;">As at ${asOn}</div>
-                            <div style="font-size: 9.5px; color: #64748b;">(Amounts in Pakistani Rupees - PKR)</div>
+                            <div style="font-size: 9.5px; color: #64748b;">Valuation: ${data.tax_mode_label || 'Standard'} (PKR)</div>
                         </div>
                     </div>
 
