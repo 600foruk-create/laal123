@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/db_config.php';
 require_once __DIR__ . '/account_ledger.php';
+require_once __DIR__ . '/inventory_costing_helpers.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -56,168 +57,7 @@ function getCompanyProfile($pdo, $company_id) {
     }
 }
 
-/**
- * Computes normalized KG weight, pieces count, and unit weight for a production line item.
- */
-function calcProducedItemWeightKg($qty, $pieces, $unit, $unitWeight, $qtyPerPiece, $carton) {
-    $qty = floatval($qty ?? 0);
-    $pcs = floatval($pieces ?? 0);
-    $unitUp = strtoupper(trim((string)($unit ?? '')));
-    $unitWt = floatval($unitWeight ?? 0);
-    if ($unitWt <= 0) {
-        $unitWt = floatval($qtyPerPiece ?? 0);
-    }
-    $ctn = floatval($carton ?? 0);
-
-    $weightInKg = $qty;
-    $actualPieces = $pcs;
-
-    if ($unitUp !== 'KG' && $unitUp !== 'KGS') {
-        $actualPieces = ($qty > 0) ? $qty : (($pcs > 0 && $ctn > 0) ? ($pcs * $ctn) : $pcs);
-        if ($unitWt > 0) {
-            $weightInKg = $actualPieces * $unitWt;
-        }
-    } else {
-        if ($actualPieces <= 0 && $unitWt > 0 && $qty > 0) {
-            $actualPieces = round($qty / $unitWt);
-        }
-    }
-
-    return [
-        'weight_kg' => $weightInKg,
-        'pieces' => $actualPieces,
-        'unit_weight' => $unitWt
-    ];
-}
-
-/**
- * Maps a Chart of Accounts entry into Production Costing overhead bucket ('electricity', 'labor', 'overhead')
- * or null if excluded (Admin/Marketing/Financial, 50001 Materials, Printing/Entertainment).
- */
-function classifyFactoryOverheadAccount($acc) {
-    $mainCode = trim((string)($acc['main_code'] ?? ''));
-    $mainNameLower = strtolower(trim((string)($acc['main_name'] ?? '')));
-    $mainCompLower = strtolower(trim((string)($acc['main_component'] ?? '')));
-    $subCode = trim((string)($acc['sub_code'] ?? ''));
-    $subLower = strtolower(trim((string)($acc['sub_name'] ?? '')));
-    $accLower = strtolower(trim((string)($acc['name'] ?? '')));
-
-    $isCostOfSales = ($mainCode === '500'
-        || strpos($mainCompLower, 'cost of sale') !== false
-        || strpos($mainNameLower, 'cost of sale') !== false
-        || strpos($mainNameLower, 'cogs') !== false);
-    if (!$isCostOfSales) {
-        return null;
-    }
-
-    // Exclude 50001 / Materials & Inventory accounts (raw materials are already costed via Formulas / MIN)
-    if ($subCode === '50001' || $subLower === 'materials' || $subLower === 'material') {
-        return null;
-    }
-    $materialTerms = ['opening inventory', 'purchases', 'purchase return', 'carriage & freight inward', 'cost of inventory', 'closing inventory', 'work in process', 'finished goods'];
-    foreach ($materialTerms as $term) {
-        if (strpos($accLower, $term) !== false) {
-            return null;
-        }
-    }
-
-    // Exclude general administrative-type sub-heads placed under 500
-    $excludedTerms = ['printing', 'statinery', 'stationery', 'entertainment'];
-    foreach ($excludedTerms as $term) {
-        if (strpos($subLower, $term) !== false || strpos($accLower, $term) !== false) {
-            return null;
-        }
-    }
-
-    // Labor & Factory Salaries / Wages
-    if (strpos($subLower, 'labour') !== false || strpos($subLower, 'labor') !== false || strpos($subLower, 'wage') !== false) {
-        return 'labor';
-    }
-    $laborTerms = ['salary', 'salaries', 'allowance', 'wage', 'labour', 'labor', 'payroll', 'overtime'];
-    foreach ($laborTerms as $term) {
-        if (strpos($accLower, $term) !== false) {
-            return 'labor';
-        }
-    }
-
-    // Repairs & Maintenance (including Electrical Repairs) stay in Overheads, not Electricity bill
-    if (strpos($subLower, 'repair') !== false || strpos($subLower, 'maint') !== false
-        || strpos($accLower, 'repair') !== false || strpos($accLower, 'maint') !== false) {
-        return 'overhead';
-    }
-
-    // Power / Utility Bills
-    $elecTerms = ['electric', 'pesco', 'wapda', 'iesco', 'lesco', 'mepco', 'fesco', 'gepco', 'hesco', 'qesco', 'k-electric', 'ke bill', 'power', 'utility', 'utilities'];
-    foreach ($elecTerms as $term) {
-        if (strpos($accLower, $term) !== false || strpos($subLower, $term) !== false) {
-            return 'electricity';
-        }
-    }
-
-    return 'overhead';
-}
-
-/**
- * Fetches period (from_date..to_date) net factory overheads from posted Cash/Bank/Journal vouchers
- * via fetchLedgerTransactions, excluding opening balances.
- */
-function fetchAutoFactoryOverheads($pdo, $company_id, $from_date, $to_date) {
-    $result = [
-        'electricity' => 0.0,
-        'labor' => 0.0,
-        'overhead' => 0.0,
-        'breakdown' => []
-    ];
-
-    try {
-        $stmtCoa = $pdo->prepare("
-            SELECT cl.id, cl.code, cl.name,
-                   COALESCE(cs.code, '') as sub_code, COALESCE(cs.name, '') as sub_name,
-                   COALESCE(cm.code, '') as main_code, COALESCE(cm.name, '') as main_name,
-                   COALESCE(cm.component, '') as main_component
-            FROM coa_list cl
-            LEFT JOIN coa_sub cs ON cl.sub_id = cs.id
-            LEFT JOIN coa_main cm ON cs.main_id = cm.id
-            WHERE cl.company_id = ?
-            ORDER BY cl.code ASC, cl.name ASC
-        ");
-        $stmtCoa->execute([$company_id]);
-        $accounts = $stmtCoa->fetchAll(PDO::FETCH_ASSOC);
-
-        foreach ($accounts as $acc) {
-            $bucket = classifyFactoryOverheadAccount($acc);
-            if ($bucket === null) {
-                continue;
-            }
-
-            $txs = fetchLedgerTransactions($pdo, $company_id, intval($acc['id']), $from_date, $to_date);
-            $netAmt = 0.0;
-            foreach ($txs as $tx) {
-                if (!empty($tx['is_ob'])) {
-                    continue;
-                }
-                $netAmt += floatval($tx['debit'] ?? 0) - floatval($tx['credit'] ?? 0);
-            }
-
-            $result[$bucket] += $netAmt;
-            if (abs($netAmt) > 0.005) {
-                $result['breakdown'][] = [
-                    'account_id' => intval($acc['id']),
-                    'code' => $acc['code'],
-                    'name' => $acc['name'],
-                    'sub_name' => $acc['sub_name'],
-                    'bucket' => $bucket,
-                    'amount' => round($netAmt, 2)
-                ];
-            }
-        }
-    } catch (Exception $e) {}
-
-    $result['electricity'] = max(0.0, round($result['electricity'], 2));
-    $result['labor'] = max(0.0, round($result['labor'], 2));
-    $result['overhead'] = max(0.0, round($result['overhead'], 2));
-    return $result;
-}
+// Shared weight/overhead classification helpers loaded via inventory_costing_helpers.php
 
 // =========================================================================
 // 1. GET METADATA
@@ -759,62 +599,31 @@ if ($action === 'get_costing_statement') {
             $categoryGroups[$key]['items'][] = $pRow;
         }
 
-        // Query current inventory balances for finished goods items grouped by main category
+        // Query closing inventory balances grouped by main category using shared Inventory Balance engine
         $catStockMap = [];
         try {
-            $stmtStock = $pdo->prepare("
-                SELECT i.id, s.main_id, i.unit,
-                       COALESCE(i.unit_weight, 0) as unit_weight,
-                       COALESCE(i.qty_per_piece, 0) as qty_per_piece,
-                       COALESCE(i.carton, 0) as carton,
-                       (COALESCE(ob.ob_qty, 0) + COALESCE(pn.pn_qty, 0) - COALESCE(si.si_qty, 0)) as bal_qty,
-                       (COALESCE(ob.ob_pcs, 0) + COALESCE(pn.pn_pcs, 0) - COALESCE(si.si_pcs, 0)) as bal_pcs
-                FROM inv_items i
-                LEFT JOIN inv_sub_categories s ON i.sub_id = s.id
-                LEFT JOIN (
-                    SELECT item_id, SUM(quantity) as ob_qty, SUM(quantity) as ob_pcs 
-                    FROM inv_opening_balances WHERE company_id = ? GROUP BY item_id
-                ) ob ON i.id = ob.item_id
-                LEFT JOIN (
-                    SELECT pp.item_id, SUM(pp.qty) as pn_qty, SUM(pp.pieces) as pn_pcs 
-                    FROM production_note_items pp 
-                    JOIN production_notes p ON pp.pn_id = p.id 
-                    WHERE p.company_id = ? AND p.is_cancelled = 0 AND p.is_posted = 1 
-                    GROUP BY pp.item_id
-                ) pn ON i.id = pn.item_id
-                LEFT JOIN (
-                    SELECT sii.item_coa_id as item_id, SUM(sii.quantity) as si_qty, SUM(sii.quantity) as si_pcs 
-                    FROM sale_invoice_items sii 
-                    JOIN sale_invoices s ON sii.invoice_id = s.id 
-                    WHERE s.company_id = ? AND s.is_cancelled = 0 AND s.is_posted = 1 
-                    GROUP BY sii.item_coa_id
-                ) si ON i.id = si.item_id
-                WHERE i.company_id = ? AND s.main_id IS NOT NULL
-                  AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
-            ");
-            $stmtStock->execute([$company_id, $company_id, $company_id, $company_id]);
-            while ($sRow = $stmtStock->fetch(PDO::FETCH_ASSOC)) {
-                $mId = intval($sRow['main_id']);
-                $rawBal = floatval($sRow['bal_qty']);
-                $rawPcs = floatval($sRow['bal_pcs']);
-                if ($rawBal <= 0 && $rawPcs <= 0) {
+            $invClosingData = computeInventoryClosingStock($pdo, $company_id, [
+                'as_of_date' => $to_date,
+                'stock_status' => 'positive'
+            ]);
+            foreach ($invClosingData['records'] ?? [] as $sRow) {
+                if (($sRow['group'] ?? '') === 'Raw Material') {
                     continue;
                 }
-                $sCalc = calcProducedItemWeightKg(
-                    max(0, $rawBal),
-                    max(0, $rawPcs),
-                    $sRow['unit'] ?? '',
-                    $sRow['unit_weight'] ?? 0,
-                    $sRow['qty_per_piece'] ?? 0,
-                    $sRow['carton'] ?? 0
-                );
+                $mId = intval($sRow['main_category_id'] ?? 0);
+                if ($mId <= 0) {
+                    continue;
+                }
                 if (!isset($catStockMap[$mId])) {
                     $catStockMap[$mId] = ['stock_kg' => 0.0, 'stock_pcs' => 0.0];
                 }
-                $catStockMap[$mId]['stock_kg'] += $sCalc['weight_kg'];
-                $catStockMap[$mId]['stock_pcs'] += $sCalc['pieces'];
+                $catStockMap[$mId]['stock_kg'] += max(0.0, floatval($sRow['cb_kg'] ?? 0));
+                $rowPcs = (($sRow['group'] ?? '') === 'Fittings')
+                    ? floatval($sRow['cb_sec'] ?? 0)
+                    : floatval($sRow['cb_primary'] ?? 0);
+                $catStockMap[$mId]['stock_pcs'] += max(0.0, $rowPcs);
             }
-        } catch(Exception $eStock) {}
+        } catch (Exception $eStock) {}
 
         $cSr = 1;
         $categoryRows = [];

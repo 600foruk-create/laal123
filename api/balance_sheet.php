@@ -2,6 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 require_once 'db_config.php';
 require_once 'account_ledger.php';
+require_once __DIR__ . '/inventory_costing_helpers.php';
 
 try {
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -1239,192 +1240,143 @@ try {
                     }
                 }
 
-                // Production Costing Formula Rates & Overhead Allocation by Brand / Category
-                $brandCostPerKgMap = [];
-                $brandCostByNameMap = [];
-                try {
-                    $stmtFormulas = $pdo->prepare("
-                        SELECT f.category_id, f.formula_name, f.total_qty, f.total_amount, m.name as category_name
-                        FROM formulas f
-                        LEFT JOIN inv_main_categories m ON f.category_id = m.id
-                        WHERE (f.company_id = ? OR f.company_id = 1 OR f.company_id IS NULL)
-                          AND f.is_cancelled = 0 AND f.is_posted = 1
-                        ORDER BY f.date DESC, f.id DESC
-                    ");
-                    $stmtFormulas->execute([$company_id]);
-                    while ($fRow = $stmtFormulas->fetch(PDO::FETCH_ASSOC)) {
-                        $cId = intval($fRow['category_id'] ?? 0);
-                        $fQty = floatval($fRow['total_qty'] ?? 0);
-                        $fAmt = floatval($fRow['total_amount'] ?? 0);
-                        if ($fQty > 0 && $fAmt > 0) {
-                            $fRate = round($fAmt / $fQty, 2);
-                            if ($cId > 0 && !isset($brandCostPerKgMap[$cId])) {
-                                $brandCostPerKgMap[$cId] = $fRate;
-                            }
-                            $cNameL = strtolower(trim($fRow['category_name'] ?? ''));
-                            if ($cNameL && !isset($brandCostByNameMap[$cNameL])) {
-                                $brandCostByNameMap[$cNameL] = $fRate;
-                            }
-                            $fNameL = strtolower(trim($fRow['formula_name'] ?? ''));
-                            if ($fNameL && !isset($brandCostByNameMap[$fNameL])) {
-                                $brandCostByNameMap[$fNameL] = $fRate;
-                            }
-                        }
-                    }
-                } catch(Exception $eForm) {}
+                // Production Costing Rates by Brand / Category (Formula Material/KG + Locked or Live Overheads/KG)
+                $brandCostInfo = resolveBrandProductionCostRates($pdo, $company_id, $targetDate, $existingTabs);
+                $brandCostPerKgMap = $brandCostInfo['by_category_id'] ?? [];
+                $brandCostByNameMap = $brandCostInfo['by_name'] ?? [];
+                $mfgMonthlyCostPerKg = floatval($brandCostInfo['fallback_per_kg'] ?? 0);
 
-                // Check mfg_monthly_wip for month-end production per-kg cost and conversion overheads
-                $mfgMonthlyCostPerKg = 0.0;
-                try {
-                    $stmtWipPerKg = $pdo->prepare("
-                        SELECT per_kg_cost, electricity_cost, labor_cost, overhead_cost, finished_prod_qty
-                        FROM mfg_monthly_wip 
-                        WHERE company_id = ? AND ((year < ?) OR (year = ? AND month <= ?))
-                        ORDER BY year DESC, month DESC LIMIT 1
-                    ");
-                    $stmtWipPerKg->execute([$company_id, $targetYear, $targetYear, $targetMonthNum]);
-                    $wipPerKgRow = $stmtWipPerKg->fetch(PDO::FETCH_ASSOC);
-                    if ($wipPerKgRow) {
-                        $mfgMonthlyCostPerKg = floatval($wipPerKgRow['per_kg_cost'] ?? 0);
-                        $finQty = floatval($wipPerKgRow['finished_prod_qty'] ?? 0);
-                        $totOvh = floatval($wipPerKgRow['electricity_cost'] ?? 0) + floatval($wipPerKgRow['labor_cost'] ?? 0) + floatval($wipPerKgRow['overhead_cost'] ?? 0);
-                        $ovhPerKg = ($finQty > 0 && $totOvh > 0) ? ($totOvh / $finQty) : 0;
-                        if ($ovhPerKg > 0) {
-                            foreach ($brandCostPerKgMap as $bCid => $bRate) {
-                                $brandCostPerKgMap[$bCid] = round($bRate + $ovhPerKg, 2);
-                            }
-                            foreach ($brandCostByNameMap as $bNm => $bRate) {
-                                $brandCostByNameMap[$bNm] = round($bRate + $ovhPerKg, 2);
-                            }
-                        }
-                    }
-                } catch(Exception $eWipKg) {}
+                // Closing Stock Quantities (KG & Multi-Unit) directly from shared Inventory Balance engine
+                $invClosing = computeInventoryClosingStock($pdo, $company_id, [
+                    'as_of_date' => $targetDate,
+                    'stock_status' => 'positive'
+                ]);
+                $closingRecords = $invClosing['records'] ?? [];
+                $categoryBreakdown = [];
 
-                // Fetch active items
-                $stmtItems = $pdo->prepare("
-                    SELECT i.id, i.code, i.name, i.unit, COALESCE(i.purchase_price, 0) as purchase_price,
-                           COALESCE(i.selling_price, 0) as selling_price, COALESCE(i.valuation_cost, 0) as valuation_cost,
-                           COALESCE(i.unit_weight, 0) as unit_weight, COALESCE(i.qty_per_piece, 0) as qty_per_piece,
-                           COALESCE(i.carton, 0) as carton,
-                           COALESCE(s.main_id, 0) as main_category_id,
-                           m.name as main_category, m.category_type, s.name as sub_category
-                    FROM inv_items i
-                    LEFT JOIN inv_sub_categories s ON i.sub_id = s.id
-                    LEFT JOIN inv_main_categories m ON s.main_id = m.id
-                    WHERE i.company_id = ? AND (i.is_inactive IS NULL OR i.is_inactive = 0)
-                ");
-                $stmtItems->execute([$company_id]);
-                $itemsList = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($closingRecords as $it) {
+                    $id = intval($it['item_id'] ?? $it['id'] ?? 0);
+                    $grp = $it['group'] ?? 'Others';
+                    $cbPrimary = floatval($it['cb_primary'] ?? 0);
+                    $cbSec = floatval($it['cb_sec'] ?? 0);
+                    $cbKg = floatval($it['cb_kg'] ?? 0);
+                    $wtPerPc = floatval($it['weight_per_pc'] ?? 0);
+                    $unit = strtoupper(trim((string)($it['unit'] ?? '')));
+                    $catId = intval($it['main_category_id'] ?? $it['category_id'] ?? 0);
+                    $catNameRaw = trim((string)($it['main_category_name'] ?? $grp));
+                    $catNameLow = strtolower($catNameRaw);
+                    $iNameLow = strtolower(trim((string)($it['item_name'] ?? $it['name'] ?? '')));
 
-                foreach ($itemsList as $it) {
-                    $id = $it['id'];
-                    $bal = ($obMap[$id] ?? 0.0) + ($piMap[$id] ?? 0.0) - ($prMap[$id] ?? 0.0) - ($siMap[$id] ?? 0.0) + ($srMap[$id] ?? 0.0) + ($aiaMap[$id] ?? 0.0) - ($riaMap[$id] ?? 0.0) - ($minMap[$id] ?? 0.0) + ($pnInMap[$id] ?? 0.0) - ($pnOutMap[$id] ?? 0.0);
+                    $itemVal = 0.0;
+                    $effectiveRatePerKg = 0.0;
+                    $stockKgUsed = $cbKg;
 
-                    $mCat = strtolower($it['main_category'] ?? '');
-                    $cType = strtolower($it['category_type'] ?? '');
-                    $iName = strtolower($it['name'] ?? '');
-                    $grp = 'Others';
-                    if (strpos($mCat, 'raw') !== false || strpos($cType, 'raw') !== false || strpos($iName, 'resin') !== false || strpos($iName, 'calcium') !== false || strpos($iName, 'stabilizer') !== false || strpos($iName, 'titanium') !== false || strpos($iName, 'lubricant') !== false || strpos($iName, 'compound') !== false || strpos($iName, 'pigment') !== false || strpos($iName, 'wax') !== false || strpos($iName, 'chemical') !== false) {
-                        $grp = 'Raw Material';
-                    } elseif (strpos($mCat, 'pipe') !== false || strpos($cType, 'pipe') !== false || strpos($iName, 'pipe') !== false) {
-                        $grp = 'PVC Pipes';
-                    } elseif (strpos($mCat, 'fitting') !== false || strpos($cType, 'fitting') !== false || strpos($iName, 'elbow') !== false || strpos($iName, 'tee') !== false || strpos($iName, 'socket') !== false || strpos($iName, 'cap') !== false) {
-                        $grp = 'Fittings';
-                    }
-
-                    // Rate determination
-                    $rate = 0.0;
                     if ($grp === 'Raw Material') {
-                        // Weighted average cost matching Inventory & Material Flow (OB + Purchases + Adjustments + Sale Returns - Purchase Returns)
+                        $stockKgUsed = ($cbKg > 0) ? $cbKg : $cbSec;
+                        // Weighted average cost matching Inventory & Material Flow under active Tax Mode
                         $obQ = $obMap[$id] ?? 0.0;
                         $obR = $obRateMap[$id] ?? floatval($it['valuation_cost'] ?: $it['purchase_price']);
                         $unvalAiaQ = $aiaUnvaluedQtyMap[$id] ?? 0.0;
                         $inQ = max(0.0, $obQ + ($piMap[$id] ?? 0.0) + ($srMap[$id] ?? 0.0) + ($aiaMap[$id] ?? 0.0) - ($prMap[$id] ?? 0.0) - $unvalAiaQ);
                         $inV = max(0.0, ($obQ * $obR) + ($piAmtMap[$id] ?? 0.0) + ($srAmtMap[$id] ?? 0.0) + ($aiaAmtMap[$id] ?? 0.0) - ($prAmtMap[$id] ?? 0.0));
                         $rate = ($inQ > 0 && $inV > 0) ? ($inV / $inQ) : ($piRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['valuation_cost'] ?: $it['purchase_price'])));
-                        if ($rate <= 0) $rate = floatval($it['selling_price']);
+                        if ($rate <= 0) $rate = floatval($it['selling_price'] ?? 0);
                         if ($rate <= 0) $rate = $avgRawRatePerKg;
+
+                        $effectiveRatePerKg = $rate;
+                        $itemVal = ($stockKgUsed > 0 && $rate > 0) ? round($stockKgUsed * $rate, 2) : 0.0;
+
+                        if ($itemVal > 0 || $stockKgUsed > 0) {
+                            $valResult['raw_materials_val'] += $itemVal;
+                            $valResult['raw_materials_count']++;
+                        }
                     } else {
-                        // Finished Goods (Pipes, Fittings, Others)
-                        $catId = intval($it['main_category_id'] ?? 0);
-                        $catNameLow = strtolower(trim($it['main_category'] ?? ''));
-                        $unit = strtoupper(trim($it['unit'] ?? ''));
-
-                        // Calculate weight in KG for unit
-                        $uWt = floatval($it['unit_weight'] ?? 0);
-                        if ($uWt <= 0) $uWt = floatval($it['qty_per_piece'] ?? 0);
-                        if ($uWt <= 0 && preg_match('/(\d+(?:\.\d+)?)\s*kg/i', $it['name'], $mMatch)) {
-                            $uWt = floatval($mMatch[1]);
-                        }
-                        if ($uWt <= 0) {
-                            $nu = strtoupper($it['name']);
-                            if (strpos($nu, '4"') !== false) $uWt = 0.400;
-                            elseif (strpos($nu, '3"') !== false) $uWt = 0.300;
-                            elseif (strpos($nu, '2"') !== false) $uWt = 0.200;
-                            elseif (strpos($nu, '1.5"') !== false) $uWt = 0.150;
-                            elseif (strpos($nu, '1.25"') !== false) $uWt = 0.125;
-                            elseif (strpos($nu, '1"') !== false) $uWt = 0.100;
-                        }
-
-                        // PRIORITY 1: Production Costing Formula Rate by Brand / Category
+                        // Finished Goods (PVC Pipes, Fittings, Others): Category KG from Inventory Balance * Brand Per-KG Rate from Production Costing
                         $brandRatePerKg = 0.0;
                         if ($catId > 0 && isset($brandCostPerKgMap[$catId])) {
                             $brandRatePerKg = $brandCostPerKgMap[$catId];
                         } elseif ($catNameLow && isset($brandCostByNameMap[$catNameLow])) {
                             $brandRatePerKg = $brandCostByNameMap[$catNameLow];
                         } else {
-                            // Check if brand name matches formula name (e.g. "master", "seastone")
                             foreach ($brandCostByNameMap as $bKey => $bVal) {
-                                if ($bKey && (strpos($catNameLow, $bKey) !== false || strpos($iName, $bKey) !== false)) {
+                                if ($bKey && (strpos($catNameLow, $bKey) !== false || strpos($iNameLow, $bKey) !== false)) {
                                     $brandRatePerKg = $bVal;
                                     break;
                                 }
                             }
                         }
-
                         if ($brandRatePerKg <= 0 && $mfgMonthlyCostPerKg > 0) {
                             $brandRatePerKg = $mfgMonthlyCostPerKg;
                         }
 
-                        if ($brandRatePerKg > 0) {
-                            if ($unit === 'KG' || $unit === 'KGS') {
-                                $rate = $brandRatePerKg;
-                            } else {
-                                // For items in pieces/cartons: cost per piece = uWt * brandRatePerKg
-                                $rate = ($uWt > 0) ? round($uWt * $brandRatePerKg, 2) : $brandRatePerKg;
+                        if ($stockKgUsed > 0 && $brandRatePerKg > 0) {
+                            $effectiveRatePerKg = $brandRatePerKg;
+                            $itemVal = round($stockKgUsed * $brandRatePerKg, 2);
+                        } elseif ($stockKgUsed > 0) {
+                            // Brand has stock in a period without active Formula: fallback to KG rate from Production/Sale/Purchase/Benchmark
+                            $fallbackKgRate = ($unit === 'KG' || $unit === 'KGS')
+                                ? ($pnRateMap[$id] ?? ($siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price'] ?: ($it['valuation_cost'] ?: $it['selling_price'])))))
+                                : $avgRawRatePerKg;
+                            if ($fallbackKgRate <= 0) $fallbackKgRate = $avgRawRatePerKg;
+                            $effectiveRatePerKg = $fallbackKgRate;
+                            $itemVal = round($stockKgUsed * $fallbackKgRate, 2);
+                        } else {
+                            // Unweighed piece/carton item (e.g. Fitting where Weight/Piece is not set yet)
+                            $isCtnUnit = (strpos($unit, 'CTN') !== false || strpos($unit, 'CARTON') !== false);
+                            $unitQty = ($grp === 'Fittings') ? ($isCtnUnit ? $cbPrimary : $cbSec) : $cbPrimary;
+                            $unitRate = $pnRateMap[$id] ?? ($siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price'] ?: ($it['valuation_cost'] ?: $it['selling_price']))));
+                            if ($unitRate > 0 && $unitQty > 0) {
+                                $itemVal = round($unitQty * $unitRate, 2);
+                            } elseif ($brandRatePerKg > 0 && $cbSec > 0) {
+                                $nu = strtoupper($it['item_name'] ?? '');
+                                $estWt = 0.0;
+                                if (strpos($nu, '4"') !== false) $estWt = 0.400;
+                                elseif (strpos($nu, '3"') !== false) $estWt = 0.300;
+                                elseif (strpos($nu, '2"') !== false) $estWt = 0.200;
+                                elseif (strpos($nu, '1.5"') !== false) $estWt = 0.150;
+                                elseif (strpos($nu, '1.25"') !== false) $estWt = 0.125;
+                                elseif (strpos($nu, '1"') !== false) $estWt = 0.100;
+                                if ($estWt > 0) {
+                                    $stockKgUsed = round($cbSec * $estWt, 2);
+                                    $effectiveRatePerKg = $brandRatePerKg;
+                                    $itemVal = round($stockKgUsed * $brandRatePerKg, 2);
+                                }
                             }
                         }
 
-                        // PRIORITY 2 (Fallback): Production Note recorded rate
-                        if ($rate <= 0) {
-                            $rate = $pnRateMap[$id] ?? 0.0;
-                        }
-
-                        // PRIORITY 3 (Fallback): Sales Invoice / Opening Balance / Purchase Price
-                        if ($rate <= 0) {
-                            $rate = $siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price']));
-                        }
-                        if ($rate <= 0 && !empty($it['valuation_cost'])) $rate = floatval($it['valuation_cost']);
-                        if ($rate <= 0 && !empty($it['selling_price'])) $rate = floatval($it['selling_price']);
-                        if ($rate <= 0 && $avgRawRatePerKg > 0) {
-                            $rate = ($uWt > 0) ? round($uWt * $avgRawRatePerKg, 2) : $avgRawRatePerKg;
+                        if ($itemVal > 0 || $cbPrimary > 0 || $cbSec > 0) {
+                            $valResult['finished_goods_val'] += $itemVal;
+                            $valResult['finished_goods_count']++;
                         }
                     }
 
-                    // Only value positive inventory on hand
-                    $itemVal = ($bal > 0) ? round($bal * $rate, 2) : 0.0;
-
-                    if ($grp === 'Raw Material') {
-                        $valResult['raw_materials_val'] += $itemVal;
-                        if ($bal > 0) $valResult['raw_materials_count']++;
-                    } elseif ($grp === 'PVC Pipes' || $grp === 'Fittings') {
-                        $valResult['finished_goods_val'] += $itemVal;
-                        if ($bal > 0) $valResult['finished_goods_count']++;
-                    } else {
-                        $valResult['finished_goods_val'] += $itemVal;
-                        if ($bal > 0) $valResult['finished_goods_count']++;
+                    $bKey = $grp . '_' . $catId . '_' . $catNameRaw;
+                    if (!isset($categoryBreakdown[$bKey])) {
+                        $categoryBreakdown[$bKey] = [
+                            'group' => $grp,
+                            'category_id' => $catId,
+                            'category_name' => $catNameRaw,
+                            'stock_kg' => 0.0,
+                            'cost_per_kg' => 0.0,
+                            'total_val' => 0.0,
+                            'items_count' => 0
+                        ];
+                    }
+                    $categoryBreakdown[$bKey]['stock_kg'] += max(0.0, $stockKgUsed);
+                    $categoryBreakdown[$bKey]['total_val'] += $itemVal;
+                    $categoryBreakdown[$bKey]['items_count']++;
+                    if ($categoryBreakdown[$bKey]['stock_kg'] > 0) {
+                        $categoryBreakdown[$bKey]['cost_per_kg'] = round($categoryBreakdown[$bKey]['total_val'] / $categoryBreakdown[$bKey]['stock_kg'], 2);
+                    } elseif ($effectiveRatePerKg > 0) {
+                        $categoryBreakdown[$bKey]['cost_per_kg'] = round($effectiveRatePerKg, 2);
                     }
                 }
+                foreach ($categoryBreakdown as &$cbItem) {
+                    $cbItem['stock_kg'] = round($cbItem['stock_kg'], 2);
+                    $cbItem['total_val'] = round($cbItem['total_val'], 2);
+                }
+                unset($cbItem);
+                $valResult['category_breakdown'] = array_values($categoryBreakdown);
                 $valResult['total_stock_value'] = $valResult['raw_materials_val'] + $valResult['wip_val'] + $valResult['finished_goods_val'];
             } catch (Exception $eDyn) {}
 
@@ -1736,6 +1688,7 @@ try {
                 'finished_goods' => round($finishedGoodsVal, 2),
                 'finished_goods_count' => $finishedGoodsCount,
                 'total_inventory' => round($totalInventoryStockVal, 2),
+                'category_breakdown' => $asOnInv['category_breakdown'] ?? [],
                 'is_audited' => !empty($asOnInv['is_audited']),
                 'period_month' => $asOnInv['period_month'] ?? date('Y-m', strtotime($as_on_date))
             ],
