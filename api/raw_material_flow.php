@@ -203,37 +203,8 @@ if ($action === 'get_flow_statement') {
         $stmtItems->execute($itemParams);
         $candidateItems = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
 
-        // Filter for Raw Materials if no specific category or item filter is selected
-        $itemsToProcess = [];
-        if ($item_filter === 'all' && $category_filter === 'all') {
-            foreach ($candidateItems as $it) {
-                $catType = strtoupper(trim($it['category_type'] ?? ''));
-                $mainCat = strtoupper(trim($it['category_name'] ?? ''));
-                $name = strtoupper(trim($it['name'] ?? ''));
-
-                if ($catType === 'RAW MATERIAL' || 
-                    strpos($catType, 'RAW') !== false || 
-                    strpos($mainCat, 'RAW') !== false || 
-                    strpos($name, 'RESIN') !== false || 
-                    strpos($name, 'CALCIUM') !== false || 
-                    strpos($name, 'STABILIZER') !== false || 
-                    strpos($name, 'TITANIUM') !== false || 
-                    strpos($name, 'LUBRICANT') !== false || 
-                    strpos($name, 'COMPOUND') !== false || 
-                    strpos($name, 'PIGMENT') !== false || 
-                    strpos($name, 'WAX') !== false || 
-                    strpos($name, 'CHEMICAL') !== false) {
-                    $itemsToProcess[] = $it;
-                }
-            }
-        } else {
-            // When a specific category (e.g. LASANI FITTING) or item is chosen, process candidate items directly!
-            $itemsToProcess = $candidateItems;
-        }
-
-        if (empty($itemsToProcess)) {
-            $itemsToProcess = $candidateItems;
-        }
+        // Process all matching candidate items directly (when Category=All & Item=All, show all categories)
+        $itemsToProcess = $candidateItems;
 
         if (empty($itemsToProcess)) {
             echo json_encode([

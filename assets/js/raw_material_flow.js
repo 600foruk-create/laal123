@@ -173,14 +173,14 @@
                 this.data.rawMaterials = json.raw_materials || [];
                 this.data.categories = json.categories || [];
 
-                // 1. Populate Items / Raw Materials
+                // 1. Populate Items / Products (All active items when Category = All)
                 const rmSel = document.getElementById('rmfRawMaterial');
                 if (rmSel) {
                     rmSel.innerHTML = '<option value="all">All</option>';
-                    (json.raw_materials || json.all_items || []).forEach(rm => {
+                    (json.all_items || json.raw_materials || []).forEach(rm => {
                         const opt = document.createElement('option');
                         opt.value = rm.id;
-                        opt.textContent = `${rm.name} (${rm.code || rm.unit || 'KG'})`;
+                        opt.textContent = `${rm.name} (${rm.code || rm.unit || 'Pcs'})`;
                         rmSel.appendChild(opt);
                     });
                 }
@@ -223,7 +223,7 @@
             // Update table item column header dynamically while keeping filter label consistent
             const itemLabel = document.getElementById('rmfItemLabel');
             const thItemCol = document.getElementById('rmfThItemCol');
-            const isRaw = catId === 'all' || catText.includes('RAW') || catText.includes('MATERIAL') || catText.includes('RESIN') || catText.includes('CHEMICAL');
+            const isRaw = catId !== 'all' && (catText.includes('RAW') || catText.includes('MATERIAL') || catText.includes('RESIN') || catText.includes('CHEMICAL'));
 
             if (itemLabel) itemLabel.textContent = 'Item / Product:';
             if (thItemCol) thItemCol.textContent = isRaw ? 'Raw Material' : 'Item / Description';
@@ -242,8 +242,6 @@
                         const itType = (it.category_type || '').trim().toUpperCase();
                         return itCatId === cid || itCatName === catText || itBrandName === catText || itType === catText;
                     });
-                } else if (this.data.rawMaterials && this.data.rawMaterials.length > 0) {
-                    filtered = this.data.rawMaterials;
                 }
 
                 filtered.forEach(it => {
@@ -1022,7 +1020,7 @@
             if (unitSel) unitSel.value = 'base';
             if (costSel) costSel.value = 'average_cost';
 
-            this.loadReport();
+            this.onCategoryChange();
         },
 
         formatQty: function(num) {
