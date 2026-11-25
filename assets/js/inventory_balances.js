@@ -402,11 +402,140 @@ window.InventoryBalancesModule = {
         }
     },
 
-    formatNum: function(v) {
+    isFittingLayout: function() {
+        const catSelect = document.getElementById('ib_filter_cat');
+        const selectedCatId = catSelect ? catSelect.value : '';
+        if (selectedCatId && this.rawLookups && Array.isArray(this.rawLookups.mains)) {
+            const catObj = this.rawLookups.mains.find(m => String(m.id) === String(selectedCatId));
+            if (catObj) {
+                const cType = String(catObj.category_type || '').toUpperCase();
+                const cName = String(catObj.name || '').toUpperCase();
+                if (cType.includes('FITTING') || cName.includes('FITTING')) {
+                    return true;
+                }
+            }
+        }
+        const groups = this.balanceData?.groups || [];
+        return (groups.length === 1 && groups[0].group_name === 'Fittings');
+    },
+
+    filterGroupItems: function(grp) {
+        const onlyWithStock = document.getElementById('ib_opt_only_stock')?.checked ?? false;
+        const showZeroStock = document.getElementById('ib_opt_zero_stock')?.checked ?? true;
+        const showNegStock  = document.getElementById('ib_opt_neg_stock')?.checked ?? true;
+
+        return (grp.items || []).filter(it => {
+            const isZero = (it.cb_primary === 0 && it.cb_sec === 0);
+            const isNeg  = (it.cb_primary < 0 || it.cb_sec < 0);
+            const hasStock = (it.cb_primary > 0 || it.cb_sec > 0);
+
+            if (onlyWithStock && !hasStock) return false;
+            if (!showZeroStock && isZero) return false;
+            if (!showNegStock && isNeg) return false;
+            return true;
+        });
+    },
+
+    buildTableColgroupHtml: function(isFitting) {
+        if (isFitting) {
+            return `
+                <col style="width: 2.5%;">
+                <col style="width: 21.5%;">
+                <col style="width: 4.8%;">
+                <col style="width: 4.8%;">
+                <col style="width: 5.2%;">
+                <col style="width: 4.8%;">
+                <col style="width: 5.4%;">
+                <col style="width: 4.8%;">
+                <col style="width: 5.4%;">
+                <col style="width: 4.8%;">
+                <col style="width: 5.4%;">
+                <col style="width: 4.8%;">
+                <col style="width: 5.4%;">
+                <col style="width: 6.0%;">
+                <col style="width: 6.6%;">
+                <col style="width: 7.8%;">
+            `;
+        }
+        return `
+            <col style="width: 3%;">
+            <col style="width: 21%;">
+            <col style="width: 6.5%;">
+            <col style="width: 6.2%;">
+            <col style="width: 7.2%;">
+            <col style="width: 6.2%;">
+            <col style="width: 7.2%;">
+            <col style="width: 6.2%;">
+            <col style="width: 7.2%;">
+            <col style="width: 6.2%;">
+            <col style="width: 7.2%;">
+            <col style="width: 7.4%;">
+            <col style="width: 8.5%;">
+        `;
+    },
+
+    buildTableHeaderRowsHtml: function(isFitting, u1Title = 'Pcs / Ctn', u2Title = 'Kg', forPrint = false) {
+        if (isFitting) {
+            return `
+                <tr>
+                    <th rowspan="2" ${forPrint ? 'style="width: 24px; text-align: center;"' : ''}>#</th>
+                    <th rowspan="2" style="text-align: left; padding-left: 8px;">Item Name / Description</th>
+                    <th colspan="3" style="background: #1e3a5f; text-align: center;">1 Carton Info</th>
+                    <th colspan="2" style="text-align: center;">Opening Stock</th>
+                    <th colspan="2" style="text-align: center;">In (Received)</th>
+                    <th colspan="2" style="text-align: center;">Out (Issued)</th>
+                    <th colspan="2" style="text-align: center;">Adjustment</th>
+                    <th colspan="3" style="background: #0b2942; text-align: center;">Closing Stock</th>
+                </tr>
+                <tr>
+                    <th style="background: #1b4670;" title="Pieces per 1 Carton">Pcs/Ctn</th>
+                    <th style="background: #1b4670;" title="Weight per 1 Piece (KG)">Wt/Pc</th>
+                    <th style="background: #1b4670;" title="Weight of 1 Carton (KG)">Ctn Kg</th>
+                    <th style="background: #163c5e;">Ctn</th>
+                    <th style="background: #163c5e;">Pcs</th>
+                    <th style="background: #163c5e;">Ctn</th>
+                    <th style="background: #163c5e;">Pcs</th>
+                    <th style="background: #163c5e;">Ctn</th>
+                    <th style="background: #163c5e;">Pcs</th>
+                    <th style="background: #163c5e;">Ctn</th>
+                    <th style="background: #163c5e;">Pcs</th>
+                    <th style="background: #0f2d4a;">Ctn</th>
+                    <th style="background: #0f2d4a;">Pcs</th>
+                    <th style="background: #0f2d4a;">Kg</th>
+                </tr>
+            `;
+        }
+        return `
+            <tr>
+                <th rowspan="2" ${forPrint ? 'style="width: 25px; text-align: center;"' : ''}>#</th>
+                <th rowspan="2" style="text-align: left; padding-left: 8px;">Item Name / Description</th>
+                <th rowspan="2" ${forPrint ? 'style="width: 65px; text-align: center;"' : ''}>Unit(s)</th>
+                <th colspan="2" style="text-align: center;">Opening Stock</th>
+                <th colspan="2" style="text-align: center;">In (Received)</th>
+                <th colspan="2" style="text-align: center;">Out (Issued)</th>
+                <th colspan="2" style="text-align: center;">Adjustment</th>
+                <th colspan="2" style="text-align: center;${forPrint ? ' background: #0b2942;' : ''}">Closing Stock</th>
+            </tr>
+            <tr>
+                <th style="background: #163c5e;">${u1Title}</th>
+                <th style="background: #163c5e;">${u2Title}</th>
+                <th style="background: #163c5e;">${u1Title}</th>
+                <th style="background: #163c5e;">${u2Title}</th>
+                <th style="background: #163c5e;">${u1Title}</th>
+                <th style="background: #163c5e;">${u2Title}</th>
+                <th style="background: #163c5e;">${u1Title}</th>
+                <th style="background: #163c5e;">${u2Title}</th>
+                <th style="background: ${forPrint ? '#0b2942' : '#0f2d4a'};">${u1Title}</th>
+                <th style="background: ${forPrint ? '#0b2942' : '#0f2d4a'};">${u2Title}</th>
+            </tr>
+        `;
+    },
+
+    formatNum: function(v, maxDecimals = 2) {
         const n = parseFloat(v || 0);
         if (n === 0) return '0';
         if (Number.isInteger(n)) return n.toLocaleString('en-US');
-        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: maxDecimals });
     },
 
     formatCell: function(val, isSecUnit = false, isDash = false) {
@@ -417,6 +546,65 @@ window.InventoryBalancesModule = {
             return `<span class="ib-neg">${formatted}</span>`;
         }
         return formatted;
+    },
+
+    formatFittingClosingKg: function(row) {
+        const wtPerPc = parseFloat(row.weight_per_pc || 0);
+        if (wtPerPc <= 0 && parseFloat(row.cb_primary || 0) !== 0) {
+            return `<span style="color:#94a3b8;" title="Weight/Piece (KG) not set in Chart of Inventory">-</span>`;
+        }
+        return this.formatCell(row.cb_kg || 0);
+    },
+
+    buildItemLeadAndStockCellsHtml: function(row, isFitting, dashSec) {
+        const pcsPerCtn = parseFloat(row.pcs_per_ctn || 0);
+        const wtPerPc   = parseFloat(row.weight_per_pc || 0);
+        const kgPerCtn  = parseFloat(row.kg_per_ctn || 0);
+
+        const leadCells = isFitting ? `
+            <td style="text-align: center; font-weight: 700; color: #1F4E79;">${pcsPerCtn > 0 ? this.formatNum(pcsPerCtn) : '-'}</td>
+            <td style="text-align: right; color: #475569;">${wtPerPc > 0 ? this.formatNum(wtPerPc, 3) : '-'}</td>
+            <td style="text-align: right; font-weight: 700; color: #0369a1;">${kgPerCtn > 0 ? this.formatNum(kgPerCtn) : '-'}</td>
+        ` : `
+            <td style="text-align: center; font-weight: bold; color: #1F4E79;">${row.unit_display}</td>
+        `;
+
+        return `${leadCells}
+            <td style="text-align: right;">${this.formatCell(row.ob_primary)}</td>
+            <td style="text-align: right;">${this.formatCell(row.ob_sec, true, dashSec)}</td>
+            <td style="text-align: right;">${this.formatCell(row.in_primary)}</td>
+            <td style="text-align: right;">${this.formatCell(row.in_sec, true, dashSec)}</td>
+            <td style="text-align: right;">${this.formatCell(row.out_primary)}</td>
+            <td style="text-align: right;">${this.formatCell(row.out_sec, true, dashSec)}</td>
+            <td style="text-align: right;">${this.formatCell(row.adj_primary)}</td>
+            <td style="text-align: right;">${this.formatCell(row.adj_sec, true, dashSec)}</td>
+            <td style="text-align: right; font-weight: 800; background: #f8fafc;">${this.formatCell(row.cb_primary)}</td>
+            <td style="text-align: right; font-weight: 800; background: #f8fafc;">${this.formatCell(row.cb_sec, true, dashSec)}</td>
+            ${isFitting ? `<td style="text-align: right; font-weight: 800; background: #f0f9ff; color: #0c4a6e;">${this.formatFittingClosingKg(row)}</td>` : ''}
+        `;
+    },
+
+    buildTotalsCellsHtml: function(tot, isFitting, dashSubSec, opts = {}) {
+        const isGrand = !!opts.isGrand;
+        const forPrint = !!opts.forPrint;
+        const textStyle = (isGrand && forPrint) ? ' color: #fff;' : '';
+        const cbWeight = isGrand ? '900' : '900';
+        const cbBg = isGrand ? (forPrint ? ' background: #071e30;' : ' background: #0f2d4a;') : '';
+        const kgBg = isGrand ? (forPrint ? ' background: #071e30;' : ' background: #0f2d4a;') : ' background: #f0f9ff; color: #0c4a6e;';
+
+        return `
+            <td style="text-align: right;${textStyle}">${this.formatCell(tot.ob_primary)}</td>
+            <td style="text-align: right;${textStyle}">${this.formatCell(tot.ob_sec, true, dashSubSec)}</td>
+            <td style="text-align: right;${textStyle}">${this.formatCell(tot.in_primary)}</td>
+            <td style="text-align: right;${textStyle}">${this.formatCell(tot.in_sec, true, dashSubSec)}</td>
+            <td style="text-align: right;${textStyle}">${this.formatCell(tot.out_primary)}</td>
+            <td style="text-align: right;${textStyle}">${this.formatCell(tot.out_sec, true, dashSubSec)}</td>
+            <td style="text-align: right;${textStyle}">${this.formatCell(tot.adj_primary)}</td>
+            <td style="text-align: right;${textStyle}">${this.formatCell(tot.adj_sec, true, dashSubSec)}</td>
+            <td style="text-align: right; font-weight: ${cbWeight};${cbBg}${textStyle}">${this.formatCell(tot.cb_primary)}</td>
+            <td style="text-align: right; font-weight: ${cbWeight};${cbBg}${textStyle}">${this.formatCell(tot.cb_sec, true, dashSubSec)}</td>
+            ${isFitting ? `<td style="text-align: right; font-weight: ${cbWeight};${kgBg}${textStyle}">${this.formatCell(tot.cb_kg || 0)}</td>` : ''}
+        `;
     },
 
     updateSummaryCards: function(sum) {
@@ -454,19 +642,24 @@ window.InventoryBalancesModule = {
         const self = this;
         const tbody = document.getElementById('ib_main_tbody');
         const tfoot = document.getElementById('ib_main_tfoot');
+        const colgroup = document.getElementById('ib_table_colgroup');
+        const thead = document.getElementById('ib_table_thead');
         if (!tbody || !tfoot) return;
 
-        const showSubtotals = document.getElementById('ib_opt_subtotals')?.checked ?? true;
-        const onlyWithStock = document.getElementById('ib_opt_only_stock')?.checked ?? false;
-        const showZeroStock = document.getElementById('ib_opt_zero_stock')?.checked ?? true;
-        const showNegStock  = document.getElementById('ib_opt_neg_stock')?.checked ?? true;
+        const isFitting = self.isFittingLayout();
+        const totalCols = isFitting ? 16 : 13;
+        const labelColspan = isFitting ? 5 : 3;
 
+        if (colgroup) colgroup.innerHTML = self.buildTableColgroupHtml(isFitting);
+        if (thead) thead.innerHTML = self.buildTableHeaderRowsHtml(isFitting, 'Pcs / Ctn', 'Kg', false);
+
+        const showSubtotals = document.getElementById('ib_opt_subtotals')?.checked ?? true;
         const groups = self.balanceData.groups || [];
         let html = '';
         let globalItemIndex = 1;
 
         if (groups.length === 0 || self.balanceData.records.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; padding: 30px; color: #64748b; font-size: 13px;">No inventory records found matching the selected filters.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align: center; padding: 30px; color: #64748b; font-size: 13px;">No inventory records found matching the selected filters.</td></tr>`;
             tfoot.innerHTML = '';
             return;
         }
@@ -474,18 +667,7 @@ window.InventoryBalancesModule = {
         groups.forEach((grp) => {
             const isCollapsed = !!self.collapsedGroups[grp.group_name];
             const icon = isCollapsed ? 'fa-plus-square' : 'fa-minus-square';
-
-            // Filter items in group based on client checkboxes
-            const visibleItems = grp.items.filter(it => {
-                const isZero = (it.cb_primary === 0 && it.cb_sec === 0);
-                const isNeg  = (it.cb_primary < 0 || it.cb_sec < 0);
-                const hasStock = (it.cb_primary > 0 || it.cb_sec > 0);
-
-                if (onlyWithStock && !hasStock) return false;
-                if (!showZeroStock && isZero) return false;
-                if (!showNegStock && isNeg) return false;
-                return true;
-            });
+            const visibleItems = self.filterGroupItems(grp);
 
             if (visibleItems.length === 0) return;
 
@@ -493,7 +675,7 @@ window.InventoryBalancesModule = {
             html += `
                 <tr class="ib-cat-row" onclick="window.InventoryBalancesModule.toggleCategory('${grp.group_name}')">
                     <td style="text-align: center;"><i class="fas ${icon}"></i></td>
-                    <td colspan="12" style="padding: 4px 6px;">
+                    <td colspan="${totalCols - 1}" style="padding: 4px 6px;">
                         <span>${grp.group_name}</span>
                         <span style="font-size: 10.5px; font-weight: normal; margin-left: 6px; color: #475569;">(${visibleItems.length} Items)</span>
                     </td>
@@ -513,22 +695,7 @@ window.InventoryBalancesModule = {
                         <tr onclick="window.InventoryBalancesModule.highlightRow(this, ${row.item_id})" ondblclick="window.InventoryBalancesModule.openItemLedger(${row.item_id}, '${safeCode}', '${safeName}')" title="Double-click to open Item Ledger" style="cursor: pointer;">
                             <td style="text-align: center; color: #64748b; font-weight: bold;">${globalItemIndex++}</td>
                             <td style="font-weight: 600; color: #0f172a;" title="${itemName} (Double-click to open Ledger)">${itemName}</td>
-                            <td style="text-align: center; font-weight: bold; color: #1F4E79;">${row.unit_display}</td>
-
-                            <td style="text-align: right;">${self.formatCell(row.ob_primary)}</td>
-                            <td style="text-align: right;">${self.formatCell(row.ob_sec, true, dashSec)}</td>
-
-                            <td style="text-align: right;">${self.formatCell(row.in_primary)}</td>
-                            <td style="text-align: right;">${self.formatCell(row.in_sec, true, dashSec)}</td>
-
-                            <td style="text-align: right;">${self.formatCell(row.out_primary)}</td>
-                            <td style="text-align: right;">${self.formatCell(row.out_sec, true, dashSec)}</td>
-
-                            <td style="text-align: right;">${self.formatCell(row.adj_primary)}</td>
-                            <td style="text-align: right;">${self.formatCell(row.adj_sec, true, dashSec)}</td>
-
-                            <td style="text-align: right; font-weight: 800; background: #f8fafc;">${self.formatCell(row.cb_primary)}</td>
-                            <td style="text-align: right; font-weight: 800; background: #f8fafc;">${self.formatCell(row.cb_sec, true, dashSec)}</td>
+                            ${self.buildItemLeadAndStockCellsHtml(row, isFitting, dashSec)}
                         </tr>
                     `;
                 });
@@ -541,23 +708,10 @@ window.InventoryBalancesModule = {
 
                     html += `
                         <tr class="ib-subtotal-row">
-                            <td colspan="3" style="text-align: right; padding-right: 10px; color: #0f172a;">
+                            <td colspan="${labelColspan}" style="text-align: right; padding-right: 10px; color: #0f172a;">
                                 Total - ${grp.group_name}
                             </td>
-                            <td style="text-align: right;">${self.formatCell(sub.ob_primary)}</td>
-                            <td style="text-align: right;">${self.formatCell(sub.ob_sec, true, dashSubSec)}</td>
-
-                            <td style="text-align: right;">${self.formatCell(sub.in_primary)}</td>
-                            <td style="text-align: right;">${self.formatCell(sub.in_sec, true, dashSubSec)}</td>
-
-                            <td style="text-align: right;">${self.formatCell(sub.out_primary)}</td>
-                            <td style="text-align: right;">${self.formatCell(sub.out_sec, true, dashSubSec)}</td>
-
-                            <td style="text-align: right;">${self.formatCell(sub.adj_primary)}</td>
-                            <td style="text-align: right;">${self.formatCell(sub.adj_sec, true, dashSubSec)}</td>
-
-                            <td style="text-align: right; font-weight: 900;">${self.formatCell(sub.cb_primary)}</td>
-                            <td style="text-align: right; font-weight: 900;">${self.formatCell(sub.cb_sec, true, dashSubSec)}</td>
+                            ${self.buildTotalsCellsHtml(sub, isFitting, dashSubSec, { isGrand: false, forPrint: false })}
                         </tr>
                     `;
                 }
@@ -570,23 +724,10 @@ window.InventoryBalancesModule = {
         const gt = self.balanceData.grand_total;
         tfoot.innerHTML = `
             <tr class="ib-grand-row">
-                <td colspan="3" style="text-align: left; padding-left: 10px;">
+                <td colspan="${labelColspan}" style="text-align: left; padding-left: 10px;">
                     Grand Total (${self.balanceData.summary.total_items || 0} Items)
                 </td>
-                <td style="text-align: right;">${self.formatCell(gt.ob_primary)}</td>
-                <td style="text-align: right;">${self.formatCell(gt.ob_sec)}</td>
-
-                <td style="text-align: right;">${self.formatCell(gt.in_primary)}</td>
-                <td style="text-align: right;">${self.formatCell(gt.in_sec)}</td>
-
-                <td style="text-align: right;">${self.formatCell(gt.out_primary)}</td>
-                <td style="text-align: right;">${self.formatCell(gt.out_sec)}</td>
-
-                <td style="text-align: right;">${self.formatCell(gt.adj_primary)}</td>
-                <td style="text-align: right;">${self.formatCell(gt.adj_sec)}</td>
-
-                <td style="text-align: right; background: #0f2d4a;">${self.formatCell(gt.cb_primary)}</td>
-                <td style="text-align: right; background: #0f2d4a;">${self.formatCell(gt.cb_sec)}</td>
+                ${self.buildTotalsCellsHtml(gt, isFitting, false, { isGrand: true, forPrint: false })}
             </tr>
         `;
     },
@@ -716,9 +857,9 @@ window.InventoryBalancesModule = {
 
         // Checkbox states (mirroring display exactly)
         const showSubtotals = document.getElementById('ib_opt_subtotals')?.checked ?? true;
-        const onlyWithStock = document.getElementById('ib_opt_only_stock')?.checked ?? false;
-        const showZeroStock = document.getElementById('ib_opt_zero_stock')?.checked ?? true;
-        const showNegStock  = document.getElementById('ib_opt_neg_stock')?.checked ?? true;
+        const isFitting = self.isFittingLayout();
+        const totalCols = isFitting ? 16 : 13;
+        const labelColspan = isFitting ? 5 : 3;
 
         // Dynamic column headers
         let u1Title = 'Pcs / Ctn';
@@ -726,7 +867,7 @@ window.InventoryBalancesModule = {
         const activeCatLower = catText.toLowerCase();
         if (activeCatLower.includes('pipe') || (groups.length === 1 && groups[0].group_name === 'PVC Pipes')) {
             u1Title = 'Pcs'; u2Title = 'Kg';
-        } else if (activeCatLower.includes('fitting') || (groups.length === 1 && groups[0].group_name === 'Fittings')) {
+        } else if (isFitting) {
             u1Title = 'Ctn'; u2Title = 'Pcs';
         } else if (activeCatLower.includes('raw') || (groups.length === 1 && groups[0].group_name === 'Raw Material')) {
             u1Title = 'Bags'; u2Title = 'Kg';
@@ -736,31 +877,21 @@ window.InventoryBalancesModule = {
         let globalIdx = 1;
         let totalItemsCount = 0;
         let grandTotals = {
-            ob_pri: 0, ob_sec: 0,
-            in_pri: 0, in_sec: 0,
-            out_pri: 0, out_sec: 0,
-            adj_pri: 0, adj_sec: 0,
-            cb_pri: 0, cb_sec: 0
+            ob_primary: 0, ob_sec: 0,
+            in_primary: 0, in_sec: 0,
+            out_primary: 0, out_sec: 0,
+            adj_primary: 0, adj_sec: 0,
+            cb_primary: 0, cb_sec: 0, cb_kg: 0
         };
 
         groups.forEach(grp => {
-            const visibleItems = grp.items.filter(it => {
-                const isZero = (it.cb_primary === 0 && it.cb_sec === 0);
-                const isNeg  = (it.cb_primary < 0 || it.cb_sec < 0);
-                const hasStock = (it.cb_primary > 0 || it.cb_sec > 0);
-
-                if (onlyWithStock && !hasStock) return false;
-                if (!showZeroStock && isZero) return false;
-                if (!showNegStock && isNeg) return false;
-                return true;
-            });
-
+            const visibleItems = self.filterGroupItems(grp);
             if (visibleItems.length === 0) return;
 
             // Category Banner in Print
             rowsHtml += `
                 <tr style="background: #e0f2fe; color: #075985; font-weight: bold;">
-                    <td colspan="13" style="padding: 4px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.3px; border: 1px solid #93c5fd;">
+                    <td colspan="${totalCols}" style="padding: 4px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.3px; border: 1px solid #93c5fd;">
                         <strong>${grp.group_name}</strong> &nbsp;
                         <span style="font-weight: normal; font-size: 9px; color: #0369a1;">(${visibleItems.length} Items)</span>
                     </td>
@@ -768,11 +899,11 @@ window.InventoryBalancesModule = {
             `;
 
             let grpTotals = {
-                ob_pri: 0, ob_sec: 0,
-                in_pri: 0, in_sec: 0,
-                out_pri: 0, out_sec: 0,
-                adj_pri: 0, adj_sec: 0,
-                cb_pri: 0, cb_sec: 0
+                ob_primary: 0, ob_sec: 0,
+                in_primary: 0, in_sec: 0,
+                out_primary: 0, out_sec: 0,
+                adj_primary: 0, adj_sec: 0,
+                cb_primary: 0, cb_sec: 0, cb_kg: 0
             };
 
             const isFittings = grp.group_name === 'Fittings';
@@ -780,44 +911,37 @@ window.InventoryBalancesModule = {
             visibleItems.forEach(row => {
                 totalItemsCount++;
                 const dashSec = isFittings && row.ob_sec === 0 && row.in_sec === 0 && row.out_sec === 0 && row.cb_sec === 0;
+                const rowCbKg = parseFloat(row.cb_kg || 0);
 
-                grpTotals.ob_pri += row.ob_primary;
-                grpTotals.ob_sec += row.ob_sec;
-                grpTotals.in_pri += row.in_primary;
-                grpTotals.in_sec += row.in_sec;
-                grpTotals.out_pri += row.out_primary;
-                grpTotals.out_sec += row.out_sec;
-                grpTotals.adj_pri += row.adj_primary;
-                grpTotals.adj_sec += row.adj_sec;
-                grpTotals.cb_pri += row.cb_primary;
-                grpTotals.cb_sec += row.cb_sec;
+                grpTotals.ob_primary += row.ob_primary;
+                grpTotals.ob_sec     += row.ob_sec;
+                grpTotals.in_primary += row.in_primary;
+                grpTotals.in_sec     += row.in_sec;
+                grpTotals.out_primary+= row.out_primary;
+                grpTotals.out_sec    += row.out_sec;
+                grpTotals.adj_primary+= row.adj_primary;
+                grpTotals.adj_sec    += row.adj_sec;
+                grpTotals.cb_primary += row.cb_primary;
+                grpTotals.cb_sec     += row.cb_sec;
+                grpTotals.cb_kg      += rowCbKg;
 
-                grandTotals.ob_pri += row.ob_primary;
-                grandTotals.ob_sec += row.ob_sec;
-                grandTotals.in_pri += row.in_primary;
-                grandTotals.in_sec += row.in_sec;
-                grandTotals.out_pri += row.out_primary;
-                grandTotals.out_sec += row.out_sec;
-                grandTotals.adj_pri += row.adj_primary;
-                grandTotals.adj_sec += row.adj_sec;
-                grandTotals.cb_pri += row.cb_primary;
-                grandTotals.cb_sec += row.cb_sec;
+                grandTotals.ob_primary += row.ob_primary;
+                grandTotals.ob_sec     += row.ob_sec;
+                grandTotals.in_primary += row.in_primary;
+                grandTotals.in_sec     += row.in_sec;
+                grandTotals.out_primary+= row.out_primary;
+                grandTotals.out_sec    += row.out_sec;
+                grandTotals.adj_primary+= row.adj_primary;
+                grandTotals.adj_sec    += row.adj_sec;
+                grandTotals.cb_primary += row.cb_primary;
+                grandTotals.cb_sec     += row.cb_sec;
+                grandTotals.cb_kg      += rowCbKg;
 
                 rowsHtml += `
                     <tr>
                         <td style="text-align: center; color: #64748b;">${globalIdx++}</td>
                         <td style="font-weight: 600; color: #0f172a;">${row.item_name}</td>
-                        <td style="text-align: center; font-weight: 700; color: #1F4E79;">${row.unit_display}</td>
-                        <td style="text-align: right;">${self.formatCell(row.ob_primary)}</td>
-                        <td style="text-align: right;">${self.formatCell(row.ob_sec, true, dashSec)}</td>
-                        <td style="text-align: right;">${self.formatCell(row.in_primary)}</td>
-                        <td style="text-align: right;">${self.formatCell(row.in_sec, true, dashSec)}</td>
-                        <td style="text-align: right;">${self.formatCell(row.out_primary)}</td>
-                        <td style="text-align: right;">${self.formatCell(row.out_sec, true, dashSec)}</td>
-                        <td style="text-align: right;">${self.formatCell(row.adj_primary)}</td>
-                        <td style="text-align: right;">${self.formatCell(row.adj_sec, true, dashSec)}</td>
-                        <td style="text-align: right; font-weight: 800; background: #f8fafc;">${self.formatCell(row.cb_primary)}</td>
-                        <td style="text-align: right; font-weight: 800; background: #f8fafc;">${self.formatCell(row.cb_sec, true, dashSec)}</td>
+                        ${self.buildItemLeadAndStockCellsHtml(row, isFitting, dashSec)}
                     </tr>
                 `;
             });
@@ -826,43 +950,25 @@ window.InventoryBalancesModule = {
                 const dashSubSec = isFittings && grpTotals.ob_sec === 0 && grpTotals.in_sec === 0 && grpTotals.out_sec === 0 && grpTotals.cb_sec === 0;
                 rowsHtml += `
                     <tr style="background: #f1f5f9; font-weight: bold; border-top: 1px solid #cbd5e1; border-bottom: 2px solid #cbd5e1;">
-                        <td colspan="3" style="text-align: right; padding-right: 10px; color: #0f172a;">
+                        <td colspan="${labelColspan}" style="text-align: right; padding-right: 10px; color: #0f172a;">
                             Total - ${grp.group_name}
                         </td>
-                        <td style="text-align: right;">${self.formatCell(grpTotals.ob_pri)}</td>
-                        <td style="text-align: right;">${self.formatCell(grpTotals.ob_sec, true, dashSubSec)}</td>
-                        <td style="text-align: right;">${self.formatCell(grpTotals.in_pri)}</td>
-                        <td style="text-align: right;">${self.formatCell(grpTotals.in_sec, true, dashSubSec)}</td>
-                        <td style="text-align: right;">${self.formatCell(grpTotals.out_pri)}</td>
-                        <td style="text-align: right;">${self.formatCell(grpTotals.out_sec, true, dashSubSec)}</td>
-                        <td style="text-align: right;">${self.formatCell(grpTotals.adj_pri)}</td>
-                        <td style="text-align: right;">${self.formatCell(grpTotals.adj_sec, true, dashSubSec)}</td>
-                        <td style="text-align: right; font-weight: 900;">${self.formatCell(grpTotals.cb_pri)}</td>
-                        <td style="text-align: right; font-weight: 900;">${self.formatCell(grpTotals.cb_sec, true, dashSubSec)}</td>
+                        ${self.buildTotalsCellsHtml(grpTotals, isFitting, dashSubSec, { isGrand: false, forPrint: true })}
                     </tr>
                 `;
             }
         });
 
         if (totalItemsCount === 0) {
-            rowsHtml = `<tr><td colspan="13" style="text-align: center; padding: 25px; color: #64748b; font-size: 11px;">No inventory records matching current display filters.</td></tr>`;
+            rowsHtml = `<tr><td colspan="${totalCols}" style="text-align: center; padding: 25px; color: #64748b; font-size: 11px;">No inventory records matching current display filters.</td></tr>`;
         }
 
         const grandTotalHtml = `
             <tr style="background: #0b2942; color: #ffffff; font-weight: bold; border-top: 2px solid #0f2d4a;">
-                <td colspan="3" style="text-align: left; padding-left: 10px;">
+                <td colspan="${labelColspan}" style="text-align: left; padding-left: 10px;">
                     Grand Total (${totalItemsCount} Items)
                 </td>
-                <td style="text-align: right; color: #fff;">${self.formatCell(grandTotals.ob_pri)}</td>
-                <td style="text-align: right; color: #fff;">${self.formatCell(grandTotals.ob_sec)}</td>
-                <td style="text-align: right; color: #fff;">${self.formatCell(grandTotals.in_pri)}</td>
-                <td style="text-align: right; color: #fff;">${self.formatCell(grandTotals.in_sec)}</td>
-                <td style="text-align: right; color: #fff;">${self.formatCell(grandTotals.out_pri)}</td>
-                <td style="text-align: right; color: #fff;">${self.formatCell(grandTotals.out_sec)}</td>
-                <td style="text-align: right; color: #fff;">${self.formatCell(grandTotals.adj_pri)}</td>
-                <td style="text-align: right; color: #fff;">${self.formatCell(grandTotals.adj_sec)}</td>
-                <td style="text-align: right; background: #071e30; color: #fff; font-weight: 900;">${self.formatCell(grandTotals.cb_pri)}</td>
-                <td style="text-align: right; background: #071e30; color: #fff; font-weight: 900;">${self.formatCell(grandTotals.cb_sec)}</td>
+                ${self.buildTotalsCellsHtml(grandTotals, isFitting, false, { isGrand: true, forPrint: true })}
             </tr>
         `;
 
@@ -1013,28 +1119,7 @@ window.InventoryBalancesModule = {
 
     <table>
         <thead>
-            <tr>
-                <th rowspan="2" style="width: 25px; text-align: center;">#</th>
-                <th rowspan="2" style="text-align: left;">Item Name / Description</th>
-                <th rowspan="2" style="width: 65px; text-align: center;">Unit(s)</th>
-                <th colspan="2" style="text-align: center;">Opening Stock</th>
-                <th colspan="2" style="text-align: center;">In (Received)</th>
-                <th colspan="2" style="text-align: center;">Out (Issued)</th>
-                <th colspan="2" style="text-align: center;">Adjustment</th>
-                <th colspan="2" style="text-align: center; background: #0b2942;">Closing Stock</th>
-            </tr>
-            <tr>
-                <th style="width: 50px;">${u1Title}</th>
-                <th style="width: 60px;">${u2Title}</th>
-                <th style="width: 50px;">${u1Title}</th>
-                <th style="width: 60px;">${u2Title}</th>
-                <th style="width: 50px;">${u1Title}</th>
-                <th style="width: 60px;">${u2Title}</th>
-                <th style="width: 50px;">${u1Title}</th>
-                <th style="width: 60px;">${u2Title}</th>
-                <th style="width: 55px; background: #0b2942;">${u1Title}</th>
-                <th style="width: 65px; background: #0b2942;">${u2Title}</th>
-            </tr>
+            ${self.buildTableHeaderRowsHtml(isFitting, u1Title, u2Title, true)}
         </thead>
         <tbody>
             ${rowsHtml}
@@ -1100,9 +1185,16 @@ window.InventoryBalancesModule = {
         }
 
         // Fallback: CSV export
-        let csv = 'Item Code,Item Name,Category,Unit,Opening (Primary),Opening (Sec),In (Primary),In (Sec),Out (Primary),Out (Sec),Adj (Primary),Adj (Sec),Closing (Primary),Closing (Sec)\n';
+        const isFitting = self.isFittingLayout();
+        let csv = isFitting
+            ? 'Item Code,Item Name,Category,Pcs/Ctn,Wt/Pc (Kg),Ctn Wt (Kg),Opening (Ctn),Opening (Pcs),In (Ctn),In (Pcs),Out (Ctn),Out (Pcs),Adj (Ctn),Adj (Pcs),Closing (Ctn),Closing (Pcs),Closing (Kg)\n'
+            : 'Item Code,Item Name,Category,Unit,Opening (Primary),Opening (Sec),In (Primary),In (Sec),Out (Primary),Out (Sec),Adj (Primary),Adj (Sec),Closing (Primary),Closing (Sec)\n';
         records.forEach(r => {
-            csv += `"${r.item_code}","${r.item_name}","${r.group}","${r.unit_display}",${r.ob_primary},${r.ob_sec},${r.in_primary},${r.in_sec},${r.out_primary},${r.out_sec},${r.adj_primary},${r.adj_sec},${r.cb_primary},${r.cb_sec}\n`;
+            if (isFitting) {
+                csv += `"${r.item_code}","${r.item_name}","${r.group}",${r.pcs_per_ctn || 0},${r.weight_per_pc || 0},${r.kg_per_ctn || 0},${r.ob_primary},${r.ob_sec},${r.in_primary},${r.in_sec},${r.out_primary},${r.out_sec},${r.adj_primary},${r.adj_sec},${r.cb_primary},${r.cb_sec},${r.cb_kg || 0}\n`;
+            } else {
+                csv += `"${r.item_code}","${r.item_name}","${r.group}","${r.unit_display}",${r.ob_primary},${r.ob_sec},${r.in_primary},${r.in_sec},${r.out_primary},${r.out_sec},${r.adj_primary},${r.adj_sec},${r.cb_primary},${r.cb_sec}\n`;
+            }
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

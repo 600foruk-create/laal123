@@ -86,8 +86,10 @@ function resolveItemCategoryAndUnits($item) {
         strpos($itemName, 'NIPPLE') !== false ||
         strpos($combined, 'FITTING') !== false) {
 
-        $pcsPerCtn = floatval($item['carton'] ?? 0);
-        if ($pcsPerCtn <= 0) $pcsPerCtn = floatval($item['qty_per_piece'] ?? 0);
+        $pcsPerCtn = floatval($item['qty_per_piece'] ?? 0);
+        if ($pcsPerCtn <= 0 && isset($item['carton']) && is_numeric(trim((string)$item['carton']))) {
+            $pcsPerCtn = floatval($item['carton']);
+        }
         if ($pcsPerCtn <= 0) {
             if (strpos($itemName, '2"') !== false) $pcsPerCtn = 100;
             elseif (strpos($itemName, '3"') !== false) $pcsPerCtn = 50;
@@ -95,13 +97,19 @@ function resolveItemCategoryAndUnits($item) {
             else $pcsPerCtn = 1;
         }
 
+        $rawWtPerPc = $item['unit_weight'] ?? 0;
+        $weightPerPc = is_numeric(trim((string)$rawWtPerPc)) ? floatval($rawWtPerPc) : 0.0;
+        if ($weightPerPc < 0) $weightPerPc = 0.0;
+        $kgPerCtn = ($pcsPerCtn > 0 && $weightPerPc > 0) ? round($pcsPerCtn * $weightPerPc, 3) : 0.0;
+
         return [
             'group' => 'Fittings',
             'unit_display' => 'Ctn / Pcs',
             'primary_unit' => 'Ctn',
             'secondary_unit' => 'Pcs',
-            'weight_per_pc' => 0,
+            'weight_per_pc' => $weightPerPc,
             'pcs_per_ctn' => $pcsPerCtn,
+            'kg_per_ctn' => $kgPerCtn,
             'kg_per_bag' => 0
         ];
     }
@@ -120,6 +128,7 @@ function resolveItemCategoryAndUnits($item) {
             'secondary_unit' => 'Kg',
             'weight_per_pc' => $weightPerPc > 0 ? $weightPerPc : 0,
             'pcs_per_ctn' => 0,
+            'kg_per_ctn' => 0,
             'kg_per_bag' => 0
         ];
     }
@@ -145,6 +154,7 @@ function resolveItemCategoryAndUnits($item) {
             'secondary_unit' => 'Kg',
             'weight_per_pc' => 0,
             'pcs_per_ctn' => 0,
+            'kg_per_ctn' => 0,
             'kg_per_bag' => $kgPerBag
         ];
     }
@@ -158,6 +168,7 @@ function resolveItemCategoryAndUnits($item) {
         'secondary_unit' => 'Kg',
         'weight_per_pc' => floatval($item['qty_per_piece'] ?? 0),
         'pcs_per_ctn' => floatval($item['carton'] ?? 1),
+        'kg_per_ctn' => 0,
         'kg_per_bag' => 0
     ];
 }
@@ -553,11 +564,11 @@ if ($action === 'get_balances') {
         $lowStockCount = 0;
 
         $grandTotal = [
-            'ob_primary' => 0, 'ob_sec' => 0,
-            'in_primary' => 0, 'in_sec' => 0,
-            'out_primary' => 0, 'out_sec' => 0,
-            'adj_primary' => 0, 'adj_sec' => 0,
-            'cb_primary' => 0, 'cb_sec' => 0
+            'ob_primary' => 0, 'ob_sec' => 0, 'ob_kg' => 0,
+            'in_primary' => 0, 'in_sec' => 0, 'in_kg' => 0,
+            'out_primary' => 0, 'out_sec' => 0, 'out_kg' => 0,
+            'adj_primary' => 0, 'adj_sec' => 0, 'adj_kg' => 0,
+            'cb_primary' => 0, 'cb_sec' => 0, 'cb_kg' => 0
         ];
 
         foreach ($rawItems as $item) {
@@ -605,10 +616,7 @@ if ($action === 'get_balances') {
 
             } elseif ($groupName === 'Fittings') {
                 // Primary: Ctn (Cartons), Secondary: Pcs (Pieces)
-                $pcsPerCtn = floatval($unitDef['pcs_per_ctn'] ?? 0);
-                if ($pcsPerCtn <= 0) $pcsPerCtn = floatval($item['qty_per_piece'] ?? 0);
-                if ($pcsPerCtn <= 0) $pcsPerCtn = floatval($item['carton'] ?? 0);
-                if ($pcsPerCtn <= 0) $pcsPerCtn = 1;
+                $pcsPerCtn = max(1, floatval($unitDef['pcs_per_ctn'] ?? 1));
 
                 // Bucket parser for OB, IN, OUT
                 $computeFittingBucket = function($pcsField, $qtyField) use ($pcsPerCtn) {
@@ -702,17 +710,23 @@ if ($action === 'get_balances') {
             $cbSec     = $obSec + $inSec - $outSec + $adjSec;
 
             // For Fittings: ensure Carton (Primary) and Pcs (Secondary) are mathematically synchronized based on Chart of Inventory Pcs/Carton
+            $wtPerPc = floatval($unitDef['weight_per_pc'] ?? 0);
+            $kgPerCtn = floatval($unitDef['kg_per_ctn'] ?? 0);
+            $obKg = $obSec; $inKg = $inSec; $outKg = $outSec; $adjKg = $adjSec; $cbKg = $cbSec;
+
             if ($groupName === 'Fittings') {
-                $fPcsPerCtn = floatval($unitDef['pcs_per_ctn'] ?? 0);
-                if ($fPcsPerCtn <= 0) $fPcsPerCtn = floatval($item['qty_per_piece'] ?? 0);
-                if ($fPcsPerCtn <= 0) $fPcsPerCtn = floatval($item['carton'] ?? 0);
-                if ($fPcsPerCtn > 0) {
-                    if ($cbSec != 0) {
-                        $cbPrimary = round($cbSec / $fPcsPerCtn, 2);
-                    } elseif ($cbPrimary != 0) {
-                        $cbSec = round($cbPrimary * $fPcsPerCtn, 2);
-                    }
+                $fPcsPerCtn = max(1, floatval($unitDef['pcs_per_ctn'] ?? 1));
+                if ($cbSec != 0) {
+                    $cbPrimary = round($cbSec / $fPcsPerCtn, 2);
+                } elseif ($cbPrimary != 0) {
+                    $cbSec = round($cbPrimary * $fPcsPerCtn, 2);
                 }
+
+                $obKg  = ($wtPerPc > 0) ? round($obSec * $wtPerPc, 2) : 0.0;
+                $inKg  = ($wtPerPc > 0) ? round($inSec * $wtPerPc, 2) : 0.0;
+                $outKg = ($wtPerPc > 0) ? round($outSec * $wtPerPc, 2) : 0.0;
+                $adjKg = ($wtPerPc > 0) ? round($adjSec * $wtPerPc, 2) : 0.0;
+                $cbKg  = ($wtPerPc > 0) ? round($cbSec * $wtPerPc, 2) : 0.0;
             }
 
             // Apply stock_status filter
@@ -745,8 +759,10 @@ if ($action === 'get_balances') {
                 'primary_unit' => $unitDef['primary_unit'],
                 'secondary_unit' => $unitDef['secondary_unit'],
                 'qty_per_piece' => floatval($item['qty_per_piece'] ?? 0),
-                'pcs_per_ctn' => floatval($unitDef['pcs_per_ctn'] ?? ($item['qty_per_piece'] ?? ($item['carton'] ?? 0))),
-                'carton' => floatval($item['carton'] ?? 0),
+                'pcs_per_ctn' => floatval($unitDef['pcs_per_ctn'] ?? 0),
+                'weight_per_pc' => round($wtPerPc, 3),
+                'kg_per_ctn' => round($kgPerCtn, 2),
+                'carton' => $item['carton'] ?? '',
                 'min_stock' => $minStock,
                 'is_low_stock' => $isLowStock,
                 'is_negative' => $isNegative,
@@ -761,14 +777,19 @@ if ($action === 'get_balances') {
                 // Multi-unit fields (used by Inventory Balance):
                 'ob_primary' => round($obPrimary, 2),
                 'ob_sec'     => round($obSec, 2),
+                'ob_kg'      => round($obKg, 2),
                 'in_primary' => round($inPrimary, 2),
                 'in_sec'     => round($inSec, 2),
+                'in_kg'      => round($inKg, 2),
                 'out_primary'=> round($outPrimary, 2),
                 'out_sec'    => round($outSec, 2),
+                'out_kg'     => round($outKg, 2),
                 'adj_primary'=> round($adjPrimary, 2),
                 'adj_sec'    => round($adjSec, 2),
+                'adj_kg'     => round($adjKg, 2),
                 'cb_primary' => round($cbPrimary, 2),
-                'cb_sec'     => round($cbSec, 2)
+                'cb_sec'     => round($cbSec, 2),
+                'cb_kg'      => round($cbKg, 2)
             ];
 
             $records[] = $itemRow;
@@ -780,6 +801,8 @@ if ($action === 'get_balances') {
                 $totalStockKg += $cbSec;
             } elseif ($groupName === 'Fittings') {
                 $totalStockCtn += $cbPrimary;
+                $totalStockPcs += $cbSec;
+                $totalStockKg += $cbKg;
             } elseif ($groupName === 'Raw Material') {
                 $totalStockBags += $cbPrimary;
                 $totalStockKg += $cbSec;
@@ -797,11 +820,11 @@ if ($action === 'get_balances') {
                     'group_name' => $groupName,
                     'items' => [],
                     'subtotal' => [
-                        'ob_primary' => 0, 'ob_sec' => 0,
-                        'in_primary' => 0, 'in_sec' => 0,
-                        'out_primary' => 0, 'out_sec' => 0,
-                        'adj_primary' => 0, 'adj_sec' => 0,
-                        'cb_primary' => 0, 'cb_sec' => 0
+                        'ob_primary' => 0, 'ob_sec' => 0, 'ob_kg' => 0,
+                        'in_primary' => 0, 'in_sec' => 0, 'in_kg' => 0,
+                        'out_primary' => 0, 'out_sec' => 0, 'out_kg' => 0,
+                        'adj_primary' => 0, 'adj_sec' => 0, 'adj_kg' => 0,
+                        'cb_primary' => 0, 'cb_sec' => 0, 'cb_kg' => 0
                     ]
                 ];
             }
@@ -809,26 +832,36 @@ if ($action === 'get_balances') {
             $categoryGroups[$groupName]['items'][] = $itemRow;
             $categoryGroups[$groupName]['subtotal']['ob_primary'] += $itemRow['ob_primary'];
             $categoryGroups[$groupName]['subtotal']['ob_sec']     += $itemRow['ob_sec'];
+            $categoryGroups[$groupName]['subtotal']['ob_kg']      += $itemRow['ob_kg'];
             $categoryGroups[$groupName]['subtotal']['in_primary'] += $itemRow['in_primary'];
             $categoryGroups[$groupName]['subtotal']['in_sec']     += $itemRow['in_sec'];
+            $categoryGroups[$groupName]['subtotal']['in_kg']      += $itemRow['in_kg'];
             $categoryGroups[$groupName]['subtotal']['out_primary']+= $itemRow['out_primary'];
             $categoryGroups[$groupName]['subtotal']['out_sec']    += $itemRow['out_sec'];
+            $categoryGroups[$groupName]['subtotal']['out_kg']     += $itemRow['out_kg'];
             $categoryGroups[$groupName]['subtotal']['adj_primary']+= $itemRow['adj_primary'];
             $categoryGroups[$groupName]['subtotal']['adj_sec']    += $itemRow['adj_sec'];
+            $categoryGroups[$groupName]['subtotal']['adj_kg']     += $itemRow['adj_kg'];
             $categoryGroups[$groupName]['subtotal']['cb_primary'] += $itemRow['cb_primary'];
             $categoryGroups[$groupName]['subtotal']['cb_sec']     += $itemRow['cb_sec'];
+            $categoryGroups[$groupName]['subtotal']['cb_kg']      += $itemRow['cb_kg'];
 
             // Grand Total Accumulation
             $grandTotal['ob_primary'] += $itemRow['ob_primary'];
             $grandTotal['ob_sec']     += $itemRow['ob_sec'];
+            $grandTotal['ob_kg']      += $itemRow['ob_kg'];
             $grandTotal['in_primary'] += $itemRow['in_primary'];
             $grandTotal['in_sec']     += $itemRow['in_sec'];
+            $grandTotal['in_kg']      += $itemRow['in_kg'];
             $grandTotal['out_primary']+= $itemRow['out_primary'];
             $grandTotal['out_sec']    += $itemRow['out_sec'];
+            $grandTotal['out_kg']     += $itemRow['out_kg'];
             $grandTotal['adj_primary']+= $itemRow['adj_primary'];
             $grandTotal['adj_sec']    += $itemRow['adj_sec'];
+            $grandTotal['adj_kg']     += $itemRow['adj_kg'];
             $grandTotal['cb_primary'] += $itemRow['cb_primary'];
             $grandTotal['cb_sec']     += $itemRow['cb_sec'];
+            $grandTotal['cb_kg']      += $itemRow['cb_kg'];
         }
 
         // Format summary totals
