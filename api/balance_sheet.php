@@ -1179,12 +1179,74 @@ try {
                     }
                 }
 
+                // Production Costing Formula Rates & Overhead Allocation by Brand / Category
+                $brandCostPerKgMap = [];
+                $brandCostByNameMap = [];
+                try {
+                    $stmtFormulas = $pdo->prepare("
+                        SELECT f.category_id, f.formula_name, f.total_qty, f.total_amount, m.name as category_name
+                        FROM formulas f
+                        LEFT JOIN inv_main_categories m ON f.category_id = m.id
+                        WHERE (f.company_id = ? OR f.company_id = 1 OR f.company_id IS NULL)
+                          AND f.is_cancelled = 0 AND f.is_posted = 1
+                        ORDER BY f.date DESC, f.id DESC
+                    ");
+                    $stmtFormulas->execute([$company_id]);
+                    while ($fRow = $stmtFormulas->fetch(PDO::FETCH_ASSOC)) {
+                        $cId = intval($fRow['category_id'] ?? 0);
+                        $fQty = floatval($fRow['total_qty'] ?? 0);
+                        $fAmt = floatval($fRow['total_amount'] ?? 0);
+                        if ($fQty > 0 && $fAmt > 0) {
+                            $fRate = round($fAmt / $fQty, 2);
+                            if ($cId > 0 && !isset($brandCostPerKgMap[$cId])) {
+                                $brandCostPerKgMap[$cId] = $fRate;
+                            }
+                            $cNameL = strtolower(trim($fRow['category_name'] ?? ''));
+                            if ($cNameL && !isset($brandCostByNameMap[$cNameL])) {
+                                $brandCostByNameMap[$cNameL] = $fRate;
+                            }
+                            $fNameL = strtolower(trim($fRow['formula_name'] ?? ''));
+                            if ($fNameL && !isset($brandCostByNameMap[$fNameL])) {
+                                $brandCostByNameMap[$fNameL] = $fRate;
+                            }
+                        }
+                    }
+                } catch(Exception $eForm) {}
+
+                // Check mfg_monthly_wip for month-end production per-kg cost and conversion overheads
+                $mfgMonthlyCostPerKg = 0.0;
+                try {
+                    $stmtWipPerKg = $pdo->prepare("
+                        SELECT per_kg_cost, electricity_cost, labor_cost, overhead_cost, finished_prod_qty
+                        FROM mfg_monthly_wip 
+                        WHERE (company_id = ? OR company_id = 1) AND ((year < ?) OR (year = ? AND month <= ?))
+                        ORDER BY year DESC, month DESC LIMIT 1
+                    ");
+                    $stmtWipPerKg->execute([$company_id, $targetYear, $targetYear, $targetMonthNum]);
+                    $wipPerKgRow = $stmtWipPerKg->fetch(PDO::FETCH_ASSOC);
+                    if ($wipPerKgRow) {
+                        $mfgMonthlyCostPerKg = floatval($wipPerKgRow['per_kg_cost'] ?? 0);
+                        $finQty = floatval($wipPerKgRow['finished_prod_qty'] ?? 0);
+                        $totOvh = floatval($wipPerKgRow['electricity_cost'] ?? 0) + floatval($wipPerKgRow['labor_cost'] ?? 0) + floatval($wipPerKgRow['overhead_cost'] ?? 0);
+                        $ovhPerKg = ($finQty > 0) ? ($totOvh / $finQty) : 0;
+                        if ($ovhPerKg > 0) {
+                            foreach ($brandCostPerKgMap as $bCid => $bRate) {
+                                $brandCostPerKgMap[$bCid] = round($bRate + $ovhPerKg, 2);
+                            }
+                            foreach ($brandCostByNameMap as $bNm => $bRate) {
+                                $brandCostByNameMap[$bNm] = round($bRate + $ovhPerKg, 2);
+                            }
+                        }
+                    }
+                } catch(Exception $eWipKg) {}
+
                 // Fetch active items
                 $stmtItems = $pdo->prepare("
                     SELECT i.id, i.code, i.name, i.unit, COALESCE(i.purchase_price, 0) as purchase_price,
                            COALESCE(i.selling_price, 0) as selling_price, COALESCE(i.valuation_cost, 0) as valuation_cost,
                            COALESCE(i.unit_weight, 0) as unit_weight, COALESCE(i.qty_per_piece, 0) as qty_per_piece,
                            COALESCE(i.carton, 0) as carton,
+                           COALESCE(s.main_id, 0) as main_category_id,
                            m.name as main_category, m.category_type, s.name as sub_category
                     FROM inv_items i
                     LEFT JOIN inv_sub_categories s ON i.sub_id = s.id
@@ -1218,30 +1280,68 @@ try {
                         if ($rate <= 0) $rate = $avgRawRatePerKg;
                     } else {
                         // Finished Goods (Pipes, Fittings, Others)
-                        $rate = $pnRateMap[$id] ?? ($siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price'])));
+                        $catId = intval($it['main_category_id'] ?? 0);
+                        $catNameLow = strtolower(trim($it['main_category'] ?? ''));
+                        $unit = strtoupper(trim($it['unit'] ?? ''));
+
+                        // Calculate weight in KG for unit
+                        $uWt = floatval($it['unit_weight'] ?? 0);
+                        if ($uWt <= 0) $uWt = floatval($it['qty_per_piece'] ?? 0);
+                        if ($uWt <= 0 && preg_match('/(\d+(?:\.\d+)?)\s*kg/i', $it['name'], $mMatch)) {
+                            $uWt = floatval($mMatch[1]);
+                        }
+                        if ($uWt <= 0) {
+                            $nu = strtoupper($it['name']);
+                            if (strpos($nu, '4"') !== false) $uWt = 0.400;
+                            elseif (strpos($nu, '3"') !== false) $uWt = 0.300;
+                            elseif (strpos($nu, '2"') !== false) $uWt = 0.200;
+                            elseif (strpos($nu, '1.5"') !== false) $uWt = 0.150;
+                            elseif (strpos($nu, '1.25"') !== false) $uWt = 0.125;
+                            elseif (strpos($nu, '1"') !== false) $uWt = 0.100;
+                        }
+
+                        // PRIORITY 1: Production Costing Formula Rate by Brand / Category
+                        $brandRatePerKg = 0.0;
+                        if ($catId > 0 && isset($brandCostPerKgMap[$catId])) {
+                            $brandRatePerKg = $brandCostPerKgMap[$catId];
+                        } elseif ($catNameLow && isset($brandCostByNameMap[$catNameLow])) {
+                            $brandRatePerKg = $brandCostByNameMap[$catNameLow];
+                        } else {
+                            // Check if brand name matches formula name (e.g. "master", "seastone")
+                            foreach ($brandCostByNameMap as $bKey => $bVal) {
+                                if ($bKey && (strpos($catNameLow, $bKey) !== false || strpos($iName, $bKey) !== false)) {
+                                    $brandRatePerKg = $bVal;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ($brandRatePerKg <= 0 && $mfgMonthlyCostPerKg > 0) {
+                            $brandRatePerKg = $mfgMonthlyCostPerKg;
+                        }
+
+                        if ($brandRatePerKg > 0) {
+                            if ($unit === 'KG' || $unit === 'KGS') {
+                                $rate = $brandRatePerKg;
+                            } else {
+                                // For items in pieces/cartons: cost per piece = uWt * brandRatePerKg
+                                $rate = ($uWt > 0) ? round($uWt * $brandRatePerKg, 2) : $brandRatePerKg;
+                            }
+                        }
+
+                        // PRIORITY 2 (Fallback): Production Note recorded rate
+                        if ($rate <= 0) {
+                            $rate = $pnRateMap[$id] ?? 0.0;
+                        }
+
+                        // PRIORITY 3 (Fallback): Sales Invoice / Opening Balance / Purchase Price
+                        if ($rate <= 0) {
+                            $rate = $siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price']));
+                        }
                         if ($rate <= 0 && !empty($it['valuation_cost'])) $rate = floatval($it['valuation_cost']);
                         if ($rate <= 0 && !empty($it['selling_price'])) $rate = floatval($it['selling_price']);
                         if ($rate <= 0 && $avgRawRatePerKg > 0) {
-                            // Weight-based compound cost
-                            $wt = floatval($it['unit_weight'] ?? 0);
-                            if ($wt <= 0) $wt = floatval($it['qty_per_piece'] ?? 0);
-                            if ($wt <= 0 && preg_match('/(\d+(?:\.\d+)?)\s*kg/i', $it['name'], $mMatch)) {
-                                $wt = floatval($mMatch[1]);
-                            }
-                            if ($wt <= 0) {
-                                $nu = strtoupper($it['name']);
-                                if (strpos($nu, '4"') !== false) $wt = 0.400;
-                                elseif (strpos($nu, '3"') !== false) $wt = 0.300;
-                                elseif (strpos($nu, '2"') !== false) $wt = 0.200;
-                                elseif (strpos($nu, '1.5"') !== false) $wt = 0.150;
-                                elseif (strpos($nu, '1.25"') !== false) $wt = 0.125;
-                                elseif (strpos($nu, '1"') !== false) $wt = 0.100;
-                            }
-                            if ($wt > 0) {
-                                $rate = round($wt * $avgRawRatePerKg, 2);
-                            } else {
-                                $rate = $avgRawRatePerKg;
-                            }
+                            $rate = ($uWt > 0) ? round($uWt * $avgRawRatePerKg, 2) : $avgRawRatePerKg;
                         }
                     }
 
