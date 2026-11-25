@@ -669,3 +669,91 @@ function ensurePosBranchWarehouseSchema($pdo) {
 if (isset($pdo)) {
     ensurePosBranchWarehouseSchema($pdo);
 }
+
+/**
+ * Resolves active Inventory / Balance Sheet tax valuation mode ('tax' = Excl. Tax, 'non_tax' = Full Net).
+ * Checks explicit parameter first, then saved company settings, then posted purchase tax usage.
+ */
+function resolveInventoryTaxMode($pdo, $company_id, $explicitMode = null) {
+    if ($explicitMode !== null && $explicitMode !== '') {
+        $norm = strtolower(trim((string)$explicitMode));
+        if (in_array($norm, ['tax', 'excl_tax', 'excl', '1', 'true'], true)) {
+            return 'tax';
+        }
+        if (in_array($norm, ['non_tax', 'incl_tax', 'incl', '0', 'false'], true)) {
+            return 'non_tax';
+        }
+    }
+
+    if (!$pdo) {
+        return 'non_tax';
+    }
+
+    $cid = intval($company_id ?: 1);
+    $settings = [];
+    try {
+        $stmt = $pdo->prepare("
+            SELECT setting_key, setting_value
+            FROM settings
+            WHERE company_id IN (0, ?)
+              AND setting_key IN ('balance_sheet_tax_mode', 'default_purchase_invoice', 'default_sale_invoice')
+            ORDER BY (company_id = ?) ASC, id ASC
+        ");
+        $stmt->execute([$cid, $cid]);
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $settings[$row['setting_key']] = strtolower(trim((string)$row['setting_value']));
+        }
+    } catch (Exception $e) {}
+
+    if (!empty($settings['balance_sheet_tax_mode'])) {
+        return ($settings['balance_sheet_tax_mode'] === 'tax') ? 'tax' : 'non_tax';
+    }
+
+    if (($settings['default_purchase_invoice'] ?? '') === 'tax' ||
+        in_array(($settings['default_sale_invoice'] ?? ''), ['tax', 'digital'], true)) {
+        return 'tax';
+    }
+
+    try {
+        $chkTax = $pdo->prepare("
+            SELECT 1
+            FROM purchase_invoices pi
+            JOIN purchase_invoice_items pii ON pii.invoice_id = pi.id
+            WHERE pi.company_id = ? AND pi.is_cancelled = 0 AND pi.is_posted = 1
+              AND (pi.is_tax_invoice = 1 OR COALESCE(pii.sales_tax_amount, 0) > 0 OR COALESCE(pii.further_tax_amount, 0) > 0)
+            LIMIT 1
+        ");
+        $chkTax->execute([$cid]);
+        if ($chkTax->fetchColumn()) {
+            return 'tax';
+        }
+    } catch (Exception $e) {}
+
+    return 'non_tax';
+}
+
+/**
+ * Returns the SQL expression for a line item's valuation amount under the active tax mode.
+ *
+ * @param string $alias SQL table alias (e.g. 'pii', 'pri', 'sri', 'sii')
+ * @param string $taxMode 'tax' (Excl. Tax) or 'non_tax' (Full Net / Incl.)
+ * @param string $schemaType 'standard' (net_amount + sales_tax_amount + further_tax_amount) or 'purchase_return'
+ * @param string $qtyCol Quantity column name
+ */
+function invLineAmountSql($alias, $taxMode = 'tax', $schemaType = 'standard', $qtyCol = 'quantity') {
+    $a = preg_replace('/[^a-zA-Z0-9_]/', '', $alias);
+    $q = preg_replace('/[^a-zA-Z0-9_]/', '', $qtyCol);
+    $isTax = ($taxMode === 'tax');
+
+    if ($schemaType === 'purchase_return') {
+        if ($isTax) {
+            return "COALESCE(NULLIF({$a}.value_excl_tax, 0), CASE WHEN COALESCE({$a}.value_incl_tax, 0) > 0 THEN GREATEST(0, {$a}.value_incl_tax - COALESCE({$a}.tax_amount, 0) - COALESCE({$a}.further_tax_amount, 0)) ELSE COALESCE({$a}.{$q} * {$a}.rate, 0) END, 0)";
+        }
+        return "COALESCE(NULLIF({$a}.value_incl_tax, 0), NULLIF({$a}.value_excl_tax, 0), {$a}.{$q} * {$a}.rate, 0)";
+    }
+
+    if ($isTax) {
+        return "CASE WHEN COALESCE({$a}.net_amount, 0) > 0 THEN GREATEST(0, {$a}.net_amount - COALESCE({$a}.sales_tax_amount, 0) - COALESCE({$a}.further_tax_amount, 0)) ELSE COALESCE({$a}.{$q} * {$a}.rate, 0) END";
+    }
+    return "COALESCE(NULLIF({$a}.net_amount, 0), {$a}.{$q} * {$a}.rate, 0)";
+}

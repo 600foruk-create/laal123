@@ -59,6 +59,7 @@ switch ($action) {
             'backup_override_code' => '',
             'default_sale_invoice' => 'non_tax',
             'default_purchase_invoice' => 'non_tax',
+            'balance_sheet_tax_mode' => 'non_tax',
             'default_min_mode' => 'job',
             'negative_stock_policy' => 'allow',
             'inventory_closing_policy' => 'continuous',

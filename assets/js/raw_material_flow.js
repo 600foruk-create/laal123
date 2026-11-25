@@ -321,6 +321,17 @@
             const headerDisplay = document.getElementById('rmfHeaderPeriodDisplay');
             if (headerDisplay) headerDisplay.textContent = summary.current_period_label || '';
 
+            const taxBadge = document.getElementById('rmfTaxModeBadge');
+            if (taxBadge) {
+                if (data.tax_mode_label) {
+                    taxBadge.textContent = (data.tax_mode === 'tax') ? 'Valuation: Excl. Tax' : 'Valuation: Non-Tax';
+                    taxBadge.title = data.tax_mode_label;
+                    taxBadge.style.display = 'inline-block';
+                } else {
+                    taxBadge.style.display = 'none';
+                }
+            }
+
             const thOpening = document.getElementById('rmfThOpeningPeriod');
             if (thOpening) thOpening.textContent = `(From ${summary.prev_period_label || ''} Closing)`;
 
@@ -510,6 +521,7 @@
             const period = document.getElementById('rmfHeaderPeriodDisplay')?.textContent || 'Statement';
             const unit = document.getElementById('rmfViewUnit')?.value || 'base';
             const costing = document.getElementById('rmfCostingMethod')?.value || 'average_cost';
+            const taxBasis = this.data.lastReportData?.tax_mode_label || '';
 
             const html = table.outerHTML;
             const blob = new Blob([
@@ -522,7 +534,7 @@
                 <body>
                     <h2>${this.data.companyName}</h2>
                     <h3>Inventory &amp; Material Flow at Average Cost – Monthly (${period})</h3>
-                    <div>Unit: ${unit.toUpperCase()} | Costing Method: ${costing}</div>
+                    <div>Unit: ${unit.toUpperCase()} | Costing Method: ${costing}${taxBasis ? ` | Tax Rule: ${taxBasis}` : ''}</div>
                     ${html}
                 </body>
                 </html>
@@ -596,6 +608,8 @@
 
             const supEl = document.getElementById('rmfSupplier');
             const supLabel = supEl?.options[supEl.selectedIndex]?.text || 'All';
+
+            const taxBasisLabel = this.data.lastReportData?.tax_mode_label || 'Auto';
 
             // Contact rows
             let contactParts = [];
@@ -934,6 +948,7 @@
         <div><strong>Category:</strong> ${catLabel}</div>
         <div><strong>Item / Product:</strong> ${rmLabel}</div>
         <div><strong>Supplier:</strong> ${supLabel}</div>
+        <div><strong>Valuation Basis:</strong> ${taxBasisLabel}</div>
     </div>
 
     <!-- Main Table -->
