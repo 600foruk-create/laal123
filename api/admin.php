@@ -236,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $sess_role = strtoupper(trim($_GET['role'] ?? ($_SESSION['role'] ?? '')));
             $sess_branch = intval($_GET['branch_id'] ?? ($_SESSION['branch_id'] ?? 0));
             if ($sess_role === 'POS' && $sess_branch > 0) {
-                $bSql = " AND inventory_location_id = " . $sess_branch;
+                $bSql = " AND COALESCE(branch_id, inventory_location_id) = " . $sess_branch;
             }
             $stmt = $pdo->prepare("SELECT SUM(CASE WHEN DATE(invoice_date) = ? THEN 1 ELSE 0 END) as new_inv, SUM(CASE WHEN DATE(invoice_date) = ? THEN net_total ELSE 0 END) as today_sales FROM sale_invoices WHERE company_id = ? AND is_cancelled = 0" . $bSql);
             $stmt->execute([$report_date ?: date('Y-m-d'), $report_date ?: date('Y-m-d'), $company_id]);
@@ -273,7 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $posCond = "company_id = ? AND is_cancelled = 0 AND (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != ''))";
                 $posParams = [$company_id];
                 if ($sess_role === 'POS' && $sess_branch > 0) {
-                    $posCond .= " AND inventory_location_id = ?";
+                    $posCond .= " AND COALESCE(branch_id, inventory_location_id) = ?";
                     $posParams[] = $sess_branch;
                 }
                 $posParams[] = $targetDate;
@@ -306,7 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     $retWhere = ["company_id = ?", "is_cancelled = 0", "DATE(return_date) = ?"];
                     $retParams = [$company_id, $targetDate];
                     if ($sess_role === 'POS' && $sess_branch > 0) {
-                        $retWhere[] = "inventory_location_id = ?";
+                        $retWhere[] = "COALESCE(branch_id, inventory_location_id) = ?";
                         $retParams[] = $sess_branch;
                     }
 

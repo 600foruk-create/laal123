@@ -446,3 +446,226 @@ function verifyAndUpgradePassword($inputPassword, $storedPassword, $userId, $pdo
     
     return false;
 }
+
+/**
+ * Resolve the inventory warehouse ID (inv_locations.id) for a POS branch.
+ * Prefers the branch's configured default_warehouse_id, falling back to the
+ * company's default warehouse in inv_locations.
+ */
+function resolveBranchWarehouseId($pdo, $company_id, $branch_id = 0) {
+    $company_id = intval($company_id);
+    $branch_id = intval($branch_id);
+    try {
+        if ($branch_id > 0) {
+            $stmt = $pdo->prepare("SELECT default_warehouse_id FROM company_branches WHERE id = ? AND company_id = ?");
+            $stmt->execute([$branch_id, $company_id]);
+            $whId = intval($stmt->fetchColumn() ?: 0);
+            if ($whId > 0) {
+                $chk = $pdo->prepare("SELECT id FROM inv_locations WHERE id = ? AND company_id = ? LIMIT 1");
+                $chk->execute([$whId, $company_id]);
+                if ($chk->fetchColumn()) {
+                    return $whId;
+                }
+            }
+        }
+        $defStmt = $pdo->prepare("SELECT id FROM inv_locations WHERE company_id = ? ORDER BY is_default DESC, id ASC LIMIT 1");
+        $defStmt->execute([$company_id]);
+        $defId = $defStmt->fetchColumn();
+        return $defId ? intval($defId) : null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+/**
+ * One-time idempotent migration separating sale_invoices.branch_id and
+ * sale_returns.branch_id from inventory_location_id (warehouse ID) for POS.
+ */
+function ensurePosBranchWarehouseSchema($pdo) {
+    if (!$pdo) return;
+    static $checkedInRequest = false;
+    $force = (isset($_GET['force_migrate']) && $_GET['force_migrate'] === '1');
+    if ($checkedInRequest && !$force) {
+        return;
+    }
+    $checkedInRequest = true;
+
+    global $db;
+    $dbPrefix = !empty($db) ? preg_replace('/[^a-zA-Z0-9_-]/', '_', $db) . '_' : '';
+    $cacheDir = __DIR__ . '/../storage';
+    $lockFile = $cacheDir . '/schema_' . $dbPrefix . 'pos_branch_warehouse_sep_v1.lock';
+    if (!$force && file_exists($lockFile)) {
+        return;
+    }
+
+    try {
+        $hasSi = (bool)$pdo->query("SHOW TABLES LIKE 'sale_invoices'")->fetchColumn();
+        $hasSr = (bool)$pdo->query("SHOW TABLES LIKE 'sale_returns'")->fetchColumn();
+        if (!$hasSi && !$hasSr) {
+            return;
+        }
+
+        $companyDefWh = [];
+        $branchWhMap = [];
+        $validWh = [];
+        try {
+            $hasLoc = (bool)$pdo->query("SHOW TABLES LIKE 'inv_locations'")->fetchColumn();
+            if ($hasLoc) {
+                $locRows = $pdo->query("SELECT id, company_id, is_default FROM inv_locations ORDER BY company_id ASC, is_default DESC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($locRows as $lr) {
+                    $cid = intval($lr['company_id']);
+                    $lid = intval($lr['id']);
+                    $validWh[$cid][$lid] = true;
+                    if (!isset($companyDefWh[$cid])) {
+                        $companyDefWh[$cid] = $lid;
+                    }
+                }
+            }
+            $hasBranches = (bool)$pdo->query("SHOW TABLES LIKE 'company_branches'")->fetchColumn();
+            if ($hasBranches) {
+                $bRows = $pdo->query("SELECT id, company_id, default_warehouse_id FROM company_branches")->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($bRows as $br) {
+                    $cid = intval($br['company_id']);
+                    $bid = intval($br['id']);
+                    $wh = intval($br['default_warehouse_id'] ?? 0);
+                    if ($wh > 0 && !empty($validWh[$cid][$wh])) {
+                        $branchWhMap[$cid][$bid] = $wh;
+                    } else {
+                        $branchWhMap[$cid][$bid] = $companyDefWh[$cid] ?? null;
+                    }
+                }
+            }
+        } catch (Exception $eMap) {}
+
+        if ($hasSi) {
+            $siCols = $pdo->query("SHOW COLUMNS FROM sale_invoices")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('branch_id', $siCols)) {
+                try {
+                    $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN branch_id INT NULL AFTER inventory_location_id, ADD INDEX idx_si_branch_id (branch_id)");
+                } catch (Exception $eAlt) {
+                    try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN branch_id INT NULL"); } catch (Exception $eAlt2) {}
+                }
+            }
+
+            $pdo->exec("
+                UPDATE sale_invoices
+                SET branch_id = inventory_location_id
+                WHERE (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != ''))
+                  AND branch_id IS NULL
+                  AND inventory_location_id IS NOT NULL
+                  AND inventory_location_id > 0
+            ");
+
+            $posPairs = $pdo->query("
+                SELECT DISTINCT company_id, branch_id
+                FROM sale_invoices
+                WHERE (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != ''))
+                  AND branch_id IS NOT NULL
+                  AND branch_id > 0
+                  AND inventory_location_id = branch_id
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            if (!empty($posPairs)) {
+                $updSi = $pdo->prepare("
+                    UPDATE sale_invoices
+                    SET inventory_location_id = ?
+                    WHERE company_id = ?
+                      AND branch_id = ?
+                      AND inventory_location_id = branch_id
+                      AND (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != ''))
+                ");
+                foreach ($posPairs as $pair) {
+                    $cid = intval($pair['company_id']);
+                    $bid = intval($pair['branch_id']);
+                    $targetWh = $branchWhMap[$cid][$bid] ?? ($companyDefWh[$cid] ?? null);
+                    $updSi->execute([$targetWh, $cid, $bid]);
+                }
+            }
+        }
+
+        if ($hasSr) {
+            $srCols = $pdo->query("SHOW COLUMNS FROM sale_returns")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('branch_id', $srCols)) {
+                try {
+                    $pdo->exec("ALTER TABLE sale_returns ADD COLUMN branch_id INT NULL AFTER inventory_location_id, ADD INDEX idx_sr_branch_id (branch_id)");
+                } catch (Exception $eAlt) {
+                    try { $pdo->exec("ALTER TABLE sale_returns ADD COLUMN branch_id INT NULL"); } catch (Exception $eAlt2) {}
+                }
+            }
+
+            $srCols = $pdo->query("SHOW COLUMNS FROM sale_returns")->fetchAll(PDO::FETCH_COLUMN);
+            $srPosParts = [];
+            if (in_array('pos_return_no', $srCols)) $srPosParts[] = "(pos_return_no IS NOT NULL AND pos_return_no != '')";
+            $srPosParts[] = "nature_of_credit_note = 'Sale Return (POS)'";
+            if (in_array('pos_invoice_id', $srCols)) $srPosParts[] = "(pos_invoice_id IS NOT NULL AND pos_invoice_id > 0)";
+            $srPosSql = '(' . implode(' OR ', $srPosParts) . ')';
+
+            $hasStockCond = in_array('stock_condition', $srCols);
+            $resalableCond = $hasStockCond ? "(stock_condition = 'Resalable' OR stock_condition IS NULL OR stock_condition = '')" : "1=1";
+
+            $pdo->exec("
+                UPDATE sale_returns
+                SET branch_id = inventory_location_id
+                WHERE {$srPosSql}
+                  AND {$resalableCond}
+                  AND branch_id IS NULL
+                  AND inventory_location_id IS NOT NULL
+                  AND inventory_location_id > 0
+            ");
+
+            if ($hasStockCond && in_array('pos_invoice_id', $srCols) && $hasSi) {
+                try {
+                    $pdo->exec("
+                        UPDATE sale_returns sr
+                        JOIN sale_invoices si ON sr.pos_invoice_id = si.id
+                        SET sr.branch_id = si.branch_id
+                        WHERE sr.branch_id IS NULL
+                          AND si.branch_id IS NOT NULL
+                          AND sr.stock_condition IS NOT NULL
+                          AND sr.stock_condition != ''
+                          AND sr.stock_condition != 'Resalable'
+                    ");
+                } catch (Exception $eDmg) {}
+            }
+
+            $srPairs = $pdo->query("
+                SELECT DISTINCT company_id, branch_id
+                FROM sale_returns
+                WHERE {$srPosSql}
+                  AND {$resalableCond}
+                  AND branch_id IS NOT NULL
+                  AND branch_id > 0
+                  AND inventory_location_id = branch_id
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            if (!empty($srPairs)) {
+                $updSr = $pdo->prepare("
+                    UPDATE sale_returns
+                    SET inventory_location_id = ?
+                    WHERE company_id = ?
+                      AND branch_id = ?
+                      AND inventory_location_id = branch_id
+                      AND {$srPosSql}
+                      AND {$resalableCond}
+                ");
+                foreach ($srPairs as $pair) {
+                    $cid = intval($pair['company_id']);
+                    $bid = intval($pair['branch_id']);
+                    $targetWh = $branchWhMap[$cid][$bid] ?? ($companyDefWh[$cid] ?? null);
+                    $updSr->execute([$targetWh, $cid, $bid]);
+                }
+            }
+        }
+
+        if ($hasSi && $hasSr) {
+            if (!is_dir($cacheDir)) {
+                @mkdir($cacheDir, 0755, true);
+            }
+            @file_put_contents($lockFile, date('Y-m-d H:i:s'));
+        }
+    } catch (Exception $e) {
+        error_log("POS Branch/Warehouse migration error: " . $e->getMessage());
+    }
+}
+
+if (isset($pdo)) {
+    ensurePosBranchWarehouseSchema($pdo);
+}

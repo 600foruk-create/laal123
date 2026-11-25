@@ -225,8 +225,9 @@ window.POSReturnModule = {
             if (branchFooter) branchFooter.textContent = inv.branch_name || 'Active POS';
 
             // Sync branch-based return number series
-            if (inv.inventory_location_id) {
-                this.fetchNextReturnNo(inv.inventory_location_id);
+            const invBranchId = inv.branch_id || inv.inventory_location_id;
+            if (invBranchId) {
+                this.fetchNextReturnNo(invBranchId);
             }
 
             // Render Items Table
@@ -516,7 +517,7 @@ window.POSReturnModule = {
             remarks: document.getElementById('pos_ret_remarks').value,
             branch_id: (() => {
                 const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
-                return (session.role === 'POS' && session.branch_id) ? session.branch_id : (this.currentInvoice?.inventory_location_id || null);
+                return (session.role === 'POS' && session.branch_id) ? session.branch_id : (this.currentInvoice?.branch_id || this.currentInvoice?.inventory_location_id || null);
             })(),
             items: itemsToReturn
         };

@@ -86,7 +86,7 @@ try {
         $params = [$company_id];
 
         if ($branch_id) {
-            $where[] = "si.inventory_location_id = ?";
+            $where[] = "COALESCE(si.branch_id, si.inventory_location_id) = ?";
             $params[] = $branch_id;
         }
         if (!empty($from_date)) {
@@ -140,7 +140,7 @@ try {
         $retWhere = ["sr.company_id = ?", "sr.is_cancelled = 0"];
         $retParams = [$company_id];
         if ($branch_id) {
-            $retWhere[] = "sr.inventory_location_id = ?";
+            $retWhere[] = "COALESCE(sr.branch_id, sr.inventory_location_id) = ?";
             $retParams[] = $branch_id;
         }
         if (!empty($from_date)) {
@@ -168,7 +168,7 @@ try {
                     DATE_FORMAT(si.invoice_date, '%Y-%m-%d') as formatted_time
                     FROM sale_invoices si
                     LEFT JOIN coa_list c ON si.customer_coa_id = c.id
-                    LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+                    LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
                     WHERE $whereClause
                     ORDER BY si.id DESC
                     LIMIT $limit OFFSET $offset";
@@ -196,7 +196,7 @@ try {
         $params = [$company_id];
 
         if ($branch_id) {
-            $where[] = "si.inventory_location_id = ?";
+            $where[] = "COALESCE(si.branch_id, si.inventory_location_id) = ?";
             $params[] = $branch_id;
         }
         if (!empty($from_date)) {
@@ -250,7 +250,7 @@ try {
                     c.name as customer_name, b.branch_name, 'Paid' as payment_status
                     FROM sale_invoices si
                     LEFT JOIN coa_list c ON si.customer_coa_id = c.id
-                    LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+                    LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
                     WHERE $whereClause
                     ORDER BY si.id DESC
                     LIMIT $limit OFFSET $offset";
@@ -350,7 +350,7 @@ try {
         $params = [$company_id];
 
         if ($branch_id) {
-            $where[] = "si.inventory_location_id = ?";
+            $where[] = "COALESCE(si.branch_id, si.inventory_location_id) = ?";
             $params[] = $branch_id;
         }
         if (!empty($from_date)) {
@@ -441,7 +441,7 @@ try {
         $params = [$company_id];
 
         if ($branch_id) {
-            $where[] = "sr.inventory_location_id = ?";
+            $where[] = "COALESCE(sr.branch_id, sr.inventory_location_id) = ?";
             $params[] = $branch_id;
         }
         if (!empty($from_date)) {
@@ -481,7 +481,7 @@ try {
                     sr.payment_terms, c.name as customer_name, b.branch_name
                     FROM sale_returns sr
                     LEFT JOIN coa_list c ON sr.customer_coa_id = c.id
-                    LEFT JOIN company_branches b ON sr.inventory_location_id = b.id
+                    LEFT JOIN company_branches b ON COALESCE(sr.branch_id, sr.inventory_location_id) = b.id
                     WHERE $whereClause
                     ORDER BY sr.id DESC
                     LIMIT $limit OFFSET $offset";
@@ -509,7 +509,7 @@ try {
         $params = [$company_id];
 
         if ($branch_id) {
-            $where[] = "si.inventory_location_id = ?";
+            $where[] = "COALESCE(si.branch_id, si.inventory_location_id) = ?";
             $params[] = $branch_id;
         }
         if (!empty($from_date)) {
@@ -564,7 +564,7 @@ try {
                     DATE_FORMAT(si.fbr_submitted_at, '%Y-%m-%d') as formatted_fbr_time
                     FROM sale_invoices si
                     LEFT JOIN coa_list c ON si.customer_coa_id = c.id
-                    LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+                    LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
                     WHERE $whereClause
                     ORDER BY si.id DESC
                     LIMIT $limit OFFSET $offset";
@@ -666,7 +666,7 @@ try {
         $params = [$company_id];
 
         if ($branch_id) {
-            $where[] = "si.inventory_location_id = ?";
+            $where[] = "COALESCE(si.branch_id, si.inventory_location_id) = ?";
             $params[] = $branch_id;
         }
         if (!empty($from_date)) {
@@ -681,7 +681,7 @@ try {
         $whereClause = implode(' AND ', $where);
 
         $sql = "SELECT 
-            si.inventory_location_id as branch_id,
+            COALESCE(si.branch_id, si.inventory_location_id) as branch_id,
             COALESCE(b.branch_name, 'Main Branch') as branch_name,
             COALESCE(si.remarks, 'Default') as cashier_name,
             COUNT(*) as total_invoices,
@@ -691,9 +691,9 @@ try {
             SUM(CASE WHEN si.payment_terms = 'Cash' THEN si.net_total ELSE 0 END) as cash_sales,
             SUM(CASE WHEN si.payment_terms != 'Cash' THEN si.net_total ELSE 0 END) as non_cash_sales
             FROM sale_invoices si
-            LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+            LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
             WHERE $whereClause
-            GROUP BY si.inventory_location_id, COALESCE(b.branch_name, 'Main Branch'), COALESCE(si.remarks, 'Default')
+            GROUP BY COALESCE(si.branch_id, si.inventory_location_id), COALESCE(b.branch_name, 'Main Branch'), COALESCE(si.remarks, 'Default')
             ORDER BY net_sales DESC";
 
         $stmt = $pdo->prepare($sql);

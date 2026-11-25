@@ -174,7 +174,7 @@ try {
         $invParams = [$company_id, $business_date];
 
         if ($branch_id) {
-            $invWhere[] = "inventory_location_id = ?";
+            $invWhere[] = "COALESCE(branch_id, inventory_location_id) = ?";
             $invParams[] = $branch_id;
         }
 
@@ -294,7 +294,7 @@ try {
         $retWhere = ["company_id = ?", "return_date = ?"];
         $retParams = [$company_id, $business_date];
         if ($branch_id) {
-            $retWhere[] = "inventory_location_id = ?";
+            $retWhere[] = "COALESCE(branch_id, inventory_location_id) = ?";
             $retParams[] = $branch_id;
         }
 

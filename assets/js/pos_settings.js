@@ -1709,11 +1709,18 @@ window.POSSettings = {
                             geoDisplay = `<span style="font-size: 11px; color: #64748b; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="No location restrictions"><i class="fas fa-globe" style="color: #94a3b8;"></i> Unrestricted</span>`;
                         }
 
+                        const whLabel = b.warehouse_name
+                            ? `<span style="font-size: 10.5px; color: #0369a1; font-weight: 600;"><i class="fas fa-warehouse" style="color: #0284c7;"></i> ${this.escapeHtml(b.warehouse_name)}</span>`
+                            : `<span style="font-size: 10.5px; color: #b45309;" title="No warehouse explicitly assigned; POS sales will use the company default warehouse."><i class="fas fa-warehouse" style="color: #d97706;"></i> Default Warehouse</span>`;
+
                         const safeBranchName = (b.branch_name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                         html += `
                             <tr style="border-bottom: 1px solid #eee;">
                                 <td style="padding: 8px;"><b>${b.branch_code}</b></td>
-                                <td style="padding: 8px;">${b.branch_name}</td>
+                                <td style="padding: 8px;">
+                                    <div>${b.branch_name}</div>
+                                    <div style="margin-top: 2px;">${whLabel}</div>
+                                </td>
                                 <td style="padding: 8px;">${hoursDisplay}</td>
                                 <td style="padding: 8px;">${geoDisplay}</td>
                                 <td style="padding: 8px;">${b.manager_name || '-'}</td>

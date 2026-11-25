@@ -120,6 +120,7 @@ try {
             $pdo->exec("ALTER TABLE sale_return_items ADD COLUMN `$col` $definition");
         }
     }
+    ensurePosBranchWarehouseSchema($pdo);
 } catch (Exception $e) {}
 
 

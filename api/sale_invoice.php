@@ -98,6 +98,7 @@ try {
     try { $pdo->exec("ALTER TABLE sale_invoices ADD COLUMN is_posted TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
     // Ensure POS invoices have serial_no = 0 to isolate from ERP Sale Invoice serial numbers
     try { $pdo->exec("UPDATE sale_invoices SET serial_no = 0 WHERE (invoice_type = 'POS' OR (pos_invoice_no IS NOT NULL AND pos_invoice_no != '')) AND serial_no != 0"); } catch (Exception $e) {}
+    ensurePosBranchWarehouseSchema($pdo);
 } catch (Exception $e) {}
 
 
@@ -192,7 +193,7 @@ function getNextPosInvoiceNumber($pdo, $company_id, $branch_id = 0) {
             SELECT pos_invoice_no FROM sale_invoices 
             WHERE company_id = ? 
               AND (
-                  (? > 0 AND inventory_location_id = ? AND pos_invoice_no IS NOT NULL AND pos_invoice_no != '')
+                  (? > 0 AND COALESCE(branch_id, inventory_location_id) = ? AND pos_invoice_no IS NOT NULL AND pos_invoice_no != '')
                   OR pos_invoice_no LIKE ?
               )
         ");
@@ -544,7 +545,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $branch_id = intval((isset($_SESSION['role']) && $_SESSION['role'] === 'POS' && !empty($_SESSION['branch_id'])) 
                 ? $_SESSION['branch_id'] 
-                : ($data['inventory_location_id'] ?? 0));
+                : (!empty($data['branch_id']) ? $data['branch_id'] : ($data['inventory_location_id'] ?? 0)));
+            $pos_warehouse_id = resolveBranchWarehouseId($pdo, $company_id, $branch_id);
 
             // Off-Time and Weekly Off Day Check for POS sales:
             // Admin is exempt from restrictions. Branch users / POS terminals cannot save sales during off-time or on weekly off days.
@@ -719,9 +721,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'customer_telephone' => $data['customer_telephone'] ?? null,
                 'customer_ntn' => $data['customer_ntn'] ?? null,
                 'customer_gst' => $data['customer_gst'] ?? null,
-                'inventory_location_id' => (isset($_SESSION['role']) && $_SESSION['role'] === 'POS' && !empty($_SESSION['branch_id'])) 
-                    ? intval($_SESSION['branch_id']) 
+                'inventory_location_id' => $is_pos
+                    ? $pos_warehouse_id
                     : (!empty($data['inventory_location_id']) ? intval($data['inventory_location_id']) : null),
+                'branch_id' => $is_pos
+                    ? ($branch_id > 0 ? $branch_id : null)
+                    : null,
                 'job_no' => $data['job_no'] ?? '',
                 'employee_ref' => $data['employee_ref'] ?? '',
                 'amount_in_words' => $data['amount_in_words'] ?? '',

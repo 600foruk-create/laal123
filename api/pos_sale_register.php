@@ -103,6 +103,7 @@ try {
         'is_cancelled' => 'TINYINT DEFAULT 0',
         'is_posted' => 'TINYINT DEFAULT 1',
         'inventory_location_id' => 'INT NULL',
+        'branch_id' => 'INT NULL',
         'customer_coa_id' => 'INT NULL',
         'invoice_type' => 'VARCHAR(50) DEFAULT "POS"',
         'invoice_date' => 'DATE NULL',
@@ -224,7 +225,7 @@ try {
             $branch_id = strval($_SESSION['branch_id']);
         }
         if ($branch_id !== '') {
-            $where[] = "(si.inventory_location_id = ? OR si.inventory_location_id IS NULL OR si.inventory_location_id = 0)";
+            $where[] = "(COALESCE(si.branch_id, si.inventory_location_id) = ? OR (si.branch_id IS NULL AND (si.inventory_location_id IS NULL OR si.inventory_location_id = 0)))";
             $params[] = intval($branch_id);
         }
 
@@ -291,7 +292,7 @@ try {
             FROM sale_invoices si
             LEFT JOIN coa_list cl ON si.customer_coa_id = cl.id
             LEFT JOIN customers cust ON cl.id = cust.coa_list_id
-            LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+            LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
             WHERE $where_sql
         ");
         $summary_stmt->execute($params);
@@ -348,7 +349,7 @@ try {
             FROM sale_invoices si
             LEFT JOIN coa_list cl ON si.customer_coa_id = cl.id
             LEFT JOIN customers cust ON cl.id = cust.coa_list_id
-            LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+            LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
             WHERE $where_sql
             ORDER BY $order_clause $sort_dir
             LIMIT $limit OFFSET $offset
@@ -434,10 +435,10 @@ try {
             FROM sale_invoices si
             LEFT JOIN coa_list cl ON si.customer_coa_id = cl.id
             LEFT JOIN customers cust ON cl.id = cust.coa_list_id
-            LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+            LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
             LEFT JOIN pos_fbr_branch_mappings fbm ON b.id = fbm.branch_id AND fbm.company_id = si.company_id
             LEFT JOIN users u ON si.company_id = u.company_id AND u.id = 1
-            WHERE si.id = ? AND si.company_id = ? " . (isset($_SESSION['role']) && $_SESSION['role'] === 'POS' && !empty($_SESSION['branch_id']) ? " AND (si.inventory_location_id = " . intval($_SESSION['branch_id']) . " OR si.inventory_location_id IS NULL OR si.inventory_location_id = 0)" : "") . "
+            WHERE si.id = ? AND si.company_id = ? " . (isset($_SESSION['role']) && $_SESSION['role'] === 'POS' && !empty($_SESSION['branch_id']) ? " AND (COALESCE(si.branch_id, si.inventory_location_id) = " . intval($_SESSION['branch_id']) . " OR (si.branch_id IS NULL AND (si.inventory_location_id IS NULL OR si.inventory_location_id = 0)))" : "") . "
         ");
         $stmt->execute([$id, $company_id]);
         $header = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -554,7 +555,7 @@ try {
         $fbr_env = $settings['fbr_environment'] ?? 'sandbox';
 
         // Branch-wise FBR Mapping Resolution
-        $branch_id = intval($invoice['inventory_location_id'] ?? 0);
+        $branch_id = intval($invoice['branch_id'] ?? ($invoice['inventory_location_id'] ?? 0));
         $branch_info = null;
         if ($branch_id > 0) {
             $b_stmt = $pdo->prepare("SELECT id, branch_code, branch_name FROM company_branches WHERE id = ? AND company_id = ?");
@@ -821,7 +822,7 @@ try {
         }
 
         // Branch-wise FBR Mapping Resolution
-        $branch_id = intval($invoice['inventory_location_id'] ?? 0);
+        $branch_id = intval($invoice['branch_id'] ?? ($invoice['inventory_location_id'] ?? 0));
         $branch_info = null;
         if ($branch_id > 0) {
             $b_stmt = $pdo->prepare("SELECT id, branch_code, branch_name FROM company_branches WHERE id = ? AND company_id = ?");
@@ -1137,8 +1138,8 @@ try {
                    cb.branch_name, cb.branch_code,
                    m.fbr_pos_id as branch_fbr_pos_id, m.identification_no as branch_ident_no, m.environment as branch_env
             FROM sale_invoices si
-            LEFT JOIN company_branches cb ON si.inventory_location_id = cb.id
-            LEFT JOIN pos_fbr_branch_mappings m ON si.inventory_location_id = m.branch_id AND m.company_id = si.company_id
+            LEFT JOIN company_branches cb ON COALESCE(si.branch_id, si.inventory_location_id) = cb.id
+            LEFT JOIN pos_fbr_branch_mappings m ON COALESCE(si.branch_id, si.inventory_location_id) = m.branch_id AND m.company_id = si.company_id
             WHERE si.id = ? AND si.company_id = ?
         ");
         $stmt->execute([$id, $company_id]);

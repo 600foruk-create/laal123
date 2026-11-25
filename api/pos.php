@@ -57,19 +57,19 @@ if ($action === 'get_pos_dashboard') {
         }
     }
 
-    // When restricted, if branch_id is present, filter by inventory_location_id.
+    // When restricted, if branch_id is present, filter by POS branch_id (fallback to legacy inventory_location_id).
     // If no branch is found for a restricted user, force a non-matching ID so other branches never leak!
     if ($is_pos_restricted) {
         if ($branch_id && $branch_id > 0) {
-            $branchSql = " AND inventory_location_id = " . intval($branch_id);
-            $branchSiSql = " AND si.inventory_location_id = " . intval($branch_id);
+            $branchSql = " AND COALESCE(branch_id, inventory_location_id) = " . intval($branch_id);
+            $branchSiSql = " AND COALESCE(si.branch_id, si.inventory_location_id) = " . intval($branch_id);
         } else {
-            $branchSql = " AND inventory_location_id = -999";
-            $branchSiSql = " AND si.inventory_location_id = -999";
+            $branchSql = " AND COALESCE(branch_id, inventory_location_id) = -999";
+            $branchSiSql = " AND COALESCE(si.branch_id, si.inventory_location_id) = -999";
         }
     } else {
-        $branchSql = ($branch_id && $branch_id > 0) ? " AND inventory_location_id = " . intval($branch_id) : "";
-        $branchSiSql = ($branch_id && $branch_id > 0) ? " AND si.inventory_location_id = " . intval($branch_id) : "";
+        $branchSql = ($branch_id && $branch_id > 0) ? " AND COALESCE(branch_id, inventory_location_id) = " . intval($branch_id) : "";
+        $branchSiSql = ($branch_id && $branch_id > 0) ? " AND COALESCE(si.branch_id, si.inventory_location_id) = " . intval($branch_id) : "";
     }
     
     // 1. Sales for date range
@@ -108,10 +108,10 @@ if ($action === 'get_pos_dashboard') {
                    si.fbr_invoice_number,
                    COALESCE(c.name, 'Walk-in Customer') as customer_name,
                    COALESCE(b.branch_name, 'Main Branch') as branch_name,
-                   si.inventory_location_id as branch_id
+                   COALESCE(si.branch_id, si.inventory_location_id) as branch_id
             FROM sale_invoices si
             LEFT JOIN coa_list c ON si.customer_coa_id = c.id
-            LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+            LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
             WHERE si.company_id = ? AND DATE(si.invoice_date) BETWEEN ? AND ? AND si.is_cancelled = 0 AND (si.invoice_type = 'POS' OR (si.pos_invoice_no IS NOT NULL AND si.pos_invoice_no != ''))$branchSiSql
             ORDER BY si.id DESC LIMIT 50
         ");
@@ -188,7 +188,7 @@ if ($action === 'get_next_pos_invoice_no') {
             SELECT pos_invoice_no FROM sale_invoices 
             WHERE company_id = ? 
               AND (
-                  (? > 0 AND inventory_location_id = ? AND pos_invoice_no IS NOT NULL AND pos_invoice_no != '')
+                  (? > 0 AND COALESCE(branch_id, inventory_location_id) = ? AND pos_invoice_no IS NOT NULL AND pos_invoice_no != '')
                   OR pos_invoice_no LIKE ?
               )
         ");

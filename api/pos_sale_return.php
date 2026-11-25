@@ -98,6 +98,7 @@ try {
             try { $pdo->exec("ALTER TABLE sale_return_items ADD COLUMN `$col` $def"); } catch (Exception $e) {}
         }
     }
+    ensurePosBranchWarehouseSchema($pdo);
 } catch (Exception $e) {}
 
 try {
@@ -125,7 +126,7 @@ try {
                 (SELECT COUNT(*) FROM sale_invoice_items WHERE invoice_id = si.id) as items_count
             FROM sale_invoices si
             LEFT JOIN coa_list c ON si.customer_coa_id = c.id
-            LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+            LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
             WHERE si.company_id = ? 
               AND si.invoice_type = 'POS'
               AND si.is_cancelled = 0
@@ -133,7 +134,7 @@ try {
         $params = [$company_id];
 
         if ($branch_id > 0) {
-            $query .= " AND si.inventory_location_id = ?";
+            $query .= " AND COALESCE(si.branch_id, si.inventory_location_id) = ?";
             $params[] = $branch_id;
         }
 
@@ -181,12 +182,12 @@ try {
                        COALESCE(b.branch_code, '') as branch_code
                 FROM sale_invoices si
                 LEFT JOIN coa_list c ON si.customer_coa_id = c.id
-                LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+                LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
                 WHERE si.id = ? AND si.company_id = ?
             ";
             $p = [$inv_id, $company_id];
             if ($branch_id > 0) {
-                $q .= " AND si.inventory_location_id = ?";
+                $q .= " AND COALESCE(si.branch_id, si.inventory_location_id) = ?";
                 $p[] = $branch_id;
             }
             $stmt = $pdo->prepare($q);
@@ -202,12 +203,12 @@ try {
                        COALESCE(b.branch_code, '') as branch_code
                 FROM sale_invoices si
                 LEFT JOIN coa_list c ON si.customer_coa_id = c.id
-                LEFT JOIN company_branches b ON si.inventory_location_id = b.id
+                LEFT JOIN company_branches b ON COALESCE(si.branch_id, si.inventory_location_id) = b.id
                 WHERE (si.pos_invoice_no = ? OR CAST(si.serial_no AS CHAR) = ?) AND si.company_id = ?
             ";
             $p = [$inv_no, $inv_no, $company_id];
             if ($branch_id > 0) {
-                $q .= " AND si.inventory_location_id = ?";
+                $q .= " AND COALESCE(si.branch_id, si.inventory_location_id) = ?";
                 $p[] = $branch_id;
             }
             $q .= " LIMIT 1";
@@ -516,15 +517,21 @@ try {
             $refund_amt = $net_return_total;
         }
 
-        // Determine stock condition & return location
+        // Determine stock condition, branch & return warehouse location
         $stock_cond = $data['stock_condition'] ?? 'Resalable';
+        $ret_branch_id = intval((isset($_SESSION['role']) && $_SESSION['role'] === 'POS' && !empty($_SESSION['branch_id']))
+            ? $_SESSION['branch_id']
+            : (!empty($data['branch_id']) ? $data['branch_id'] : (!empty($orig_inv['branch_id']) ? $orig_inv['branch_id'] : ($orig_inv['inventory_location_id'] ?? 0))));
         $location_id = null;
         if ($stock_cond === 'Resalable') {
-            // Return to branch inventory location
-            $location_id = $data['inventory_location_id'] ?: $orig_inv['inventory_location_id'] ?: null;
+            // Return to branch's configured Default Warehouse (fallback to original invoice warehouse or company default)
+            $location_id = resolveBranchWarehouseId($pdo, $company_id, $ret_branch_id);
+            if (!$location_id && !empty($orig_inv['branch_id']) && !empty($orig_inv['inventory_location_id'])) {
+                $location_id = intval($orig_inv['inventory_location_id']);
+            }
         } else {
             // Damaged / Inspection: route to specified inspection warehouse or null to avoid normal saleable stock
-            $location_id = $data['damaged_warehouse_id'] ?: null;
+            $location_id = !empty($data['damaged_warehouse_id']) ? intval($data['damaged_warehouse_id']) : null;
         }
 
         // Determine Return Number & Serial Number
@@ -568,6 +575,7 @@ try {
                 'customer_ntn' => $orig_inv['customer_ntn'] ?? '',
                 'customer_gst' => $orig_inv['customer_gst'] ?? '',
                 'inventory_location_id' => $location_id,
+                'branch_id' => ($ret_branch_id > 0 ? $ret_branch_id : null),
                 'job_no' => $orig_inv['job_no'] ?? '',
                 'employee_ref' => $orig_inv['employee_ref'] ?? '',
                 'amount_in_words' => '',
@@ -677,7 +685,7 @@ try {
                 u.username as created_by_username
             FROM sale_returns sr
             LEFT JOIN coa_list c ON sr.customer_coa_id = c.id
-            LEFT JOIN company_branches b ON sr.inventory_location_id = b.id
+            LEFT JOIN company_branches b ON COALESCE(sr.branch_id, sr.inventory_location_id) = b.id
             LEFT JOIN users u ON sr.created_by_user_id = u.id
             WHERE sr.company_id = ?
         ";
@@ -973,7 +981,7 @@ try {
                 COALESCE(b.branch_name, 'Main / Default') as branch_name
             FROM sale_returns sr
             LEFT JOIN coa_list c ON sr.customer_coa_id = c.id
-            LEFT JOIN company_branches b ON sr.inventory_location_id = b.id
+            LEFT JOIN company_branches b ON COALESCE(sr.branch_id, sr.inventory_location_id) = b.id
             WHERE sr.company_id = ? AND sr.pos_return_no IS NOT NULL AND sr.is_cancelled = 0
         ";
         $params = [$company_id];

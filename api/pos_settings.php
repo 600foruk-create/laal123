@@ -694,7 +694,7 @@ if ($action === 'delete_branch_mapping') {
 
         // 2. Check if branch is linked to sales invoices
         try {
-            $chkSales = $pdo->prepare("SELECT id FROM sale_invoices WHERE company_id = ? AND inventory_location_id = ? LIMIT 1");
+            $chkSales = $pdo->prepare("SELECT id FROM sale_invoices WHERE company_id = ? AND COALESCE(branch_id, inventory_location_id) = ? LIMIT 1");
             $chkSales->execute([$company_id, $branch_id]);
             $hasSales = $chkSales->fetch();
         } catch (Exception $e) {

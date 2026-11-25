@@ -1625,6 +1625,10 @@ window.POSModule = {
         const branchId = (session.role === 'POS' && session.branch_id) 
             ? session.branch_id 
             : (branchSelect ? branchSelect.value : null);
+        const branchObj = (window.posBranches || []).find(b => String(b.id) === String(branchId));
+        const warehouseId = (branchObj && branchObj.default_warehouse_id && parseInt(branchObj.default_warehouse_id) > 0)
+            ? parseInt(branchObj.default_warehouse_id)
+            : null;
 
         const hiddenId = document.getElementById('pos_invoice_id');
         const invoiceIdToSave = this.currentInvoiceId || (hiddenId && hiddenId.value ? parseInt(hiddenId.value) : null) || (invInput && invInput.dataset.id ? parseInt(invInput.dataset.id) : null);
@@ -1648,7 +1652,8 @@ window.POSModule = {
             income_account: '40001001',
             customer_coa_id: customerId,
             customer_address: document.getElementById('pos_customer_details')?.value || '',
-            inventory_location_id: branchId || null,
+            branch_id: branchId || null,
+            inventory_location_id: warehouseId,
             job_no: '',
             employee_ref: '',
             remarks: this.currentHoldNo ? `POS Sale (From Hold: ${this.currentHoldNo})` : 'POS Sale',
@@ -1958,8 +1963,9 @@ window.POSModule = {
             }
 
             const branchSelect = document.getElementById('pos_branch');
-            if (branchSelect && inv.inventory_location_id) {
-                branchSelect.value = inv.inventory_location_id;
+            const invBranchId = inv.branch_id || inv.inventory_location_id;
+            if (branchSelect && invBranchId) {
+                branchSelect.value = invBranchId;
             }
 
             if (inv.customer) {
