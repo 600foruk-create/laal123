@@ -22,19 +22,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $lockoutMinutes = 15;
         $lockoutSeconds = $lockoutMinutes * 60;
 
-        // Check recent failed attempts for this username OR IP address within 15 minutes
-        $checkStmt = $pdo->prepare("
-            SELECT COUNT(*) as failed_count, MAX(attempt_time) as last_attempt_time 
-            FROM user_login_attempts 
-            WHERE (LOWER(TRIM(username)) = LOWER(?) OR ip_address = ?) 
-              AND is_successful = 0 
-              AND attempt_time >= (NOW() - INTERVAL $lockoutMinutes MINUTE)
-        ");
-        $checkStmt->execute([$username, $clientIp]);
-        $attemptStats = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        $failedCount = 0;
+        $lastAttemptTime = null;
 
-        $failedCount = intval($attemptStats['failed_count'] ?? 0);
-        $lastAttemptTime = $attemptStats['last_attempt_time'] ?? null;
+        // Check recent failed attempts for this username OR IP address within 15 minutes (with auto-healing)
+        try {
+            $checkStmt = $pdo->prepare("
+                SELECT COUNT(*) as failed_count, MAX(attempt_time) as last_attempt_time 
+                FROM user_login_attempts 
+                WHERE (LOWER(TRIM(username)) = LOWER(?) OR ip_address = ?) 
+                  AND is_successful = 0 
+                  AND attempt_time >= (NOW() - INTERVAL $lockoutMinutes MINUTE)
+            ");
+            $checkStmt->execute([$username, $clientIp]);
+            $attemptStats = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+            $failedCount = intval($attemptStats['failed_count'] ?? 0);
+            $lastAttemptTime = $attemptStats['last_attempt_time'] ?? null;
+        } catch (Exception $e) {
+            // Self-healing: Table does not exist yet on this database / domain - auto create it immediately!
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS user_login_attempts (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    ip_address VARCHAR(45) NOT NULL,
+                    username VARCHAR(100) NOT NULL,
+                    attempt_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    is_successful TINYINT(1) DEFAULT 0,
+                    INDEX (ip_address, attempt_time),
+                    INDEX (username, attempt_time)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            } catch (Exception $e2) {}
+            $failedCount = 0;
+            $lastAttemptTime = null;
+        }
 
         if ($failedCount >= $maxAttempts && $lastAttemptTime) {
             $elapsedSeconds = time() - strtotime($lastAttemptTime);
@@ -323,7 +343,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Record failed login attempt
             try {
                 $pdo->prepare("INSERT INTO user_login_attempts (ip_address, username, attempt_time, is_successful) VALUES (?, ?, NOW(), 0)")->execute([$clientIp, $username]);
-            } catch (Exception $e) {}
+            } catch (Exception $e) {
+                try {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS user_login_attempts (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        ip_address VARCHAR(45) NOT NULL,
+                        username VARCHAR(100) NOT NULL,
+                        attempt_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        is_successful TINYINT(1) DEFAULT 0,
+                        INDEX (ip_address, attempt_time),
+                        INDEX (username, attempt_time)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+                    $pdo->prepare("INSERT INTO user_login_attempts (ip_address, username, attempt_time, is_successful) VALUES (?, ?, NOW(), 0)")->execute([$clientIp, $username]);
+                } catch(Exception $e2) {}
+            }
 
             $newFailedCount = $failedCount + 1;
             $remainingAttempts = max(0, $maxAttempts - $newFailedCount);

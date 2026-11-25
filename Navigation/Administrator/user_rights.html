@@ -344,7 +344,7 @@
     <div class="ur-top-bar">
         <div class="ur-user-box">
             <label><i class="fas fa-user-circle" style="color: var(--theme-primary, #1F4E79); font-size: 16px;"></i> Select User:</label>
-            <select id="urUserSelect">
+            <select id="urUserSelect" onchange="if(window.UserRightsManager) window.UserRightsManager.onUserChange(this.value)">
                 <!-- Dynamically populated -->
             </select>
         </div>
@@ -456,7 +456,7 @@
     </div>
 
     <!-- Ensure UserRightsManager is loaded and initialized -->
-    <script src="assets/js/user_rights_manager.js?v=20261123v1"></script>
+    <script src="assets/js/user_rights_manager.js?v=20261124v4"></script>
     <script>
     (function() {
         function runURManager() {

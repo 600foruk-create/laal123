@@ -1,0 +1,4 @@
+# Storage lock files and runtime caches
+storage/*.lock
+debug_*.log
+*.tmp

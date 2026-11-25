@@ -394,7 +394,10 @@ document.addEventListener('click', function(e) {
                         const [companiesRes, usersRes, coaMainRes, coaSubRes, coaListRes, currRes, rightsRes, fyRes] = bgResponses;
                         
                         if (companiesRes.ok) companies = await companiesRes.json();
-                        if (usersRes.ok) users = await usersRes.json();
+                        if (usersRes.ok) {
+                            users = await usersRes.json();
+                            window.users = users;
+                        }
                         if (coaMainRes.ok) coaMain = await coaMainRes.json();
                         if (coaSubRes.ok) coaSub = await coaSubRes.json();
                         if (coaListRes.ok) coaList = await coaListRes.json();
@@ -2589,7 +2592,10 @@ document.addEventListener('click', function(e) {
                 const companyId = sessionData.company_id || 1;
                 try {
                     const res = await fetch(`api/admin.php?action=get_users&company_id=${companyId}`);
-                    if (res.ok) users = await res.json();
+                    if (res.ok) {
+                        users = await res.json();
+                        window.users = users;
+                    }
                 } catch (err) { console.error('Live Sync Error:', err); }
 
                 openModal(

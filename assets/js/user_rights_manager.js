@@ -205,13 +205,23 @@
         isCurrentAdmin: false,
 
         init: async function() {
+            const selectEl = document.getElementById('urUserSelect');
+            if (!selectEl) {
+                setTimeout(() => window.UserRightsManager.init(), 35);
+                return;
+            }
+            if (this._initializing) return;
+            this._initializing = true;
             try {
                 await this.loadUsers();
                 this.renderCategories();
+                this.renderTable();
                 this.attachEventListeners();
                 await this.loadUserRights();
             } catch (err) {
                 console.error("UserRightsManager init error:", err);
+            } finally {
+                this._initializing = false;
             }
         },
 
@@ -224,14 +234,43 @@
                 this.usersList = window.users;
             } else {
                 try {
-                    const res = await fetch('api/admin.php?action=get_users');
+                    const sessionData = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                    const companyId = sessionData.company_id || 1;
+                    const res = await fetch(`api/admin.php?action=get_users&company_id=${companyId}&_cb=${Date.now()}`);
                     if (res.ok) {
-                        this.usersList = await res.json();
+                        const data = await res.json();
+                        if (Array.isArray(data) && data.length > 0) {
+                            this.usersList = data;
+                        }
                     }
                 } catch(e) {
-                    this.usersList = [];
+                    console.error("Error fetching users in UR:", e);
                 }
             }
+
+            // Fallback: If still empty, fetch without company_id
+            if (!Array.isArray(this.usersList) || this.usersList.length === 0) {
+                try {
+                    const res2 = await fetch(`api/admin.php?action=get_users&_cb=${Date.now()}`);
+                    if (res2.ok) {
+                        const data2 = await res2.json();
+                        if (Array.isArray(data2) && data2.length > 0) {
+                            this.usersList = data2;
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            // Fallback: If still empty, use session user or default Administrator
+            if (!Array.isArray(this.usersList) || this.usersList.length === 0) {
+                const sessionData = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                this.usersList = [
+                    { id: sessionData.user_id || 1, username: sessionData.username || 'Administrator', role: sessionData.role || 'Admin' }
+                ];
+            }
+
+            // Sync globally to window.users
+            window.users = this.usersList;
 
             let opts = '';
             this.usersList.forEach(u => {
@@ -240,10 +279,33 @@
             });
             selectEl.innerHTML = opts;
 
-            if (this.usersList.length > 0) {
-                this.currentUserId = this.usersList[0].id;
+            let targetUserId = this.currentUserId;
+            if (!targetUserId) {
+                try {
+                    targetUserId = localStorage.getItem('softifyx_ur_last_user_id');
+                } catch(e) {}
+            }
+
+            if (targetUserId && this.usersList.some(u => String(u.id) === String(targetUserId))) {
+                this.currentUserId = String(targetUserId);
+                selectEl.value = this.currentUserId;
+            } else if (this.usersList.length > 0) {
+                this.currentUserId = String(this.usersList[0].id);
                 selectEl.value = this.currentUserId;
             }
+        },
+
+        onUserChange: async function(userId) {
+            if (!userId) return;
+            this.currentUserId = userId;
+            const selectEl = document.getElementById('urUserSelect');
+            if (selectEl && String(selectEl.value) !== String(userId)) {
+                selectEl.value = userId;
+            }
+            try {
+                localStorage.setItem('softifyx_ur_last_user_id', String(userId));
+            } catch(e) {}
+            await this.loadUserRights();
         },
 
         renderCategories: function() {
@@ -279,12 +341,25 @@
         },
 
         switchCategory: function(cat) {
+            // 1. Sync currently visible rows into data map before switching
+            document.querySelectorAll('#urTableBody tr.ur-row').forEach(row => {
+                this.updateRightsMapFromRow(row);
+            });
+
             this.activeCategory = cat;
+
+            const theme = (window.getCurrentERPTheme && window.getCurrentERPTheme()) || null;
+            const primary = (theme && theme.primary) ? theme.primary : '#1F4E79';
+
             document.querySelectorAll('.ur-tab-btn').forEach(btn => {
                 if (btn.getAttribute('data-category') === cat) {
                     btn.classList.add('ur-tab-active');
+                    btn.style.setProperty('background', primary, 'important');
+                    btn.style.setProperty('color', '#ffffff', 'important');
                 } else {
                     btn.classList.remove('ur-tab-active');
+                    btn.style.removeProperty('background');
+                    btn.style.removeProperty('color');
                 }
             });
 
@@ -317,8 +392,19 @@
 
         loadUserRights: async function() {
             const userSelect = document.getElementById('urUserSelect');
-            if (!userSelect || !userSelect.value) return;
-            this.currentUserId = userSelect.value;
+            if (userSelect && userSelect.value) {
+                this.currentUserId = userSelect.value;
+            } else if (!this.currentUserId && this.usersList && this.usersList.length > 0) {
+                this.currentUserId = String(this.usersList[0].id);
+                if (userSelect) userSelect.value = this.currentUserId;
+            }
+
+            if (!this.currentUserId) {
+                this.renderCategories();
+                this.renderTable();
+                this.updateSummaryBadges();
+                return;
+            }
 
             const userObj = (this.usersList || []).find(u => String(u.id) === String(this.currentUserId));
             this.isCurrentAdmin = (userObj && (String(userObj.username).toLowerCase() === 'administrator' || String(userObj.role).toLowerCase() === 'admin')) || (String(this.currentUserId) === '1');
@@ -352,6 +438,7 @@
                 console.error("Error loading rights from backend:", err);
             }
 
+            this.renderCategories();
             this.renderTable();
             this.updateSummaryBadges();
         },
@@ -503,7 +590,10 @@
                 pill.style.background = bg;
                 pill.style.color = color;
                 pill.style.borderColor = color + '44';
-                pill.innerHTML = `<input type="checkbox" class="ur-chk-allowed" ${isChecked ? 'checked' : ''} onchange="window.UserRightsManager.onAllowedToggle(this, '${moduleName}')" style="display: none;"><i class="fas ${isChecked ? 'fa-check-circle' : 'fa-times-circle'}"></i> <span>${isChecked ? 'Allowed' : 'Not Allowed'}</span>`;
+                const icon = pill.querySelector('i');
+                const span = pill.querySelector('span');
+                if (icon) icon.className = isChecked ? 'fas fa-check-circle' : 'fas fa-times-circle';
+                if (span) span.textContent = isChecked ? 'Allowed' : 'Not Allowed';
             }
 
             if (isChecked) {
@@ -583,7 +673,12 @@
                 const tabEl = document.getElementById(`tabCount-${catSafeId}`);
                 if (tabEl) {
                     tabEl.textContent = `${assignedInCat} / ${totalInCat}`;
-                    if (assignedInCat > 0) {
+                    const parentBtn = tabEl.closest('.ur-tab-btn');
+                    const isActive = parentBtn && parentBtn.classList.contains('ur-tab-active');
+                    if (isActive) {
+                        tabEl.style.background = 'rgba(255, 255, 255, 0.25)';
+                        tabEl.style.color = '#ffffff';
+                    } else if (assignedInCat > 0) {
                         tabEl.style.background = 'var(--theme-primary, #1F4E79)';
                         tabEl.style.color = '#ffffff';
                         tabEl.dataset.hasAssigned = 'true';
@@ -825,11 +920,11 @@
                 payload.push({
                     module: m.name,
                     allowed: isAllowed,
-                    can_view: r.view ? 1 : 0,
-                    can_create: r.create ? 1 : 0,
-                    can_edit: r.edit ? 1 : 0,
-                    can_delete: r.delete ? 1 : 0,
-                    can_print: r.print ? 1 : 0
+                    can_view: isAllowed ? (r.view ? 1 : 0) : 0,
+                    can_create: isAllowed ? (r.create ? 1 : 0) : 0,
+                    can_edit: isAllowed ? (r.edit ? 1 : 0) : 0,
+                    can_delete: isAllowed ? (r.delete ? 1 : 0) : 0,
+                    can_print: isAllowed ? (r.print ? 1 : 0) : 0
                 });
             });
 
@@ -850,6 +945,9 @@
                             window.currentUserRights[p.module] = p;
                         });
                     }
+
+                    // Reload fresh rights state from backend to verify and synchronize table
+                    await this.loadUserRights();
 
                     const toast = document.getElementById('urToastMsg');
                     if (toast) {

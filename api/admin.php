@@ -87,7 +87,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             ORDER BY u.id ASC
         ");
         $stmt->execute([$company_id]);
-        sendResponse($stmt->fetchAll());
+        $usersList = $stmt->fetchAll();
+        if (empty($usersList)) {
+            $stmt = $pdo->query("
+                SELECT u.id, u.username, u.email, u.role, u.status, u.branch_id, b.branch_name, b.branch_code 
+                FROM users u 
+                LEFT JOIN company_branches b ON u.branch_id = b.id 
+                ORDER BY (u.role = 'Admin' OR u.username = 'Administrator' OR u.id = 1) DESC, u.id ASC
+            ");
+            $usersList = $stmt->fetchAll();
+        }
+        sendResponse($usersList);
     }
     
     if ($action === 'get_rights' && isset($_GET['user_id'])) {

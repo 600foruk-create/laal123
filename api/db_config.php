@@ -59,11 +59,14 @@ function shouldRunMigration($moduleKey, $version = 1) {
     }
     $executedModules[$moduleKey] = true;
 
+    global $db;
+    $dbPrefix = !empty($db) ? preg_replace('/[^a-zA-Z0-9_-]/', '_', $db) . '_' : '';
+
     $cacheDir = __DIR__ . '/../storage';
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
     }
-    $lockFile = $cacheDir . '/schema_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $moduleKey) . '_v' . $version . '.lock';
+    $lockFile = $cacheDir . '/schema_' . $dbPrefix . preg_replace('/[^a-zA-Z0-9_-]/', '_', $moduleKey) . '_v' . $version . '.lock';
     if (file_exists($lockFile)) {
         return false;
     }
@@ -137,6 +140,13 @@ if (shouldRunMigration('user_login_attempts', 1)) {
             INDEX (ip_address, attempt_time),
             INDEX (username, attempt_time)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    } catch (PDOException $e) {}
+}
+
+// User Password Length Migration (Ensure VARCHAR(255) so Bcrypt password hashes are never truncated)
+if (shouldRunMigration('users_password_length_255', 1)) {
+    try {
+        $pdo->exec("ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NOT NULL");
     } catch (PDOException $e) {}
 }
 

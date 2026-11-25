@@ -362,6 +362,24 @@
         if (driverSugg) {
             driverSugg.style.setProperty('border-color', primary, 'important');
         }
+
+        // 6c. User Rights Category Tabs & Window Header Theme
+        const allUrTabs = root.querySelectorAll('#urCategoryTabs .ur-tab-btn');
+        allUrTabs.forEach(function(t) {
+            if (t.classList.contains('ur-tab-active')) {
+                t.style.setProperty('background', primary, 'important');
+                t.style.setProperty('color', '#ffffff', 'important');
+            } else {
+                t.style.removeProperty('background');
+                t.style.removeProperty('color');
+            }
+        });
+
+        const urHeaders = root.querySelectorAll('.modal-container.modal-user-rights .modal-header, .modal-container:has(#userRightsContainer) .modal-header');
+        urHeaders.forEach(function(hdr) {
+            hdr.style.setProperty('background', primary, 'important');
+            hdr.style.setProperty('border-bottom', '2px solid ' + accent, 'important');
+        });
         const selects = root.querySelectorAll('select');
         selects.forEach(function(sel) {
             sel.style.setProperty('--theme-primary', primary);

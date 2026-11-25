@@ -675,7 +675,7 @@
             <label id="userFieldLabel">User Name</label>
             <select id="userDropdown"></select>
             <input type="text" id="userInputText" placeholder="Enter User Name" style="display: none;"
-                autocomplete="username">
+                autocomplete="off">
         </div>
         <div class="field-row" id="row_company">
             <label>Company</label>
@@ -967,7 +967,13 @@
                     })
                 });
 
-                const result = await response.json();
+                let result = {};
+                try {
+                    result = await response.json();
+                } catch(e) {
+                    console.error("Non-JSON API response", e);
+                    result = { error: "Server response error (HTTP " + response.status + "). Please check api/db_config.php settings." };
+                }
 
                 if (response.ok && result.status === 'success') {
                     const selectedYearLabel = yearSelect.value || savedDefaults.year || (financialYears[0] ? (financialYears[0].abbreviation || financialYears[0].year) : '');
