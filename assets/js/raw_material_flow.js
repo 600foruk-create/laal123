@@ -261,7 +261,7 @@
             const tbody = document.getElementById('rmfTableBody');
             const tfoot = document.getElementById('rmfTableFoot');
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 30px; color: var(--theme-primary, #1F4E79);"><i class="fas fa-spinner fa-spin fa-2x"></i><br><span style="display:inline-block; margin-top:8px; font-weight:600;">Calculating Raw Material Flow...</span></td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 30px; color: var(--theme-primary, #1F4E79);"><i class="fas fa-spinner fa-spin fa-2x"></i><br><span style="display:inline-block; margin-top:8px; font-weight:600;">Calculating Inventory &amp; Material Flow...</span></td></tr>`;
             }
             if (tfoot) tfoot.innerHTML = '';
 
@@ -476,12 +476,12 @@
                 '\ufeff' + `
                 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
                 <head>
-                    <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Raw Material Flow</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+                    <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Inventory Material Flow</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
                     <meta charset="utf-8">
                 </head>
                 <body>
                     <h2>${this.data.companyName}</h2>
-                    <h3>Raw Material Flow at Average Cost – Monthly (${period})</h3>
+                    <h3>Inventory &amp; Material Flow at Average Cost – Monthly (${period})</h3>
                     <div>Unit: ${unit.toUpperCase()} | Costing Method: ${costing}</div>
                     ${html}
                 </body>
@@ -492,7 +492,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Raw_Material_Flow_${period.replace(/[\s\/-]+/g, '_')}.xls`;
+            a.download = `Inventory_Material_Flow_${period.replace(/[\s\/-]+/g, '_')}.xls`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -610,7 +610,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Raw Material Flow Statement - ${periodStr}</title>
+    <title>Inventory &amp; Material Flow Statement - ${periodStr}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         @page {
@@ -876,11 +876,11 @@
             <div class="comp-contacts">
                 ${contactParts.join('<br>')}
             </div>
-            <div class="report-title-badge">RAW MATERIAL FLOW AT AVERAGE COST</div>
-            <div class="report-subtitle">Monthly & Periodic Material Inventory Statement (Auto Carry Forward)</div>
+            <div class="report-title-badge">INVENTORY &amp; MATERIAL FLOW AT AVERAGE COST</div>
+            <div class="report-subtitle">Monthly &amp; Periodic Stock Flow Statement (Auto Carry Forward)</div>
         </div>
         <div class="header-right">
-            <span class="badge-type">Production Report</span>
+            <span class="badge-type">Inventory Report</span>
             <div><strong>Printed:</strong> ${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
             <div><strong>User:</strong> ${userName}</div>
         </div>
@@ -892,7 +892,7 @@
         <div><strong>Costing Method:</strong> ${costingLabel}</div>
         <div><strong>Unit:</strong> ${unitLabel}</div>
         <div><strong>Category:</strong> ${catLabel}</div>
-        <div><strong>Raw Material:</strong> ${rmLabel}</div>
+        <div><strong>Item / Product:</strong> ${rmLabel}</div>
         <div><strong>Supplier:</strong> ${supLabel}</div>
     </div>
 
@@ -913,7 +913,7 @@
                     <strong style="color: #854d0e;">${opVal}</strong>
                 </div>
                 <div class="summary-row">
-                    <span>Total Purchase Value:</span>
+                    <span>Total Inward Value (Purchase / Prod.):</span>
                     <strong style="color: #0369a1;">${purVal}</strong>
                 </div>
                 <div class="summary-row" style="font-weight: 700; background: #f8fafc;">
@@ -921,7 +921,7 @@
                     <strong style="color: #1e293b;">${avlVal}</strong>
                 </div>
                 <div class="summary-row">
-                    <span>Total Consumption Value:</span>
+                    <span>Total Outward Value (Issue / Sales):</span>
                     <strong style="color: #b91c1c;">${conVal}</strong>
                 </div>
                 <div class="summary-row" style="font-weight: 800; background: #f0fdf4;">

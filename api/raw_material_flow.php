@@ -158,6 +158,8 @@ if ($action === 'get_flow_statement') {
         // 1. Fetch matching items with unit conversion info
         $itemSql = "
             SELECT i.id, i.code, i.name, i.unit, COALESCE(i.purchase_price, 0) as default_purchase_price,
+                   COALESCE(i.selling_price, 0) as selling_price,
+                   COALESCE(i.valuation_cost, 0) as valuation_cost,
                    COALESCE(i.unit_weight, 0) as unit_weight,
                    COALESCE(i.qty_per_piece, 0) as qty_per_piece,
                    COALESCE(i.carton, 0) as carton,
@@ -259,7 +261,7 @@ if ($action === 'get_flow_statement') {
         $obMap = [];
         try {
             $stmtOB = $pdo->query("
-                SELECT item_id, SUM(quantity) as ob_qty, AVG(rate) as ob_rate
+                SELECT item_id, SUM(quantity) as ob_qty, AVG(NULLIF(rate, 0)) as ob_rate
                 FROM inv_opening_balances 
                 WHERE company_id = $company_id AND item_id IN ($idList)
                 GROUP BY item_id
@@ -267,7 +269,7 @@ if ($action === 'get_flow_statement') {
             while ($row = $stmtOB->fetch(PDO::FETCH_ASSOC)) {
                 $obMap[intval($row['item_id'])] = [
                     'qty' => floatval($row['ob_qty']),
-                    'rate' => floatval($row['ob_rate'])
+                    'rate' => floatval($row['ob_rate'] ?? 0)
                 ];
             }
         } catch (Exception $e) {}
@@ -275,7 +277,7 @@ if ($action === 'get_flow_statement') {
         // 3. Historical Inflow/Outflow BEFORE $startDate to calculate previous period closing
         $histPurchases = [];
         $stmtHP = $pdo->query("
-            SELECT pii.item_coa_id as item_id, SUM(pii.quantity) as qty, SUM(pii.net_amount) as amount
+            SELECT pii.item_coa_id as item_id, SUM(pii.quantity) as qty, SUM(COALESCE(NULLIF(pii.net_amount, 0), pii.quantity * pii.rate, 0)) as amount
             FROM purchase_invoice_items pii
             JOIN purchase_invoices pi ON pii.invoice_id = pi.id
             WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.is_posted = 1 AND pi.invoice_date < '$startDate'
@@ -292,7 +294,7 @@ if ($action === 'get_flow_statement') {
         // Production Notes before start date (Finished Goods IN when qty > 0)
         try {
             $stmtHPN_IN = $pdo->query("
-                SELECT pp.item_id, SUM(pp.qty) as qty, SUM(pp.amount) as amount
+                SELECT pp.item_id, SUM(pp.qty) as qty, SUM(COALESCE(NULLIF(pp.amount, 0), pp.qty * pp.rate, 0)) as amount
                 FROM production_note_items pp
                 JOIN production_notes p ON pp.pn_id = p.id
                 WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND p.date < '$startDate' AND pp.qty > 0
@@ -300,6 +302,26 @@ if ($action === 'get_flow_statement') {
                 GROUP BY pp.item_id
             ");
             while ($row = $stmtHPN_IN->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($row['item_id']);
+                if (!isset($histPurchases[$iid])) {
+                    $histPurchases[$iid] = ['qty' => 0, 'amount' => 0];
+                }
+                $histPurchases[$iid]['qty'] += floatval($row['qty']);
+                $histPurchases[$iid]['amount'] += floatval($row['amount']);
+            }
+        } catch (Exception $e) {}
+
+        // Sale Returns before start date (IN)
+        try {
+            $stmtHSR = $pdo->query("
+                SELECT sri.item_coa_id as item_id, SUM(sri.quantity) as qty, SUM(COALESCE(NULLIF(sri.net_amount, 0), sri.quantity * sri.rate, 0)) as amount
+                FROM sale_return_items sri
+                JOIN sale_returns sr ON sri.return_id = sr.id
+                WHERE sr.company_id = $company_id AND sr.is_cancelled = 0 AND sr.is_posted = 1 AND sr.return_date < '$startDate'
+                  AND sri.item_coa_id IN ($idList)
+                GROUP BY sri.item_coa_id
+            ");
+            while ($row = $stmtHSR->fetch(PDO::FETCH_ASSOC)) {
                 $iid = intval($row['item_id']);
                 if (!isset($histPurchases[$iid])) {
                     $histPurchases[$iid] = ['qty' => 0, 'amount' => 0];
@@ -331,7 +353,7 @@ if ($action === 'get_flow_statement') {
         // Purchase returns before start date
         try {
             $stmtHPR = $pdo->query("
-                SELECT pri.item_coa_id as item_id, SUM(pri.quantity) as qty, SUM(pri.net_amount) as amount
+                SELECT pri.item_coa_id as item_id, SUM(pri.quantity) as qty, SUM(COALESCE(NULLIF(pri.value_incl_tax, 0), pri.value_excl_tax, pri.quantity * pri.rate, 0)) as amount
                 FROM purchase_return_items pri
                 JOIN purchase_returns pr ON pri.return_id = pr.id
                 WHERE pr.company_id = $company_id AND pr.is_cancelled = 0 AND pr.is_posted = 1 AND pr.return_date < '$startDate'
@@ -418,7 +440,7 @@ if ($action === 'get_flow_statement') {
         $periodPurchases = [];
         $supplierCondition = ($supplier_filter !== 'all' && intval($supplier_filter) > 0) ? " AND pi.vendor_coa_id = " . intval($supplier_filter) : "";
         $stmtPP = $pdo->query("
-            SELECT pii.item_coa_id as item_id, SUM(pii.quantity) as qty, SUM(pii.net_amount) as amount
+            SELECT pii.item_coa_id as item_id, SUM(pii.quantity) as qty, SUM(COALESCE(NULLIF(pii.net_amount, 0), pii.quantity * pii.rate, 0)) as amount
             FROM purchase_invoice_items pii
             JOIN purchase_invoices pi ON pii.invoice_id = pi.id
             WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.is_posted = 1
@@ -436,7 +458,7 @@ if ($action === 'get_flow_statement') {
         // Production Notes (IN when qty > 0) during current period
         try {
             $stmtPPN_IN = $pdo->query("
-                SELECT pp.item_id, SUM(pp.qty) as qty, SUM(pp.amount) as amount
+                SELECT pp.item_id, SUM(pp.qty) as qty, SUM(COALESCE(NULLIF(pp.amount, 0), pp.qty * pp.rate, 0)) as amount
                 FROM production_note_items pp
                 JOIN production_notes p ON pp.pn_id = p.id
                 WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1
@@ -445,6 +467,27 @@ if ($action === 'get_flow_statement') {
                 GROUP BY pp.item_id
             ");
             while ($row = $stmtPPN_IN->fetch(PDO::FETCH_ASSOC)) {
+                $iid = intval($row['item_id']);
+                if (!isset($periodPurchases[$iid])) {
+                    $periodPurchases[$iid] = ['qty' => 0, 'amount' => 0];
+                }
+                $periodPurchases[$iid]['qty'] += floatval($row['qty']);
+                $periodPurchases[$iid]['amount'] += floatval($row['amount']);
+            }
+        } catch (Exception $e) {}
+
+        // Sale Returns during period (IN)
+        try {
+            $stmtPSR = $pdo->query("
+                SELECT sri.item_coa_id as item_id, SUM(sri.quantity) as qty, SUM(COALESCE(NULLIF(sri.net_amount, 0), sri.quantity * sri.rate, 0)) as amount
+                FROM sale_return_items sri
+                JOIN sale_returns sr ON sri.return_id = sr.id
+                WHERE sr.company_id = $company_id AND sr.is_cancelled = 0 AND sr.is_posted = 1
+                  AND sr.return_date BETWEEN '$startDate' AND '$endDate'
+                  AND sri.item_coa_id IN ($idList)
+                GROUP BY sri.item_coa_id
+            ");
+            while ($row = $stmtPSR->fetch(PDO::FETCH_ASSOC)) {
                 $iid = intval($row['item_id']);
                 if (!isset($periodPurchases[$iid])) {
                     $periodPurchases[$iid] = ['qty' => 0, 'amount' => 0];
@@ -477,7 +520,7 @@ if ($action === 'get_flow_statement') {
         // Purchase returns during period
         try {
             $stmtPPR = $pdo->query("
-                SELECT pri.item_coa_id as item_id, SUM(pri.quantity) as qty, SUM(pri.net_amount) as amount
+                SELECT pri.item_coa_id as item_id, SUM(pri.quantity) as qty, SUM(COALESCE(NULLIF(pri.value_incl_tax, 0), pri.value_excl_tax, pri.quantity * pri.rate, 0)) as amount
                 FROM purchase_return_items pri
                 JOIN purchase_returns pr ON pri.return_id = pr.id
                 WHERE pr.company_id = $company_id AND pr.is_cancelled = 0 AND pr.is_posted = 1
@@ -565,18 +608,18 @@ if ($action === 'get_flow_statement') {
             }
         } catch (Exception $e) {}
 
-        // 5. Batch Fetch Rates for Alternative Costing Methods (Last, Max, Min)
+        // 5. Batch Fetch Rates for Alternative Costing Methods (Last, Max, Min) & Fallbacks
         $costRatesMap = [];
         try {
             $stmtRates = $pdo->query("
                 SELECT pii.item_coa_id as item_id,
                        MAX(pii.rate) as max_rate,
                        MIN(NULLIF(pii.rate, 0)) as min_rate,
-                       SUBSTRING_INDEX(GROUP_CONCAT(pii.rate ORDER BY pi.invoice_date DESC, pi.id DESC), ',', 1) as last_rate
+                       SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(pii.rate, 0) ORDER BY pi.invoice_date DESC, pi.id DESC), ',', 1) as last_rate
                 FROM purchase_invoice_items pii
                 JOIN purchase_invoices pi ON pii.invoice_id = pi.id
                 WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.is_posted = 1 AND pi.invoice_date <= '$endDate'
-                  AND pii.item_coa_id IN ($idList)
+                  AND pii.item_coa_id IN ($idList) AND pii.rate > 0
                 GROUP BY pii.item_coa_id
             ");
             while ($rRow = $stmtRates->fetch(PDO::FETCH_ASSOC)) {
@@ -594,7 +637,7 @@ if ($action === 'get_flow_statement') {
                 SELECT pp.item_id,
                        MAX(pp.rate) as max_rate,
                        MIN(NULLIF(pp.rate, 0)) as min_rate,
-                       SUBSTRING_INDEX(GROUP_CONCAT(pp.rate ORDER BY p.date DESC, p.id DESC), ',', 1) as last_rate
+                       SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(pp.rate, 0) ORDER BY p.date DESC, p.id DESC), ',', 1) as last_rate
                 FROM production_note_items pp
                 JOIN production_notes p ON pp.pn_id = p.id
                 WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND p.date <= '$endDate'
@@ -610,6 +653,52 @@ if ($action === 'get_flow_statement') {
                         'min_rate' => floatval($rRow['min_rate'])
                     ];
                 }
+            }
+        } catch (Exception $e) {}
+
+        // Sale Invoice weighted average rates fallback (for Finished Goods without PN/Purchase cost)
+        $siRateMap = [];
+        try {
+            $stmtSiRates = $pdo->query("
+                SELECT sii.item_coa_id as item_id,
+                       COALESCE(SUM(sii.quantity), 0) as qty,
+                       COALESCE(SUM(COALESCE(NULLIF(sii.net_amount, 0), sii.quantity * sii.rate)), 0) as total_amt,
+                       MAX(sii.rate) as max_rate,
+                       MIN(NULLIF(sii.rate, 0)) as min_rate,
+                       SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(sii.rate, 0) ORDER BY si.invoice_date DESC, si.id DESC), ',', 1) as last_rate
+                FROM sale_invoice_items sii
+                JOIN sale_invoices si ON sii.invoice_id = si.id
+                WHERE si.company_id = $company_id AND si.is_cancelled = 0 AND si.is_posted = 1 AND si.invoice_date <= '$endDate'
+                  AND sii.item_coa_id IN ($idList) AND sii.rate > 0
+                GROUP BY sii.item_coa_id
+            ");
+            while ($rRow = $stmtSiRates->fetch(PDO::FETCH_ASSOC)) {
+                $q = floatval($rRow['qty']);
+                $a = floatval($rRow['total_amt']);
+                if ($q > 0 && $a > 0) {
+                    $siRateMap[intval($rRow['item_id'])] = [
+                        'avg_rate' => $a / $q,
+                        'last_rate' => floatval($rRow['last_rate'] ?: ($a / $q)),
+                        'max_rate' => floatval($rRow['max_rate'] ?: ($a / $q)),
+                        'min_rate' => floatval($rRow['min_rate'] ?: ($a / $q))
+                    ];
+                }
+            }
+        } catch (Exception $e) {}
+
+        // Company average Raw Material purchase rate per Kg (Compound cost fallback for Finished Goods)
+        $avgRawRatePerKg = 240.0;
+        try {
+            $qRawAvg = $pdo->query("
+                SELECT COALESCE(SUM(pii.quantity), 0) as qty,
+                       COALESCE(SUM(COALESCE(NULLIF(pii.net_amount, 0), pii.quantity * pii.rate)), 0) as amt
+                FROM purchase_invoice_items pii
+                JOIN purchase_invoices pi ON pii.invoice_id = pi.id
+                WHERE pi.company_id = $company_id AND pi.is_cancelled = 0 AND pi.is_posted = 1 AND pi.invoice_date <= '$endDate' AND pii.rate > 0
+            ");
+            $rawAvgRow = $qRawAvg->fetch(PDO::FETCH_ASSOC);
+            if ($rawAvgRow && floatval($rawAvgRow['qty']) > 0 && floatval($rawAvgRow['amt']) > 0) {
+                $avgRawRatePerKg = round(floatval($rawAvgRow['amt']) / floatval($rawAvgRow['qty']), 2);
             }
         } catch (Exception $e) {}
 
@@ -630,7 +719,13 @@ if ($action === 'get_flow_statement') {
         foreach ($itemsToProcess as $item) {
             $itemId = intval($item['id']);
             $defaultPrice = floatval($item['default_purchase_price'] ?? 0);
+            $valCost = floatval($item['valuation_cost'] ?? 0);
+            $sellPrice = floatval($item['selling_price'] ?? 0);
             $baseUnit = strtoupper(trim($item['unit'] ?? 'KG'));
+            $catTypeUp = strtoupper(trim($item['category_type'] ?? ''));
+            $mainCatUp = strtoupper(trim($item['category_name'] ?? ''));
+            $nameUp = strtoupper(trim($item['name'] ?? ''));
+            $isRawItem = ($catTypeUp === 'RAW MATERIAL' || strpos($catTypeUp, 'RAW') !== false || strpos($mainCatUp, 'RAW') !== false);
 
             // Unit factor from Chart of Inventory (e.g. 25 kg bag, 50 kg bag, etc.)
             $unitFactor = floatval($item['unit_weight'] ?? 0);
@@ -638,17 +733,48 @@ if ($action === 'get_flow_statement') {
             if ($unitFactor <= 0) $unitFactor = floatval($item['carton'] ?? 0);
             if ($unitFactor <= 0) $unitFactor = 25.0; // standard bag weight
 
+            // Master rate & multi-tier fallback for items without purchase/production amounts
+            $masterRate = $valCost > 0 ? $valCost : $defaultPrice;
+            $fallbackRate = floatval($costRatesMap[$itemId]['last_rate'] ?? 0);
+            if ($fallbackRate <= 0) $fallbackRate = floatval($obMap[$itemId]['rate'] ?? 0);
+            if ($fallbackRate <= 0) $fallbackRate = $masterRate;
+            if ($fallbackRate <= 0) $fallbackRate = floatval($siRateMap[$itemId]['avg_rate'] ?? 0);
+            if ($fallbackRate <= 0) $fallbackRate = $sellPrice;
+            if ($fallbackRate <= 0 && !$isRawItem && $avgRawRatePerKg > 0) {
+                if (in_array($baseUnit, ['KG', 'KGS'])) {
+                    $fallbackRate = $avgRawRatePerKg;
+                } else {
+                    $wt = floatval($item['unit_weight'] ?? 0);
+                    if ($wt <= 0) $wt = floatval($item['qty_per_piece'] ?? 0);
+                    if ($wt <= 0 && preg_match('/(\d+(?:\.\d+)?)\s*kg/i', $item['name'] ?? '', $mMatch)) {
+                        $wt = floatval($mMatch[1]);
+                    }
+                    if ($wt <= 0) {
+                        if (strpos($nameUp, '4"') !== false) $wt = 0.400;
+                        elseif (strpos($nameUp, '3"') !== false) $wt = 0.300;
+                        elseif (strpos($nameUp, '2"') !== false) $wt = 0.200;
+                        elseif (strpos($nameUp, '1.5"') !== false) $wt = 0.150;
+                        elseif (strpos($nameUp, '1.25"') !== false) $wt = 0.125;
+                        elseif (strpos($nameUp, '1"') !== false) $wt = 0.100;
+                    }
+                    $fallbackRate = ($wt > 0) ? round($wt * $avgRawRatePerKg, 2) : $avgRawRatePerKg;
+                }
+            }
+
             // Base Quantities & Values
             $initialObQty = floatval($obMap[$itemId]['qty'] ?? 0);
-            $initialObRate = floatval($obMap[$itemId]['rate'] ?? $defaultPrice);
+            $initialObRate = floatval($obMap[$itemId]['rate'] ?? 0) ?: $fallbackRate;
             $initialObVal = $initialObQty * $initialObRate;
 
             $hpQty = floatval($histPurchases[$itemId]['qty'] ?? 0);
             $hpVal = floatval($histPurchases[$itemId]['amount'] ?? 0);
+            if ($hpQty > 0 && $hpVal <= 0 && $fallbackRate > 0) {
+                $hpVal = $hpQty * $fallbackRate;
+            }
 
             $histAvailableQty = $initialObQty + $hpQty;
             $histAvailableVal = $initialObVal + $hpVal;
-            $histAvgCost = ($histAvailableQty > 0) ? ($histAvailableVal / $histAvailableQty) : ($initialObRate ?: $defaultPrice);
+            $histAvgCost = ($histAvailableQty > 0 && $histAvailableVal > 0) ? ($histAvailableVal / $histAvailableQty) : $fallbackRate;
 
             $hcQty = floatval($histConsumptionQty[$itemId] ?? 0);
             $baseOpeningQty = max(0, $histAvailableQty - $hcQty);
@@ -657,19 +783,19 @@ if ($action === 'get_flow_statement') {
             $basePurchasesQty = floatval($periodPurchases[$itemId]['qty'] ?? 0);
             $basePurchasesVal = floatval($periodPurchases[$itemId]['amount'] ?? 0);
 
-            if ($basePurchasesQty > 0 && $basePurchasesVal <= 0 && $defaultPrice > 0) {
-                $basePurchasesVal = $basePurchasesQty * $defaultPrice;
+            if ($basePurchasesQty > 0 && $basePurchasesVal <= 0 && $fallbackRate > 0) {
+                $basePurchasesVal = $basePurchasesQty * $fallbackRate;
             }
 
             $baseAvailQty = $baseOpeningQty + $basePurchasesQty;
             $baseAvailVal = $baseOpeningVal + $basePurchasesVal;
 
             // Determine Applicable Unit Rate based on Costing Method
-            $weightedAvg = ($baseAvailQty > 0) ? ($baseAvailVal / $baseAvailQty) : ($histAvgCost ?: $defaultPrice);
-            $lastPurchaseRate = floatval($costRatesMap[$itemId]['last_rate'] ?? 0) ?: ($defaultPrice ?: $weightedAvg);
-            $maxPurchaseRate = floatval($costRatesMap[$itemId]['max_rate'] ?? 0) ?: ($defaultPrice ?: $weightedAvg);
-            $minPurchaseRate = floatval($costRatesMap[$itemId]['min_rate'] ?? 0) ?: ($defaultPrice ?: $weightedAvg);
-            $masterRate = $defaultPrice ?: $weightedAvg;
+            $weightedAvg = ($baseAvailQty > 0 && $baseAvailVal > 0) ? ($baseAvailVal / $baseAvailQty) : ($histAvgCost ?: $fallbackRate);
+            $lastPurchaseRate = floatval($costRatesMap[$itemId]['last_rate'] ?? 0) ?: (floatval($siRateMap[$itemId]['last_rate'] ?? 0) ?: ($fallbackRate ?: $weightedAvg));
+            $maxPurchaseRate = floatval($costRatesMap[$itemId]['max_rate'] ?? 0) ?: (floatval($siRateMap[$itemId]['max_rate'] ?? 0) ?: ($fallbackRate ?: $weightedAvg));
+            $minPurchaseRate = floatval($costRatesMap[$itemId]['min_rate'] ?? 0) ?: (floatval($siRateMap[$itemId]['min_rate'] ?? 0) ?: ($fallbackRate ?: $weightedAvg));
+            $effMasterRate = ($masterRate > 0 ? $masterRate : $fallbackRate) ?: $weightedAvg;
 
             $applicableRate = $weightedAvg;
             if ($costing_method === 'last_purchase') {
@@ -679,7 +805,7 @@ if ($action === 'get_flow_statement') {
             } elseif ($costing_method === 'min_purchase') {
                 $applicableRate = $minPurchaseRate;
             } elseif ($costing_method === 'master_rate') {
-                $applicableRate = $masterRate;
+                $applicableRate = $effMasterRate;
             } elseif ($costing_method === 'fifo') {
                 $applicableRate = $weightedAvg; // standard weighted FIFO
             }

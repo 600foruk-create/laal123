@@ -176,7 +176,7 @@
         { category: 'Reports', name: 'Item-Wise Profit/Loss', desc: 'Gross Profit per Item Analysis' },
         { category: 'Reports', name: 'Production Report', desc: 'Finished Goods Manufactured Summary' },
         { category: 'Reports', name: 'Material Consumption Report', desc: 'Raw Material Consumed in Factory' },
-        { category: 'Reports', name: 'Raw Material Flow Statement', desc: 'Raw Material Flow at Average Cost' },
+        { category: 'Reports', name: 'Raw Material Flow Statement', desc: 'Inventory & Material Flow at Average Cost' },
         { category: 'Reports', name: 'Production Costing & WIP Statement', desc: 'WIP & Cost of Production Statement' },
         { category: 'Reports', name: 'Job Ledgers', desc: 'Job / Project Costing Ledgers' }
     ];
