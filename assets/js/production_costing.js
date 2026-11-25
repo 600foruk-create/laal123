@@ -633,15 +633,29 @@
             // Render Brand Rates & Stock Valuation Table
             this.renderBrandRatesTable(data);
 
-            // Sync Expense Input fields if in auto mode
+            // Sync Expense Input fields if in auto mode (leave manual untouched)
             const expMode = document.getElementById('pcExpenseMode')?.value || 'manual';
+            const elElec = document.getElementById('pcInputElectricity');
+            const elLabor = document.getElementById('pcInputLabor');
+            const elOvh = document.getElementById('pcInputOverheads');
             if (expMode === 'auto') {
-                const elElec = document.getElementById('pcInputElectricity');
-                const elLabor = document.getElementById('pcInputLabor');
-                const elOvh = document.getElementById('pcInputOverheads');
                 if (elElec) elElec.value = cost.electricity_cost || 0;
                 if (elLabor) elLabor.value = cost.labor_cost || 0;
                 if (elOvh) elOvh.value = cost.overhead_cost || 0;
+
+                const breakdown = data.overhead_breakdown || [];
+                const buildTip = (bucket) => {
+                    const items = breakdown.filter(b => b.bucket === bucket);
+                    if (!items.length) return 'Auto-Fetched from Cost of Sales COA (Rs. 0 in period)';
+                    return items.map(b => `${b.code ? b.code + ' - ' : ''}${b.name}: Rs. ${this.formatCurrency(b.amount)}`).join('\n');
+                };
+                if (elElec) elElec.title = buildTip('electricity');
+                if (elLabor) elLabor.title = buildTip('labor');
+                if (elOvh) elOvh.title = buildTip('overhead');
+            } else {
+                if (elElec) elElec.title = '';
+                if (elLabor) elLabor.title = '';
+                if (elOvh) elOvh.title = '';
             }
 
             // Render Card 1: Reconciliation Meezan
@@ -707,6 +721,11 @@
         saveAndLockWip: async function() {
             if (!this.data.lastReportData) return alert("Please generate the report first.");
 
+            const productFilter = document.getElementById('pcProductFilter')?.value || 'all';
+            if (productFilter !== 'all') {
+                return alert("Please select 'All Categories / Brands' before locking Month-End WIP so full-factory WIP and Overheads are saved for Balance Sheet.");
+            }
+
             const rec = this.data.lastReportData.reconciliation || {};
             const cost = this.data.lastReportData.cost_sheet || {};
             const fromDate = document.getElementById('pcFromDate')?.value || '';
@@ -714,7 +733,8 @@
             const yr = d.getFullYear();
             const mo = d.getMonth() + 1;
 
-            if (!confirm(`Are you sure you want to save and lock Month-End Closing WIP for ${mo}/${yr}?\n\nClosing WIP: ${this.formatQty(rec.closing_wip_qty)} KG\nValuation: Rs. ${this.formatCurrency(rec.closing_wip_val)}\nCost / KG: Rs. ${cost.total_cost_per_kg}`)) {
+            const totOvh = parseFloat(cost.electricity_cost || 0) + parseFloat(cost.labor_cost || 0) + parseFloat(cost.overhead_cost || 0);
+            if (!confirm(`Are you sure you want to save and lock Month-End Closing WIP for ${mo}/${yr}?\n\nClosing WIP: ${this.formatQty(rec.closing_wip_qty)} KG (Rs. ${this.formatCurrency(rec.closing_wip_val)})\nFinished Produced: ${this.formatQty(cost.finished_prod_qty)} KG\nTotal Overheads: Rs. ${this.formatCurrency(totOvh)}\nCost / KG: Rs. ${cost.total_cost_per_kg}`)) {
                 return;
             }
 
@@ -723,8 +743,17 @@
                 formData.append('company_id', this.data.company_id);
                 formData.append('year', yr);
                 formData.append('month', mo);
+                formData.append('opening_wip_qty', rec.opening_wip_qty || 0);
+                formData.append('opening_wip_val', rec.opening_wip_val || 0);
+                formData.append('material_issued_qty', rec.material_issued_qty || 0);
+                formData.append('material_issued_val', rec.material_issued_val || 0);
+                formData.append('finished_prod_qty', cost.finished_prod_qty || rec.finished_prod_qty || 0);
+                formData.append('scrap_qty', rec.scrap_qty || 0);
                 formData.append('closing_wip_qty', rec.closing_wip_qty || 0);
                 formData.append('closing_wip_val', rec.closing_wip_val || 0);
+                formData.append('electricity_cost', cost.electricity_cost || 0);
+                formData.append('labor_cost', cost.labor_cost || 0);
+                formData.append('overhead_cost', cost.overhead_cost || 0);
                 formData.append('per_kg_cost', cost.total_cost_per_kg || 0);
 
                 const res = await fetch('api/production_costing.php?action=save_wip_closing', {

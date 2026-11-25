@@ -1,5 +1,6 @@
 <?php
-require_once 'db_config.php';
+require_once __DIR__ . '/db_config.php';
+require_once __DIR__ . '/account_ledger.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -53,6 +54,169 @@ function getCompanyProfile($pdo, $company_id) {
     } catch (Exception $e) {
         return [];
     }
+}
+
+/**
+ * Computes normalized KG weight, pieces count, and unit weight for a production line item.
+ */
+function calcProducedItemWeightKg($qty, $pieces, $unit, $unitWeight, $qtyPerPiece, $carton) {
+    $qty = floatval($qty ?? 0);
+    $pcs = floatval($pieces ?? 0);
+    $unitUp = strtoupper(trim((string)($unit ?? '')));
+    $unitWt = floatval($unitWeight ?? 0);
+    if ($unitWt <= 0) {
+        $unitWt = floatval($qtyPerPiece ?? 0);
+    }
+    $ctn = floatval($carton ?? 0);
+
+    $weightInKg = $qty;
+    $actualPieces = $pcs;
+
+    if ($unitUp !== 'KG' && $unitUp !== 'KGS') {
+        $actualPieces = ($qty > 0) ? $qty : (($pcs > 0 && $ctn > 0) ? ($pcs * $ctn) : $pcs);
+        if ($unitWt > 0) {
+            $weightInKg = $actualPieces * $unitWt;
+        }
+    } else {
+        if ($actualPieces <= 0 && $unitWt > 0 && $qty > 0) {
+            $actualPieces = round($qty / $unitWt);
+        }
+    }
+
+    return [
+        'weight_kg' => $weightInKg,
+        'pieces' => $actualPieces,
+        'unit_weight' => $unitWt
+    ];
+}
+
+/**
+ * Maps a Chart of Accounts entry into Production Costing overhead bucket ('electricity', 'labor', 'overhead')
+ * or null if excluded (Admin/Marketing/Financial, 50001 Materials, Printing/Entertainment).
+ */
+function classifyFactoryOverheadAccount($acc) {
+    $mainCode = trim((string)($acc['main_code'] ?? ''));
+    $mainNameLower = strtolower(trim((string)($acc['main_name'] ?? '')));
+    $mainCompLower = strtolower(trim((string)($acc['main_component'] ?? '')));
+    $subCode = trim((string)($acc['sub_code'] ?? ''));
+    $subLower = strtolower(trim((string)($acc['sub_name'] ?? '')));
+    $accLower = strtolower(trim((string)($acc['name'] ?? '')));
+
+    $isCostOfSales = ($mainCode === '500'
+        || strpos($mainCompLower, 'cost of sale') !== false
+        || strpos($mainNameLower, 'cost of sale') !== false
+        || strpos($mainNameLower, 'cogs') !== false);
+    if (!$isCostOfSales) {
+        return null;
+    }
+
+    // Exclude 50001 / Materials & Inventory accounts (raw materials are already costed via Formulas / MIN)
+    if ($subCode === '50001' || $subLower === 'materials' || $subLower === 'material') {
+        return null;
+    }
+    $materialTerms = ['opening inventory', 'purchases', 'purchase return', 'carriage & freight inward', 'cost of inventory', 'closing inventory', 'work in process', 'finished goods'];
+    foreach ($materialTerms as $term) {
+        if (strpos($accLower, $term) !== false) {
+            return null;
+        }
+    }
+
+    // Exclude general administrative-type sub-heads placed under 500
+    $excludedTerms = ['printing', 'statinery', 'stationery', 'entertainment'];
+    foreach ($excludedTerms as $term) {
+        if (strpos($subLower, $term) !== false || strpos($accLower, $term) !== false) {
+            return null;
+        }
+    }
+
+    // Labor & Factory Salaries / Wages
+    if (strpos($subLower, 'labour') !== false || strpos($subLower, 'labor') !== false || strpos($subLower, 'wage') !== false) {
+        return 'labor';
+    }
+    $laborTerms = ['salary', 'salaries', 'allowance', 'wage', 'labour', 'labor', 'payroll', 'overtime'];
+    foreach ($laborTerms as $term) {
+        if (strpos($accLower, $term) !== false) {
+            return 'labor';
+        }
+    }
+
+    // Repairs & Maintenance (including Electrical Repairs) stay in Overheads, not Electricity bill
+    if (strpos($subLower, 'repair') !== false || strpos($subLower, 'maint') !== false
+        || strpos($accLower, 'repair') !== false || strpos($accLower, 'maint') !== false) {
+        return 'overhead';
+    }
+
+    // Power / Utility Bills
+    $elecTerms = ['electric', 'pesco', 'wapda', 'iesco', 'lesco', 'mepco', 'fesco', 'gepco', 'hesco', 'qesco', 'k-electric', 'ke bill', 'power', 'utility', 'utilities'];
+    foreach ($elecTerms as $term) {
+        if (strpos($accLower, $term) !== false || strpos($subLower, $term) !== false) {
+            return 'electricity';
+        }
+    }
+
+    return 'overhead';
+}
+
+/**
+ * Fetches period (from_date..to_date) net factory overheads from posted Cash/Bank/Journal vouchers
+ * via fetchLedgerTransactions, excluding opening balances.
+ */
+function fetchAutoFactoryOverheads($pdo, $company_id, $from_date, $to_date) {
+    $result = [
+        'electricity' => 0.0,
+        'labor' => 0.0,
+        'overhead' => 0.0,
+        'breakdown' => []
+    ];
+
+    try {
+        $stmtCoa = $pdo->prepare("
+            SELECT cl.id, cl.code, cl.name,
+                   COALESCE(cs.code, '') as sub_code, COALESCE(cs.name, '') as sub_name,
+                   COALESCE(cm.code, '') as main_code, COALESCE(cm.name, '') as main_name,
+                   COALESCE(cm.component, '') as main_component
+            FROM coa_list cl
+            LEFT JOIN coa_sub cs ON cl.sub_id = cs.id
+            LEFT JOIN coa_main cm ON cs.main_id = cm.id
+            WHERE cl.company_id = ?
+            ORDER BY cl.code ASC, cl.name ASC
+        ");
+        $stmtCoa->execute([$company_id]);
+        $accounts = $stmtCoa->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($accounts as $acc) {
+            $bucket = classifyFactoryOverheadAccount($acc);
+            if ($bucket === null) {
+                continue;
+            }
+
+            $txs = fetchLedgerTransactions($pdo, $company_id, intval($acc['id']), $from_date, $to_date);
+            $netAmt = 0.0;
+            foreach ($txs as $tx) {
+                if (!empty($tx['is_ob'])) {
+                    continue;
+                }
+                $netAmt += floatval($tx['debit'] ?? 0) - floatval($tx['credit'] ?? 0);
+            }
+
+            $result[$bucket] += $netAmt;
+            if (abs($netAmt) > 0.005) {
+                $result['breakdown'][] = [
+                    'account_id' => intval($acc['id']),
+                    'code' => $acc['code'],
+                    'name' => $acc['name'],
+                    'sub_name' => $acc['sub_name'],
+                    'bucket' => $bucket,
+                    'amount' => round($netAmt, 2)
+                ];
+            }
+        }
+    } catch (Exception $e) {}
+
+    $result['electricity'] = max(0.0, round($result['electricity'], 2));
+    $result['labor'] = max(0.0, round($result['labor'], 2));
+    $result['overhead'] = max(0.0, round($result['overhead'], 2));
+    return $result;
 }
 
 // =========================================================================
@@ -130,19 +294,32 @@ if ($action === 'get_meta') {
             $categories = $pdo->query("SELECT id, code, name FROM inv_main_categories ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
         }
 
-        // Expense Accounts for Electricity, Wages & Overheads
+        // Expense Accounts for Electricity, Wages & Overheads (aligned with Cost of Sales COA mapping)
         $stmtAcc = $pdo->prepare("
-            SELECT id, code, name 
-            FROM coa_list 
-            WHERE company_id = ? 
-              AND (name LIKE '%ELECTRIC%' OR name LIKE '%WAPDA%' OR name LIKE '%POWER%'
-                   OR name LIKE '%WAGE%' OR name LIKE '%LABOUR%' OR name LIKE '%LABOR%'
-                   OR name LIKE '%FUEL%' OR name LIKE '%GAS%' OR name LIKE '%MAINTENANCE%'
-                   OR name LIKE '%FACTORY%' OR name LIKE '%OVERHEAD%')
-            ORDER BY name ASC
+            SELECT cl.id, cl.code, cl.name,
+                   COALESCE(cs.code, '') as sub_code, COALESCE(cs.name, '') as sub_name,
+                   COALESCE(cm.code, '') as main_code, COALESCE(cm.name, '') as main_name,
+                   COALESCE(cm.component, '') as main_component
+            FROM coa_list cl
+            LEFT JOIN coa_sub cs ON cl.sub_id = cs.id
+            LEFT JOIN coa_main cm ON cs.main_id = cm.id
+            WHERE cl.company_id = ?
+            ORDER BY cl.code ASC, cl.name ASC
         ");
         $stmtAcc->execute([$company_id]);
-        $expenseAccounts = $stmtAcc->fetchAll(PDO::FETCH_ASSOC);
+        $expenseAccounts = [];
+        foreach ($stmtAcc->fetchAll(PDO::FETCH_ASSOC) as $accRow) {
+            $bucket = classifyFactoryOverheadAccount($accRow);
+            if ($bucket !== null) {
+                $expenseAccounts[] = [
+                    'id' => $accRow['id'],
+                    'code' => $accRow['code'],
+                    'name' => $accRow['name'],
+                    'sub_name' => $accRow['sub_name'],
+                    'bucket' => $bucket
+                ];
+            }
+        }
 
         $today = date('Y-m-d');
         $firstOfMonth = date('Y-m-01');
@@ -325,37 +502,55 @@ if ($action === 'get_costing_statement') {
         $totalFinishedPieces = 0;
 
         foreach ($producedItems as &$pItem) {
-            $qty = floatval($pItem['produced_qty'] ?? 0);
-            $pcs = floatval($pItem['produced_pieces'] ?? 0);
-            $unit = strtoupper(trim($pItem['unit'] ?? ''));
-            $unitWt = floatval($pItem['unit_weight'] ?? 0);
-            if ($unitWt <= 0) $unitWt = floatval($pItem['qty_per_piece'] ?? 0);
-            $ctn = floatval($pItem['carton'] ?? 0);
-
-            $weightInKg = $qty;
-            $actualPieces = $pcs;
-
-            if ($unit !== 'KG' && $unit !== 'KGS') {
-                // For fittings/pieces (Unit: Pcs, Ctn, etc.):
-                // Total pieces produced is qty (e.g. 3000 pcs)
-                $actualPieces = ($qty > 0) ? $qty : (($pcs > 0 && $ctn > 0) ? ($pcs * $ctn) : $pcs);
-                if ($unitWt > 0) {
-                    $weightInKg = $actualPieces * $unitWt;
-                }
-            } else {
-                // For pipes (Unit: KG, Kgs): Qty is weight in KG, pcs is pipe lengths count
-                if ($actualPieces <= 0 && $unitWt > 0 && $qty > 0) {
-                    $actualPieces = round($qty / $unitWt);
-                }
-            }
-
-            $pItem['produced_pieces'] = $actualPieces;
-            $pItem['weight_kg'] = $weightInKg;
-            $pItem['unit_weight_calc'] = $unitWt;
-            $totalFinishedProdQty += $weightInKg;
-            $totalFinishedPieces += $actualPieces;
+            $calc = calcProducedItemWeightKg(
+                $pItem['produced_qty'] ?? 0,
+                $pItem['produced_pieces'] ?? 0,
+                $pItem['unit'] ?? '',
+                $pItem['unit_weight'] ?? 0,
+                $pItem['qty_per_piece'] ?? 0,
+                $pItem['carton'] ?? 0
+            );
+            $pItem['produced_pieces'] = $calc['pieces'];
+            $pItem['weight_kg'] = $calc['weight_kg'];
+            $pItem['unit_weight_calc'] = $calc['unit_weight'];
+            $totalFinishedProdQty += $calc['weight_kg'];
+            $totalFinishedPieces += $calc['pieces'];
         }
         unset($pItem);
+
+        // Compute full-factory production weight for proportional auto-fetch scaling when filtered by brand/product
+        $factoryTotalFinishedProdQty = $totalFinishedProdQty;
+        $isFilteredProduction = (($category_id !== 'all' && intval($category_id) > 0) || ($product_id !== 'all' && intval($product_id) > 0));
+        if ($isFilteredProduction && $expense_mode === 'auto') {
+            $factoryTotalFinishedProdQty = 0;
+            try {
+                $stmtAllProd = $pdo->prepare("
+                    SELECT SUM(pp.qty) as produced_qty, SUM(pp.pieces) as produced_pieces,
+                           i.unit, COALESCE(i.unit_weight, 0) as unit_weight,
+                           COALESCE(i.qty_per_piece, 0) as qty_per_piece, COALESCE(i.carton, 0) as carton
+                    FROM production_note_items pp
+                    JOIN production_notes p ON pp.pn_id = p.id
+                    JOIN inv_items i ON pp.item_id = i.id
+                    WHERE p.company_id = ? AND p.is_cancelled = 0 AND p.is_posted = 1
+                      AND p.date BETWEEN ? AND ?
+                    GROUP BY pp.item_id, i.unit, i.unit_weight, i.qty_per_piece, i.carton
+                ");
+                $stmtAllProd->execute([$company_id, $from_date, $to_date]);
+                foreach ($stmtAllProd->fetchAll(PDO::FETCH_ASSOC) as $aRow) {
+                    $aCalc = calcProducedItemWeightKg(
+                        $aRow['produced_qty'] ?? 0,
+                        $aRow['produced_pieces'] ?? 0,
+                        $aRow['unit'] ?? '',
+                        $aRow['unit_weight'] ?? 0,
+                        $aRow['qty_per_piece'] ?? 0,
+                        $aRow['carton'] ?? 0
+                    );
+                    $factoryTotalFinishedProdQty += $aCalc['weight_kg'];
+                }
+            } catch (Exception $eAllP) {
+                $factoryTotalFinishedProdQty = $totalFinishedProdQty;
+            }
+        }
 
         // -----------------------------------------------------------------
         // D. Scrap / Wastage for Selected Period
@@ -373,6 +568,8 @@ if ($action === 'get_costing_statement') {
 
         if ($periodIssuedQty > 0) {
             $avgMaterialRate = ($periodIssuedVal / $periodIssuedQty);
+        } elseif ($openingWipQty > 0 && $openingWipVal > 0) {
+            $avgMaterialRate = ($openingWipVal / $openingWipQty);
         } elseif ($category_id === 'all' || empty($category_id)) {
             $avgMaterialRate = 220.0;
         } else {
@@ -386,67 +583,32 @@ if ($action === 'get_costing_statement') {
         $electricityCost = 0;
         $laborCost = 0;
         $overheadCost = 0;
+        $overheadBreakdown = [];
 
         if ($expense_mode === 'manual') {
             $electricityCost = $manual_electricity;
             $laborCost = $manual_labor;
             $overheadCost = $manual_overheads;
         } else {
-            // Auto fetch from Chart of Accounts vouchers only when 'auto' mode is explicitly chosen
-            try {
-                // Electricity
-                $stmtElec = $pdo->prepare("
-                    SELECT COALESCE(SUM(vi.debit), 0) 
-                    FROM voucher_items vi
-                    JOIN vouchers v ON vi.voucher_id = v.id
-                    JOIN coa_list c ON vi.coa_id = c.id
-                    WHERE v.company_id = ? AND v.is_posted = 1 AND v.date BETWEEN ? AND ?
-                      AND (c.name LIKE '%ELECTRIC%' OR c.name LIKE '%WAPDA%' OR c.name LIKE '%POWER%')
-                ");
-                $stmtElec->execute([$company_id, $from_date, $to_date]);
-                $electricityCost = floatval($stmtElec->fetchColumn() ?: 0);
+            // Auto fetch from posted Cash Payments, Bank Payments & Journal Vouchers via account_ledger
+            $autoOvh = fetchAutoFactoryOverheads($pdo, $company_id, $from_date, $to_date);
+            $electricityCost = $autoOvh['electricity'];
+            $laborCost = $autoOvh['labor'];
+            $overheadCost = $autoOvh['overhead'];
+            $overheadBreakdown = $autoOvh['breakdown'];
 
-                // Wages / Labor
-                $stmtLabor = $pdo->prepare("
-                    SELECT COALESCE(SUM(vi.debit), 0) 
-                    FROM voucher_items vi
-                    JOIN vouchers v ON vi.voucher_id = v.id
-                    JOIN coa_list c ON vi.coa_id = c.id
-                    WHERE v.company_id = ? AND v.is_posted = 1 AND v.date BETWEEN ? AND ?
-                      AND (c.name LIKE '%WAGE%' OR c.name LIKE '%LABOUR%' OR c.name LIKE '%LABOR%')
-                ");
-                $stmtLabor->execute([$company_id, $from_date, $to_date]);
-                $laborCost = floatval($stmtLabor->fetchColumn() ?: 0);
-
-                // Maintenance / Other Overheads
-                $stmtOvh = $pdo->prepare("
-                    SELECT COALESCE(SUM(vi.debit), 0) 
-                    FROM voucher_items vi
-                    JOIN vouchers v ON vi.voucher_id = v.id
-                    JOIN coa_list c ON vi.coa_id = c.id
-                    WHERE v.company_id = ? AND v.is_posted = 1 AND v.date BETWEEN ? AND ?
-                      AND (c.name LIKE '%MAINTENANCE%' OR c.name LIKE '%FACTORY OVERHEAD%' OR c.name LIKE '%GENERATOR FUEL%' OR c.name LIKE '%OIL%')
-                ");
-                $stmtOvh->execute([$company_id, $from_date, $to_date]);
-                $overheadCost = floatval($stmtOvh->fetchColumn() ?: 0);
-            } catch (Exception $e) {}
+            // When filtered by a specific Brand/Category or Product, scale company overheads to this filter's KG share
+            if ($isFilteredProduction && $factoryTotalFinishedProdQty > 0 && $totalFinishedProdQty > 0 && $factoryTotalFinishedProdQty > $totalFinishedProdQty) {
+                $filterRatio = $totalFinishedProdQty / $factoryTotalFinishedProdQty;
+                $electricityCost = round($electricityCost * $filterRatio, 2);
+                $laborCost = round($laborCost * $filterRatio, 2);
+                $overheadCost = round($overheadCost * $filterRatio, 2);
+            } elseif ($isFilteredProduction && $totalFinishedProdQty <= 0) {
+                $electricityCost = 0;
+                $laborCost = 0;
+                $overheadCost = 0;
+            }
         }
-
-        // -----------------------------------------------------------------
-        // G. Net Manufacturing Cost & Per-KG Unit Cost
-        // -----------------------------------------------------------------
-        // Raw Material Consumed Value = (Opening WIP Val + Period Issued Val - Closing WIP Val)
-        $materialConsumedVal = ($openingWipVal + $periodIssuedVal) - $closingWipVal;
-        if ($materialConsumedVal < 0) $materialConsumedVal = 0;
-
-        $totalConversionCost = $electricityCost + $laborCost + $overheadCost;
-        $totalManufacturingCost = $materialConsumedVal + $totalConversionCost;
-
-        $perKgCost = ($totalFinishedProdQty > 0) ? ($totalManufacturingCost / $totalFinishedProdQty) : 0;
-        $materialCostPerKg = ($totalFinishedProdQty > 0) ? ($materialConsumedVal / $totalFinishedProdQty) : 0;
-        $electricityCostPerKg = ($totalFinishedProdQty > 0) ? ($electricityCost / $totalFinishedProdQty) : 0;
-        $laborCostPerKg = ($totalFinishedProdQty > 0) ? ($laborCost / $totalFinishedProdQty) : 0;
-        $overheadCostPerKg = ($totalFinishedProdQty > 0) ? ($overheadCost / $totalFinishedProdQty) : 0;
 
         // -----------------------------------------------------------------
         // G. Net Manufacturing Cost & Per-KG Unit Cost
@@ -535,6 +697,7 @@ if ($action === 'get_costing_statement') {
             $productCostRows[] = [
                 'sr' => $sr++,
                 'item_id' => $pItem['item_id'],
+                'category_id' => $catId,
                 'product_code' => $pItem['product_code'],
                 'product_name' => $pItem['product_name'],
                 'category_name' => $pItem['category_name'] ?? '',
@@ -552,6 +715,17 @@ if ($action === 'get_costing_statement') {
                 'cost_per_piece' => round($itemCostPerPiece, 2),
                 'cost_per_kg' => round($itemTotalCostPerKg, 2)
             ];
+        }
+
+        // If All Categories view has no Store Issue (MIN) posted yet, sync summary material total with Formula-allocated product costs
+        if (($category_id === 'all' || empty($category_id)) && $materialConsumedVal <= 0 && !empty($productCostRows) && $totalFinishedProdQty > 0) {
+            $formulaMatSum = array_sum(array_column($productCostRows, 'allocated_material'));
+            if ($formulaMatSum > 0) {
+                $materialConsumedVal = $formulaMatSum;
+                $materialCostPerKg = $materialConsumedVal / $totalFinishedProdQty;
+                $totalManufacturingCost = $materialConsumedVal + $totalConversionCost;
+                $perKgCost = $totalManufacturingCost / $totalFinishedProdQty;
+            }
         }
 
         // Group by Category / Brand for Category Summary View
@@ -589,13 +763,12 @@ if ($action === 'get_costing_statement') {
         $catStockMap = [];
         try {
             $stmtStock = $pdo->prepare("
-                SELECT s.main_id, 
-                       COALESCE(SUM(
-                           COALESCE(ob.ob_qty, 0) + COALESCE(pn.pn_qty, 0) - COALESCE(si.si_qty, 0)
-                       ), 0) as stock_kg,
-                       COALESCE(SUM(
-                           COALESCE(ob.ob_pcs, 0) + COALESCE(pn.pn_pcs, 0) - COALESCE(si.si_pcs, 0)
-                       ), 0) as stock_pcs
+                SELECT i.id, s.main_id, i.unit,
+                       COALESCE(i.unit_weight, 0) as unit_weight,
+                       COALESCE(i.qty_per_piece, 0) as qty_per_piece,
+                       COALESCE(i.carton, 0) as carton,
+                       (COALESCE(ob.ob_qty, 0) + COALESCE(pn.pn_qty, 0) - COALESCE(si.si_qty, 0)) as bal_qty,
+                       (COALESCE(ob.ob_pcs, 0) + COALESCE(pn.pn_pcs, 0) - COALESCE(si.si_pcs, 0)) as bal_pcs
                 FROM inv_items i
                 LEFT JOIN inv_sub_categories s ON i.sub_id = s.id
                 LEFT JOIN (
@@ -617,14 +790,29 @@ if ($action === 'get_costing_statement') {
                     GROUP BY sii.item_coa_id
                 ) si ON i.id = si.item_id
                 WHERE i.company_id = ? AND s.main_id IS NOT NULL
-                GROUP BY s.main_id
+                  AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
             ");
             $stmtStock->execute([$company_id, $company_id, $company_id, $company_id]);
             while ($sRow = $stmtStock->fetch(PDO::FETCH_ASSOC)) {
-                $catStockMap[intval($sRow['main_id'])] = [
-                    'stock_kg' => floatval($sRow['stock_kg']),
-                    'stock_pcs' => floatval($sRow['stock_pcs'])
-                ];
+                $mId = intval($sRow['main_id']);
+                $rawBal = floatval($sRow['bal_qty']);
+                $rawPcs = floatval($sRow['bal_pcs']);
+                if ($rawBal <= 0 && $rawPcs <= 0) {
+                    continue;
+                }
+                $sCalc = calcProducedItemWeightKg(
+                    max(0, $rawBal),
+                    max(0, $rawPcs),
+                    $sRow['unit'] ?? '',
+                    $sRow['unit_weight'] ?? 0,
+                    $sRow['qty_per_piece'] ?? 0,
+                    $sRow['carton'] ?? 0
+                );
+                if (!isset($catStockMap[$mId])) {
+                    $catStockMap[$mId] = ['stock_kg' => 0.0, 'stock_pcs' => 0.0];
+                }
+                $catStockMap[$mId]['stock_kg'] += $sCalc['weight_kg'];
+                $catStockMap[$mId]['stock_pcs'] += $sCalc['pieces'];
             }
         } catch(Exception $eStock) {}
 
@@ -715,25 +903,18 @@ if ($action === 'get_costing_statement') {
         $dailyProdMap = [];
         foreach ($dailyProdRows as $dItem) {
             $dDate = $dItem['date'];
-            $dQty = floatval($dItem['qty'] ?? 0);
-            $dPcs = floatval($dItem['pieces'] ?? 0);
-            $dUnit = strtoupper(trim($dItem['unit'] ?? ''));
-            $dWt = floatval($dItem['unit_weight'] ?? 0);
-            if ($dWt <= 0) $dWt = floatval($dItem['qty_per_piece'] ?? 0);
-            $dCtn = floatval($dItem['carton'] ?? 0);
-
-            $dWeightInKg = $dQty;
-            if ($dUnit !== 'KG' && $dUnit !== 'KGS') {
-                $actualPcs = ($dQty > 0) ? $dQty : (($dPcs > 0 && $dCtn > 0) ? ($dPcs * $dCtn) : $dPcs);
-                if ($dWt > 0) {
-                    $dWeightInKg = $actualPcs * $dWt;
-                }
-            }
-
+            $dCalc = calcProducedItemWeightKg(
+                $dItem['qty'] ?? 0,
+                $dItem['pieces'] ?? 0,
+                $dItem['unit'] ?? '',
+                $dItem['unit_weight'] ?? 0,
+                $dItem['qty_per_piece'] ?? 0,
+                $dItem['carton'] ?? 0
+            );
             if (!isset($dailyProdMap[$dDate])) {
                 $dailyProdMap[$dDate] = 0;
             }
-            $dailyProdMap[$dDate] += $dWeightInKg;
+            $dailyProdMap[$dDate] += $dCalc['weight_kg'];
         }
 
         // Loop each day in range
@@ -761,7 +942,7 @@ if ($action === 'get_costing_statement') {
                 'material_issued_qty' => round($dayIss, 2),
                 'material_issued_val' => round($dayIssVal, 2),
                 'finished_prod_qty' => round($dayProd, 2),
-                'scrap_qty' => round($dayScrap, 2),
+                'scrap_qty' => 0,
                 'closing_wip' => round($dCloseWip, 2),
                 'yield_pct' => $dayYield,
                 'status' => ($dCloseWip > 0) ? 'In Process' : 'Balanced'
@@ -820,6 +1001,8 @@ if ($action === 'get_costing_statement') {
                 'finished_prod_qty' => round($totalFinishedProdQty, 2),
                 'finished_pieces' => round($totalFinishedPieces, 0)
             ],
+            'expense_mode' => $expense_mode,
+            'overhead_breakdown' => $overheadBreakdown,
             'carry_forward' => [
                 'prev_closing_qty' => round($openingWipQty, 2),
                 'prev_closing_val' => round($openingWipVal, 2),
@@ -844,23 +1027,48 @@ if ($action === 'save_wip_closing') {
     try {
         $year = intval($_POST['year'] ?? date('Y'));
         $month = intval($_POST['month'] ?? date('n'));
+        $openingQty = floatval($_POST['opening_wip_qty'] ?? 0);
+        $openingVal = floatval($_POST['opening_wip_val'] ?? 0);
+        $issuedQty = floatval($_POST['material_issued_qty'] ?? 0);
+        $issuedVal = floatval($_POST['material_issued_val'] ?? 0);
+        $finishedQty = floatval($_POST['finished_prod_qty'] ?? 0);
+        $scrapQtySave = floatval($_POST['scrap_qty'] ?? 0);
         $closingQty = floatval($_POST['closing_wip_qty'] ?? 0);
         $closingVal = floatval($_POST['closing_wip_val'] ?? 0);
+        $elecCostSave = floatval($_POST['electricity_cost'] ?? 0);
+        $laborCostSave = floatval($_POST['labor_cost'] ?? 0);
+        $ovhCostSave = floatval($_POST['overhead_cost'] ?? 0);
         $perKgCost = floatval($_POST['per_kg_cost'] ?? 0);
 
         $stmtSave = $pdo->prepare("
             INSERT INTO mfg_monthly_wip 
-                (company_id, year, month, closing_wip_qty, closing_wip_val, per_kg_cost, is_locked)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
+                (company_id, year, month, opening_wip_qty, opening_wip_val, material_issued_qty, material_issued_val,
+                 finished_prod_qty, scrap_qty, closing_wip_qty, closing_wip_val,
+                 electricity_cost, labor_cost, overhead_cost, per_kg_cost, is_locked)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             ON DUPLICATE KEY UPDATE 
+                opening_wip_qty = VALUES(opening_wip_qty),
+                opening_wip_val = VALUES(opening_wip_val),
+                material_issued_qty = VALUES(material_issued_qty),
+                material_issued_val = VALUES(material_issued_val),
+                finished_prod_qty = VALUES(finished_prod_qty),
+                scrap_qty = VALUES(scrap_qty),
                 closing_wip_qty = VALUES(closing_wip_qty),
                 closing_wip_val = VALUES(closing_wip_val),
+                electricity_cost = VALUES(electricity_cost),
+                labor_cost = VALUES(labor_cost),
+                overhead_cost = VALUES(overhead_cost),
                 per_kg_cost = VALUES(per_kg_cost),
                 is_locked = 1
         ");
-        $stmtSave->execute([$company_id, $year, $month, $closingQty, $closingVal, $perKgCost]);
+        $stmtSave->execute([
+            $company_id, $year, $month,
+            $openingQty, $openingVal, $issuedQty, $issuedVal,
+            $finishedQty, $scrapQtySave, $closingQty, $closingVal,
+            $elecCostSave, $laborCostSave, $ovhCostSave, $perKgCost
+        ]);
 
-        echo json_encode(['status' => 'success', 'message' => 'Monthly WIP closing saved and locked.']);
+        echo json_encode(['status' => 'success', 'message' => 'Monthly WIP closing and overheads saved and locked.']);
     } catch (Exception $e) {
         echo json_encode(['status' => 'error', 'error' => $e->getMessage()]);
     }
