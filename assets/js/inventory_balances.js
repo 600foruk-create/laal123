@@ -549,37 +549,54 @@ window.InventoryBalancesModule = {
     },
 
     formatFittingClosingKg: function(row) {
-        const wtPerPc = parseFloat(row.weight_per_pc || 0);
-        if (wtPerPc <= 0 && parseFloat(row.cb_primary || 0) !== 0) {
+        return this.formatItemKgCell(row.cb_kg || 0, row.cb_primary || 0, row.weight_per_pc || 0, true);
+    },
+
+    formatItemKgCell: function(kgVal, primaryVal, wtPerPc, isFittingsRow) {
+        if (isFittingsRow && parseFloat(wtPerPc || 0) <= 0 && parseFloat(primaryVal || 0) !== 0) {
             return `<span style="color:#94a3b8;" title="Weight/Piece (KG) not set in Chart of Inventory">-</span>`;
         }
-        return this.formatCell(row.cb_kg || 0);
+        return this.formatCell(kgVal || 0);
     },
 
     buildItemLeadAndStockCellsHtml: function(row, isFitting, dashSec) {
         const pcsPerCtn = parseFloat(row.pcs_per_ctn || 0);
         const wtPerPc   = parseFloat(row.weight_per_pc || 0);
         const kgPerCtn  = parseFloat(row.kg_per_ctn || 0);
+        const isFittingsRow = row.group === 'Fittings';
+
+        // In All-Categories (2-column) view, col 1 = Pcs/Ctn/Bags and col 2 = true KG
+        const col2 = (bKg, bSec, bPri) => {
+            if (isFitting) {
+                return this.formatCell(bSec, true, dashSec);
+            }
+            const kgAmount = isFittingsRow ? (bKg ?? 0) : (bKg ?? bSec ?? 0);
+            return this.formatItemKgCell(kgAmount, bPri, wtPerPc, isFittingsRow);
+        };
+
+        const priTitle = (!isFitting && isFittingsRow && parseFloat(row.cb_sec || 0) !== 0)
+            ? ` title="${this.formatNum(row.cb_primary)} Ctn (${this.formatNum(row.cb_sec)} Pcs)"`
+            : '';
 
         const leadCells = isFitting ? `
             <td style="text-align: center; font-weight: 700; color: #1F4E79;">${pcsPerCtn > 0 ? this.formatNum(pcsPerCtn) : '-'}</td>
             <td style="text-align: right; color: #475569;">${wtPerPc > 0 ? this.formatNum(wtPerPc, 3) : '-'}</td>
             <td style="text-align: right; font-weight: 700; color: #0369a1;">${kgPerCtn > 0 ? this.formatNum(kgPerCtn) : '-'}</td>
         ` : `
-            <td style="text-align: center; font-weight: bold; color: #1F4E79;">${row.unit_display}</td>
+            <td style="text-align: center; font-weight: bold; color: #1F4E79;">${isFittingsRow ? 'Ctn / Kg' : row.unit_display}</td>
         `;
 
         return `${leadCells}
             <td style="text-align: right;">${this.formatCell(row.ob_primary)}</td>
-            <td style="text-align: right;">${this.formatCell(row.ob_sec, true, dashSec)}</td>
+            <td style="text-align: right;">${col2(row.ob_kg, row.ob_sec, row.ob_primary)}</td>
             <td style="text-align: right;">${this.formatCell(row.in_primary)}</td>
-            <td style="text-align: right;">${this.formatCell(row.in_sec, true, dashSec)}</td>
+            <td style="text-align: right;">${col2(row.in_kg, row.in_sec, row.in_primary)}</td>
             <td style="text-align: right;">${this.formatCell(row.out_primary)}</td>
-            <td style="text-align: right;">${this.formatCell(row.out_sec, true, dashSec)}</td>
+            <td style="text-align: right;">${col2(row.out_kg, row.out_sec, row.out_primary)}</td>
             <td style="text-align: right;">${this.formatCell(row.adj_primary)}</td>
-            <td style="text-align: right;">${this.formatCell(row.adj_sec, true, dashSec)}</td>
-            <td style="text-align: right; font-weight: 800; background: #f8fafc;">${this.formatCell(row.cb_primary)}</td>
-            <td style="text-align: right; font-weight: 800; background: #f8fafc;">${this.formatCell(row.cb_sec, true, dashSec)}</td>
+            <td style="text-align: right;">${col2(row.adj_kg, row.adj_sec, row.adj_primary)}</td>
+            <td style="text-align: right; font-weight: 800; background: #f8fafc;"${priTitle}>${this.formatCell(row.cb_primary)}</td>
+            <td style="text-align: right; font-weight: 800; background: #f8fafc;">${col2(row.cb_kg, row.cb_sec, row.cb_primary)}</td>
             ${isFitting ? `<td style="text-align: right; font-weight: 800; background: #f0f9ff; color: #0c4a6e;">${this.formatFittingClosingKg(row)}</td>` : ''}
         `;
     },
@@ -588,21 +605,26 @@ window.InventoryBalancesModule = {
         const isGrand = !!opts.isGrand;
         const forPrint = !!opts.forPrint;
         const textStyle = (isGrand && forPrint) ? ' color: #fff;' : '';
-        const cbWeight = isGrand ? '900' : '900';
+        const cbWeight = '900';
         const cbBg = isGrand ? (forPrint ? ' background: #071e30;' : ' background: #0f2d4a;') : '';
         const kgBg = isGrand ? (forPrint ? ' background: #071e30;' : ' background: #0f2d4a;') : ' background: #f0f9ff; color: #0c4a6e;';
 
+        // In All-Categories view, the second sub-column of every bucket is KG (never mix Fitting Pcs into KG)
+        const secVal = (kgVal, secValRaw) => isFitting
+            ? this.formatCell(secValRaw, true, dashSubSec)
+            : this.formatCell(kgVal !== undefined ? kgVal : secValRaw);
+
         return `
             <td style="text-align: right;${textStyle}">${this.formatCell(tot.ob_primary)}</td>
-            <td style="text-align: right;${textStyle}">${this.formatCell(tot.ob_sec, true, dashSubSec)}</td>
+            <td style="text-align: right;${textStyle}">${secVal(tot.ob_kg, tot.ob_sec)}</td>
             <td style="text-align: right;${textStyle}">${this.formatCell(tot.in_primary)}</td>
-            <td style="text-align: right;${textStyle}">${this.formatCell(tot.in_sec, true, dashSubSec)}</td>
+            <td style="text-align: right;${textStyle}">${secVal(tot.in_kg, tot.in_sec)}</td>
             <td style="text-align: right;${textStyle}">${this.formatCell(tot.out_primary)}</td>
-            <td style="text-align: right;${textStyle}">${this.formatCell(tot.out_sec, true, dashSubSec)}</td>
+            <td style="text-align: right;${textStyle}">${secVal(tot.out_kg, tot.out_sec)}</td>
             <td style="text-align: right;${textStyle}">${this.formatCell(tot.adj_primary)}</td>
-            <td style="text-align: right;${textStyle}">${this.formatCell(tot.adj_sec, true, dashSubSec)}</td>
+            <td style="text-align: right;${textStyle}">${secVal(tot.adj_kg, tot.adj_sec)}</td>
             <td style="text-align: right; font-weight: ${cbWeight};${cbBg}${textStyle}">${this.formatCell(tot.cb_primary)}</td>
-            <td style="text-align: right; font-weight: ${cbWeight};${cbBg}${textStyle}">${this.formatCell(tot.cb_sec, true, dashSubSec)}</td>
+            <td style="text-align: right; font-weight: ${cbWeight};${cbBg}${textStyle}">${secVal(tot.cb_kg, tot.cb_sec)}</td>
             ${isFitting ? `<td style="text-align: right; font-weight: ${cbWeight};${kgBg}${textStyle}">${this.formatCell(tot.cb_kg || 0)}</td>` : ''}
         `;
     },
@@ -863,7 +885,7 @@ window.InventoryBalancesModule = {
 
         // Dynamic column headers
         let u1Title = 'Pcs / Ctn';
-        let u2Title = 'Kg / Pcs';
+        let u2Title = 'Kg';
         const activeCatLower = catText.toLowerCase();
         if (activeCatLower.includes('pipe') || (groups.length === 1 && groups[0].group_name === 'PVC Pipes')) {
             u1Title = 'Pcs'; u2Title = 'Kg';
@@ -877,10 +899,10 @@ window.InventoryBalancesModule = {
         let globalIdx = 1;
         let totalItemsCount = 0;
         let grandTotals = {
-            ob_primary: 0, ob_sec: 0,
-            in_primary: 0, in_sec: 0,
-            out_primary: 0, out_sec: 0,
-            adj_primary: 0, adj_sec: 0,
+            ob_primary: 0, ob_sec: 0, ob_kg: 0,
+            in_primary: 0, in_sec: 0, in_kg: 0,
+            out_primary: 0, out_sec: 0, out_kg: 0,
+            adj_primary: 0, adj_sec: 0, adj_kg: 0,
             cb_primary: 0, cb_sec: 0, cb_kg: 0
         };
 
@@ -899,10 +921,10 @@ window.InventoryBalancesModule = {
             `;
 
             let grpTotals = {
-                ob_primary: 0, ob_sec: 0,
-                in_primary: 0, in_sec: 0,
-                out_primary: 0, out_sec: 0,
-                adj_primary: 0, adj_sec: 0,
+                ob_primary: 0, ob_sec: 0, ob_kg: 0,
+                in_primary: 0, in_sec: 0, in_kg: 0,
+                out_primary: 0, out_sec: 0, out_kg: 0,
+                adj_primary: 0, adj_sec: 0, adj_kg: 0,
                 cb_primary: 0, cb_sec: 0, cb_kg: 0
             };
 
@@ -911,28 +933,40 @@ window.InventoryBalancesModule = {
             visibleItems.forEach(row => {
                 totalItemsCount++;
                 const dashSec = isFittings && row.ob_sec === 0 && row.in_sec === 0 && row.out_sec === 0 && row.cb_sec === 0;
-                const rowCbKg = parseFloat(row.cb_kg || 0);
+                const rowObKg  = parseFloat(row.ob_kg ?? row.ob_sec ?? 0);
+                const rowInKg  = parseFloat(row.in_kg ?? row.in_sec ?? 0);
+                const rowOutKg = parseFloat(row.out_kg ?? row.out_sec ?? 0);
+                const rowAdjKg = parseFloat(row.adj_kg ?? row.adj_sec ?? 0);
+                const rowCbKg  = parseFloat(row.cb_kg ?? row.cb_sec ?? 0);
 
                 grpTotals.ob_primary += row.ob_primary;
                 grpTotals.ob_sec     += row.ob_sec;
+                grpTotals.ob_kg      += rowObKg;
                 grpTotals.in_primary += row.in_primary;
                 grpTotals.in_sec     += row.in_sec;
+                grpTotals.in_kg      += rowInKg;
                 grpTotals.out_primary+= row.out_primary;
                 grpTotals.out_sec    += row.out_sec;
+                grpTotals.out_kg     += rowOutKg;
                 grpTotals.adj_primary+= row.adj_primary;
                 grpTotals.adj_sec    += row.adj_sec;
+                grpTotals.adj_kg     += rowAdjKg;
                 grpTotals.cb_primary += row.cb_primary;
                 grpTotals.cb_sec     += row.cb_sec;
                 grpTotals.cb_kg      += rowCbKg;
 
                 grandTotals.ob_primary += row.ob_primary;
                 grandTotals.ob_sec     += row.ob_sec;
+                grandTotals.ob_kg      += rowObKg;
                 grandTotals.in_primary += row.in_primary;
                 grandTotals.in_sec     += row.in_sec;
+                grandTotals.in_kg      += rowInKg;
                 grandTotals.out_primary+= row.out_primary;
                 grandTotals.out_sec    += row.out_sec;
+                grandTotals.out_kg     += rowOutKg;
                 grandTotals.adj_primary+= row.adj_primary;
                 grandTotals.adj_sec    += row.adj_sec;
+                grandTotals.adj_kg     += rowAdjKg;
                 grandTotals.cb_primary += row.cb_primary;
                 grandTotals.cb_sec     += row.cb_sec;
                 grandTotals.cb_kg      += rowCbKg;
@@ -1188,12 +1222,12 @@ window.InventoryBalancesModule = {
         const isFitting = self.isFittingLayout();
         let csv = isFitting
             ? 'Item Code,Item Name,Category,Pcs/Ctn,Wt/Pc (Kg),Ctn Wt (Kg),Opening (Ctn),Opening (Pcs),In (Ctn),In (Pcs),Out (Ctn),Out (Pcs),Adj (Ctn),Adj (Pcs),Closing (Ctn),Closing (Pcs),Closing (Kg)\n'
-            : 'Item Code,Item Name,Category,Unit,Opening (Primary),Opening (Sec),In (Primary),In (Sec),Out (Primary),Out (Sec),Adj (Primary),Adj (Sec),Closing (Primary),Closing (Sec)\n';
+            : 'Item Code,Item Name,Category,Unit,Opening (Primary),Opening (Kg),In (Primary),In (Kg),Out (Primary),Out (Kg),Adj (Primary),Adj (Kg),Closing (Primary),Closing (Kg)\n';
         records.forEach(r => {
             if (isFitting) {
                 csv += `"${r.item_code}","${r.item_name}","${r.group}",${r.pcs_per_ctn || 0},${r.weight_per_pc || 0},${r.kg_per_ctn || 0},${r.ob_primary},${r.ob_sec},${r.in_primary},${r.in_sec},${r.out_primary},${r.out_sec},${r.adj_primary},${r.adj_sec},${r.cb_primary},${r.cb_sec},${r.cb_kg || 0}\n`;
             } else {
-                csv += `"${r.item_code}","${r.item_name}","${r.group}","${r.unit_display}",${r.ob_primary},${r.ob_sec},${r.in_primary},${r.in_sec},${r.out_primary},${r.out_sec},${r.adj_primary},${r.adj_sec},${r.cb_primary},${r.cb_sec}\n`;
+                csv += `"${r.item_code}","${r.item_name}","${r.group}","${r.unit_display}",${r.ob_primary},${r.ob_kg ?? r.ob_sec},${r.in_primary},${r.in_kg ?? r.in_sec},${r.out_primary},${r.out_kg ?? r.out_sec},${r.adj_primary},${r.adj_kg ?? r.adj_sec},${r.cb_primary},${r.cb_kg ?? r.cb_sec}\n`;
             }
         });
 

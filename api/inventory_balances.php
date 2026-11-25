@@ -70,7 +70,46 @@ function resolveItemCategoryAndUnits($item) {
 
     $combined = "$mainName $subName $catType $itemName $itemUnit";
 
-    // 1. FITTINGS (Ctn / Pcs) - Priority 1: Check FIRST if category or item indicates a fitting
+    // 1. RAW MATERIAL (Bags / Kg) - Check BEFORE Fittings so items like "PVC FITTING RESIN" / "FITTING STABLIZER" never fall into Fittings
+    if ($catType === 'RAW MATERIAL' ||
+        preg_match('/\bRAW\b/', $combined) ||
+        strpos($itemUnit, 'BAG') !== false ||
+        strpos($combined, 'MATERIAL') !== false ||
+        strpos($combined, 'RESIN') !== false ||
+        strpos($combined, 'COMPOUND') !== false ||
+        strpos($combined, 'STABILIZER') !== false ||
+        strpos($combined, 'STABLIZER') !== false ||
+        strpos($combined, 'TITANIUM') !== false ||
+        strpos($combined, 'KRONOS') !== false ||
+        strpos($combined, 'PROCESSING ADS') !== false ||
+        strpos($combined, 'PROCESSING AID') !== false ||
+        strpos($combined, 'LUBRICANT') !== false ||
+        strpos($combined, 'CALCIUM') !== false ||
+        strpos($combined, 'WAX') !== false ||
+        strpos($combined, 'PIGMENT') !== false ||
+        strpos($combined, 'CHEMICAL') !== false ||
+        strpos($combined, 'AU60') !== false ||
+        strpos($combined, 'AU-60') !== false ||
+        strpos($combined, 'AU67') !== false ||
+        strpos($combined, 'AU-67') !== false) {
+
+        $rawKgPerBag = $item['unit_weight'] ?? $item['qty_per_piece'] ?? 0;
+        $kgPerBag = is_numeric(trim((string)$rawKgPerBag)) ? floatval($rawKgPerBag) : 0.0;
+        if ($kgPerBag <= 0) $kgPerBag = 25.0; // standard 25 kg bag
+
+        return [
+            'group' => 'Raw Material',
+            'unit_display' => 'Bags / Kg',
+            'primary_unit' => 'Bags',
+            'secondary_unit' => 'Kg',
+            'weight_per_pc' => 0,
+            'pcs_per_ctn' => 0,
+            'kg_per_ctn' => 0,
+            'kg_per_bag' => $kgPerBag
+        ];
+    }
+
+    // 2. FITTINGS (Ctn / Pcs) - Priority 2
     if ($catType === 'FITTING' ||
         strpos($mainName, 'FITTING') !== false ||
         strpos($catType, 'FITTING') !== false ||
@@ -114,7 +153,7 @@ function resolveItemCategoryAndUnits($item) {
         ];
     }
 
-    // 2. PVC PIPES (Pcs / Kg) - Priority 2
+    // 3. PVC PIPES (Pcs / Kg) - Priority 3
     if ($catType === 'PIPES' ||
         strpos($mainName, 'PIPE') !== false ||
         strpos($combined, 'PIPE') !== false ||
@@ -130,32 +169,6 @@ function resolveItemCategoryAndUnits($item) {
             'pcs_per_ctn' => 0,
             'kg_per_ctn' => 0,
             'kg_per_bag' => 0
-        ];
-    }
-
-    // 3. RAW MATERIAL (Bags / Kg)
-    if ($catType === 'RAW MATERIAL' ||
-        strpos($combined, 'RAW') !== false ||
-        strpos($combined, 'MATERIAL') !== false ||
-        strpos($combined, 'RESIN') !== false ||
-        strpos($combined, 'COMPOUND') !== false ||
-        strpos($combined, 'STABILIZER') !== false ||
-        strpos($combined, 'AU60') !== false ||
-        strpos($combined, 'AU67') !== false ||
-        strpos($itemUnit, 'BAG') !== false) {
-
-        $kgPerBag = floatval($item['unit_weight'] ?? $item['qty_per_piece'] ?? 0);
-        if ($kgPerBag <= 0) $kgPerBag = 25.0; // standard 25 kg bag
-
-        return [
-            'group' => 'Raw Material',
-            'unit_display' => 'Bags / Kg',
-            'primary_unit' => 'Bags',
-            'secondary_unit' => 'Kg',
-            'weight_per_pc' => 0,
-            'pcs_per_ctn' => 0,
-            'kg_per_ctn' => 0,
-            'kg_per_bag' => $kgPerBag
         ];
     }
 
