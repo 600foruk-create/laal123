@@ -912,12 +912,36 @@
 
         // Geolocation helper & proactive permission check
         window.lastCapturedCoords = null;
-        async function getBrowserGPS(timeoutMs = 4000) {
-            if (!navigator.geolocation) return null;
+        window.lastGeoStatus = null;
+        async function getBrowserGPS(timeoutMs = 8500) {
+            if (!navigator.geolocation) {
+                window.lastGeoStatus = { reason: 'unsupported' };
+                return null;
+            }
+            if (window.isSecureContext === false) {
+                window.lastGeoStatus = { reason: 'insecure_http' };
+                return null;
+            }
             return new Promise((resolve) => {
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-                    (err) => resolve(null),
+                    (pos) => {
+                        const acc = Math.round(pos.coords.accuracy || 0);
+                        window.lastGeoStatus = { reason: 'ok', accuracy: acc };
+                        resolve({
+                            latitude: pos.coords.latitude,
+                            longitude: pos.coords.longitude,
+                            accuracy: acc,
+                            capturedAt: Date.now()
+                        });
+                    },
+                    (err) => {
+                        let reason = 'unknown';
+                        if (err && err.code === 1) reason = 'permission_denied';
+                        else if (err && err.code === 2) reason = 'position_unavailable';
+                        else if (err && err.code === 3) reason = 'timeout';
+                        window.lastGeoStatus = { reason, code: err ? err.code : 0 };
+                        resolve(null);
+                    },
                     { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 }
                 );
             });
@@ -926,7 +950,7 @@
         if (navigator.permissions && navigator.permissions.query) {
             navigator.permissions.query({ name: 'geolocation' }).then((result) => {
                 if (result.state === 'granted') {
-                    getBrowserGPS(3000).then(c => { if (c) window.lastCapturedCoords = c; });
+                    getBrowserGPS(4000).then(c => { if (c) window.lastCapturedCoords = c; });
                 }
             }).catch(() => { });
         }
@@ -937,7 +961,7 @@
             await attemptLogin(false);
         });
 
-        async function attemptLogin(forceRequestGPS = false) {
+        async function attemptLogin(forceRequestGPS = false, preFetchedCoords = null, skipGpsFetch = false) {
             const isDropdown = (loginSettings.login_user_dropdown !== '0');
             const u = (isDropdown ? (userSelect ? userSelect.value : '') : (userInputText ? userInputText.value : '')).trim();
             if (!u) {
@@ -948,13 +972,21 @@
             const p = passwordInput.value ? passwordInput.value.trim() : '';
             const coName = (companySelect.value || savedDefaults.company || 'default').trim();
 
-            let coords = window.lastCapturedCoords;
-            if (!coords || forceRequestGPS) {
-                coords = await getBrowserGPS(forceRequestGPS ? 10000 : 3500);
-                if (coords) window.lastCapturedCoords = coords;
+            const submitBtn = document.querySelector('#loginForm button[type="submit"]');
+            const origSubmitHtml = submitBtn ? submitBtn.innerHTML : 'Log in';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
             }
 
             try {
+                let coords = preFetchedCoords;
+                if (!coords && !skipGpsFetch) {
+                    // Always request fresh GPS coordinates (avoid stale coords captured earlier outside shop)
+                    coords = await getBrowserGPS(forceRequestGPS ? 10000 : 8500);
+                    if (coords) window.lastCapturedCoords = coords;
+                }
+
                 const response = await fetch('api/auth.php?action=login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1028,6 +1060,11 @@
                 } catch (err) {
                     console.error('Login error:', err);
                     alert("Server Connection Failed. Please try again later.");
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origSubmitHtml;
+                    }
                 }
             }
 
@@ -1219,6 +1256,7 @@
             });
 
             // Geofencing / Location Modal Handlers
+            const defaultGeoSecurityNoteHtml = document.getElementById('geoSecurityNote')?.innerHTML || '';
             function showGeofenceModal(data) {
                 const modal = document.getElementById('geofenceModal');
                 if (!modal) return;
@@ -1232,6 +1270,8 @@
                 const gridEl = document.getElementById('geoGridDetails');
                 const distVal = document.getElementById('geoDistanceVal');
                 const radVal = document.getElementById('geoAllowedRadiusVal');
+                const secNote = document.getElementById('geoSecurityNote');
+                const geoReason = window.lastGeoStatus ? window.lastGeoStatus.reason : null;
 
                 if (isOutOfBounds) {
                     titleEl.textContent = 'Outside Authorized Shop Location';
@@ -1239,10 +1279,34 @@
                     gridEl.style.display = 'grid';
                     distVal.textContent = (data.distance_meters || 0) + ' m';
                     radVal.textContent = (data.allowed_radius || 100) + ' m';
+                    if (secNote) {
+                        if (window.lastGeoStatus && window.lastGeoStatus.accuracy > 150) {
+                            secNote.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> <strong>Note:</strong> Your device reported low GPS accuracy (<strong>±${window.lastGeoStatus.accuracy}m</strong> — typical on Desktop Wi-Fi/IP without hardware GPS). Try logging in from a GPS-enabled mobile device or ask Admin to adjust the branch radius.`;
+                        } else {
+                            secNote.innerHTML = defaultGeoSecurityNoteHtml;
+                        }
+                    }
                 } else {
-                    titleEl.textContent = 'Location Verification Required';
-                    noticeText.innerHTML = `Your assigned branch (<strong>${branchName}</strong>) requires physical presence at the shop. Please click <strong>"Allow GPS & Retry"</strong> and grant location permissions in your browser.`;
                     gridEl.style.display = 'none';
+                    if (geoReason === 'insecure_http') {
+                        titleEl.textContent = 'HTTPS Required for Location';
+                        noticeText.innerHTML = `Your browser blocked GPS because this page is opened over plain <strong>HTTP</strong> instead of <strong>HTTPS</strong>. Please open the app using <strong>https://</strong> (or <strong>localhost</strong>) to verify shop location for <strong>${branchName}</strong>.`;
+                        if (secNote) {
+                            secNote.innerHTML = '<i class="fas fa-lock" style="color: #2563eb;"></i> Modern browsers block GPS on non-HTTPS URLs (such as local HTTP IP addresses). Use the secure HTTPS URL or contact Admin.';
+                        }
+                    } else if (geoReason === 'permission_denied') {
+                        titleEl.textContent = 'Location Permission Blocked';
+                        noticeText.innerHTML = `Location permission is currently <strong>Blocked</strong> in your browser for <strong>${branchName}</strong>. Please allow Location access in browser site settings and click <strong>"Allow GPS & Retry"</strong>.`;
+                        if (secNote) {
+                            secNote.innerHTML = '<i class="fas fa-info-circle" style="color: #2563eb;"></i> Click the lock/site icon next to the address bar, set <strong>Location → Allow</strong>, then click Retry below.';
+                        }
+                    } else {
+                        titleEl.textContent = 'Location Verification Required';
+                        noticeText.innerHTML = `Your assigned branch (<strong>${branchName}</strong>) requires physical presence at the shop. Please click <strong>"Allow GPS & Retry"</strong> and grant location permissions in your browser.`;
+                        if (secNote) {
+                            secNote.innerHTML = defaultGeoSecurityNoteHtml;
+                        }
+                    }
                 }
 
                 modal.style.display = 'flex';
@@ -1268,7 +1332,7 @@
                     btn.disabled = false;
                 }
                 hideGeofenceModal();
-                attemptLogin(true);
+                await attemptLogin(true, c, !c);
             });
 
             // Auto-show off-time or off-day modal if redirected from session due to branch restrictions
