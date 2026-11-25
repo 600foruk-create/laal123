@@ -105,9 +105,12 @@
                 <i class="far fa-calendar-alt" style="color: var(--theme-primary, #1F4E79);"></i> <span id="pcHeaderPeriodDisplay">Loading Period...</span>
             </div>
 
-            <!-- Lock Month WIP Button on Right -->
-            <div style="margin-left: auto; flex-shrink: 0;">
-                <button type="button" class="pc-btn" style="background: #fef08a; border-color: #facc15; color: #854d0e; font-weight: 700; height: 22px; padding: 0 7px; font-size: 10px;" onclick="window.ProductionCostingModule.saveAndLockWip()">
+            <!-- Lock Month WIP Button on Right & Brand Rates Summary -->
+            <div style="margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 5px;">
+                <button type="button" class="pc-btn" id="btnBrandRatesSummary" style="background: #0284c7; border-color: #0284c7; color: #ffffff; font-weight: 700; height: 22px; padding: 0 8px; font-size: 10px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.ProductionCostingModule.switchViewMode('brand_rates')" title="Switch to Brand / Category Rates & Stock View">
+                    <i class="fas fa-tags"></i> Brand Rates & Stock
+                </button>
+                <button type="button" class="pc-btn" style="background: #fef08a; border-color: #facc15; color: #854d0e; font-weight: 700; height: 22px; padding: 0 7px; font-size: 10px;" onclick="window.ProductionCostingModule.saveAndLockWip()" title="Lock closing WIP valuation for this month">
                     <i class="fas fa-lock"></i> Lock Month-End WIP
                 </button>
             </div>
@@ -167,6 +170,29 @@
                 <tbody id="pcDailyTableBody">
                 </tbody>
                 <tfoot id="pcDailyTableFoot" style="position: sticky; bottom: 0; background: #f8fafc; font-weight: 700; border-top: 2px solid var(--theme-primary, #1F4E79); z-index: 5;">
+                </tfoot>
+            </table>
+
+            <!-- Table 3: Brand Rates & Stock Valuation Summary View (Initially Hidden) -->
+            <table id="pcBrandRatesTable" class="pc-data-table" style="display: none; width: 100%; border-collapse: separate; border-spacing: 0; text-align: left;">
+                <thead style="position: sticky; top: 0; z-index: 10; background: var(--theme-primary, #1F4E79); color: white;">
+                    <tr>
+                        <th style="width: 35px; text-align: center;">Sr.</th>
+                        <th style="min-width: 180px;">Brand / Finished Category</th>
+                        <th style="width: 120px; text-align: center;">Formula Linked</th>
+                        <th style="width: 95px; text-align: right; background: rgba(0,0,0,0.15);">Produced (KG)</th>
+                        <th style="width: 85px; text-align: right;">Produced (Pcs)</th>
+                        <th style="width: 110px; text-align: right; background: #0c2b48; font-weight: 800; color: #fef08a;">Cost / KG (Rate)</th>
+                        <th style="width: 95px; text-align: right; color: var(--theme-accent, #F5A623);">Cost / Piece</th>
+                        <th style="width: 115px; text-align: right; background: #0f3456;">Total Cost (PKR)</th>
+                        <th style="width: 100px; text-align: right; color: #38bdf8;">Stock (KG)</th>
+                        <th style="width: 115px; text-align: right; color: #38bdf8;">Stock Val (PKR)</th>
+                        <th style="width: 65px; text-align: center;">Share %</th>
+                    </tr>
+                </thead>
+                <tbody id="pcBrandRatesTableBody">
+                </tbody>
+                <tfoot id="pcBrandRatesTableFoot" style="position: sticky; bottom: 0; background: #f8fafc; font-weight: 700; border-top: 2px solid var(--theme-primary, #1F4E79); z-index: 5;">
                 </tfoot>
             </table>
 

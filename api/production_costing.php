@@ -94,16 +94,40 @@ if ($action === 'get_meta') {
             FROM inv_main_categories m
             JOIN inv_sub_categories s ON s.main_id = m.id
             JOIN inv_items i ON i.sub_id = s.id
-            WHERE m.company_id = ? AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
+            WHERE (m.company_id = ? OR m.company_id = 1 OR m.company_id IS NULL OR m.company_id = 0)
+              AND (i.company_id = ? OR i.company_id = 1 OR i.company_id IS NULL)
+              AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
             ORDER BY m.name ASC
         ");
-        $stmtCats->execute([$company_id]);
+        $stmtCats->execute([$company_id, $company_id]);
         $categories = $stmtCats->fetchAll(PDO::FETCH_ASSOC);
 
         if (empty($categories)) {
-            $stmtAllCats = $pdo->prepare("SELECT id, code, name FROM inv_main_categories WHERE company_id = ? ORDER BY name ASC");
+            $stmtCats = $pdo->prepare("
+                SELECT DISTINCT m.id, m.code, m.name
+                FROM inv_main_categories m
+                JOIN inv_sub_categories s ON s.main_id = m.id
+                JOIN inv_items i ON i.sub_id = s.id
+                WHERE (i.is_inactive = 0 OR i.is_inactive IS NULL)
+                ORDER BY m.name ASC
+            ");
+            $stmtCats->execute();
+            $categories = $stmtCats->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        if (empty($categories)) {
+            $stmtAllCats = $pdo->prepare("
+                SELECT DISTINCT id, code, name 
+                FROM inv_main_categories 
+                WHERE (company_id = ? OR company_id = 1 OR company_id IS NULL OR company_id = 0)
+                ORDER BY name ASC
+            ");
             $stmtAllCats->execute([$company_id]);
             $categories = $stmtAllCats->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        if (empty($categories)) {
+            $categories = $pdo->query("SELECT id, code, name FROM inv_main_categories ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
         }
 
         // Expense Accounts for Electricity, Wages & Overheads
@@ -561,6 +585,49 @@ if ($action === 'get_costing_statement') {
             $categoryGroups[$key]['items'][] = $pRow;
         }
 
+        // Query current inventory balances for finished goods items grouped by main category
+        $catStockMap = [];
+        try {
+            $stmtStock = $pdo->prepare("
+                SELECT s.main_id, 
+                       COALESCE(SUM(
+                           COALESCE(ob.ob_qty, 0) + COALESCE(pn.pn_qty, 0) - COALESCE(si.si_qty, 0)
+                       ), 0) as stock_kg,
+                       COALESCE(SUM(
+                           COALESCE(ob.ob_pcs, 0) + COALESCE(pn.pn_pcs, 0) - COALESCE(si.si_pcs, 0)
+                       ), 0) as stock_pcs
+                FROM inv_items i
+                LEFT JOIN inv_sub_categories s ON i.sub_id = s.id
+                LEFT JOIN (
+                    SELECT item_id, SUM(quantity) as ob_qty, SUM(quantity) as ob_pcs 
+                    FROM inv_opening_balances WHERE company_id = ? GROUP BY item_id
+                ) ob ON i.id = ob.item_id
+                LEFT JOIN (
+                    SELECT pp.item_id, SUM(pp.qty) as pn_qty, SUM(pp.pieces) as pn_pcs 
+                    FROM production_note_items pp 
+                    JOIN production_notes p ON pp.pn_id = p.id 
+                    WHERE p.company_id = ? AND p.is_cancelled = 0 AND p.is_posted = 1 
+                    GROUP BY pp.item_id
+                ) pn ON i.id = pn.item_id
+                LEFT JOIN (
+                    SELECT sii.item_coa_id as item_id, SUM(sii.quantity) as si_qty, SUM(sii.quantity) as si_pcs 
+                    FROM sale_invoice_items sii 
+                    JOIN sale_invoices s ON sii.invoice_id = s.id 
+                    WHERE s.company_id = ? AND s.is_cancelled = 0 AND s.is_posted = 1 
+                    GROUP BY sii.item_coa_id
+                ) si ON i.id = si.item_id
+                WHERE i.company_id = ? AND s.main_id IS NOT NULL
+                GROUP BY s.main_id
+            ");
+            $stmtStock->execute([$company_id, $company_id, $company_id, $company_id]);
+            while ($sRow = $stmtStock->fetch(PDO::FETCH_ASSOC)) {
+                $catStockMap[intval($sRow['main_id'])] = [
+                    'stock_kg' => floatval($sRow['stock_kg']),
+                    'stock_pcs' => floatval($sRow['stock_pcs'])
+                ];
+            }
+        } catch(Exception $eStock) {}
+
         $cSr = 1;
         $categoryRows = [];
         foreach ($categoryGroups as $cGrp) {
@@ -570,6 +637,12 @@ if ($action === 'get_costing_statement') {
             $share = ($totalFinishedProdQty > 0) ? ($w / $totalFinishedProdQty) : 0;
             $avgPerKg = ($w > 0) ? ($totC / $w) : 0;
             $avgPerPcs = ($pcs > 0) ? ($totC / $pcs) : $avgPerKg;
+
+            $catId = intval($cGrp['category_id']);
+            $stkInfo = $catStockMap[$catId] ?? null;
+            $stkKg = $stkInfo ? max(0, $stkInfo['stock_kg']) : $w;
+            $stkPcs = $stkInfo ? max(0, $stkInfo['stock_pcs']) : $pcs;
+            $stkVal = round($stkKg * $avgPerKg, 2);
 
             $categoryRows[] = [
                 'sr' => $cSr++,
@@ -587,6 +660,9 @@ if ($action === 'get_costing_statement') {
                 'total_cost' => round($totC, 2),
                 'cost_per_piece' => round($avgPerPcs, 2),
                 'cost_per_kg' => round($avgPerKg, 2),
+                'stock_kg' => round($stkKg, 2),
+                'stock_pieces' => round($stkPcs, 2),
+                'stock_val' => round($stkVal, 2),
                 'items' => $cGrp['items']
             ];
         }
@@ -706,6 +782,7 @@ if ($action === 'get_costing_statement') {
             'prev_period_label' => $prevDateLabel,
             'current_period_label' => $currentPeriodLabel,
             'next_period_label' => $nextDateLabel,
+            'categories' => $categoryRows,
             'category_rows' => $categoryRows,
             'product_rows' => $productCostRows,
             'daily_rows' => $dailyRows,

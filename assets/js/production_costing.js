@@ -237,24 +237,40 @@
         },
 
         switchViewMode: function(mode) {
+            // If already in brand_rates and user clicks the Brand Rates button again, toggle back to monthly
+            if (mode === 'brand_rates' && this.data.viewMode === 'brand_rates') {
+                mode = 'monthly';
+            }
+
             this.data.viewMode = mode;
 
             const btnMonthly = document.getElementById('pcBtnViewMonthly');
             const btnDaily = document.getElementById('pcBtnViewDaily');
+            const btnBrandRatesSummary = document.getElementById('btnBrandRatesSummary');
             const tblMonthly = document.getElementById('pcMonthlyTable');
             const tblDaily = document.getElementById('pcDailyTable');
+            const tblBrand = document.getElementById('pcBrandRatesTable');
 
-            if (mode === 'monthly') {
-                if (btnMonthly) btnMonthly.classList.add('active');
-                if (btnDaily) btnDaily.classList.remove('active');
-                if (tblMonthly) tblMonthly.style.display = 'table';
-                if (tblDaily) tblDaily.style.display = 'none';
-            } else {
-                if (btnMonthly) btnMonthly.classList.remove('active');
-                if (btnDaily) btnDaily.classList.add('active');
-                if (tblMonthly) tblMonthly.style.display = 'none';
-                if (tblDaily) tblDaily.style.display = 'table';
+            if (btnMonthly) btnMonthly.classList.toggle('active', mode === 'monthly');
+            if (btnDaily) btnDaily.classList.toggle('active', mode === 'daily');
+
+            if (btnBrandRatesSummary) {
+                if (mode === 'brand_rates') {
+                    btnBrandRatesSummary.style.background = '#0c4a6e';
+                    btnBrandRatesSummary.style.borderColor = '#38bdf8';
+                    btnBrandRatesSummary.style.color = '#ffffff';
+                    btnBrandRatesSummary.style.boxShadow = '0 0 0 2px rgba(56, 189, 248, 0.4)';
+                } else {
+                    btnBrandRatesSummary.style.background = '#0284c7';
+                    btnBrandRatesSummary.style.borderColor = '#0284c7';
+                    btnBrandRatesSummary.style.color = '#ffffff';
+                    btnBrandRatesSummary.style.boxShadow = 'none';
+                }
             }
+
+            if (tblMonthly) tblMonthly.style.display = (mode === 'monthly') ? 'table' : 'none';
+            if (tblDaily) tblDaily.style.display = (mode === 'daily') ? 'table' : 'none';
+            if (tblBrand) tblBrand.style.display = (mode === 'brand_rates') ? 'table' : 'none';
 
             if (this.data.lastReportData) {
                 this.renderReport(this.data.lastReportData);
@@ -322,13 +338,14 @@
                 // Populate Category / Brand dropdown
                 const pSel = document.getElementById('pcProductFilter');
                 if (pSel) {
+                    const curVal = pSel.value;
                     pSel.innerHTML = '<option value="all">All Categories / Brands</option>';
                     const cats = json.categories || [];
                     if (cats.length > 0) {
                         cats.forEach(c => {
                             const opt = document.createElement('option');
                             opt.value = c.id;
-                            opt.textContent = `${c.name} (${c.code || 'Brand'})`;
+                            opt.textContent = `${c.name}`;
                             pSel.appendChild(opt);
                         });
                     } else if (json.finished_items) {
@@ -339,6 +356,7 @@
                             pSel.appendChild(opt);
                         });
                     }
+                    if (curVal) pSel.value = curVal;
                 }
 
             } catch (err) {
@@ -407,6 +425,30 @@
             // Header Period
             const hPeriod = document.getElementById('pcHeaderPeriodDisplay');
             if (hPeriod) hPeriod.textContent = data.period_label || '';
+
+            // Ensure Category / Brand dropdown is populated with categories found in report
+            const pSel = document.getElementById('pcProductFilter');
+            if (pSel && pSel.options.length <= 1) {
+                const curVal = pSel.value;
+                const cRows = data.category_rows || data.categories || [];
+                const addedIds = new Set();
+                if (cRows.length > 0) {
+                    cRows.forEach(c => {
+                        const cid = c.category_id || c.id;
+                        const cnm = c.category_name || c.name;
+                        if (cid && cnm && !addedIds.has(String(cid))) {
+                            addedIds.add(String(cid));
+                            const opt = document.createElement('option');
+                            opt.value = cid;
+                            opt.textContent = cnm;
+                            pSel.appendChild(opt);
+                        }
+                    });
+                }
+                if (curVal && addedIds.has(String(curVal))) {
+                    pSel.value = curVal;
+                }
+            }
 
             // Render Monthly Product-Wise Table
             const mBody = document.getElementById('pcMonthlyTableBody');
@@ -588,6 +630,9 @@
                 }
             }
 
+            // Render Brand Rates & Stock Valuation Table
+            this.renderBrandRatesTable(data);
+
             // Sync Expense Input fields if in auto mode
             const expMode = document.getElementById('pcExpenseMode')?.value || 'manual';
             if (expMode === 'auto') {
@@ -707,8 +752,18 @@
         },
 
         exportExcel: function() {
-            const isMonthly = (this.data.viewMode === 'monthly');
-            const table = isMonthly ? document.getElementById('pcMonthlyTable') : document.getElementById('pcDailyTable');
+            let table = null;
+            let modeLabel = '';
+            if (this.data.viewMode === 'monthly') {
+                table = document.getElementById('pcMonthlyTable');
+                modeLabel = 'Monthly Product-Wise Cost Sheet';
+            } else if (this.data.viewMode === 'daily') {
+                table = document.getElementById('pcDailyTable');
+                modeLabel = 'Daily WIP Flow Breakdown';
+            } else {
+                table = document.getElementById('pcBrandRatesTable');
+                modeLabel = 'Brand Costing Rates & Stock Valuation Summary';
+            }
             if (!table) return;
 
             const period = document.getElementById('pcHeaderPeriodDisplay')?.textContent || 'Statement';
@@ -724,7 +779,7 @@
                 <body>
                     <h2>${this.data.companyName}</h2>
                     <h3>Production Costing, Material Consumption & WIP Statement (${period})</h3>
-                    <div>Mode: ${isMonthly ? 'Monthly Product-Wise Cost Sheet' : 'Daily WIP Flow Breakdown'}</div>
+                    <div>Mode: ${modeLabel}</div>
                     ${html}
                 </body>
                 </html>
@@ -773,8 +828,18 @@
 
             const companyName = (comp.name || session.company_name || 'SOFTIFYX FINANCIALS').toUpperCase();
             const periodStr = document.getElementById('pcHeaderPeriodDisplay')?.textContent || 'Current Period';
-            const isMonthly = (this.data.viewMode === 'monthly');
-            const tableEl = isMonthly ? document.getElementById('pcMonthlyTable') : document.getElementById('pcDailyTable');
+            let tableEl = null;
+            let reportSubLabel = '';
+            if (this.data.viewMode === 'monthly') {
+                tableEl = document.getElementById('pcMonthlyTable');
+                reportSubLabel = 'Monthly Product-Wise Cost Sheet';
+            } else if (this.data.viewMode === 'daily') {
+                tableEl = document.getElementById('pcDailyTable');
+                reportSubLabel = 'Daily WIP Flow Breakdown';
+            } else {
+                tableEl = document.getElementById('pcBrandRatesTable');
+                reportSubLabel = 'Brand Costing Rates & Stock Valuation Summary';
+            }
             const tableHtml = tableEl ? tableEl.outerHTML : '<p>No data</p>';
 
             // Contact rows
@@ -886,7 +951,7 @@
 
     <div class="filter-meta-bar">
         <div><strong>Period / Date:</strong> ${periodStr}</div>
-        <div><strong>Report Mode:</strong> ${isMonthly ? 'Monthly Product-Wise Cost Sheet' : 'Daily WIP Flow Breakdown'}</div>
+        <div><strong>Report Mode:</strong> ${reportSubLabel}</div>
         <div><strong>Material Cost Basis:</strong> Weighted Average Cost</div>
         <div><strong>Net Production Cost:</strong> ${cTotKg}</div>
         <div><strong>Overall Yield:</strong> ${recYield}</div>
@@ -984,6 +1049,209 @@
             printWindow.document.open();
             printWindow.document.write(printHtml);
             printWindow.document.close();
+        },
+
+        showBrandRatesSummaryModal: function() {
+            this.switchViewMode('brand_rates');
+        },
+
+        closeBrandRatesSummaryModal: function() {
+            this.switchViewMode('monthly');
+        },
+
+        renderBrandRatesTable: function(data) {
+            const bBody = document.getElementById('pcBrandRatesTableBody');
+            const bFoot = document.getElementById('pcBrandRatesTableFoot');
+            if (!bBody) return;
+
+            const cRows = data.category_rows || [];
+            if (cRows.length === 0) {
+                bBody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">No finished goods categories recorded for this period.</td></tr>`;
+                if (bFoot) bFoot.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            let totWeight = 0, totPieces = 0, totCost = 0, totStockKg = 0, totStockVal = 0;
+
+            cRows.forEach((c, idx) => {
+                const w = parseFloat(c.weight_kg || 0);
+                const pcs = parseFloat(c.produced_pieces || 0);
+                const cost = parseFloat(c.total_cost || 0);
+                const rKg = parseFloat(c.cost_per_kg || 0);
+                const rPcs = parseFloat(c.cost_per_piece || 0);
+                const stkKg = parseFloat(c.stock_kg !== undefined ? c.stock_kg : w);
+                const stkVal = parseFloat(c.stock_val !== undefined ? c.stock_val : (stkKg * rKg));
+                const share = parseFloat(c.pct_share || 0);
+
+                totWeight += w;
+                totPieces += pcs;
+                totCost += cost;
+                totStockKg += stkKg;
+                totStockVal += stkVal;
+
+                let formulaBadge = '';
+                if (c.formula_name && c.formula_name !== 'No Formula Defined' && c.formula_name !== 'No Formula') {
+                    formulaBadge = `<span style="background: #e0f2fe; color: #0284c7; padding: 1.5px 6px; border-radius: 3px; font-weight: 700; font-size: 9.5px; border: 1px solid #bae6fd;"><i class="fas fa-flask"></i> ${c.formula_name}</span>`;
+                } else {
+                    formulaBadge = `<span style="background: #fef2f2; color: #dc2626; padding: 1.5px 6px; border-radius: 3px; font-weight: 600; font-size: 9.5px; border: 1px solid #fecaca;"><i class="fas fa-exclamation-circle"></i> No Formula</span>`;
+                }
+
+                const rateBadgeStyle = rKg > 0 ? 'color: #047857; font-weight: 800; font-size: 11px;' : 'color: #dc2626; font-weight: 700;';
+
+                html += `
+                    <tr>
+                        <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}</td>
+                        <td style="font-weight: 700; color: #0f172a;">
+                            <span style="color: var(--theme-primary, #1F4E79);"><i class="fas fa-cube" style="margin-right: 4px;"></i>${c.category_name}</span>
+                        </td>
+                        <td style="text-align: center;">${formulaBadge}</td>
+                        <td style="text-align: right; font-weight: 700; background: #f8fafc;">${this.formatQty(w)} KG</td>
+                        <td style="text-align: right;">${this.formatQty(pcs)}</td>
+                        <td style="text-align: right; background: #fef9c3; ${rateBadgeStyle}">Rs. ${this.formatDecimal(rKg, 2)}</td>
+                        <td style="text-align: right; color: #854d0e; font-weight: 600;">Rs. ${this.formatDecimal(rPcs, 2)}</td>
+                        <td style="text-align: right; font-weight: 700; color: #1e293b;">Rs. ${this.formatCurrency(cost)}</td>
+                        <td style="text-align: right; color: #0284c7; font-weight: 700;">${this.formatQty(stkKg)} KG</td>
+                        <td style="text-align: right; color: #0369a1; font-weight: 700;">Rs. ${this.formatCurrency(stkVal)}</td>
+                        <td style="text-align: center; font-weight: 600; color: #475569;">${share}%</td>
+                    </tr>
+                `;
+            });
+
+            bBody.innerHTML = html;
+
+            const avgPerKg = totWeight > 0 ? (totCost / totWeight) : 0;
+            if (bFoot) {
+                bFoot.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="text-align: left; text-transform: uppercase; font-weight: 800;">Total Finished Production & Valuation:</td>
+                        <td style="text-align: right; background: #e2e8f0; font-weight: 800; color: var(--theme-primary, #1F4E79);">${this.formatQty(totWeight)} KG</td>
+                        <td style="text-align: right; font-weight: 700;">${this.formatQty(totPieces)}</td>
+                        <td style="text-align: right; background: #fef08a; color: #854d0e; font-weight: 800; font-size: 11px;">Rs. ${this.formatDecimal(avgPerKg, 2)} / KG</td>
+                        <td style="text-align: right;">-</td>
+                        <td style="text-align: right; font-weight: 800; color: #15803d; background: #dcfce7;">Rs. ${this.formatCurrency(totCost)}</td>
+                        <td style="text-align: right; font-weight: 800; color: #0284c7;">${this.formatQty(totStockKg)} KG</td>
+                        <td style="text-align: right; font-weight: 800; color: #0369a1;">Rs. ${this.formatCurrency(totStockVal)}</td>
+                        <td style="text-align: center; font-weight: 700;">100%</td>
+                    </tr>
+                `;
+            }
+        },
+
+        printBrandRatesSummary: function() {
+            const data = this.data.lastReportData;
+            if (!data) return;
+
+            const cRows = data.category_rows || [];
+            const companyName = this.data.companyName || "SoftifyX Financials";
+            const periodStr = data.period_label || "";
+
+            let rowsHtml = '';
+            let totWeight = 0, totPieces = 0, totCost = 0, totStockKg = 0, totStockVal = 0;
+
+            cRows.forEach((c, idx) => {
+                const w = parseFloat(c.weight_kg || 0);
+                const pcs = parseFloat(c.produced_pieces || 0);
+                const cost = parseFloat(c.total_cost || 0);
+                const rKg = parseFloat(c.cost_per_kg || 0);
+                const rPcs = parseFloat(c.cost_per_piece || 0);
+                const stkKg = parseFloat(c.stock_kg !== undefined ? c.stock_kg : w);
+                const stkVal = parseFloat(c.stock_val !== undefined ? c.stock_val : (stkKg * rKg));
+                const share = parseFloat(c.pct_share || 0);
+
+                totWeight += w;
+                totPieces += pcs;
+                totCost += cost;
+                totStockKg += stkKg;
+                totStockVal += stkVal;
+
+                rowsHtml += `
+                    <tr>
+                        <td style="text-align:center;">${idx + 1}</td>
+                        <td style="font-weight:bold;">${c.category_name}</td>
+                        <td style="text-align:center;">${c.formula_name || 'No Formula'}</td>
+                        <td style="text-align:right;">${this.formatQty(w)} KG</td>
+                        <td style="text-align:right;">${this.formatQty(pcs)}</td>
+                        <td style="text-align:right; font-weight:bold; background:#fef9c3;">Rs. ${this.formatDecimal(rKg, 2)}</td>
+                        <td style="text-align:right;">Rs. ${this.formatDecimal(rPcs, 2)}</td>
+                        <td style="text-align:right; font-weight:bold;">Rs. ${this.formatCurrency(cost)}</td>
+                        <td style="text-align:right;">${this.formatQty(stkKg)} KG</td>
+                        <td style="text-align:right; font-weight:bold;">Rs. ${this.formatCurrency(stkVal)}</td>
+                        <td style="text-align:center;">${share}%</td>
+                    </tr>
+                `;
+            });
+
+            const avgPerKg = totWeight > 0 ? (totCost / totWeight) : 0;
+            const printHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Brand Costing Rates & Stock Valuation Summary - ${periodStr}</title>
+    <style>
+        @page { size: A4 landscape; margin: 12mm; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1e293b; margin: 0; padding: 15px; }
+        .hdr { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #1F4E79; padding-bottom: 8px; }
+        .hdr h1 { margin: 0 0 4px; font-size: 20px; color: #1F4E79; }
+        .hdr h2 { margin: 0 0 4px; font-size: 14px; color: #0284c7; }
+        .hdr p { margin: 0; font-size: 11px; color: #64748b; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 11px; }
+        th { background: #1F4E79; color: #ffffff; text-align: left; }
+        tfoot tr td { background: #f1f5f9; font-weight: bold; border-top: 2px solid #0f172a; }
+    </style>
+</head>
+<body>
+    <div class="hdr">
+        <h1>${companyName}</h1>
+        <h2>Brand Costing Rates & Stock Valuation Summary</h2>
+        <p>Production & Valuation Period: ${periodStr} | Generated: ${new Date().toLocaleString()}</p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width:30px; text-align:center;">#</th>
+                <th>Brand / Finished Category</th>
+                <th style="text-align:center;">Formula</th>
+                <th style="text-align:right;">Produced (KG)</th>
+                <th style="text-align:right;">Produced (Pcs)</th>
+                <th style="text-align:right;">Cost / KG (Rate)</th>
+                <th style="text-align:right;">Cost / Piece</th>
+                <th style="text-align:right;">Total Cost (PKR)</th>
+                <th style="text-align:right;">Stock (KG)</th>
+                <th style="text-align:right;">Stock Value (PKR)</th>
+                <th style="text-align:center; width:50px;">Share %</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${rowsHtml}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" style="text-align:left;">TOTAL PRODUCTION & VALUATION:</td>
+                <td style="text-align:right;">${this.formatQty(totWeight)} KG</td>
+                <td style="text-align:right;">${this.formatQty(totPieces)}</td>
+                <td style="text-align:right; background:#fef9c3;">Rs. ${this.formatDecimal(avgPerKg, 2)} / KG</td>
+                <td style="text-align:right;">-</td>
+                <td style="text-align:right;">Rs. ${this.formatCurrency(totCost)}</td>
+                <td style="text-align:right;">${this.formatQty(totStockKg)} KG</td>
+                <td style="text-align:right;">Rs. ${this.formatCurrency(totStockVal)}</td>
+                <td style="text-align:center;">100%</td>
+            </tr>
+        </tfoot>
+    </table>
+    <script>
+        window.onload = function() { setTimeout(function() { window.print(); }, 250); };
+    </script>
+</body>
+</html>
+            `;
+
+            const printWin = window.open('', '_blank', 'width=1150,height=800');
+            printWin.document.open();
+            printWin.document.write(printHtml);
+            printWin.document.close();
         },
 
         resetFilters: function() {
