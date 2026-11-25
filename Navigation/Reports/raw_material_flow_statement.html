@@ -83,15 +83,15 @@
         <!-- Row 2: Secondary Filters + Unit Conversion + Extended Costing Methods -->
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 4px; border-top: 1px dashed #e2e8f0;">
             <div style="display: flex; align-items: center; gap: 5px;">
-                <label class="rmf-label" id="rmfItemLabel">Item / Product:</label>
-                <select id="rmfRawMaterial" class="rmf-input" style="width: 165px;" onchange="window.RawMaterialFlowModule.loadReport()">
+                <label class="rmf-label">Category:</label>
+                <select id="rmfCategory" class="rmf-input" style="width: 155px;" onchange="window.RawMaterialFlowModule.onCategoryChange()">
                     <option value="all">All</option>
                 </select>
             </div>
 
             <div style="display: flex; align-items: center; gap: 5px;">
-                <label class="rmf-label">Category:</label>
-                <select id="rmfCategory" class="rmf-input" style="width: 155px;" onchange="window.RawMaterialFlowModule.onCategoryChange()">
+                <label class="rmf-label" id="rmfItemLabel">Item / Product:</label>
+                <select id="rmfRawMaterial" class="rmf-input" style="width: 165px;" onchange="window.RawMaterialFlowModule.loadReport()">
                     <option value="all">All</option>
                 </select>
             </div>

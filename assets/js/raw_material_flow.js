@@ -220,12 +220,12 @@
             const catId = catSel?.value || 'all';
             const catText = (catSel?.options[catSel.selectedIndex]?.text || '').trim().toUpperCase();
 
-            // Update item label dynamically
+            // Update table item column header dynamically while keeping filter label consistent
             const itemLabel = document.getElementById('rmfItemLabel');
             const thItemCol = document.getElementById('rmfThItemCol');
             const isRaw = catId === 'all' || catText.includes('RAW') || catText.includes('MATERIAL') || catText.includes('RESIN') || catText.includes('CHEMICAL');
 
-            if (itemLabel) itemLabel.textContent = isRaw ? 'Raw Material:' : 'Item / Product:';
+            if (itemLabel) itemLabel.textContent = 'Item / Product:';
             if (thItemCol) thItemCol.textContent = isRaw ? 'Raw Material' : 'Item / Description';
 
             if (rmSel) {
