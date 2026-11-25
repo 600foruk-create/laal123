@@ -207,8 +207,10 @@ window.POSSettings = {
         if (defPct) defPct.value = settings.fbr_default_pct_code || '19059000';
         
         // Branch
-        if (settings.branch_default_branch) document.getElementById('branch_default_branch').value = settings.branch_default_branch;
-        if (settings.branch_default_warehouse) document.getElementById('branch_default_warehouse').value = settings.branch_default_warehouse;
+        const defBranchEl = document.getElementById('branch_default_branch');
+        if (defBranchEl && settings.branch_default_branch) defBranchEl.value = settings.branch_default_branch;
+        const defWhEl = document.getElementById('branch_default_warehouse');
+        if (defWhEl && settings.branch_default_warehouse) defWhEl.value = settings.branch_default_warehouse;
         
         this.updateFBRStatus(isFbrEnabled, settings.fbr_overall_status);
     },
@@ -1644,7 +1646,7 @@ window.POSSettings = {
 
     loadBranchesList: async function() {
         const tbody = document.getElementById('branch_list_tbody');
-        tbody.innerHTML = '<tr><td colspan="6" style="padding: 15px; text-align: center; color: #999;">Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="padding: 15px; text-align: center; color: #999;">Loading...</td></tr>';
         
         try {
             const cb = `_cb=${Date.now()}`;
@@ -1655,7 +1657,7 @@ window.POSSettings = {
                     this.branchesData = data.branches || [];
                     this.allErpBranches = this.branchesData;
                     if (this.branchesData.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="padding: 15px; text-align: center; color: #999;">No branches found.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="8" style="padding: 15px; text-align: center; color: #999;">No branches found.</td></tr>';
                         return;
                     }
                     
@@ -1695,7 +1697,14 @@ window.POSSettings = {
                         let geoDisplay = '';
                         if (b.enable_geofencing == 1) {
                             const rad = b.radius_meters || 100;
-                            geoDisplay = `<span style="font-size: 11px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #bae6fd;" title="Geofenced (${rad}m radius)"><i class="fas fa-map-marker-alt" style="color: #0284c7;"></i> Enabled (${rad}m)</span>`;
+                            const bLat = parseFloat(b.latitude);
+                            const bLng = parseFloat(b.longitude);
+                            const hasCoords = !isNaN(bLat) && !isNaN(bLng) && (bLat !== 0 || bLng !== 0);
+                            if (hasCoords) {
+                                geoDisplay = `<span style="font-size: 11px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #bae6fd;" title="Geofenced (${rad}m radius)"><i class="fas fa-map-marker-alt" style="color: #0284c7;"></i> Enabled (${rad}m)</span>`;
+                            } else {
+                                geoDisplay = `<span style="font-size: 11px; font-weight: 700; color: #b45309; background: #fef3c7; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fde68a;" title="Geofencing is enabled, but Latitude/Longitude coordinates are missing! Edit branch to set coordinates."><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Coords Missing</span>`;
+                            }
                         } else {
                             geoDisplay = `<span style="font-size: 11px; color: #64748b; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="No location restrictions"><i class="fas fa-globe" style="color: #94a3b8;"></i> Unrestricted</span>`;
                         }
@@ -1725,7 +1734,7 @@ window.POSSettings = {
             }
             this.applyBranchButtonVisibility();
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="6" style="padding: 15px; text-align: center; color: #e74c3c;">Failed to load branches.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="padding: 15px; text-align: center; color: #e74c3c;">Failed to load branches.</td></tr>';
             this.applyBranchButtonVisibility();
         }
     },
@@ -1849,6 +1858,10 @@ window.POSSettings = {
             alert("Geolocation is not supported by your browser.");
             return;
         }
+        if (window.isSecureContext === false) {
+            alert("Browser GPS requires a secure HTTPS connection (or localhost). On plain HTTP, please enter Latitude and Longitude manually.");
+            return;
+        }
         const btn = document.getElementById('btn_fetch_gps');
         const origHtml = btn ? btn.innerHTML : '';
         if (btn) {
@@ -1871,8 +1884,13 @@ window.POSSettings = {
                     btn.innerHTML = origHtml;
                     btn.disabled = false;
                 }
-                const msg = `Shop location captured successfully!\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAccuracy: ±${acc}m`;
-                if (window.showAlert) window.showAlert(msg, 'success');
+                let msg = `Shop location captured successfully!\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAccuracy: ±${acc}m`;
+                let alertType = 'success';
+                if (acc > 150) {
+                    alertType = 'warning';
+                    msg += `\n\nWarning: Low GPS accuracy (±${acc}m — likely Desktop Wi-Fi/IP location). Either capture coordinates from a mobile phone at the shop or set Allowed Radius larger than ${acc}m.`;
+                }
+                if (window.showAlert) window.showAlert(msg, alertType);
                 else alert(msg);
             },
             (err) => {
@@ -1998,6 +2016,38 @@ window.POSSettings = {
             alert("Branch Code and Name are required!");
             return;
         }
+
+        const enableGeoEl = document.getElementById('branch_enable_geofencing');
+        const enableGeo = enableGeoEl && enableGeoEl.checked ? 1 : 0;
+        const latInput = document.getElementById('branch_latitude');
+        const lngInput = document.getElementById('branch_longitude');
+        const radiusInput = document.getElementById('branch_radius_meters');
+        const latStr = latInput ? latInput.value.trim() : '';
+        const lngStr = lngInput ? lngInput.value.trim() : '';
+        const radStr = radiusInput ? radiusInput.value.trim() : '';
+
+        if (enableGeo === 1) {
+            const latVal = parseFloat(latStr);
+            const lngVal = parseFloat(lngStr);
+            if (
+                latStr === '' || lngStr === '' ||
+                isNaN(latVal) || isNaN(lngVal) ||
+                (latVal === 0 && lngVal === 0) ||
+                latVal < -90 || latVal > 90 ||
+                lngVal < -180 || lngVal > 180
+            ) {
+                alert("Please enter valid Latitude (-90 to 90) and Longitude (-180 to 180) coordinates, or click 'Fetch Current Location' before enabling Geofencing.");
+                if (latInput && (latStr === '' || isNaN(latVal))) latInput.focus();
+                else if (lngInput) lngInput.focus();
+                return;
+            }
+            const radVal = parseInt(radStr, 10);
+            if (radStr === '' || isNaN(radVal) || radVal <= 0) {
+                alert("Please enter a valid Allowed Radius (Meters) greater than 0 (e.g., 100).");
+                if (radiusInput) radiusInput.focus();
+                return;
+            }
+        }
         
         const payload = {
             id: id,
@@ -2015,10 +2065,10 @@ window.POSSettings = {
             opening_time: document.getElementById('branch_opening_time') ? document.getElementById('branch_opening_time').value : null,
             closing_time: document.getElementById('branch_closing_time') ? document.getElementById('branch_closing_time').value : null,
             off_day: document.getElementById('branch_off_day') ? document.getElementById('branch_off_day').value : null,
-            enable_geofencing: document.getElementById('branch_enable_geofencing') ? (document.getElementById('branch_enable_geofencing').checked ? 1 : 0) : 0,
-            latitude: document.getElementById('branch_latitude') ? document.getElementById('branch_latitude').value.trim() : null,
-            longitude: document.getElementById('branch_longitude') ? document.getElementById('branch_longitude').value.trim() : null,
-            radius_meters: document.getElementById('branch_radius_meters') ? document.getElementById('branch_radius_meters').value.trim() : 100
+            enable_geofencing: enableGeo,
+            latitude: latStr || null,
+            longitude: lngStr || null,
+            radius_meters: radStr || 100
         };
         
         try {

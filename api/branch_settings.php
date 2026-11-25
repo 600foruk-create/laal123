@@ -139,9 +139,22 @@ try {
         $closing_time = !empty($data['closing_time']) ? trim($data['closing_time']) : null;
         $off_day = !empty($data['off_day']) ? trim($data['off_day']) : null;
         $enable_geofencing = !empty($data['enable_geofencing']) ? 1 : 0;
-        $latitude = (isset($data['latitude']) && $data['latitude'] !== '' && $data['latitude'] !== null) ? floatval($data['latitude']) : null;
-        $longitude = (isset($data['longitude']) && $data['longitude'] !== '' && $data['longitude'] !== null) ? floatval($data['longitude']) : null;
-        $radius_meters = (!empty($data['radius_meters']) && intval($data['radius_meters']) > 0) ? intval($data['radius_meters']) : 100;
+        $latitude = (isset($data['latitude']) && $data['latitude'] !== '' && $data['latitude'] !== null && is_numeric($data['latitude'])) ? floatval($data['latitude']) : null;
+        $longitude = (isset($data['longitude']) && $data['longitude'] !== '' && $data['longitude'] !== null && is_numeric($data['longitude'])) ? floatval($data['longitude']) : null;
+        $rawRadius = isset($data['radius_meters']) ? trim((string)$data['radius_meters']) : '';
+
+        if ($enable_geofencing === 1) {
+            if ($latitude === null || $longitude === null || ($latitude == 0 && $longitude == 0) || $latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
+                echo json_encode(['error' => 'Valid Latitude and Longitude coordinates are required when Location / Geofencing restriction is enabled.']);
+                exit;
+            }
+            if ($rawRadius !== '' && (!is_numeric($rawRadius) || intval($rawRadius) <= 0)) {
+                echo json_encode(['error' => 'Allowed Radius (Meters) must be greater than 0 when Geofencing is enabled.']);
+                exit;
+            }
+        }
+
+        $radius_meters = ($rawRadius !== '' && intval($rawRadius) > 0) ? intval($rawRadius) : 100;
         
         $targetBranchId = null;
 
