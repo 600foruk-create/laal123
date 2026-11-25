@@ -341,7 +341,13 @@
             } else {
                 rows.forEach((r, idx) => {
                     const tr = document.createElement('tr');
+                    tr.className = 'rmf-clickable-row';
                     tr.style.background = (idx % 2 === 0) ? '#ffffff' : '#f8fafc';
+                    tr.style.cursor = 'pointer';
+                    tr.title = 'Double-click to open Inventory Ledger for this item';
+                    tr.addEventListener('dblclick', () => {
+                        this.openItemLedger(r.item_id, r.item_code || '', r.raw_material || '');
+                    });
                     
                     tr.innerHTML = `
                         <td style="padding: 5px 4px; text-align: center; border: 1px solid #cbd5e1; font-weight: 600; color: #475569;">${r.sr}</td>
@@ -452,6 +458,42 @@
             document.getElementById('rmfFlowNextOpeningTitle').textContent = `${summary.next_period_label || 'Next'} Opening`;
             document.getElementById('rmfFlowNextOpeningQty').textContent = `${this.formatQty(cf.next_opening_qty || 0)} ${displayUnitText}`;
             document.getElementById('rmfFlowNextOpeningVal').textContent = `Rs. ${this.formatCurrency(cf.next_opening_val || 0)}`;
+        },
+
+        openItemLedger: function(itemId, itemCode, itemName) {
+            if (!itemId) return;
+            const fromDate = document.getElementById('rmfFromDate')?.value || '';
+            const toDate = document.getElementById('rmfToDate')?.value || '';
+
+            window.__pendingDirectLedgerItem = {
+                itemId: itemId,
+                itemCode: itemCode || '',
+                itemName: itemName || '',
+                fromDate: fromDate,
+                toDate: toDate
+            };
+
+            const trigger = () => {
+                if (window.ViewInventoryLedgersModule && typeof window.ViewInventoryLedgersModule.loadDirectItem === 'function') {
+                    window.ViewInventoryLedgersModule.loadDirectItem(itemId, itemCode || '', itemName || '', fromDate, toDate);
+                }
+            };
+
+            if (typeof window.openModularPopup === 'function') {
+                window.openModularPopup(
+                    'Navigation/Reports/view_inventory_ledgers.html',
+                    'fa-book',
+                    'View Inventory Ledgers',
+                    () => {
+                        trigger();
+                    },
+                    'Inventory Ledgers',
+                    true,
+                    true
+                );
+            } else {
+                trigger();
+            }
         },
 
         toggleExportMenu: function() {
