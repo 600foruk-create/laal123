@@ -134,26 +134,8 @@ try {
         }
     }
 
-    // In Option 1, collect party-linked coa_list_ids and clean list_regions before regions/customers/vendors deletion
-    $partyCoaIds = [];
+    // In Option 1, clean up list_regions linked to this company's regions before regions/sub_regions deletion
     if ($clear_option === '1') {
-        try {
-            if ($pdo->query("SHOW TABLES LIKE 'customers'")->rowCount() > 0) {
-                $cStmt = $pdo->prepare("SELECT DISTINCT coa_list_id FROM customers WHERE company_id = ? AND coa_list_id IS NOT NULL AND coa_list_id > 0");
-                $cStmt->execute([$company_id]);
-                foreach ($cStmt->fetchAll(PDO::FETCH_COLUMN) as $cid) {
-                    $partyCoaIds[intval($cid)] = intval($cid);
-                }
-            }
-            if ($pdo->query("SHOW TABLES LIKE 'vendors'")->rowCount() > 0) {
-                $vStmt = $pdo->prepare("SELECT DISTINCT coa_list_id FROM vendors WHERE company_id = ? AND coa_list_id IS NOT NULL AND coa_list_id > 0");
-                $vStmt->execute([$company_id]);
-                foreach ($vStmt->fetchAll(PDO::FETCH_COLUMN) as $vid) {
-                    $partyCoaIds[intval($vid)] = intval($vid);
-                }
-            }
-        } catch (Exception $ex) {}
-
         try {
             $hasListRegions = $pdo->query("SHOW TABLES LIKE 'list_regions'")->rowCount() > 0;
             $hasSubRegions = $pdo->query("SHOW TABLES LIKE 'sub_regions'")->rowCount() > 0;
@@ -188,9 +170,10 @@ try {
         $pending = $nextPending;
     }
 
-    // In Option 1, also delete custom Customer/Vendor ledger accounts from coa_list while strictly preserving all hardcoded/system & bank accounts
-    $deletedPartyCoaCount = 0;
-    if ($clear_option === '1' && !empty($partyCoaIds)) {
+    // In Option 1 (Reset Company), remove ALL non-hardcoded accounts across coa_list, bank_accounts, coa_sub, and coa_main
+    // Works directly on COA tables even if customers/vendors were already cleared previously.
+    $deletedCoaStats = ['list' => 0, 'sub' => 0, 'main' => 0];
+    if ($clear_option === '1') {
         $protected_coa_codes = [
             '100', '10001', '10001001',
             '110', '11001', '11001001',
@@ -206,8 +189,7 @@ try {
             '240', '24001',
             '300', '30001',
             '310', '31001',
-            '320', '3200001', '32001', '32001001',
-            '330', '3300001',
+            '320', '32001', '32001001',
             '400', '40001', '40001001', '40001002', '40001003',
             '500', '50001', '50001001', '50001002', '50001003', '50001004', '50001005', '50001006', '50001007', '50001008', '50002', '50002001', '50003', '50003001',
             '600', '60001', '60001001', '60001002',
@@ -217,34 +199,88 @@ try {
             '700', '70001',
             '800', '80001'
         ];
+        $protectedCoaSet = array_flip($protected_coa_codes);
 
-        $idPlaceholders = implode(',', array_fill(0, count($partyCoaIds), '?'));
-        $codePlaceholders = implode(',', array_fill(0, count($protected_coa_codes), '?'));
-        $hasBankAccounts = $pdo->query("SHOW TABLES LIKE 'bank_accounts'")->rowCount() > 0;
-        $bankFilterSql = $hasBankAccounts ? "AND id NOT IN (SELECT coa_list_id FROM bank_accounts WHERE coa_list_id IS NOT NULL)" : "";
-
-        $findSql = "
-            SELECT id FROM coa_list
-            WHERE company_id = ?
-              AND id IN ($idPlaceholders)
-              AND code NOT IN ($codePlaceholders)
-              $bankFilterSql
-        ";
-        $findStmt = $pdo->prepare($findSql);
-        $findStmt->execute(array_merge([$company_id], array_values($partyCoaIds), $protected_coa_codes));
-        $deletablePartyCoaIds = array_map('intval', $findStmt->fetchAll(PDO::FETCH_COLUMN));
-
-        if (!empty($deletablePartyCoaIds)) {
-            $delPh = implode(',', array_fill(0, count($deletablePartyCoaIds), '?'));
-            if ($pdo->query("SHOW TABLES LIKE 'company_branches'")->rowCount() > 0) {
-                try {
-                    $clrBranchCust = $pdo->prepare("UPDATE company_branches SET default_customer_id = NULL WHERE company_id = ? AND default_customer_id IN ($delPh)");
-                    $clrBranchCust->execute(array_merge([$company_id], $deletablePartyCoaIds));
-                } catch (Exception $ex) {}
+        // 1. Delete non-hardcoded coa_list rows (plus linked bank_accounts & branch default_customer_id cleanup)
+        $listStmt = $pdo->prepare("SELECT id, code FROM coa_list WHERE company_id = ?");
+        $listStmt->execute([$company_id]);
+        $deleteCoaListIds = [];
+        $walkInCustomerCoaId = null;
+        foreach ($listStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $codeKey = trim((string)($row['code'] ?? ''));
+            if ($codeKey === '12001001') {
+                $walkInCustomerCoaId = intval($row['id']);
             }
-            $delCoaStmt = $pdo->prepare("DELETE FROM coa_list WHERE company_id = ? AND id IN ($delPh)");
-            $delCoaStmt->execute(array_merge([$company_id], $deletablePartyCoaIds));
-            $deletedPartyCoaCount = $delCoaStmt->rowCount();
+            if (!isset($protectedCoaSet[$codeKey])) {
+                $deleteCoaListIds[] = intval($row['id']);
+            }
+        }
+
+        if (!empty($deleteCoaListIds)) {
+            $hasBankAccounts = $pdo->query("SHOW TABLES LIKE 'bank_accounts'")->rowCount() > 0;
+            $hasBranches = $pdo->query("SHOW TABLES LIKE 'company_branches'")->rowCount() > 0;
+            foreach (array_chunk($deleteCoaListIds, 500) as $chunk) {
+                $ph = implode(',', array_fill(0, count($chunk), '?'));
+                if ($hasBranches) {
+                    try {
+                        $clrBr = $pdo->prepare("UPDATE company_branches SET default_customer_id = ? WHERE company_id = ? AND default_customer_id IN ($ph)");
+                        $clrBr->execute(array_merge([$walkInCustomerCoaId, $company_id], $chunk));
+                    } catch (Exception $ex) {}
+                }
+                if ($hasBankAccounts) {
+                    try {
+                        $delBank = $pdo->prepare("DELETE FROM bank_accounts WHERE coa_list_id IN ($ph)");
+                        $delBank->execute($chunk);
+                    } catch (Exception $ex) {}
+                }
+                $delList = $pdo->prepare("DELETE FROM coa_list WHERE company_id = ? AND id IN ($ph)");
+                $delList->execute(array_merge([$company_id], $chunk));
+                $deletedCoaStats['list'] += $delList->rowCount();
+            }
+        }
+
+        // 2. Delete non-hardcoded coa_sub rows that have no remaining protected coa_list children
+        $remSubStmt = $pdo->prepare("SELECT DISTINCT sub_id FROM coa_list WHERE company_id = ? AND sub_id IS NOT NULL");
+        $remSubStmt->execute([$company_id]);
+        $usedSubSet = array_flip(array_map('intval', $remSubStmt->fetchAll(PDO::FETCH_COLUMN)));
+
+        $subStmt = $pdo->prepare("SELECT id, code FROM coa_sub WHERE company_id = ?");
+        $subStmt->execute([$company_id]);
+        $deleteCoaSubIds = [];
+        foreach ($subStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $sid = intval($row['id']);
+            $codeKey = trim((string)($row['code'] ?? ''));
+            if (!isset($protectedCoaSet[$codeKey]) && !isset($usedSubSet[$sid])) {
+                $deleteCoaSubIds[] = $sid;
+            }
+        }
+        foreach (array_chunk($deleteCoaSubIds, 500) as $chunk) {
+            $ph = implode(',', array_fill(0, count($chunk), '?'));
+            $delSub = $pdo->prepare("DELETE FROM coa_sub WHERE company_id = ? AND id IN ($ph)");
+            $delSub->execute(array_merge([$company_id], $chunk));
+            $deletedCoaStats['sub'] += $delSub->rowCount();
+        }
+
+        // 3. Delete non-hardcoded coa_main rows that have no remaining coa_sub children
+        $remMainStmt = $pdo->prepare("SELECT DISTINCT main_id FROM coa_sub WHERE company_id = ? AND main_id IS NOT NULL");
+        $remMainStmt->execute([$company_id]);
+        $usedMainSet = array_flip(array_map('intval', $remMainStmt->fetchAll(PDO::FETCH_COLUMN)));
+
+        $mainStmt = $pdo->prepare("SELECT id, code FROM coa_main WHERE company_id = ?");
+        $mainStmt->execute([$company_id]);
+        $deleteCoaMainIds = [];
+        foreach ($mainStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $mid = intval($row['id']);
+            $codeKey = trim((string)($row['code'] ?? ''));
+            if (!isset($protectedCoaSet[$codeKey]) && !isset($usedMainSet[$mid])) {
+                $deleteCoaMainIds[] = $mid;
+            }
+        }
+        foreach (array_chunk($deleteCoaMainIds, 500) as $chunk) {
+            $ph = implode(',', array_fill(0, count($chunk), '?'));
+            $delMain = $pdo->prepare("DELETE FROM coa_main WHERE company_id = ? AND id IN ($ph)");
+            $delMain->execute(array_merge([$company_id], $chunk));
+            $deletedCoaStats['main'] += $delMain->rowCount();
         }
     }
 
@@ -267,7 +303,7 @@ try {
     $transactionStarted = false;
 
     $optionLabels = [
-        '1' => 'Company data reset completed successfully! Base/system Chart of Accounts, branches, users & settings were preserved; all party ledgers, inventory, opening balances & transactions were cleared.',
+        '1' => 'Company data reset completed successfully! Only hardcoded Chart of Accounts, branches, users & settings were preserved; all custom accounts, parties, inventory, opening balances & transactions were cleared.',
         '2' => 'Transactions and Opening Balances cleared successfully! Master Data & Settings were preserved.',
         '3' => 'Transactions cleared successfully! Master Data, Settings & Opening Balances were preserved.',
         '4' => 'Transactions and Chart of Inventory cleared successfully! Accounts, Parties & Settings were preserved.'
@@ -279,7 +315,7 @@ try {
         'company_id' => $company_id,
         'clear_option' => $clear_option,
         'tables_cleared' => count($tables_to_clear),
-        'party_coa_deleted' => $deletedPartyCoaCount
+        'coa_deleted' => $deletedCoaStats
     ]);
 
     file_put_contents('debug.log', date('Y-m-d H:i:s') . " - Committed clear_transactions (option=$clear_option, tables=" . count($tables_to_clear) . ")\n", FILE_APPEND);
