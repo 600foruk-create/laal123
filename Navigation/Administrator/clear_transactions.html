@@ -14,25 +14,25 @@
         <div style="margin-bottom: 8px;">
             <label style="cursor: pointer; display: flex; align-items: flex-start; margin-bottom: 0;">
                 <input type="radio" name="clear_option" value="3" checked style="margin-top: 3px; margin-right: 8px;">
-                <span style="font-size: 14px;"><b>Clear Transactions Only</b><br><small style="color: #666;">Keep Master Data (Accounts, Items, Customers) and Opening Balances.</small></span>
+                <span style="font-size: 14px;"><b>Clear Transactions Only</b><br><small style="color: #666;">Keep Master Data (Accounts, Items, Parties, Branches, Settings) and all Opening Balances.</small></span>
             </label>
         </div>
         <div style="margin-bottom: 8px;">
             <label style="cursor: pointer; display: flex; align-items: flex-start; margin-bottom: 0;">
                 <input type="radio" name="clear_option" value="2" style="margin-top: 3px; margin-right: 8px;">
-                <span style="font-size: 14px;"><b>Clear Transactions & Opening Balances</b><br><small style="color: #666;">Keep Master Data, but reset all opening balances and transactions to zero.</small></span>
+                <span style="font-size: 14px;"><b>Clear Transactions &amp; Opening Balances</b><br><small style="color: #666;">Keep Master Data, Branches &amp; Settings, but clear all transactions and opening balances.</small></span>
             </label>
         </div>
         <div style="margin-bottom: 8px;">
             <label style="cursor: pointer; display: flex; align-items: flex-start; margin-bottom: 0;">
                 <input type="radio" name="clear_option" value="4" style="margin-top: 3px; margin-right: 8px;">
-                <span style="font-size: 14px;"><b>Clear Transactions & Chart of Inventory</b><br><small style="color: #666;">Keep Accounts Master Data, but clear all transactions and inventory items.</small></span>
+                <span style="font-size: 14px;"><b>Clear Transactions &amp; Chart of Inventory</b><br><small style="color: #666;">Keep Accounts, Parties, Branches &amp; Settings, but clear all transactions and inventory items/formulas.</small></span>
             </label>
         </div>
         <div>
             <label style="cursor: pointer; display: flex; align-items: flex-start; margin-bottom: 0;">
                 <input type="radio" name="clear_option" value="1" style="margin-top: 3px; margin-right: 8px;">
-                <span style="font-size: 14px; color: #d63031;"><b>Clear ALL Data (Reset Company)</b><br><small style="color: #d63031;">Start from scratch. Deletes everything except the basic Chart of Accounts structure.</small></span>
+                <span style="font-size: 14px; color: #d63031;"><b>Clear ALL Data (Reset Company)</b><br><small style="color: #d63031;">Start from scratch. Keeps Chart of Accounts, Users, Branches &amp; Settings; deletes all parties, inventory, opening balances &amp; transactions.</small></span>
             </label>
         </div>
     </div>
