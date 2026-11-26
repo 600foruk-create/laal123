@@ -183,34 +183,18 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
 
     if (!$targetDate) return $valResult;
 
-    $targetYear = intval(date('Y', strtotime($targetDate)));
-    $targetMonthNum = intval(date('n', strtotime($targetDate)));
-
-    // 1. Fetch WIP Valuation & KG from mfg_monthly_wip (exact month lock takes priority)
-    $hasExactWipLock = false;
-    $wipAutoQty = 0.0;
-    $wipAutoVal = 0.0;
+    // Load existing table list once for shared WIP & dynamic inventory calculations
+    $existingTabs = [];
     try {
-        $stmtWip = $pdo->prepare("SELECT closing_wip_qty, closing_wip_val, is_locked FROM mfg_monthly_wip WHERE company_id = ? AND year = ? AND month = ? LIMIT 1");
-        $stmtWip->execute([$company_id, $targetYear, $targetMonthNum]);
-        $exactWipRow = $stmtWip->fetch(PDO::FETCH_ASSOC);
-        if ($exactWipRow) {
-            $wipAutoQty = floatval($exactWipRow['closing_wip_qty'] ?? 0);
-            $wipAutoVal = floatval($exactWipRow['closing_wip_val'] ?? 0);
-            $hasExactWipLock = !empty($exactWipRow['is_locked']);
-        } else {
-            $stmtWipLatest = $pdo->prepare("SELECT closing_wip_qty, closing_wip_val FROM mfg_monthly_wip WHERE company_id = ? AND ((year < ?) OR (year = ? AND month <= ?)) ORDER BY year DESC, month DESC LIMIT 1");
-            $stmtWipLatest->execute([$company_id, $targetYear, $targetYear, $targetMonthNum]);
-            $latestWipRow = $stmtWipLatest->fetch(PDO::FETCH_ASSOC);
-            if ($latestWipRow) {
-                $wipAutoQty = floatval($latestWipRow['closing_wip_qty'] ?? 0);
-                $wipAutoVal = floatval($latestWipRow['closing_wip_val'] ?? 0);
-            }
-        }
-    } catch (Exception $eWip) {}
-    $valResult['wip_kg'] = round(max(0.0, $wipAutoQty), 2);
-    $valResult['wip_auto_val'] = round($wipAutoVal, 2);
-    $valResult['wip_auto_rate'] = ($wipAutoQty > 0 && $wipAutoVal > 0) ? round($wipAutoVal / $wipAutoQty, 2) : 0.0;
+        $stmtTab = $pdo->query("SHOW TABLES");
+        while ($t = $stmtTab->fetch(PDO::FETCH_NUM)) { $existingTabs[] = $t[0]; }
+    } catch (Exception $eTab) {}
+
+    // 1. Fetch WIP Valuation & KG aligned with Production Costing & WIP Statement
+    $wipSummary = computeFactoryClosingWipSummary($pdo, $company_id, $targetDate, $existingTabs, 240.0);
+    $valResult['wip_kg'] = $wipSummary['closing_wip_qty'];
+    $valResult['wip_auto_val'] = $wipSummary['closing_wip_val'];
+    $valResult['wip_auto_rate'] = $wipSummary['rate_per_kg'];
     $valResult['wip_val'] = $valResult['wip_auto_val'];
 
     // 2. Check inventory_monthly_closings table
@@ -332,6 +316,7 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
             'manual_value' => 0.0,
             'effective_rate' => $valResult['wip_auto_rate'],
             'effective_value' => round($valResult['wip_val'], 2),
+            'is_locked' => !empty($wipSummary['is_locked']),
             'items_count' => 0
         ];
         $valResult['total_stock_value'] += $valResult['wip_val'];
@@ -343,9 +328,6 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
     $manualOverrides = fetchBsManualStockRatesMap($pdo, $company_id, $periodMonth);
 
     try {
-        $stmtTab = $pdo->query("SHOW TABLES");
-        $existingTabs = [];
-        while ($t = $stmtTab->fetch(PDO::FETCH_NUM)) { $existingTabs[] = $t[0]; }
 
         $dateCond = function($col) use ($targetDate) {
             return $targetDate ? " AND DATE($col) <= '$targetDate'" : "";
@@ -529,62 +511,27 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
             }
         }
 
-        // G. Manufacturing (MIN & Production Notes Rates & Volumes)
-        $totMinQty = 0.0;
-        $totMinVal = 0.0;
-        if (in_array("material_issue_notes", $existingTabs) && in_array("material_issue_note_items", $existingTabs)) {
-            $sql = "SELECT mii.item_id, COALESCE(SUM(mii.qty), 0) as qty, COALESCE(SUM(mii.amount), 0) as val
-                    FROM material_issue_note_items mii
-                    JOIN material_issue_notes m ON mii.min_id = m.id
-                    WHERE m.company_id = $company_id AND m.is_cancelled = 0 AND m.is_posted = 1 " . $dateCond('m.date') . "
-                    GROUP BY mii.item_id";
-            $q = $pdo->query($sql);
-            while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
-                $totMinQty += floatval($r['qty']);
-                $totMinVal += floatval($r['val']);
-            }
-        }
-
+        // G. Production Note Per-Unit Rate Fallback (used only when an FG item has no active Formula / Costing rate)
         $pnRateMap = [];
-        $totPnProducedQty = 0.0;
         if (in_array("production_notes", $existingTabs) && in_array("production_note_items", $existingTabs)) {
-            $sqlIn = "SELECT pni.item_id, i.unit, COALESCE(i.unit_weight, 0) as unit_weight, COALESCE(i.qty_per_piece, 0) as qty_per_piece,
+            $sqlIn = "SELECT pni.item_id,
                              COALESCE(SUM(pni.qty), 0) as qty,
                              COALESCE(SUM(COALESCE(NULLIF(pni.amount, 0), pni.qty * COALESCE(pni.rate, 0))), 0) as total_amt
                       FROM production_note_items pni
                       JOIN production_notes p ON pni.pn_id = p.id
-                      LEFT JOIN inv_items i ON pni.item_id = i.id
                       WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND pni.qty > 0 " . $dateCond('p.date') . "
-                      GROUP BY pni.item_id, i.unit, i.unit_weight, i.qty_per_piece";
+                      GROUP BY pni.item_id";
             $qIn = $pdo->query($sqlIn);
             while ($r = $qIn->fetch(PDO::FETCH_ASSOC)) {
                 $qVal = floatval($r['qty']);
                 $aAmt = floatval($r['total_amt']);
-                $uUp = strtoupper(trim((string)($r['unit'] ?? '')));
-                $uWt = floatval($r['unit_weight'] ?? 0) ?: floatval($r['qty_per_piece'] ?? 0);
-                $totPnProducedQty += ($uUp !== 'KG' && $uUp !== 'KGS' && $uWt > 0) ? ($qVal * $uWt) : $qVal;
                 if ($qVal > 0 && $aAmt > 0) {
                     $pnRateMap[$r['item_id']] = $aAmt / $qVal;
                 }
             }
         }
 
-        // Dynamic Floor WIP if not already locked/set from mfg_monthly_wip
-        if (!$hasExactWipLock && $valResult['wip_auto_val'] == 0 && $totMinQty > 0) {
-            $wipNetQty = $totMinQty - $totPnProducedQty;
-            if ($wipNetQty > 0) {
-                $avgIssRate = ($totMinQty > 0 && $totMinVal > 0) ? ($totMinVal / $totMinQty) : $avgRawRatePerKg;
-                $valResult['wip_kg'] = round($wipNetQty, 2);
-                $valResult['wip_auto_rate'] = round($avgIssRate, 2);
-                $valResult['wip_auto_val'] = round($wipNetQty * $avgIssRate, 2);
-            }
-        }
-        $valResult['wip_auto_val'] = round($valResult['wip_auto_val'], 2);
-        if ($valResult['wip_kg'] > 0 && $valResult['wip_auto_rate'] <= 0 && $valResult['wip_auto_val'] > 0) {
-            $valResult['wip_auto_rate'] = round($valResult['wip_auto_val'] / $valResult['wip_kg'], 2);
-        }
-
-        // Apply WIP Manual Override (Rate/KG when KG > 0 or Direct Value)
+        // Apply WIP Manual Override (Rate/KG when KG > 0 or Direct Value; Auto uses computeFactoryClosingWipSummary above)
         $wipOv = $manualOverrides['wip'] ?? null;
         $wipResolved = resolveBsDirectOrRateValuation($valResult['wip_kg'], $valResult['wip_auto_rate'], $valResult['wip_auto_val'], $wipOv);
         $valResult['wip_mode'] = $wipResolved['mode'];
@@ -894,6 +841,7 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
             'manual_value' => $wipResolved['manual_value'],
             'effective_rate' => $wipResolved['effective_rate'],
             'effective_value' => $wipResolved['effective_value'],
+            'is_locked' => !empty($wipSummary['is_locked']),
             'items_count' => 0
         ];
 

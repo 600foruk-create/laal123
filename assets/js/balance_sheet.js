@@ -1263,7 +1263,7 @@
                 const manualValDisplay = eff.value;
 
                 let rateCell = autoRate > 0
-                    ? `<span style="color: #64748b; font-size: 10px; font-family: monospace;">Avg ${this.formatCurrency(autoRate)}</span>`
+                    ? `<span style="font-family: monospace; color: #334155; font-weight: 700; background: #f1f5f9; padding: 2px 8px; border-radius: 3px; display: inline-block; min-width: 65px; text-align: right;">Avg ${this.formatCurrency(autoRate)}</span>`
                     : `<span style="color: #94a3b8; font-size: 10px;">-</span>`;
                 let valCell = `<span id="bsSvRowVal_${scope}_0" style="font-weight: 800; font-family: monospace; color: ${eff.value > 0 ? '#0f172a' : '#94a3b8'};">${this.formatCurrency(eff.value)}</span>`;
 
@@ -1275,13 +1275,16 @@
                     valCell = `<input type="number" step="0.01" min="0" id="bsSvValInput_${scope}_0" value="${manualValDisplay}" oninput="window.BalanceSheetModule.onStockValueInput('${scope}', 0, this.value)" style="width: 125px; text-align: right; padding: 3px 6px; border: 1.5px solid #ca8a04; background: #fef08a; color: #1e293b; font-weight: 800; font-family: monospace; border-radius: 3px;" />`;
                 }
 
+                const lockTag = (scope === 'wip' && row.is_locked)
+                    ? `<span style="font-size: 9px; background: #dcfce7; color: #166534; padding: 1px 4px; border-radius: 2px; margin-left: 4px; font-weight: 700;">Costing Lock</span>`
+                    : '';
                 const autoRefHtml = autoRate > 0
                     ? `@ ${this.formatCurrency(autoRate)}<br><span style="color: #475569;">Rs. ${this.formatCurrency(autoVal)}</span>`
                     : `<span style="color: #475569;">Rs. ${this.formatCurrency(autoVal)}</span>`;
 
                 return `
                     <tr style="background: ${isMan ? '#fefce8' : '#f8fafc'};">
-                        <td style="padding: 6px 8px; border: 1px solid #475569; font-weight: 800; color: ${titleColor};">${titleText}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #475569; font-weight: 800; color: ${titleColor};">${titleText}${lockTag}</td>
                         <td style="padding: 4px 8px; border: 1px solid #475569; text-align: center;">${makeToggle(scope, 0, row.mode)}</td>
                         <td style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-family: monospace; font-weight: 600;">${kg > 0 ? this.formatQty(kg) : '-'}</td>
                         <td style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-size: 10px; color: #64748b; font-family: monospace;">${autoRefHtml}</td>

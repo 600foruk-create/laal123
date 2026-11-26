@@ -1189,3 +1189,208 @@ if (!function_exists('resolveBrandProductionCostRates')) {
         ];
     }
 }
+
+if (!function_exists('computeFactoryClosingWipSummary')) {
+    /**
+     * Single source of truth for Monthly Closing Floor WIP (KG, Avg Rate/KG, Value)
+     * aligned with Production Costing & WIP Statement:
+     * 1) If target month is locked/saved in mfg_monthly_wip, uses locked closing_wip_qty & closing_wip_val.
+     * 2) Otherwise starts from previous month's closing WIP (or pre-month net floor WIP floored at 0)
+     *    and adds current month Material Issues (MIN) minus Production Output (using calcProducedItemWeightKg).
+     */
+    function computeFactoryClosingWipSummary($pdo, $company_id, $targetDate, $existingTabs = null, $fallbackRate = 220.0) {
+        $result = [
+            'closing_wip_qty' => 0.0,
+            'closing_wip_val' => 0.0,
+            'rate_per_kg' => 0.0,
+            'opening_wip_qty' => 0.0,
+            'opening_wip_val' => 0.0,
+            'period_issued_qty' => 0.0,
+            'period_issued_val' => 0.0,
+            'period_produced_qty' => 0.0,
+            'is_locked' => false
+        ];
+
+        if (!$targetDate) {
+            return $result;
+        }
+
+        if ($existingTabs === null) {
+            $existingTabs = [];
+            try {
+                $stT = $pdo->query("SHOW TABLES");
+                while ($t = $stT->fetch(PDO::FETCH_NUM)) {
+                    $existingTabs[] = $t[0];
+                }
+            } catch (Exception $e) {}
+        }
+
+        $toTs = strtotime($targetDate);
+        if (!$toTs) {
+            return $result;
+        }
+
+        $targetYear = intval(date('Y', $toTs));
+        $targetMonthNum = intval(date('n', $toTs));
+        $monthStart = date('Y-m-01', $toTs);
+        $monthEnd = date('Y-m-d', $toTs);
+
+        // 1. Check exact locked monthly snapshot in mfg_monthly_wip
+        if (in_array('mfg_monthly_wip', $existingTabs)) {
+            try {
+                $stmtExact = $pdo->prepare("SELECT closing_wip_qty, closing_wip_val, is_locked FROM mfg_monthly_wip WHERE company_id = ? AND year = ? AND month = ? LIMIT 1");
+                $stmtExact->execute([$company_id, $targetYear, $targetMonthNum]);
+                $exactRow = $stmtExact->fetch(PDO::FETCH_ASSOC);
+                if ($exactRow && (!empty($exactRow['is_locked']) || floatval($exactRow['closing_wip_val'] ?? 0) > 0 || floatval($exactRow['closing_wip_qty'] ?? 0) > 0)) {
+                    $q = round(max(0.0, floatval($exactRow['closing_wip_qty'] ?? 0)), 2);
+                    $v = round(max(0.0, floatval($exactRow['closing_wip_val'] ?? 0)), 2);
+                    $r = ($q > 0 && $v > 0) ? round($v / $q, 2) : 0.0;
+                    $result['closing_wip_qty'] = $q;
+                    $result['closing_wip_val'] = $v;
+                    $result['rate_per_kg'] = $r;
+                    $result['is_locked'] = !empty($exactRow['is_locked']);
+                    return $result;
+                }
+            } catch (Exception $eW) {}
+        }
+
+        // 2. Determine Opening WIP for start of target month (from previous month lock or historical net before $monthStart)
+        $openingQty = 0.0;
+        $openingVal = 0.0;
+        $usedPrevSnapshot = false;
+        $prevTs = strtotime('-1 month', strtotime($monthStart));
+        $prevYr = intval(date('Y', $prevTs));
+        $prevMo = intval(date('n', $prevTs));
+
+        if (in_array('mfg_monthly_wip', $existingTabs)) {
+            try {
+                $stmtPrev = $pdo->prepare("SELECT closing_wip_qty, closing_wip_val, is_locked FROM mfg_monthly_wip WHERE company_id = ? AND year = ? AND month = ? LIMIT 1");
+                $stmtPrev->execute([$company_id, $prevYr, $prevMo]);
+                $prevRow = $stmtPrev->fetch(PDO::FETCH_ASSOC);
+                if ($prevRow && (!empty($prevRow['is_locked']) || floatval($prevRow['closing_wip_qty'] ?? 0) > 0)) {
+                    $openingQty = max(0.0, floatval($prevRow['closing_wip_qty'] ?? 0));
+                    $openingVal = max(0.0, floatval($prevRow['closing_wip_val'] ?? 0));
+                    $usedPrevSnapshot = true;
+                }
+            } catch (Exception $ePrev) {}
+        }
+
+        $hasMinTabs = (in_array('material_issue_notes', $existingTabs) && in_array('material_issue_note_items', $existingTabs));
+        $hasPnTabs = (in_array('production_notes', $existingTabs) && in_array('production_note_items', $existingTabs));
+
+        if (!$usedPrevSnapshot && $hasMinTabs) {
+            try {
+                $stmtHistIss = $pdo->prepare("
+                    SELECT COALESCE(SUM(mii.qty), 0) as total_issued_qty,
+                           COALESCE(SUM(mii.amount), 0) as total_issued_val
+                    FROM material_issue_note_items mii
+                    JOIN material_issue_notes m ON mii.min_id = m.id
+                    WHERE m.company_id = ? AND m.is_cancelled = 0 AND m.is_posted = 1 AND DATE(m.date) < ?
+                ");
+                $stmtHistIss->execute([$company_id, $monthStart]);
+                $hIss = $stmtHistIss->fetch(PDO::FETCH_ASSOC);
+                $hIssQty = floatval($hIss['total_issued_qty'] ?? 0);
+                $hIssVal = floatval($hIss['total_issued_val'] ?? 0);
+
+                $hProdQty = 0.0;
+                if ($hasPnTabs) {
+                    $stmtHistProd = $pdo->prepare("SELECT COALESCE(SUM(pp.qty), 0) as total_prod_qty FROM production_note_items pp JOIN production_notes p ON pp.pn_id = p.id WHERE p.company_id = ? AND p.is_cancelled = 0 AND p.is_posted = 1 AND DATE(p.date) < ?");
+                    $stmtHistProd->execute([$company_id, $monthStart]);
+                    $hProdQty = floatval($stmtHistProd->fetchColumn() ?: 0);
+                }
+
+                $hDiff = $hIssQty - $hProdQty;
+                if ($hDiff > 0) {
+                    $openingQty = $hDiff;
+                    $hRate = ($hIssQty > 0 && $hIssVal > 0) ? ($hIssVal / $hIssQty) : floatval($fallbackRate);
+                    $openingVal = $openingQty * $hRate;
+                }
+            } catch (Exception $eHist) {}
+        }
+
+        // 3. Period Issues ($monthStart .. $monthEnd)
+        $periodIssQty = 0.0;
+        $periodIssVal = 0.0;
+        if ($hasMinTabs) {
+            try {
+                $stmtPerIss = $pdo->prepare("
+                    SELECT COALESCE(SUM(mii.qty), 0) as period_issued_qty,
+                           COALESCE(SUM(mii.amount), 0) as period_issued_val
+                    FROM material_issue_note_items mii
+                    JOIN material_issue_notes m ON mii.min_id = m.id
+                    WHERE m.company_id = ? AND m.is_cancelled = 0 AND m.is_posted = 1
+                      AND DATE(m.date) BETWEEN ? AND ?
+                ");
+                $stmtPerIss->execute([$company_id, $monthStart, $monthEnd]);
+                $pIss = $stmtPerIss->fetch(PDO::FETCH_ASSOC);
+                $periodIssQty = floatval($pIss['period_issued_qty'] ?? 0);
+                $periodIssVal = floatval($pIss['period_issued_val'] ?? 0);
+
+                if ($periodIssVal <= 0 && $periodIssQty > 0) {
+                    $stmtDef = $pdo->prepare("SELECT AVG(purchase_price) FROM inv_items WHERE company_id = ? AND purchase_price > 0");
+                    $stmtDef->execute([$company_id]);
+                    $defP = floatval($stmtDef->fetchColumn() ?: $fallbackRate);
+                    $periodIssVal = $periodIssQty * $defP;
+                }
+            } catch (Exception $ePerI) {}
+        }
+
+        // 4. Period Production Output in KG ($monthStart .. $monthEnd) via shared calcProducedItemWeightKg
+        $periodProdQty = 0.0;
+        if ($hasPnTabs) {
+            try {
+                $stmtPerProd = $pdo->prepare("
+                    SELECT SUM(pp.qty) as produced_qty,
+                           SUM(pp.pieces) as produced_pieces,
+                           i.unit,
+                           COALESCE(i.unit_weight, 0) as unit_weight,
+                           COALESCE(i.qty_per_piece, 0) as qty_per_piece,
+                           COALESCE(i.carton, 0) as carton
+                    FROM production_note_items pp
+                    JOIN production_notes p ON pp.pn_id = p.id
+                    JOIN inv_items i ON pp.item_id = i.id
+                    WHERE p.company_id = ? AND p.is_cancelled = 0 AND p.is_posted = 1
+                      AND DATE(p.date) BETWEEN ? AND ?
+                    GROUP BY pp.item_id, i.unit, i.unit_weight, i.qty_per_piece, i.carton
+                ");
+                $stmtPerProd->execute([$company_id, $monthStart, $monthEnd]);
+                foreach ($stmtPerProd->fetchAll(PDO::FETCH_ASSOC) as $pr) {
+                    $calc = calcProducedItemWeightKg(
+                        $pr['produced_qty'] ?? 0,
+                        $pr['produced_pieces'] ?? 0,
+                        $pr['unit'] ?? '',
+                        $pr['unit_weight'] ?? 0,
+                        $pr['qty_per_piece'] ?? 0,
+                        $pr['carton'] ?? 0
+                    );
+                    $periodProdQty += floatval($calc['weight_kg'] ?? 0);
+                }
+            } catch (Exception $ePerP) {}
+        }
+
+        // 5. Closing WIP Calculation matching Production Costing & WIP Statement
+        $closingWipQty = ($openingQty + $periodIssQty) - $periodProdQty;
+        if ($closingWipQty < 0) $closingWipQty = 0.0;
+
+        if ($periodIssQty > 0 && $periodIssVal > 0) {
+            $avgRate = $periodIssVal / $periodIssQty;
+        } elseif ($openingQty > 0 && $openingVal > 0) {
+            $avgRate = $openingVal / $openingQty;
+        } else {
+            $avgRate = floatval($fallbackRate);
+        }
+
+        $closingWipVal = $closingWipQty * $avgRate;
+
+        $result['opening_wip_qty'] = round($openingQty, 2);
+        $result['opening_wip_val'] = round($openingVal, 2);
+        $result['period_issued_qty'] = round($periodIssQty, 2);
+        $result['period_issued_val'] = round($periodIssVal, 2);
+        $result['period_produced_qty'] = round($periodProdQty, 2);
+        $result['closing_wip_qty'] = round($closingWipQty, 2);
+        $result['closing_wip_val'] = round($closingWipVal, 2);
+        $result['rate_per_kg'] = ($closingWipQty > 0) ? round($avgRate, 2) : 0.0;
+
+        return $result;
+    }
+}
