@@ -1183,7 +1183,7 @@ document.addEventListener('click', function(e) {
                 overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.72); backdrop-filter:blur(4px); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px;';
 
                 const title = opts.title || 'Master Security PIN Verification';
-                const subtitle = opts.subtitle || 'جاری رکھنے کے لیے 4-Digit Master Security PIN درج کریں';
+                const subtitle = opts.subtitle || 'Enter your 4-Digit Master Security PIN to continue';
 
                 overlay.innerHTML = `
                     <div style="width:100%; max-width:390px; background:#ffffff; border-radius:12px; box-shadow:0 24px 60px rgba(15,23,42,0.45); overflow:hidden; border:1px solid #bfdbfe;">
@@ -3805,7 +3805,7 @@ document.addEventListener('click', function(e) {
                     if (requireBsPin) {
                         const pinOk = await window.promptMasterSecurityPin('balance_sheet', {
                             title: 'Balance Sheet Master Security PIN',
-                            subtitle: 'ہر بار Balance Sheet کھولنے کے لیے 4-Digit Master PIN درج کریں'
+                            subtitle: 'Enter your 4-Digit Master Security PIN to open Balance Sheet'
                         });
                         if (!pinOk) return;
                     }

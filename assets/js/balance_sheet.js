@@ -239,7 +239,7 @@
                         try {
                             unlocked = await window.promptMasterSecurityPin('balance_sheet', {
                                 title: 'Balance Sheet Master Security PIN',
-                                subtitle: 'Balance Sheet دیکھنے کے لیے 4-Digit Master PIN درج کریں'
+                                subtitle: 'Enter your 4-Digit Master Security PIN to view Balance Sheet'
                             });
                         } finally {
                             this._pinPromptActive = false;
