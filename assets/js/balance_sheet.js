@@ -327,10 +327,30 @@
             const elWip = document.getElementById('bsInvWipVal');
             const elFg = document.getElementById('bsInvFgVal');
             const elTotal = document.getElementById('bsInvTotalVal');
+            const elModeBadge = document.getElementById('bsInvModeBadge');
             if (elRaw) elRaw.textContent = `Rs. ${this.formatCurrency(inv3way.raw_materials)}`;
             if (elWip) elWip.textContent = `Rs. ${this.formatCurrency(inv3way.wip)}`;
             if (elFg) elFg.textContent = `Rs. ${this.formatCurrency(inv3way.finished_goods)}`;
             if (elTotal) elTotal.textContent = `Rs. ${this.formatCurrency(inv3way.total_inventory)}`;
+            if (elModeBadge) {
+                const ovCount = parseInt(inv3way.manual_overrides_count || 0, 10);
+                if (inv3way.is_audited) {
+                    elModeBadge.textContent = 'Audited Lock';
+                    elModeBadge.style.background = '#dcfce7';
+                    elModeBadge.style.color = '#166534';
+                    elModeBadge.style.borderColor = '#86efac';
+                } else if (ovCount > 0) {
+                    elModeBadge.textContent = `Manual (${ovCount})`;
+                    elModeBadge.style.background = '#fef08a';
+                    elModeBadge.style.color = '#854d0e';
+                    elModeBadge.style.borderColor = '#facc15';
+                } else {
+                    elModeBadge.textContent = 'Auto Rate';
+                    elModeBadge.style.background = '#dbeafe';
+                    elModeBadge.style.color = '#1d4ed8';
+                    elModeBadge.style.borderColor = '#93c5fd';
+                }
+            }
 
             // 4. Suspense Warning Banner
             const suspenseBanner = document.getElementById('bsSuspenseBanner');
@@ -1017,6 +1037,506 @@
             } catch (err) {
                 alert('Connection error: ' + err.message);
                 if (btnExec) { btnExec.disabled = false; btnExec.innerHTML = `<i class="fas fa-lock"></i> Post & Lock Year Closing Entry`; }
+            }
+        },
+
+        // =========================================================================
+        // FEATURE 4: CLOSING STOCK VALUATION SHEET (AUTO / MANUAL PER CATEGORY)
+        // =========================================================================
+        escapeHtml: function(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        },
+
+        formatQty: function(val) {
+            const num = parseFloat(val) || 0;
+            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+
+        openStockValuation: function() {
+            const modal = document.getElementById('bsStockValuationModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                this.loadStockValuationSheet();
+            }
+        },
+
+        closeStockValuation: function() {
+            const modal = document.getElementById('bsStockValuationModal');
+            if (modal) modal.style.display = 'none';
+        },
+
+        loadStockValuationSheet: async function() {
+            const container = document.getElementById('bsSvTableContainer');
+            if (container) {
+                container.innerHTML = `<div style="text-align: center; padding: 30px; color: #64748b;"><i class="fas fa-spinner fa-spin" style="font-size: 20px;"></i> Loading category closing KG &amp; costing rates...</div>`;
+            }
+
+            const asOnDate = document.getElementById('bsAsOnDate')?.value || '';
+            const taxMode = document.getElementById('bsTaxMode')?.value || this.data.tax_mode || 'tax';
+            const url = `api/balance_sheet.php?action=get_stock_valuation_sheet&company_id=${this.data.company_id}&as_on_date=${encodeURIComponent(asOnDate)}&tax_mode=${encodeURIComponent(taxMode)}`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.status !== 'success') {
+                    if (container) container.innerHTML = `<div style="color: #dc2626; padding: 20px; text-align: center;">Failed to load Stock Valuation Sheet: ${this.escapeHtml(data.error || 'Unknown error')}</div>`;
+                    return;
+                }
+
+                const elAsOn = document.getElementById('bsSvAsOnLabel');
+                const elPer = document.getElementById('bsSvPeriodLabel');
+                const elTax = document.getElementById('bsSvTaxModeLabel');
+                if (elAsOn) elAsOn.textContent = data.as_on_date_formatted || data.as_on_date || '-';
+                if (elPer) elPer.textContent = `${data.period_month_label || ''} (${data.period_month || ''})`;
+                if (elTax) elTax.textContent = data.tax_mode_label || taxMode;
+
+                const audBanner = document.getElementById('bsSvAuditedBanner');
+                if (audBanner) audBanner.style.display = data.has_saved_closing ? 'block' : 'none';
+
+                const btnSave = document.getElementById('bsBtnSaveStockVal');
+                if (btnSave) btnSave.disabled = !!data.has_saved_closing;
+
+                const fgRows = (data.fg_rows || []).map(r => Object.assign({}, r));
+                const rmRow = data.raw_material_row ? Object.assign({}, data.raw_material_row) : {
+                    row_key: 'raw_material', row_type: 'raw_material', category_id: 0,
+                    row_label: 'RM-TOTAL (Raw Materials)', stock_kg: 0, auto_rate: 0, auto_value: 0,
+                    mode: 'auto', manual_rate: 0, manual_value: 0, effective_rate: 0, effective_value: 0
+                };
+                const wipRow = data.wip_row ? Object.assign({}, data.wip_row) : {
+                    row_key: 'wip', row_type: 'wip', category_id: 0,
+                    row_label: 'FLOOR WIP (Work-In-Process)', stock_kg: 0, auto_rate: 0, auto_value: 0,
+                    mode: 'auto', manual_rate: 0, manual_value: 0, effective_rate: 0, effective_value: 0
+                };
+
+                this.data.stockValState = {
+                    period_month: data.period_month,
+                    as_on_date: data.as_on_date,
+                    tax_mode: data.tax_mode,
+                    has_saved_closing: !!data.has_saved_closing,
+                    fg_rows: fgRows,
+                    rm_row: rmRow,
+                    wip_row: wipRow
+                };
+
+                this.renderStockValuationTable();
+            } catch (err) {
+                console.error('Stock valuation fetch error:', err);
+                if (container) container.innerHTML = `<div style="color: #dc2626; padding: 20px; text-align: center;">Connection error: ${this.escapeHtml(err.message)}</div>`;
+            }
+        },
+
+        computeStockRowEffective: function(row) {
+            const isManual = (row.mode === 'manual');
+            const kgExact = parseFloat(row.stock_kg_exact != null ? row.stock_kg_exact : row.stock_kg) || 0;
+            const autoRate = parseFloat(row.auto_rate) || 0;
+            const autoVal = parseFloat(row.auto_value) || 0;
+
+            if (!isManual) {
+                return { rate: autoRate, value: autoVal };
+            }
+
+            const mRate = parseFloat(row.manual_rate) || 0;
+            const mVal = parseFloat(row.manual_value) || 0;
+            if (row.row_type === 'fg_category') {
+                if (kgExact > 0) {
+                    if (mRate > 0) {
+                        return { rate: mRate, value: Math.round(kgExact * mRate * 100) / 100 };
+                    }
+                    if (mVal > 0 && row._directValEdited) {
+                        return { rate: Math.round((mVal / kgExact) * 100) / 100, value: mVal };
+                    }
+                    return { rate: 0, value: 0 };
+                }
+                return { rate: 0, value: mVal };
+            }
+
+            if (row.row_type === 'raw_material') {
+                if (kgExact > 0 && mRate > 0 && !row._directValEdited) {
+                    return { rate: mRate, value: Math.round(kgExact * mRate * 100) / 100 };
+                }
+                return { rate: (kgExact > 0 ? Math.round((mVal / kgExact) * 100) / 100 : 0), value: mVal };
+            }
+
+            return { rate: 0, value: mVal };
+        },
+
+        renderStockValuationTable: function() {
+            const state = this.data.stockValState;
+            const container = document.getElementById('bsSvTableContainer');
+            if (!state || !container) return;
+
+            const locked = !!state.has_saved_closing;
+            const makeToggle = (scope, idx, mode) => {
+                const isMan = (mode === 'manual');
+                const disAttr = locked ? 'disabled' : '';
+                return `
+                    <div style="display: inline-flex; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background: #f8fafc;">
+                        <button type="button" ${disAttr} onclick="window.BalanceSheetModule.toggleStockRowMode('${scope}', ${idx}, 'auto')"
+                            style="border: none; padding: 2px 7px; font-size: 9.5px; font-weight: 800; cursor: ${locked ? 'not-allowed' : 'pointer'}; background: ${!isMan ? '#0284c7' : 'transparent'}; color: ${!isMan ? '#ffffff' : '#64748b'};">AUTO</button>
+                        <button type="button" ${disAttr} onclick="window.BalanceSheetModule.toggleStockRowMode('${scope}', ${idx}, 'manual')"
+                            style="border: none; padding: 2px 7px; font-size: 9.5px; font-weight: 800; cursor: ${locked ? 'not-allowed' : 'pointer'}; background: ${isMan ? '#eab308' : 'transparent'}; color: ${isMan ? '#1e293b' : '#64748b'};">MANUAL</button>
+                    </div>
+                `;
+            };
+
+            let html = `
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #475569;">
+                    <thead>
+                        <tr style="background: #1e293b; color: white; font-size: 10px; text-transform: uppercase;">
+                            <th style="padding: 6px 8px; border: 1px solid #475569; text-align: left; width: 26%;">NAME (CATEGORY)</th>
+                            <th style="padding: 6px 8px; border: 1px solid #475569; text-align: center; width: 13%;">MODE</th>
+                            <th style="padding: 6px 8px; border: 1px solid #475569; text-align: right; width: 12%;">KG</th>
+                            <th style="padding: 6px 8px; border: 1px solid #475569; text-align: right; width: 15%;">AUTO REFERENCE</th>
+                            <th style="padding: 6px 8px; border: 1px solid #475569; text-align: center; width: 15%;">RATE (RS./KG)</th>
+                            <th style="padding: 6px 8px; border: 1px solid #475569; text-align: right; width: 19%;">VALUE (PKR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            state.fg_rows.forEach((row, idx) => {
+                const eff = this.computeStockRowEffective(row);
+                const kgNum = parseFloat(row.stock_kg) || 0;
+                const isMan = (row.mode === 'manual');
+                const rateVal = isMan ? (parseFloat(row.manual_rate) || 0) : eff.rate;
+                const manualVal = isMan ? (parseFloat(row.manual_value) || 0) : eff.value;
+
+                let rateCell = `<span style="color: #94a3b8; font-size: 10px;">-</span>`;
+                let valCell = `<span id="bsSvRowVal_fg_${idx}" style="font-weight: 700; font-family: monospace; color: ${eff.value > 0 ? '#0f172a' : '#94a3b8'};">${eff.value > 0 ? this.formatCurrency(eff.value) : '-'}</span>`;
+
+                if (kgNum > 0) {
+                    if (isMan && !locked) {
+                        rateCell = `<input type="number" step="0.01" min="0" value="${rateVal}" oninput="window.BalanceSheetModule.onStockRateInput('fg', ${idx}, this.value)" style="width: 92px; text-align: right; padding: 3px 6px; border: 1.5px solid #ca8a04; background: #fef08a; color: #1e293b; font-weight: 800; font-family: monospace; border-radius: 3px;" />`;
+                    } else {
+                        rateCell = `<span style="font-family: monospace; color: #334155; font-weight: 700; background: #f1f5f9; padding: 2px 8px; border-radius: 3px; display: inline-block; min-width: 65px; text-align: right;">${rateVal > 0 ? this.formatCurrency(rateVal) : '0.00'}</span>`;
+                    }
+                } else {
+                    if (isMan && !locked) {
+                        rateCell = `<span style="color: #854d0e; font-size: 9.5px; font-weight: 700;">Lump Val</span>`;
+                        valCell = `<input type="number" step="0.01" min="0" value="${manualVal}" oninput="window.BalanceSheetModule.onStockValueInput('fg', ${idx}, this.value)" style="width: 125px; text-align: right; padding: 3px 6px; border: 1.5px solid #ca8a04; background: #fef08a; color: #1e293b; font-weight: 800; font-family: monospace; border-radius: 3px;" />`;
+                    } else {
+                        rateCell = `<span style="color: #94a3b8; font-size: 9.5px;">0-KG</span>`;
+                    }
+                }
+
+                html += `
+                    <tr style="background: ${isMan ? '#fefce8' : '#ffffff'};">
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #0f172a;">
+                            ${this.escapeHtml(row.row_label)}
+                            <span style="font-size: 9px; color: #64748b; font-weight: 500; margin-left: 4px;">(${row.items_count || 0})</span>
+                        </td>
+                        <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: center;">${makeToggle('fg', idx, row.mode)}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: right; font-family: monospace; font-weight: 600;">${kgNum > 0 ? this.formatQty(kgNum) : '-'}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: right; font-size: 10px; color: #64748b; font-family: monospace;">
+                            ${row.auto_rate > 0 ? `@ ${this.formatCurrency(row.auto_rate)}<br>` : ''}<span style="color: #475569;">Rs. ${this.formatCurrency(row.auto_value)}</span>
+                        </td>
+                        <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: center; background: ${isMan && kgNum > 0 ? '#fef9c3' : 'transparent'};">${rateCell}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: right; background: ${isMan && kgNum <= 0 ? '#fef9c3' : 'transparent'};">${valCell}</td>
+                    </tr>
+                `;
+            });
+
+            // FG-TOTAL row
+            html += `
+                <tr style="background: #e2e8f0; font-weight: 800; color: #0f172a; font-size: 11.5px;">
+                    <td colspan="2" style="padding: 6px 8px; border: 1px solid #475569; text-align: center;">FG-TOTAL :-</td>
+                    <td id="bsSvFgTotalKg" style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-family: monospace;">0.00</td>
+                    <td id="bsSvFgAutoVal" style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-family: monospace; font-size: 10px; color: #475569;">Rs. 0.00</td>
+                    <td style="padding: 6px 8px; border: 1px solid #475569; text-align: center; font-size: 9.5px; color: #475569;">Pipes + Fittings</td>
+                    <td id="bsSvFgTotalVal" style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-family: monospace; font-size: 12px;">0.00</td>
+                </tr>
+            `;
+
+            // RM-TOTAL row
+            const rm = state.rm_row;
+            const rmEff = this.computeStockRowEffective(rm);
+            const rmIsMan = (rm.mode === 'manual');
+            const rmKg = parseFloat(rm.stock_kg) || 0;
+            const rmRateDisplay = rmIsMan ? (parseFloat(rm.manual_rate) > 0 ? parseFloat(rm.manual_rate) : '') : rmEff.rate;
+            const rmManualValDisplay = rmIsMan ? (parseFloat(rm.manual_value) || 0) : rmEff.value;
+
+            let rmRateCell = `<span style="color: #94a3b8; font-size: 10px;">Avg ${this.formatCurrency(rm.auto_rate)}</span>`;
+            let rmValCell = `<span id="bsSvRowVal_rm_0" style="font-weight: 800; font-family: monospace;">${this.formatCurrency(rmEff.value)}</span>`;
+            if (rmIsMan && !locked) {
+                rmRateCell = rmKg > 0
+                    ? `<input type="number" step="0.01" min="0" id="bsSvRmRateInput" placeholder="Avg ${(rmKg > 0 ? (rmManualValDisplay / rmKg).toFixed(2) : '0')}" value="${rmRateDisplay}" oninput="window.BalanceSheetModule.onStockRateInput('rm', 0, this.value)" style="width: 92px; text-align: right; padding: 3px 6px; border: 1px solid #eab308; background: #fef9c3; color: #1e293b; font-weight: 700; font-family: monospace; border-radius: 3px;" />`
+                    : `<span style="color: #94a3b8; font-size: 9.5px;">Direct</span>`;
+                rmValCell = `<input type="number" step="0.01" min="0" id="bsSvRmValInput" value="${rmManualValDisplay}" oninput="window.BalanceSheetModule.onStockValueInput('rm', 0, this.value)" style="width: 125px; text-align: right; padding: 3px 6px; border: 1.5px solid #ca8a04; background: #fef08a; color: #1e293b; font-weight: 800; font-family: monospace; border-radius: 3px;" />`;
+            }
+
+            html += `
+                <tr style="background: ${rmIsMan ? '#fefce8' : '#f8fafc'};">
+                    <td style="padding: 6px 8px; border: 1px solid #475569; font-weight: 800; color: #92400e;">RM-TOTAL (Raw Material) :-</td>
+                    <td style="padding: 4px 8px; border: 1px solid #475569; text-align: center;">${makeToggle('rm', 0, rm.mode)}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-family: monospace; font-weight: 600;">${rmKg > 0 ? this.formatQty(rmKg) : '-'}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-size: 10px; color: #64748b; font-family: monospace;">
+                        @ ${this.formatCurrency(rm.auto_rate)}<br><span style="color: #475569;">Rs. ${this.formatCurrency(rm.auto_value)}</span>
+                    </td>
+                    <td style="padding: 4px 8px; border: 1px solid #475569; text-align: center; background: ${rmIsMan ? '#fef9c3' : 'transparent'};">${rmRateCell}</td>
+                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: right; background: ${rmIsMan ? '#fef9c3' : 'transparent'};">${rmValCell}</td>
+                </tr>
+            `;
+
+            // FLOOR WIP row
+            const wip = state.wip_row;
+            const wipEff = this.computeStockRowEffective(wip);
+            const wipIsMan = (wip.mode === 'manual');
+            const wipValCell = (wipIsMan && !locked)
+                ? `<input type="number" step="0.01" min="0" value="${parseFloat(wip.manual_value) || 0}" oninput="window.BalanceSheetModule.onStockValueInput('wip', 0, this.value)" style="width: 125px; text-align: right; padding: 3px 6px; border: 1.5px solid #ca8a04; background: #fef08a; color: #1e293b; font-weight: 800; font-family: monospace; border-radius: 3px;" />`
+                : `<span id="bsSvRowVal_wip_0" style="font-weight: 700; font-family: monospace; color: ${wipEff.value > 0 ? '#0f172a' : '#94a3b8'};">${wipEff.value > 0 ? this.formatCurrency(wipEff.value) : '0.00'}</span>`;
+
+            html += `
+                <tr style="background: ${wipIsMan ? '#fefce8' : '#f8fafc'};">
+                    <td style="padding: 5px 8px; border: 1px solid #475569; font-weight: 700; color: #b45309;">FLOOR WIP (Work-In-Process) :-</td>
+                    <td style="padding: 4px 8px; border: 1px solid #475569; text-align: center;">${makeToggle('wip', 0, wip.mode)}</td>
+                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: right; color: #94a3b8;">-</td>
+                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: right; font-size: 10px; color: #475569; font-family: monospace;">Rs. ${this.formatCurrency(wip.auto_value)}</td>
+                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: center; color: #94a3b8; font-size: 9.5px;">Floor WIP</td>
+                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: right; background: ${wipIsMan ? '#fef9c3' : 'transparent'};">${wipValCell}</td>
+                </tr>
+            `;
+
+            // GRAND TOTAL STOCK row
+            html += `
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: #0f172a; color: #ffffff; font-weight: 800; font-size: 12.5px;">
+                            <td colspan="5" style="padding: 7px 10px; border: 1px solid #0f172a; text-align: center; letter-spacing: 0.4px;">TOTAL STOCK (INVENTORIES ON BALANCE SHEET) :-</td>
+                            <td id="bsSvGrandTotalVal" style="padding: 7px 10px; border: 1px solid #0f172a; text-align: right; font-family: monospace; color: #fef08a;">Rs. 0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+
+            container.innerHTML = html;
+            this.updateStockValuationSummaryDOM();
+        },
+
+        updateStockValuationSummaryDOM: function() {
+            const state = this.data.stockValState;
+            if (!state) return;
+
+            let fgKg = 0, fgAuto = 0, fgEff = 0;
+            state.fg_rows.forEach((row, idx) => {
+                const eff = this.computeStockRowEffective(row);
+                fgKg += parseFloat(row.stock_kg) || 0;
+                fgAuto += parseFloat(row.auto_value) || 0;
+                fgEff += eff.value;
+
+                const spanEl = document.getElementById(`bsSvRowVal_fg_${idx}`);
+                if (spanEl) {
+                    spanEl.textContent = eff.value > 0 ? this.formatCurrency(eff.value) : '-';
+                    spanEl.style.color = eff.value > 0 ? '#0f172a' : '#94a3b8';
+                }
+            });
+
+            const rmEff = this.computeStockRowEffective(state.rm_row);
+            const wipEff = this.computeStockRowEffective(state.wip_row);
+            const autoTotal = Math.round((fgAuto + (parseFloat(state.rm_row.auto_value) || 0) + (parseFloat(state.wip_row.auto_value) || 0)) * 100) / 100;
+            const grandTotal = Math.round((fgEff + rmEff.value + wipEff.value) * 100) / 100;
+            const diff = Math.round((grandTotal - autoTotal) * 100) / 100;
+
+            const elFgKg = document.getElementById('bsSvFgTotalKg');
+            const elFgAuto = document.getElementById('bsSvFgAutoVal');
+            const elFgVal = document.getElementById('bsSvFgTotalVal');
+            const elGrand = document.getElementById('bsSvGrandTotalVal');
+            const elFootAuto = document.getElementById('bsSvAutoTotalFooter');
+            const elFootVar = document.getElementById('bsSvVarianceFooter');
+
+            if (elFgKg) elFgKg.textContent = this.formatQty(fgKg);
+            if (elFgAuto) elFgAuto.textContent = `Rs. ${this.formatCurrency(fgAuto)}`;
+            if (elFgVal) elFgVal.textContent = `Rs. ${this.formatCurrency(fgEff)}`;
+            if (elGrand) elGrand.textContent = `Rs. ${this.formatCurrency(grandTotal)}`;
+            if (elFootAuto) elFootAuto.textContent = `Rs. ${this.formatCurrency(autoTotal)}`;
+            if (elFootVar) {
+                const sign = diff > 0 ? '+' : '';
+                elFootVar.textContent = `${sign}Rs. ${this.formatCurrency(diff)}`;
+                elFootVar.style.color = Math.abs(diff) < 0.01 ? '#475569' : (diff > 0 ? '#15803d' : '#dc2626');
+            }
+        },
+
+        toggleStockRowMode: function(scope, idx, newMode) {
+            const state = this.data.stockValState;
+            if (!state || state.has_saved_closing) return;
+            const row = (scope === 'fg') ? state.fg_rows[idx] : (scope === 'rm' ? state.rm_row : state.wip_row);
+            if (!row) return;
+
+            row.mode = newMode;
+            if (newMode === 'manual') {
+                const mRate = parseFloat(row.manual_rate) || 0;
+                const mVal = parseFloat(row.manual_value) || 0;
+                if (mRate === 0 && mVal === 0) {
+                    if (row.row_type === 'fg_category' && (parseFloat(row.stock_kg) || 0) > 0) {
+                        row.manual_rate = parseFloat(row.auto_rate) || 0;
+                    } else {
+                        row.manual_value = parseFloat(row.auto_value) || 0;
+                    }
+                }
+            }
+            this.renderStockValuationTable();
+        },
+
+        setAllStockValMode: function(targetMode) {
+            const state = this.data.stockValState;
+            if (!state || state.has_saved_closing) return;
+
+            const applyRow = (row) => {
+                row.mode = targetMode;
+                if (targetMode === 'manual') {
+                    const mRate = parseFloat(row.manual_rate) || 0;
+                    const mVal = parseFloat(row.manual_value) || 0;
+                    if (mRate === 0 && mVal === 0) {
+                        if (row.row_type === 'fg_category' && (parseFloat(row.stock_kg) || 0) > 0) {
+                            row.manual_rate = parseFloat(row.auto_rate) || 0;
+                        } else {
+                            row.manual_value = parseFloat(row.auto_value) || 0;
+                        }
+                    }
+                }
+            };
+            state.fg_rows.forEach(applyRow);
+            applyRow(state.rm_row);
+            applyRow(state.wip_row);
+            this.renderStockValuationTable();
+        },
+
+        onStockRateInput: function(scope, idx, rawVal) {
+            const state = this.data.stockValState;
+            if (!state) return;
+            const row = (scope === 'fg') ? state.fg_rows[idx] : state.rm_row;
+            if (!row) return;
+
+            const rate = Math.max(0, parseFloat(rawVal) || 0);
+            const kgExact = parseFloat(row.stock_kg_exact != null ? row.stock_kg_exact : row.stock_kg) || 0;
+            row.manual_rate = rate;
+            row._directValEdited = false;
+
+            if (scope === 'rm') {
+                row.manual_value = Math.round(kgExact * rate * 100) / 100;
+                const valInput = document.getElementById('bsSvRmValInput');
+                if (valInput) valInput.value = row.manual_value.toFixed(2);
+            }
+            this.updateStockValuationSummaryDOM();
+        },
+
+        onStockValueInput: function(scope, idx, rawVal) {
+            const state = this.data.stockValState;
+            if (!state) return;
+            const row = (scope === 'fg') ? state.fg_rows[idx] : (scope === 'rm' ? state.rm_row : state.wip_row);
+            if (!row) return;
+
+            const val = Math.max(0, parseFloat(rawVal) || 0);
+            row.manual_value = val;
+            row._directValEdited = true;
+
+            if (scope === 'rm') {
+                row.manual_rate = 0;
+                const rateInput = document.getElementById('bsSvRmRateInput');
+                if (rateInput) {
+                    rateInput.value = '';
+                    const kg = parseFloat(row.stock_kg) || 0;
+                    rateInput.placeholder = kg > 0 ? `Avg ${(val / kg).toFixed(2)}` : 'Direct';
+                }
+            }
+            this.updateStockValuationSummaryDOM();
+        },
+
+        saveStockValuation: async function() {
+            const state = this.data.stockValState;
+            if (!state) return;
+            if (state.has_saved_closing) {
+                alert('Monthly Inventory Closing snapshot exists for this month. Clear or unlock it there before applying manual Balance Sheet rates.');
+                return;
+            }
+
+            const btn = document.getElementById('bsBtnSaveStockVal');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Saving & Applying...`;
+            }
+
+            const serializeRow = (r) => {
+                const eff = this.computeStockRowEffective(r);
+                const mRate = (r.mode === 'manual') ? (parseFloat(r.manual_rate) || 0) : (parseFloat(r.manual_rate) || 0);
+                const mVal = (r.mode === 'manual')
+                    ? ((r.row_type === 'fg_category' && (parseFloat(r.stock_kg) || 0) > 0 && mRate > 0) ? eff.value : (parseFloat(r.manual_value) || 0))
+                    : (parseFloat(r.manual_value) || 0);
+                return {
+                    row_key: r.row_key,
+                    row_type: r.row_type,
+                    category_id: parseInt(r.category_id || 0, 10),
+                    row_label: r.row_label,
+                    mode: r.mode,
+                    manual_rate: Math.round(mRate * 100) / 100,
+                    manual_value: Math.round(mVal * 100) / 100
+                };
+            };
+
+            const payload = {
+                company_id: this.data.company_id,
+                as_on_date: state.as_on_date,
+                period_month: state.period_month,
+                tax_mode: state.tax_mode,
+                rows: [
+                    ...state.fg_rows.map(serializeRow),
+                    serializeRow(state.rm_row),
+                    serializeRow(state.wip_row)
+                ]
+            };
+
+            try {
+                const res = await fetch(`api/balance_sheet.php?action=save_stock_valuation_sheet&company_id=${this.data.company_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status !== 'success') {
+                    alert('Save failed: ' + (data.error || 'Unknown error'));
+                    return;
+                }
+                this.closeStockValuation();
+                this.loadReport();
+            } catch (err) {
+                alert('Connection error: ' + err.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fas fa-save"></i> Save & Apply to Balance Sheet`;
+                }
+            }
+        },
+
+        resetStockValuation: async function() {
+            const state = this.data.stockValState;
+            if (!state) return;
+            if (!confirm(`Reset all categories in ${state.period_month} back to AUTO mode and clear saved manual rates?`)) {
+                return;
+            }
+            try {
+                const res = await fetch(`api/balance_sheet.php?action=reset_stock_valuation_sheet&company_id=${this.data.company_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company_id: this.data.company_id,
+                        as_on_date: state.as_on_date,
+                        period_month: state.period_month
+                    })
+                });
+                const data = await res.json();
+                if (data.status !== 'success') {
+                    alert('Reset failed: ' + (data.error || 'Unknown error'));
+                    return;
+                }
+                await this.loadStockValuationSheet();
+                this.loadReport();
+            } catch (err) {
+                alert('Connection error: ' + err.message);
             }
         },
 

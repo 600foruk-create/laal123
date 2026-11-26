@@ -118,6 +118,11 @@
             <button type="button" id="bsBtnYearClosingToolbar" onclick="window.BalanceSheetModule.openYearClosing()" style="background: #4338ca; color: white; border: 1px solid #3730a3; padding: 3px 10px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px; display: flex; align-items: center; gap: 5px;" title="Fiscal Year Closing & Retained Earnings Roll-Forward Wizard">
                 <i class="fas fa-lock"></i> Year-End Closing
             </button>
+
+            <!-- Stock Valuation Mode & Rate Sheet (Auto vs Manual) -->
+            <button type="button" id="bsBtnStockValToolbar" onclick="window.BalanceSheetModule.openStockValuation()" style="background: #0f766e; color: white; border: 1px solid #115e59; padding: 3px 10px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 10.5px; display: flex; align-items: center; gap: 5px;" title="Configure Closing Stock Rates per Category (Auto vs Manual)">
+                <i class="fas fa-tags"></i> Stock Valuation (Auto/Manual)
+            </button>
         </div>
 
         <!-- Right Side: Primary Execution & Export Buttons -->
@@ -261,6 +266,9 @@
             <span title="Pipes & Fittings ready for sale">Finished Goods: <strong id="bsInvFgVal" style="color: #15803d;">Rs. 0</strong></span>
             <span style="color: #cbd5e1;">•</span>
             <span title="Total Audited Godown Stock Valuation">Total: <strong id="bsInvTotalVal" style="color: #0284c7; font-weight: 800;">Rs. 0</strong></span>
+            <button type="button" id="bsInvModeBadge" onclick="event.stopPropagation(); window.BalanceSheetModule.openStockValuation();" style="background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; border-radius: 999px; padding: 1px 7px; font-size: 9.5px; font-weight: 800; cursor: pointer;" title="Click to view or override Stock Valuation Rates (Auto / Manual)">
+                Auto Rate
+            </button>
         </div>
 
     </div>
@@ -618,6 +626,69 @@
                 <button type="button" onclick="window.BalanceSheetModule.closeYearClosing()" style="background: #64748b; color: white; border: none; padding: 5px 12px; border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 11px;">
                     Cancel
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Closing Stock Valuation Sheet (Auto vs Manual Per Category) -->
+    <div id="bsStockValuationModal" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.68); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+        <div style="background: white; width: 920px; max-width: 96vw; max-height: 90vh; border-radius: 6px; box-shadow: 0 20px 45px rgba(0,0,0,0.28); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #94a3b8;">
+            <div style="background: #0f766e; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #115e59;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-tags" style="color: #fef08a; font-size: 16px;"></i>
+                    <div>
+                        <div style="font-weight: 800; font-size: 13px;">Closing Stock Valuation Sheet (Auto / Manual Rates)</div>
+                        <div style="font-size: 10px; color: #ccfbf1;">
+                            As on <strong id="bsSvAsOnLabel">-</strong> • Period: <strong id="bsSvPeriodLabel">-</strong> • Mode: <strong id="bsSvTaxModeLabel">-</strong>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="window.BalanceSheetModule.closeStockValuation()" style="background: none; border: none; color: #ccfbf1; font-size: 19px; cursor: pointer; line-height: 1;">&times;</button>
+            </div>
+
+            <!-- Control & Master Toggle Strip -->
+            <div style="background: #f8fafc; padding: 8px 14px; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="font-size: 10.5px; color: #334155;">
+                    <strong>Rule:</strong> Closing <strong>KG</strong> is fetched live from <strong>Inventory Balance</strong>. Switch any row to <span style="background: #fef08a; color: #854d0e; font-weight: 800; padding: 1px 5px; border-radius: 3px; border: 1px solid #eab308;">MANUAL</span> to type a custom rate / value.
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button type="button" id="bsSvBtnAllAuto" onclick="window.BalanceSheetModule.setAllStockValMode('auto')" style="background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; padding: 3px 9px; border-radius: 3px; font-weight: 700; font-size: 10.5px; cursor: pointer;">
+                        <i class="fas fa-magic"></i> Set All Auto
+                    </button>
+                    <button type="button" id="bsSvBtnAllManual" onclick="window.BalanceSheetModule.setAllStockValMode('manual')" style="background: #fef08a; color: #854d0e; border: 1px solid #eab308; padding: 3px 9px; border-radius: 3px; font-weight: 700; font-size: 10.5px; cursor: pointer;">
+                        <i class="fas fa-edit"></i> Set All Manual
+                    </button>
+                    <button type="button" id="bsSvBtnResetMonth" onclick="window.BalanceSheetModule.resetStockValuation()" style="background: #ffffff; color: #dc2626; border: 1px solid #fca5a5; padding: 3px 9px; border-radius: 3px; font-weight: 700; font-size: 10.5px; cursor: pointer;" title="Delete saved manual overrides for this month">
+                        <i class="fas fa-undo"></i> Clear Month Overrides
+                    </button>
+                </div>
+            </div>
+
+            <!-- Audited Monthly Closing Lock Warning -->
+            <div id="bsSvAuditedBanner" style="display: none; background: #fffbeb; border-bottom: 1px solid #fcd34d; padding: 7px 14px; font-size: 10.5px; color: #92400e; font-weight: 600;">
+                <i class="fas fa-lock" style="color: #d97706;"></i> Notice: A saved/locked snapshot exists in <strong>Monthly Inventory Closing</strong> for this month, so Balance Sheet uses that locked closing total. Unlock or clear it there if you want live Auto/Manual rates to take effect.
+            </div>
+
+            <!-- Excel-Style Valuation Table Body -->
+            <div id="bsSvTableContainer" style="flex: 1; overflow-y: auto; padding: 12px 14px; font-size: 11px;">
+                <div style="text-align: center; padding: 30px; color: #64748b;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 20px;"></i> Loading category stock quantities &amp; costing rates...
+                </div>
+            </div>
+
+            <!-- Summary Comparison & Save Footer -->
+            <div style="background: #f1f5f9; padding: 9px 14px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div id="bsSvFooterSummary" style="font-size: 10.5px; color: #334155;">
+                    Auto System Total: <strong id="bsSvAutoTotalFooter">Rs. 0.00</strong>
+                    <span style="color: #cbd5e1; margin: 0 6px;">|</span>
+                    Variance vs Auto: <strong id="bsSvVarianceFooter">Rs. 0.00</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" onclick="window.BalanceSheetModule.closeStockValuation()" style="background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; padding: 5px 14px; border-radius: 3px; font-weight: 700; font-size: 11px; cursor: pointer;">Cancel</button>
+                    <button type="button" id="bsBtnSaveStockVal" onclick="window.BalanceSheetModule.saveStockValuation()" style="background: #15803d; color: white; border: 1px solid #166534; padding: 5px 15px; border-radius: 3px; font-weight: 800; font-size: 11px; cursor: pointer;">
+                        <i class="fas fa-save"></i> Save &amp; Apply to Balance Sheet
+                    </button>
+                </div>
             </div>
         </div>
     </div>

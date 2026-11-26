@@ -55,9 +55,955 @@ function classifyCoaAccountGroup($mainComponent, $mainName) {
     return 'current_liability';
 }
 
+/**
+ * Ensure persistent per-month Balance Sheet stock rate overrides table exists.
+ */
+function ensureBsManualStockRatesTable($pdo) {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS bs_manual_stock_rates (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        company_id INT NOT NULL,
+        period_month VARCHAR(7) NOT NULL,
+        row_key VARCHAR(80) NOT NULL,
+        row_type VARCHAR(30) NOT NULL DEFAULT 'fg_category',
+        category_id INT NOT NULL DEFAULT 0,
+        row_label VARCHAR(150) NOT NULL DEFAULT '',
+        mode VARCHAR(10) NOT NULL DEFAULT 'auto',
+        manual_rate DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+        manual_value DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_bs_stock_rate (company_id, period_month, row_key)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/**
+ * Deterministic row key for Finished Goods categories (by main category id, or normalized name fallback).
+ */
+function buildBsStockCategoryRowKey($catId, $catNameRaw, $grp) {
+    $catId = intval($catId);
+    if ($catId > 0) {
+        return 'cat_' . $catId;
+    }
+    $slug = preg_replace('/[^a-z0-9]+/', '_', strtolower(trim((string)($catNameRaw ?: $grp ?: 'other'))));
+    $slug = trim((string)$slug, '_');
+    return 'fg_' . ($slug ?: 'other');
+}
+
+/**
+ * Load saved Balance Sheet stock valuation mode & manual rate overrides for a company + month (YYYY-MM).
+ */
+function fetchBsManualStockRatesMap($pdo, $company_id, $periodMonth) {
+    $map = [];
+    if (!$periodMonth) return $map;
+    try {
+        ensureBsManualStockRatesTable($pdo);
+        $stmt = $pdo->prepare("SELECT row_key, row_type, category_id, row_label, mode, manual_rate, manual_value FROM bs_manual_stock_rates WHERE company_id = ? AND period_month = ?");
+        $stmt->execute([$company_id, $periodMonth]);
+        while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $k = (string)($r['row_key'] ?? '');
+            if ($k === '') continue;
+            $map[$k] = [
+                'row_key' => $k,
+                'row_type' => (string)($r['row_type'] ?? 'fg_category'),
+                'category_id' => intval($r['category_id'] ?? 0),
+                'row_label' => (string)($r['row_label'] ?? ''),
+                'mode' => (strtolower((string)($r['mode'] ?? 'auto')) === 'manual') ? 'manual' : 'auto',
+                'manual_rate' => floatval($r['manual_rate'] ?? 0),
+                'manual_value' => floatval($r['manual_value'] ?? 0)
+            ];
+        }
+    } catch (Exception $e) {}
+    return $map;
+}
+
+/**
+ * Single source of truth for Balance Sheet Inventory Valuation (Raw Material, WIP, Finished Goods)
+ * supporting both Auto (Production Costing / Weighted Avg / WIP) and per-month Manual overrides.
+ */
+function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate, $taxMode = 'tax') {
+    $periodMonth = $targetDate ? date('Y-m', strtotime($targetDate)) : date('Y-m');
+    $valResult = [
+        'total_stock_value' => 0.0,
+        'raw_materials_val' => 0.0,
+        'raw_materials_kg' => 0.0,
+        'raw_materials_auto_val' => 0.0,
+        'raw_materials_auto_rate' => 0.0,
+        'raw_materials_mode' => 'auto',
+        'raw_materials_count' => 0,
+        'wip_val' => 0.0,
+        'wip_auto_val' => 0.0,
+        'wip_mode' => 'auto',
+        'finished_goods_val' => 0.0,
+        'finished_goods_kg' => 0.0,
+        'finished_goods_auto_val' => 0.0,
+        'finished_goods_count' => 0,
+        'category_breakdown' => [],
+        'fg_rows' => [],
+        'raw_material_row' => null,
+        'wip_row' => null,
+        'is_audited' => false,
+        'has_saved_closing' => false,
+        'manual_overrides_count' => 0,
+        'has_manual_override' => false,
+        'period_month' => $periodMonth
+    ];
+
+    if (!$targetDate) return $valResult;
+
+    $targetYear = intval(date('Y', strtotime($targetDate)));
+    $targetMonthNum = intval(date('n', strtotime($targetDate)));
+
+    // 1. Fetch WIP Valuation from mfg_monthly_wip (exact month lock takes priority)
+    $hasExactWipLock = false;
+    try {
+        $stmtWip = $pdo->prepare("SELECT closing_wip_val, is_locked FROM mfg_monthly_wip WHERE company_id = ? AND year = ? AND month = ? LIMIT 1");
+        $stmtWip->execute([$company_id, $targetYear, $targetMonthNum]);
+        $exactWipRow = $stmtWip->fetch(PDO::FETCH_ASSOC);
+        if ($exactWipRow) {
+            $valResult['wip_auto_val'] = floatval($exactWipRow['closing_wip_val'] ?? 0);
+            $hasExactWipLock = !empty($exactWipRow['is_locked']);
+        } else {
+            $stmtWipLatest = $pdo->prepare("SELECT closing_wip_val FROM mfg_monthly_wip WHERE company_id = ? AND ((year < ?) OR (year = ? AND month <= ?)) ORDER BY year DESC, month DESC LIMIT 1");
+            $stmtWipLatest->execute([$company_id, $targetYear, $targetYear, $targetMonthNum]);
+            $valResult['wip_auto_val'] = floatval($stmtWipLatest->fetchColumn() ?: 0);
+        }
+    } catch (Exception $eWip) {}
+    $valResult['wip_val'] = round($valResult['wip_auto_val'], 2);
+
+    // 2. Check inventory_monthly_closings table
+    $closingRow = null;
+    try {
+        $stmtCl = $pdo->prepare("SELECT * FROM inventory_monthly_closings WHERE company_id = ? AND period_month = ? ORDER BY id DESC LIMIT 1");
+        $stmtCl->execute([$company_id, $periodMonth]);
+        $closingRow = $stmtCl->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $eCl) {}
+
+    if ($closingRow && floatval($closingRow['total_stock_value'] ?? 0) > 0) {
+        $valResult['is_audited'] = !empty($closingRow['is_closed']);
+        $valResult['has_saved_closing'] = true;
+        $valResult['total_stock_value'] = floatval($closingRow['total_stock_value']);
+
+        $snapBuckets = [];
+        $rmSnapKg = 0.0;
+        if (!empty($closingRow['items_snapshot'])) {
+            $snap = json_decode($closingRow['items_snapshot'], true);
+            if (is_array($snap)) {
+                foreach ($snap as $sItem) {
+                    $grp = $sItem['group'] ?? '';
+                    $itemVal = floatval($sItem['final_value'] ?? ($sItem['system_value'] ?? 0));
+                    $itemKg = floatval($sItem['cb_kg'] ?? ($sItem['closing_kg'] ?? 0));
+                    if ($grp === 'Raw Material') {
+                        $valResult['raw_materials_val'] += $itemVal;
+                        $valResult['raw_materials_count']++;
+                        $rmSnapKg += max(0.0, $itemKg);
+                    } else {
+                        $valResult['finished_goods_val'] += $itemVal;
+                        $valResult['finished_goods_count']++;
+                        $catId = intval($sItem['main_category_id'] ?? $sItem['category_id'] ?? 0);
+                        $catName = trim((string)($sItem['main_category_name'] ?? ($grp ?: 'Finished Goods')));
+                        $rk = buildBsStockCategoryRowKey($catId, $catName, $grp);
+                        if (!isset($snapBuckets[$rk])) {
+                            $snapBuckets[$rk] = [
+                                'row_key' => $rk,
+                                'row_type' => 'fg_category',
+                                'category_id' => $catId,
+                                'group' => $grp ?: 'PVC Pipes',
+                                'row_label' => $catName,
+                                'stock_kg' => 0.0,
+                                'stock_kg_raw' => 0.0,
+                                'auto_rate' => 0.0,
+                                'auto_value' => 0.0,
+                                'mode' => 'auto',
+                                'manual_rate' => 0.0,
+                                'manual_value' => 0.0,
+                                'effective_rate' => 0.0,
+                                'effective_value' => 0.0,
+                                'items_count' => 0
+                            ];
+                        }
+                        $snapBuckets[$rk]['stock_kg_raw'] += max(0.0, $itemKg);
+                        $snapBuckets[$rk]['auto_value'] += $itemVal;
+                        $snapBuckets[$rk]['effective_value'] += $itemVal;
+                        $snapBuckets[$rk]['items_count']++;
+                    }
+                }
+            }
+        }
+
+        if ($valResult['raw_materials_val'] == 0 && $valResult['finished_goods_val'] == 0) {
+            $valResult['finished_goods_val'] = $valResult['total_stock_value'];
+        }
+        $valResult['raw_materials_kg'] = round($rmSnapKg, 2);
+        $valResult['raw_materials_auto_val'] = round($valResult['raw_materials_val'], 2);
+        $valResult['raw_materials_auto_rate'] = ($rmSnapKg > 0) ? round($valResult['raw_materials_val'] / $rmSnapKg, 2) : 0.0;
+        $valResult['finished_goods_auto_val'] = round($valResult['finished_goods_val'], 2);
+
+        $fgKgSum = 0.0;
+        foreach ($snapBuckets as &$sb) {
+            $sb['stock_kg'] = round($sb['stock_kg_raw'], 2);
+            $sb['auto_value'] = round($sb['auto_value'], 2);
+            $sb['effective_value'] = round($sb['effective_value'], 2);
+            $sb['auto_rate'] = ($sb['stock_kg_raw'] > 0) ? round($sb['auto_value'] / $sb['stock_kg_raw'], 2) : 0.0;
+            $sb['effective_rate'] = $sb['auto_rate'];
+            $fgKgSum += $sb['stock_kg_raw'];
+            $valResult['category_breakdown'][] = [
+                'group' => $sb['group'],
+                'category_id' => $sb['category_id'],
+                'category_name' => $sb['row_label'],
+                'stock_kg' => $sb['stock_kg'],
+                'cost_per_kg' => $sb['effective_rate'],
+                'total_val' => $sb['effective_value'],
+                'items_count' => $sb['items_count'],
+                'mode' => 'auto'
+            ];
+            unset($sb['stock_kg_raw']);
+        }
+        unset($sb);
+        $valResult['fg_rows'] = array_values($snapBuckets);
+        $valResult['finished_goods_kg'] = round($fgKgSum, 2);
+        $valResult['raw_material_row'] = [
+            'row_key' => 'raw_material',
+            'row_type' => 'raw_material',
+            'category_id' => 0,
+            'row_label' => 'RM-TOTAL (Raw Materials)',
+            'stock_kg' => $valResult['raw_materials_kg'],
+            'auto_rate' => $valResult['raw_materials_auto_rate'],
+            'auto_value' => $valResult['raw_materials_auto_val'],
+            'mode' => 'auto',
+            'manual_rate' => 0.0,
+            'manual_value' => 0.0,
+            'effective_rate' => $valResult['raw_materials_auto_rate'],
+            'effective_value' => round($valResult['raw_materials_val'], 2),
+            'items_count' => $valResult['raw_materials_count']
+        ];
+        $valResult['wip_row'] = [
+            'row_key' => 'wip',
+            'row_type' => 'wip',
+            'category_id' => 0,
+            'row_label' => 'FLOOR WIP (Work-In-Process)',
+            'stock_kg' => 0.0,
+            'auto_rate' => 0.0,
+            'auto_value' => round($valResult['wip_auto_val'], 2),
+            'mode' => 'auto',
+            'manual_rate' => 0.0,
+            'manual_value' => 0.0,
+            'effective_rate' => 0.0,
+            'effective_value' => round($valResult['wip_val'], 2),
+            'items_count' => 0
+        ];
+        $valResult['total_stock_value'] += $valResult['wip_val'];
+
+        return $valResult;
+    }
+
+    // 3. Dynamic Calculation using Weighted Average Rates & Manufacturing Costing + Per-Month Manual Rate Overrides
+    $manualOverrides = fetchBsManualStockRatesMap($pdo, $company_id, $periodMonth);
+
+    try {
+        $stmtTab = $pdo->query("SHOW TABLES");
+        $existingTabs = [];
+        while ($t = $stmtTab->fetch(PDO::FETCH_NUM)) { $existingTabs[] = $t[0]; }
+
+        $dateCond = function($col) use ($targetDate) {
+            return $targetDate ? " AND DATE($col) <= '$targetDate'" : "";
+        };
+
+        $inv_move_in = 'purchases';
+        $inv_move_out = 'sale_invoices';
+        try {
+            $stmtSet = $pdo->prepare("SELECT setting_key, setting_value FROM settings WHERE company_id = ? AND setting_key IN ('inv_move_in', 'inv_move_out')");
+            $stmtSet->execute([$company_id]);
+            $sRows = $stmtSet->fetchAll(PDO::FETCH_KEY_PAIR);
+            if (!empty($sRows['inv_move_in'])) $inv_move_in = $sRows['inv_move_in'];
+            if (!empty($sRows['inv_move_out'])) $inv_move_out = $sRows['inv_move_out'];
+        } catch(Exception $e) {}
+
+        // A. Opening Balances & Opening Rates
+        $obMap = [];
+        $obRateMap = [];
+        if (in_array("inv_opening_balances", $existingTabs)) {
+            $q = $pdo->query("SELECT item_id, COALESCE(SUM(quantity), 0) as qty, AVG(NULLIF(rate, 0)) as avg_r FROM inv_opening_balances WHERE company_id = $company_id GROUP BY item_id");
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                $obMap[$r['item_id']] = floatval($r['qty']);
+                if (!empty($r['avg_r'])) $obRateMap[$r['item_id']] = floatval($r['avg_r']);
+            }
+        }
+
+        // Tax-aligned line amount expressions
+        $piAmtExpr = invLineAmountSql('pii', $taxMode, 'standard', 'quantity');
+        $prAmtExpr = invLineAmountSql('pri', $taxMode, 'purchase_return', 'quantity');
+        $srAmtExpr = invLineAmountSql('sri', $taxMode, 'standard', 'quantity');
+        $siAmtExpr = invLineAmountSql('sii', $taxMode, 'standard', 'quantity');
+
+        // B. Purchases & Weighted Average Purchase Rates
+        $piMap = [];
+        $piAmtMap = [];
+        $piRateMap = [];
+        $totalRawPurchAmt = 0.0;
+        $totalRawPurchQty = 0.0;
+        $totalAllPurchAmt = 0.0;
+        $totalAllPurchQty = 0.0;
+        if (in_array("purchase_invoices", $existingTabs) && in_array("purchase_invoice_items", $existingTabs)) {
+            $sqlRate = "SELECT pii.item_coa_id as item_id,
+                               COALESCE(SUM(pii.quantity), 0) as qty,
+                               COALESCE(SUM({$piAmtExpr}), 0) as total_amt,
+                               MAX(CASE WHEN UPPER(COALESCE(it.category_type, '')) LIKE '%RAW%' OR UPPER(COALESCE(mc.name, '')) LIKE '%RAW%' THEN 1 ELSE 0 END) as is_raw_cat
+                        FROM purchase_invoice_items pii
+                        JOIN purchase_invoices p ON pii.invoice_id = p.id
+                        LEFT JOIN inv_items it ON pii.item_coa_id = it.id
+                        LEFT JOIN inv_sub_categories sc ON it.sub_id = sc.id
+                        LEFT JOIN inv_main_categories mc ON sc.main_id = mc.id
+                        WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 " . $dateCond('p.invoice_date') . "
+                        GROUP BY pii.item_coa_id";
+            $qRate = $pdo->query($sqlRate);
+            while ($r = $qRate->fetch(PDO::FETCH_ASSOC)) {
+                $qty = floatval($r['qty']);
+                $amt = floatval($r['total_amt']);
+                if ($qty > 0 && $amt > 0) {
+                    $piRateMap[$r['item_id']] = $amt / $qty;
+                    $totalAllPurchAmt += $amt;
+                    $totalAllPurchQty += $qty;
+                    if (!empty($r['is_raw_cat'])) {
+                        $totalRawPurchAmt += $amt;
+                        $totalRawPurchQty += $qty;
+                    }
+                }
+                $piMap[$r['item_id']] = $qty;
+                $piAmtMap[$r['item_id']] = $amt;
+            }
+        }
+
+        $avgRawRatePerKg = ($totalRawPurchQty > 0 && $totalRawPurchAmt > 0)
+            ? round($totalRawPurchAmt / $totalRawPurchQty, 2)
+            : (($totalAllPurchQty > 0 && $totalAllPurchAmt > 0) ? round($totalAllPurchAmt / $totalAllPurchQty, 2) : 240.0);
+
+        if ($inv_move_in === 'gate_pass' && in_array("inward_gate_passes", $existingTabs) && in_array("inward_gate_pass_items", $existingTabs)) {
+            $sql = "SELECT igpi.item_id, COALESCE(SUM(igpi.qty), 0) as qty
+                    FROM inward_gate_pass_items igpi
+                    JOIN inward_gate_passes p ON igpi.igp_id = p.id
+                    WHERE p.company_id = $company_id AND p.is_cancelled = 0 " . $dateCond('p.date') . "
+                    GROUP BY igpi.item_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $piMap[$r['item_id']] = floatval($r['qty']); }
+        }
+
+        // C. Purchase Returns
+        $prMap = [];
+        $prAmtMap = [];
+        if (in_array("purchase_returns", $existingTabs) && in_array("purchase_return_items", $existingTabs)) {
+            $sql = "SELECT pri.item_coa_id as item_id, COALESCE(SUM(pri.quantity), 0) as qty, COALESCE(SUM({$prAmtExpr}), 0) as total_amt
+                    FROM purchase_return_items pri
+                    JOIN purchase_returns p ON pri.return_id = p.id
+                    WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 " . $dateCond('p.return_date') . "
+                    GROUP BY pri.item_coa_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                $prMap[$r['item_id']] = floatval($r['qty']);
+                $prAmtMap[$r['item_id']] = floatval($r['total_amt']);
+            }
+        }
+
+        // D. Outward Movements & Sales Weighted Average Rates
+        $siMap = [];
+        $siRateMap = [];
+        if (in_array("sale_invoices", $existingTabs) && in_array("sale_invoice_items", $existingTabs)) {
+            $sqlSale = "SELECT sii.item_coa_id as item_id,
+                               COALESCE(SUM(sii.quantity), 0) as qty,
+                               COALESCE(SUM({$siAmtExpr}), 0) as total_amt
+                        FROM sale_invoice_items sii
+                        JOIN sale_invoices s ON sii.invoice_id = s.id
+                        WHERE s.company_id = $company_id AND s.is_cancelled = 0 AND s.is_posted = 1 " . $dateCond('s.invoice_date') . "
+                        GROUP BY sii.item_coa_id";
+            $qSale = $pdo->query($sqlSale);
+            while ($r = $qSale->fetch(PDO::FETCH_ASSOC)) {
+                $qty = floatval($r['qty']);
+                $amt = floatval($r['total_amt']);
+                if ($qty > 0 && $amt > 0) {
+                    $siRateMap[$r['item_id']] = $amt / $qty;
+                }
+                if ($inv_move_out === 'sale_invoices') {
+                    $siMap[$r['item_id']] = $qty;
+                }
+            }
+        }
+        if ($inv_move_out === 'delivery_challans' && in_array("delivery_challans", $existingTabs) && in_array("delivery_challan_items", $existingTabs)) {
+            $sql = "SELECT dci.item_id, COALESCE(SUM(dci.qty), 0) as qty
+                    FROM delivery_challan_items dci
+                    JOIN delivery_challans s ON dci.challan_id = s.id
+                    WHERE s.company_id = $company_id AND s.is_cancelled = 0 " . $dateCond('s.date') . "
+                    GROUP BY dci.item_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $siMap[$r['item_id']] = floatval($r['qty']); }
+        }
+
+        // E. Sale Returns
+        $srMap = [];
+        $srAmtMap = [];
+        if (in_array("sale_returns", $existingTabs) && in_array("sale_return_items", $existingTabs)) {
+            $sql = "SELECT sri.item_coa_id as item_id, COALESCE(SUM(sri.quantity), 0) as qty, COALESCE(SUM({$srAmtExpr}), 0) as total_amt
+                    FROM sale_return_items sri
+                    JOIN sale_returns s ON sri.return_id = s.id
+                    WHERE s.company_id = $company_id AND s.is_cancelled = 0 AND s.is_posted = 1 " . $dateCond('s.return_date') . "
+                    GROUP BY sri.item_coa_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                $srMap[$r['item_id']] = floatval($r['qty']);
+                $srAmtMap[$r['item_id']] = floatval($r['total_amt']);
+            }
+        }
+
+        // F. Adjustments
+        $aiaMap = [];
+        $aiaAmtMap = [];
+        $aiaUnvaluedQtyMap = [];
+        if (in_array("add_inventory_adjustments", $existingTabs) && in_array("add_inventory_adjustment_items", $existingTabs)) {
+            try {
+                $sql = "SELECT aii.item_id, COALESCE(SUM(aii.qty), 0) as qty,
+                               COALESCE(SUM(COALESCE(NULLIF(aii.amount, 0), aii.qty * NULLIF(aii.rate, 0), 0)), 0) as total_amt,
+                               COALESCE(SUM(CASE WHEN COALESCE(NULLIF(aii.amount, 0), aii.qty * NULLIF(aii.rate, 0), 0) <= 0 AND aii.qty > 0 THEN aii.qty ELSE 0 END), 0) as unvalued_qty
+                        FROM add_inventory_adjustment_items aii
+                        JOIN add_inventory_adjustments a ON aii.adjustment_id = a.id
+                        WHERE a.company_id = $company_id AND a.is_cancelled = 0 " . $dateCond('a.date') . "
+                        GROUP BY aii.item_id";
+                $q = $pdo->query($sql);
+                while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                    $aiaMap[$r['item_id']] = floatval($r['qty']);
+                    $aiaAmtMap[$r['item_id']] = floatval($r['total_amt']);
+                    $aiaUnvaluedQtyMap[$r['item_id']] = floatval($r['unvalued_qty']);
+                }
+            } catch (Exception $eAia) {
+                $sql = "SELECT aii.item_id, COALESCE(SUM(aii.qty), 0) as qty
+                        FROM add_inventory_adjustment_items aii
+                        JOIN add_inventory_adjustments a ON aii.adjustment_id = a.id
+                        WHERE a.company_id = $company_id AND a.is_cancelled = 0 " . $dateCond('a.date') . "
+                        GROUP BY aii.item_id";
+                $q = $pdo->query($sql);
+                while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                    $qVal = floatval($r['qty']);
+                    $aiaMap[$r['item_id']] = $qVal;
+                    if ($qVal > 0) $aiaUnvaluedQtyMap[$r['item_id']] = $qVal;
+                }
+            }
+        }
+
+        // G. Manufacturing (MIN & Production Notes Rates & Volumes)
+        $totMinQty = 0.0;
+        $totMinVal = 0.0;
+        if (in_array("material_issue_notes", $existingTabs) && in_array("material_issue_note_items", $existingTabs)) {
+            $sql = "SELECT mii.item_id, COALESCE(SUM(mii.qty), 0) as qty, COALESCE(SUM(mii.amount), 0) as val
+                    FROM material_issue_note_items mii
+                    JOIN material_issue_notes m ON mii.min_id = m.id
+                    WHERE m.company_id = $company_id AND m.is_cancelled = 0 AND m.is_posted = 1 " . $dateCond('m.date') . "
+                    GROUP BY mii.item_id";
+            $q = $pdo->query($sql);
+            while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
+                $totMinQty += floatval($r['qty']);
+                $totMinVal += floatval($r['val']);
+            }
+        }
+
+        $pnRateMap = [];
+        $totPnProducedQty = 0.0;
+        if (in_array("production_notes", $existingTabs) && in_array("production_note_items", $existingTabs)) {
+            $sqlIn = "SELECT pni.item_id, i.unit, COALESCE(i.unit_weight, 0) as unit_weight, COALESCE(i.qty_per_piece, 0) as qty_per_piece,
+                             COALESCE(SUM(pni.qty), 0) as qty,
+                             COALESCE(SUM(COALESCE(NULLIF(pni.amount, 0), pni.qty * COALESCE(pni.rate, 0))), 0) as total_amt
+                      FROM production_note_items pni
+                      JOIN production_notes p ON pni.pn_id = p.id
+                      LEFT JOIN inv_items i ON pni.item_id = i.id
+                      WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND pni.qty > 0 " . $dateCond('p.date') . "
+                      GROUP BY pni.item_id, i.unit, i.unit_weight, i.qty_per_piece";
+            $qIn = $pdo->query($sqlIn);
+            while ($r = $qIn->fetch(PDO::FETCH_ASSOC)) {
+                $qVal = floatval($r['qty']);
+                $aAmt = floatval($r['total_amt']);
+                $uUp = strtoupper(trim((string)($r['unit'] ?? '')));
+                $uWt = floatval($r['unit_weight'] ?? 0) ?: floatval($r['qty_per_piece'] ?? 0);
+                $totPnProducedQty += ($uUp !== 'KG' && $uUp !== 'KGS' && $uWt > 0) ? ($qVal * $uWt) : $qVal;
+                if ($qVal > 0 && $aAmt > 0) {
+                    $pnRateMap[$r['item_id']] = $aAmt / $qVal;
+                }
+            }
+        }
+
+        // Dynamic Floor WIP if not already locked/set from mfg_monthly_wip
+        if (!$hasExactWipLock && $valResult['wip_auto_val'] == 0 && $totMinQty > 0) {
+            $wipNetQty = $totMinQty - $totPnProducedQty;
+            if ($wipNetQty > 0) {
+                $avgIssRate = ($totMinQty > 0 && $totMinVal > 0) ? ($totMinVal / $totMinQty) : $avgRawRatePerKg;
+                $valResult['wip_auto_val'] = round($wipNetQty * $avgIssRate, 2);
+            }
+        }
+        $valResult['wip_auto_val'] = round($valResult['wip_auto_val'], 2);
+
+        // Apply WIP Manual Override if configured for this month
+        $wipOv = $manualOverrides['wip'] ?? null;
+        if ($wipOv && $wipOv['mode'] === 'manual') {
+            $valResult['wip_mode'] = 'manual';
+            $valResult['wip_val'] = round(floatval($wipOv['manual_value'] ?? 0), 2);
+            $valResult['manual_overrides_count']++;
+        } else {
+            $valResult['wip_mode'] = 'auto';
+            $valResult['wip_val'] = $valResult['wip_auto_val'];
+        }
+
+        // Production Costing Rates by Brand / Category
+        $brandCostInfo = resolveBrandProductionCostRates($pdo, $company_id, $targetDate, $existingTabs);
+        $brandCostPerKgMap = $brandCostInfo['by_category_id'] ?? [];
+        $brandCostByNameMap = $brandCostInfo['by_name'] ?? [];
+        $mfgMonthlyCostPerKg = floatval($brandCostInfo['fallback_per_kg'] ?? 0);
+
+        // Pre-seed all Finished Goods main categories so every brand/category (including 0-KG Fitting) appears in Stock Valuation sheet
+        $fgBuckets = [];
+        try {
+            $stmtMc = $pdo->prepare("SELECT id, code, name, category_type FROM inv_main_categories WHERE company_id = ? ORDER BY id ASC");
+            $stmtMc->execute([$company_id]);
+            while ($mc = $stmtMc->fetch(PDO::FETCH_ASSOC)) {
+                $mcId = intval($mc['id']);
+                $mcName = trim((string)($mc['name'] ?? ''));
+                $mcType = trim((string)($mc['category_type'] ?? ''));
+                $mcNameLow = strtolower($mcName);
+                $mcTypeLow = strtolower($mcType);
+                $isRawMain = (strpos($mcTypeLow, 'raw') !== false || (strpos($mcNameLow, 'raw material') !== false));
+                if ($isRawMain) continue;
+
+                $rk = buildBsStockCategoryRowKey($mcId, $mcName, $mcType);
+                $seedAutoRate = 0.0;
+                if (isset($brandCostPerKgMap[$mcId])) {
+                    $seedAutoRate = floatval($brandCostPerKgMap[$mcId]);
+                } elseif ($mcNameLow && isset($brandCostByNameMap[$mcNameLow])) {
+                    $seedAutoRate = floatval($brandCostByNameMap[$mcNameLow]);
+                } elseif ($mfgMonthlyCostPerKg > 0) {
+                    $seedAutoRate = $mfgMonthlyCostPerKg;
+                }
+
+                $fgBuckets[$rk] = [
+                    'row_key' => $rk,
+                    'row_type' => 'fg_category',
+                    'category_id' => $mcId,
+                    'group' => (strpos($mcTypeLow, 'fit') !== false || strpos($mcNameLow, 'fit') !== false) ? 'Fittings' : 'PVC Pipes',
+                    'row_label' => $mcName,
+                    'stock_kg_raw' => 0.0,
+                    'auto_val_raw' => 0.0,
+                    'seed_auto_rate' => round($seedAutoRate, 2),
+                    'items_count' => 0,
+                    'active_items_count' => 0
+                ];
+            }
+        } catch (Exception $eMc) {}
+
+        // Closing Stock Quantities directly from shared Inventory Balance engine
+        $invClosing = computeInventoryClosingStock($pdo, $company_id, [
+            'as_of_date' => $targetDate,
+            'stock_status' => 'positive'
+        ]);
+        $closingRecords = $invClosing['records'] ?? [];
+
+        $autoRawVal = 0.0;
+        $rawTotalKg = 0.0;
+        $rawItemsCount = 0;
+
+        foreach ($closingRecords as $it) {
+            $id = intval($it['item_id'] ?? $it['id'] ?? 0);
+            $grp = $it['group'] ?? 'Others';
+            $cbPrimary = floatval($it['cb_primary'] ?? 0);
+            $cbSec = floatval($it['cb_sec'] ?? 0);
+            $cbKg = floatval($it['cb_kg'] ?? 0);
+            $unit = strtoupper(trim((string)($it['unit'] ?? '')));
+            $catId = intval($it['main_category_id'] ?? $it['category_id'] ?? 0);
+            $catNameRaw = trim((string)($it['main_category_name'] ?? $grp));
+            $catNameLow = strtolower($catNameRaw);
+            $iNameLow = strtolower(trim((string)($it['item_name'] ?? $it['name'] ?? '')));
+
+            $itemVal = 0.0;
+            $stockKgUsed = $cbKg;
+
+            if ($grp === 'Raw Material') {
+                $stockKgUsed = ($cbKg > 0) ? $cbKg : $cbSec;
+                $obQ = $obMap[$id] ?? 0.0;
+                $obR = $obRateMap[$id] ?? floatval($it['valuation_cost'] ?: $it['purchase_price']);
+                $unvalAiaQ = $aiaUnvaluedQtyMap[$id] ?? 0.0;
+                $inQ = max(0.0, $obQ + ($piMap[$id] ?? 0.0) + ($srMap[$id] ?? 0.0) + ($aiaMap[$id] ?? 0.0) - ($prMap[$id] ?? 0.0) - $unvalAiaQ);
+                $inV = max(0.0, ($obQ * $obR) + ($piAmtMap[$id] ?? 0.0) + ($srAmtMap[$id] ?? 0.0) + ($aiaAmtMap[$id] ?? 0.0) - ($prAmtMap[$id] ?? 0.0));
+                $rate = ($inQ > 0 && $inV > 0) ? ($inV / $inQ) : ($piRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['valuation_cost'] ?: $it['purchase_price'])));
+                if ($rate <= 0) $rate = floatval($it['selling_price'] ?? 0);
+                if ($rate <= 0) $rate = $avgRawRatePerKg;
+
+                $itemVal = ($stockKgUsed > 0 && $rate > 0) ? round($stockKgUsed * $rate, 2) : 0.0;
+                if ($itemVal > 0 || $stockKgUsed > 0) {
+                    $autoRawVal += $itemVal;
+                    $rawTotalKg += max(0.0, $stockKgUsed);
+                    $rawItemsCount++;
+                }
+            } else {
+                $brandRatePerKg = 0.0;
+                if ($catId > 0 && isset($brandCostPerKgMap[$catId])) {
+                    $brandRatePerKg = $brandCostPerKgMap[$catId];
+                } elseif ($catNameLow && isset($brandCostByNameMap[$catNameLow])) {
+                    $brandRatePerKg = $brandCostByNameMap[$catNameLow];
+                } else {
+                    foreach ($brandCostByNameMap as $bKey => $bVal) {
+                        if ($bKey && (strpos($catNameLow, $bKey) !== false || strpos($iNameLow, $bKey) !== false)) {
+                            $brandRatePerKg = $bVal;
+                            break;
+                        }
+                    }
+                }
+                if ($brandRatePerKg <= 0 && $mfgMonthlyCostPerKg > 0) {
+                    $brandRatePerKg = $mfgMonthlyCostPerKg;
+                }
+
+                if ($stockKgUsed > 0 && $brandRatePerKg > 0) {
+                    $itemVal = round($stockKgUsed * $brandRatePerKg, 2);
+                } elseif ($stockKgUsed > 0) {
+                    $fallbackKgRate = ($unit === 'KG' || $unit === 'KGS')
+                        ? ($pnRateMap[$id] ?? ($siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price'] ?: ($it['valuation_cost'] ?: $it['selling_price'])))))
+                        : $avgRawRatePerKg;
+                    if ($fallbackKgRate <= 0) $fallbackKgRate = $avgRawRatePerKg;
+                    $itemVal = round($stockKgUsed * $fallbackKgRate, 2);
+                } else {
+                    $isCtnUnit = (strpos($unit, 'CTN') !== false || strpos($unit, 'CARTON') !== false);
+                    $unitQty = ($grp === 'Fittings') ? ($isCtnUnit ? $cbPrimary : $cbSec) : $cbPrimary;
+                    $unitRate = $pnRateMap[$id] ?? ($siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price'] ?: ($it['valuation_cost'] ?: $it['selling_price']))));
+                    if ($unitRate > 0 && $unitQty > 0) {
+                        $itemVal = round($unitQty * $unitRate, 2);
+                    } elseif ($brandRatePerKg > 0 && $cbSec > 0) {
+                        $nu = strtoupper($it['item_name'] ?? '');
+                        $estWt = 0.0;
+                        if (strpos($nu, '4"') !== false) $estWt = 0.400;
+                        elseif (strpos($nu, '3"') !== false) $estWt = 0.300;
+                        elseif (strpos($nu, '2"') !== false) $estWt = 0.200;
+                        elseif (strpos($nu, '1.5"') !== false) $estWt = 0.150;
+                        elseif (strpos($nu, '1.25"') !== false) $estWt = 0.125;
+                        elseif (strpos($nu, '1"') !== false) $estWt = 0.100;
+                        if ($estWt > 0) {
+                            $stockKgUsed = round($cbSec * $estWt, 2);
+                            $itemVal = round($stockKgUsed * $brandRatePerKg, 2);
+                        }
+                    }
+                }
+
+                $rk = buildBsStockCategoryRowKey($catId, $catNameRaw, $grp);
+                if (!isset($fgBuckets[$rk])) {
+                    $fgBuckets[$rk] = [
+                        'row_key' => $rk,
+                        'row_type' => 'fg_category',
+                        'category_id' => $catId,
+                        'group' => $grp,
+                        'row_label' => $catNameRaw ?: $grp,
+                        'stock_kg_raw' => 0.0,
+                        'auto_val_raw' => 0.0,
+                        'seed_auto_rate' => round($brandRatePerKg, 2),
+                        'items_count' => 0,
+                        'active_items_count' => 0
+                    ];
+                }
+                $fgBuckets[$rk]['stock_kg_raw'] += max(0.0, $stockKgUsed);
+                $fgBuckets[$rk]['auto_val_raw'] += $itemVal;
+                $fgBuckets[$rk]['items_count']++;
+                if ($itemVal > 0 || $cbPrimary > 0 || $cbSec > 0) {
+                    $fgBuckets[$rk]['active_items_count']++;
+                }
+            }
+        }
+
+        // Finalize Raw Material row (Auto vs Manual)
+        $autoRawVal = round($autoRawVal, 2);
+        $rawTotalKgRounded = round($rawTotalKg, 2);
+        $autoRawRate = ($rawTotalKg > 0) ? round($autoRawVal / $rawTotalKg, 2) : round($avgRawRatePerKg, 2);
+        $rmOv = $manualOverrides['raw_material'] ?? null;
+        $rmManual = ($rmOv && $rmOv['mode'] === 'manual');
+
+        $valResult['raw_materials_kg'] = $rawTotalKgRounded;
+        $valResult['raw_materials_auto_val'] = $autoRawVal;
+        $valResult['raw_materials_auto_rate'] = $autoRawRate;
+        $valResult['raw_materials_count'] = $rawItemsCount;
+
+        if ($rmManual) {
+            $valResult['raw_materials_mode'] = 'manual';
+            $mRate = floatval($rmOv['manual_rate'] ?? 0);
+            $mVal = floatval($rmOv['manual_value'] ?? 0);
+            if ($rawTotalKg > 0 && $mRate > 0) {
+                $effRmVal = round($rawTotalKg * $mRate, 2);
+                $effRmRate = round($mRate, 2);
+            } else {
+                $effRmVal = round($mVal, 2);
+                $effRmRate = ($rawTotalKg > 0) ? round($effRmVal / $rawTotalKg, 2) : round($mRate, 2);
+            }
+            $valResult['raw_materials_val'] = $effRmVal;
+            $valResult['manual_overrides_count']++;
+        } else {
+            $valResult['raw_materials_mode'] = 'auto';
+            $effRmVal = $autoRawVal;
+            $effRmRate = $autoRawRate;
+            $valResult['raw_materials_val'] = $autoRawVal;
+        }
+
+        $valResult['raw_material_row'] = [
+            'row_key' => 'raw_material',
+            'row_type' => 'raw_material',
+            'category_id' => 0,
+            'row_label' => 'RM-TOTAL (Raw Materials)',
+            'stock_kg' => $rawTotalKgRounded,
+            'auto_rate' => $autoRawRate,
+            'auto_value' => $autoRawVal,
+            'mode' => $valResult['raw_materials_mode'],
+            'manual_rate' => floatval($rmOv['manual_rate'] ?? 0),
+            'manual_value' => floatval($rmOv['manual_value'] ?? 0),
+            'effective_rate' => $effRmRate,
+            'effective_value' => $effRmVal,
+            'items_count' => $rawItemsCount
+        ];
+
+        if ($rawItemsCount > 0 || $effRmVal > 0 || $rmManual) {
+            $valResult['category_breakdown'][] = [
+                'group' => 'Raw Material',
+                'category_id' => 0,
+                'category_name' => 'Raw Materials (Godown)',
+                'stock_kg' => $rawTotalKgRounded,
+                'cost_per_kg' => $effRmRate,
+                'total_val' => $effRmVal,
+                'items_count' => $rawItemsCount,
+                'mode' => $valResult['raw_materials_mode']
+            ];
+        }
+
+        // Finalize Finished Goods Category buckets (Auto vs Manual)
+        $fgTotalKgRaw = 0.0;
+        $fgAutoValSum = 0.0;
+        $fgEffValSum = 0.0;
+        $fgCountSum = 0;
+
+        foreach ($fgBuckets as $b) {
+            $kgRaw = $b['stock_kg_raw'];
+            $kgRounded = round($kgRaw, 2);
+            $autoVal = round($b['auto_val_raw'], 2);
+            $autoRate = ($kgRaw > 0) ? round($autoVal / $kgRaw, 2) : floatval($b['seed_auto_rate'] ?? 0);
+
+            $ov = $manualOverrides[$b['row_key']] ?? null;
+            $isManual = ($ov && $ov['mode'] === 'manual');
+            $mRate = floatval($ov['manual_rate'] ?? 0);
+            $mVal = floatval($ov['manual_value'] ?? 0);
+
+            if ($isManual) {
+                $valResult['manual_overrides_count']++;
+                if ($kgRaw > 0) {
+                    if ($mRate > 0) {
+                        $effRate = round($mRate, 2);
+                        $effVal = round($kgRaw * $effRate, 2);
+                    } elseif ($mVal > 0) {
+                        $effVal = round($mVal, 2);
+                        $effRate = round($effVal / $kgRaw, 2);
+                    } else {
+                        $effRate = 0.0;
+                        $effVal = 0.0;
+                    }
+                } else {
+                    $effRate = round($mRate, 2);
+                    $effVal = round($mVal, 2);
+                }
+            } else {
+                $effRate = $autoRate;
+                $effVal = $autoVal;
+            }
+
+            $fgTotalKgRaw += $kgRaw;
+            $fgAutoValSum += $autoVal;
+            $fgEffValSum += $effVal;
+            if ($effVal > 0 || $b['active_items_count'] > 0) {
+                $fgCountSum += max($b['active_items_count'], $b['items_count']);
+            }
+
+            $fgRowOut = [
+                'row_key' => $b['row_key'],
+                'row_type' => 'fg_category',
+                'category_id' => $b['category_id'],
+                'group' => $b['group'],
+                'row_label' => $b['row_label'],
+                'stock_kg' => $kgRounded,
+                'stock_kg_exact' => round($kgRaw, 6),
+                'auto_rate' => $autoRate,
+                'auto_value' => $autoVal,
+                'mode' => $isManual ? 'manual' : 'auto',
+                'manual_rate' => $mRate,
+                'manual_value' => $mVal,
+                'effective_rate' => $effRate,
+                'effective_value' => $effVal,
+                'items_count' => $b['items_count']
+            ];
+            $valResult['fg_rows'][] = $fgRowOut;
+
+            if ($b['items_count'] > 0 || $effVal > 0 || $isManual) {
+                $valResult['category_breakdown'][] = [
+                    'group' => $b['group'],
+                    'category_id' => $b['category_id'],
+                    'category_name' => $b['row_label'],
+                    'stock_kg' => $kgRounded,
+                    'cost_per_kg' => $effRate,
+                    'total_val' => $effVal,
+                    'items_count' => $b['items_count'],
+                    'mode' => $isManual ? 'manual' : 'auto'
+                ];
+            }
+        }
+
+        $valResult['wip_row'] = [
+            'row_key' => 'wip',
+            'row_type' => 'wip',
+            'category_id' => 0,
+            'row_label' => 'FLOOR WIP (Work-In-Process)',
+            'stock_kg' => 0.0,
+            'auto_rate' => 0.0,
+            'auto_value' => $valResult['wip_auto_val'],
+            'mode' => $valResult['wip_mode'],
+            'manual_rate' => 0.0,
+            'manual_value' => floatval($wipOv['manual_value'] ?? $valResult['wip_val']),
+            'effective_rate' => 0.0,
+            'effective_value' => $valResult['wip_val'],
+            'items_count' => 0
+        ];
+
+        $valResult['finished_goods_kg'] = round($fgTotalKgRaw, 2);
+        $valResult['finished_goods_auto_val'] = round($fgAutoValSum, 2);
+        $valResult['finished_goods_val'] = round($fgEffValSum, 2);
+        $valResult['finished_goods_count'] = $fgCountSum;
+        $valResult['has_manual_override'] = ($valResult['manual_overrides_count'] > 0);
+        $valResult['total_stock_value'] = round($valResult['raw_materials_val'] + $valResult['wip_val'] + $valResult['finished_goods_val'], 2);
+    } catch (Exception $eDyn) {}
+
+    return $valResult;
+}
+
 try {
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
     $company_id = intval($_GET['company_id'] ?? $_POST['company_id'] ?? 1);
+
+    // =========================================================================
+    // ACTION: GET / SAVE / RESET BALANCE SHEET STOCK VALUATION SHEET (AUTO / MANUAL)
+    // =========================================================================
+    if ($action === 'get_stock_valuation_sheet') {
+        $as_on_date = $_GET['as_on_date'] ?? $_GET['on_date'] ?? date('Y-m-d');
+        $taxMode = resolveInventoryTaxMode($pdo, $company_id, $_GET['tax_mode'] ?? null);
+        $taxModeLabel = ($taxMode === 'tax') ? 'Tax (Excl. GST)' : 'Non-Tax (Full Bill)';
+        $inv = calculateBalanceSheetInventoryValuation($pdo, $company_id, $as_on_date, $taxMode);
+
+        $fgAuto = round(floatval($inv['finished_goods_auto_val'] ?? 0), 2);
+        $fgEff = round(floatval($inv['finished_goods_val'] ?? 0), 2);
+        $rmAuto = round(floatval($inv['raw_materials_auto_val'] ?? 0), 2);
+        $rmEff = round(floatval($inv['raw_materials_val'] ?? 0), 2);
+        $wipAuto = round(floatval($inv['wip_auto_val'] ?? 0), 2);
+        $wipEff = round(floatval($inv['wip_val'] ?? 0), 2);
+
+        sendResponse([
+            'status' => 'success',
+            'company_id' => $company_id,
+            'as_on_date' => $as_on_date,
+            'as_on_date_formatted' => date('d-m-Y', strtotime($as_on_date)),
+            'period_month' => $inv['period_month'],
+            'period_month_label' => date('M Y', strtotime($as_on_date)),
+            'tax_mode' => $taxMode,
+            'tax_mode_label' => $taxModeLabel,
+            'is_audited' => !empty($inv['is_audited']),
+            'has_saved_closing' => !empty($inv['has_saved_closing']),
+            'manual_overrides_count' => intval($inv['manual_overrides_count'] ?? 0),
+            'fg_rows' => $inv['fg_rows'] ?? [],
+            'raw_material_row' => $inv['raw_material_row'],
+            'wip_row' => $inv['wip_row'],
+            'totals' => [
+                'fg_kg' => round(floatval($inv['finished_goods_kg'] ?? 0), 2),
+                'fg_auto_value' => $fgAuto,
+                'fg_value' => $fgEff,
+                'rm_kg' => round(floatval($inv['raw_materials_kg'] ?? 0), 2),
+                'rm_auto_value' => $rmAuto,
+                'rm_value' => $rmEff,
+                'wip_auto_value' => $wipAuto,
+                'wip_value' => $wipEff,
+                'total_stock_auto_value' => round($fgAuto + $rmAuto + $wipAuto, 2),
+                'total_stock_value' => round($fgEff + $rmEff + $wipEff, 2)
+            ]
+        ]);
+    }
+
+    if ($action === 'save_stock_valuation_sheet') {
+        $rawBody = file_get_contents('php://input');
+        $payload = json_decode($rawBody, true);
+        if (!is_array($payload)) {
+            $payload = $_POST;
+            if (isset($payload['rows']) && is_string($payload['rows'])) {
+                $payload['rows'] = json_decode($payload['rows'], true);
+            }
+        }
+        $reqCompanyId = intval($payload['company_id'] ?? $company_id);
+        $as_on_date = $payload['as_on_date'] ?? date('Y-m-d');
+        $periodMonth = trim((string)($payload['period_month'] ?? ''));
+        if (!preg_match('/^\d{4}-\d{2}$/', $periodMonth)) {
+            $periodMonth = date('Y-m', strtotime($as_on_date));
+        }
+        $taxMode = resolveInventoryTaxMode($pdo, $reqCompanyId, $payload['tax_mode'] ?? null);
+        $rows = is_array($payload['rows'] ?? null) ? $payload['rows'] : [];
+
+        ensureBsManualStockRatesTable($pdo);
+        $pdo->beginTransaction();
+        try {
+            $stmtUp = $pdo->prepare("
+                INSERT INTO bs_manual_stock_rates
+                    (company_id, period_month, row_key, row_type, category_id, row_label, mode, manual_rate, manual_value)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    row_type = VALUES(row_type),
+                    category_id = VALUES(category_id),
+                    row_label = VALUES(row_label),
+                    mode = VALUES(mode),
+                    manual_rate = VALUES(manual_rate),
+                    manual_value = VALUES(manual_value)
+            ");
+            foreach ($rows as $r) {
+                $rowKey = substr(trim((string)($r['row_key'] ?? '')), 0, 80);
+                if ($rowKey === '') continue;
+                $rowType = substr(trim((string)($r['row_type'] ?? 'fg_category')), 0, 30);
+                $catId = intval($r['category_id'] ?? 0);
+                $rowLabel = substr(trim((string)($r['row_label'] ?? '')), 0, 150);
+                $mode = (strtolower(trim((string)($r['mode'] ?? 'auto'))) === 'manual') ? 'manual' : 'auto';
+                $manualRate = round(floatval($r['manual_rate'] ?? 0), 2);
+                $manualValue = round(floatval($r['manual_value'] ?? 0), 2);
+                $stmtUp->execute([$reqCompanyId, $periodMonth, $rowKey, $rowType, $catId, $rowLabel, $mode, $manualRate, $manualValue]);
+            }
+            $pdo->commit();
+        } catch (Exception $exSave) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $exSave;
+        }
+
+        $inv = calculateBalanceSheetInventoryValuation($pdo, $reqCompanyId, $as_on_date, $taxMode);
+        sendResponse([
+            'status' => 'success',
+            'message' => "Stock valuation settings saved for {$periodMonth} and applied to Balance Sheet.",
+            'period_month' => $periodMonth,
+            'manual_overrides_count' => intval($inv['manual_overrides_count'] ?? 0),
+            'total_stock_value' => round(floatval($inv['total_stock_value'] ?? 0), 2)
+        ]);
+    }
+
+    if ($action === 'reset_stock_valuation_sheet') {
+        $rawBody = file_get_contents('php://input');
+        $payload = json_decode($rawBody, true);
+        if (!is_array($payload)) $payload = $_POST;
+        $reqCompanyId = intval($payload['company_id'] ?? $company_id);
+        $as_on_date = $payload['as_on_date'] ?? $_GET['as_on_date'] ?? date('Y-m-d');
+        $periodMonth = trim((string)($payload['period_month'] ?? $_GET['period_month'] ?? ''));
+        if (!preg_match('/^\d{4}-\d{2}$/', $periodMonth)) {
+            $periodMonth = date('Y-m', strtotime($as_on_date));
+        }
+
+        ensureBsManualStockRatesTable($pdo);
+        $stmtDel = $pdo->prepare("DELETE FROM bs_manual_stock_rates WHERE company_id = ? AND period_month = ?");
+        $stmtDel->execute([$reqCompanyId, $periodMonth]);
+
+        sendResponse([
+            'status' => 'success',
+            'message' => "All stock valuation overrides cleared for {$periodMonth}. All categories reset to Auto.",
+            'period_month' => $periodMonth
+        ]);
+    }
 
     // =========================================================================
     // ACTION: DIAGNOSE IMBALANCE (Difference Diagnostic Tool)
@@ -915,502 +1861,9 @@ try {
             }
         }
 
-        // =========================================================================
-        // FEATURE 3 / AUDIT RECONCILIATION: INVENTORY CLOSING & AUDIT VALUATION LINK
-        // =========================================================================
-        // 1. Checks inventory_monthly_closings for closed / audited stock valuation
-        // 2. If not closed, calculates dynamic stock valuation using Weighted Avg Purchase Rates
-        // 3. Includes Floor WIP from mfg_monthly_wip
-        $getInventoryValuation = function($pdo, $company_id, $targetDate, $taxMode = 'tax') {
-            $valResult = [
-                'total_stock_value' => 0.0,
-                'raw_materials_val' => 0.0,
-                'raw_materials_count' => 0,
-                'wip_val' => 0.0,
-                'finished_goods_val' => 0.0,
-                'finished_goods_count' => 0,
-                'is_audited' => false,
-                'period_month' => date('Y-m', strtotime($targetDate))
-            ];
-
-            if (!$targetDate) return $valResult;
-
-            $periodMonth = date('Y-m', strtotime($targetDate));
-            $targetYear = intval(date('Y', strtotime($targetDate)));
-            $targetMonthNum = intval(date('n', strtotime($targetDate)));
-
-            // 1. Fetch WIP Valuation from mfg_monthly_wip (exact month lock takes priority)
-            $hasExactWipLock = false;
-            try {
-                $stmtWip = $pdo->prepare("SELECT closing_wip_val, is_locked FROM mfg_monthly_wip WHERE company_id = ? AND year = ? AND month = ? LIMIT 1");
-                $stmtWip->execute([$company_id, $targetYear, $targetMonthNum]);
-                $exactWipRow = $stmtWip->fetch(PDO::FETCH_ASSOC);
-                if ($exactWipRow) {
-                    $valResult['wip_val'] = floatval($exactWipRow['closing_wip_val'] ?? 0);
-                    $hasExactWipLock = !empty($exactWipRow['is_locked']);
-                } else {
-                    $stmtWipLatest = $pdo->prepare("SELECT closing_wip_val FROM mfg_monthly_wip WHERE company_id = ? AND ((year < ?) OR (year = ? AND month <= ?)) ORDER BY year DESC, month DESC LIMIT 1");
-                    $stmtWipLatest->execute([$company_id, $targetYear, $targetYear, $targetMonthNum]);
-                    $valResult['wip_val'] = floatval($stmtWipLatest->fetchColumn() ?: 0);
-                }
-            } catch (Exception $eWip) {}
-
-            // 2. Check inventory_monthly_closings table
-            $closingRow = null;
-            try {
-                $stmtCl = $pdo->prepare("SELECT * FROM inventory_monthly_closings WHERE company_id = ? AND period_month = ? ORDER BY id DESC LIMIT 1");
-                $stmtCl->execute([$company_id, $periodMonth]);
-                $closingRow = $stmtCl->fetch(PDO::FETCH_ASSOC);
-            } catch (Exception $eCl) {}
-
-            if ($closingRow && floatval($closingRow['total_stock_value'] ?? 0) > 0) {
-                // Closed or saved audit closing exists!
-                $valResult['is_audited'] = !empty($closingRow['is_closed']);
-                $valResult['total_stock_value'] = floatval($closingRow['total_stock_value']);
-
-                // Parse items snapshot if available for raw vs finished goods split
-                if (!empty($closingRow['items_snapshot'])) {
-                    $snap = json_decode($closingRow['items_snapshot'], true);
-                    if (is_array($snap)) {
-                        foreach ($snap as $sItem) {
-                            $grp = $sItem['group'] ?? '';
-                            $itemVal = floatval($sItem['final_value'] ?? ($sItem['system_value'] ?? 0));
-                            if ($grp === 'Raw Material') {
-                                $valResult['raw_materials_val'] += $itemVal;
-                                $valResult['raw_materials_count']++;
-                            } elseif ($grp === 'PVC Pipes' || $grp === 'Fittings') {
-                                $valResult['finished_goods_val'] += $itemVal;
-                                $valResult['finished_goods_count']++;
-                            } else {
-                                $valResult['finished_goods_val'] += $itemVal;
-                                $valResult['finished_goods_count']++;
-                            }
-                        }
-                    }
-                }
-
-                // If snapshot was empty or couldn't break down, derive from totals
-                if ($valResult['raw_materials_val'] == 0 && $valResult['finished_goods_val'] == 0) {
-                    $valResult['finished_goods_val'] = $valResult['total_stock_value'];
-                }
-
-                // Add WIP to total if not already included
-                $valResult['total_stock_value'] += $valResult['wip_val'];
-
-                return $valResult;
-            }
-
-            // 3. Dynamic Calculation using Weighted Average Rates & Manufacturing Costing
-            try {
-                $stmtTab = $pdo->query("SHOW TABLES");
-                $existingTabs = [];
-                while ($t = $stmtTab->fetch(PDO::FETCH_NUM)) { $existingTabs[] = $t[0]; }
-
-                $dateCond = function($col) use ($targetDate) {
-                    return $targetDate ? " AND DATE($col) <= '$targetDate'" : "";
-                };
-
-                // Movement settings
-                $inv_move_in = 'purchases';
-                $inv_move_out = 'sale_invoices';
-                try {
-                    $stmtSet = $pdo->prepare("SELECT setting_key, setting_value FROM settings WHERE company_id = ? AND setting_key IN ('inv_move_in', 'inv_move_out')");
-                    $stmtSet->execute([$company_id]);
-                    $sRows = $stmtSet->fetchAll(PDO::FETCH_KEY_PAIR);
-                    if (!empty($sRows['inv_move_in'])) $inv_move_in = $sRows['inv_move_in'];
-                    if (!empty($sRows['inv_move_out'])) $inv_move_out = $sRows['inv_move_out'];
-                } catch(Exception $e) {}
-
-                // A. Opening Balances & Opening Rates
-                $obMap = [];
-                $obRateMap = [];
-                if (in_array("inv_opening_balances", $existingTabs)) {
-                    $q = $pdo->query("SELECT item_id, COALESCE(SUM(quantity), 0) as qty, AVG(NULLIF(rate, 0)) as avg_r FROM inv_opening_balances WHERE company_id = $company_id GROUP BY item_id");
-                    while ($r = $q->fetch(PDO::FETCH_ASSOC)) { 
-                        $obMap[$r['item_id']] = floatval($r['qty']);
-                        if (!empty($r['avg_r'])) $obRateMap[$r['item_id']] = floatval($r['avg_r']);
-                    }
-                }
-
-                // Tax-aligned line amount expressions shared with Step 1 Inventory Flow
-                $piAmtExpr = invLineAmountSql('pii', $taxMode, 'standard', 'quantity');
-                $prAmtExpr = invLineAmountSql('pri', $taxMode, 'purchase_return', 'quantity');
-                $srAmtExpr = invLineAmountSql('sri', $taxMode, 'standard', 'quantity');
-                $siAmtExpr = invLineAmountSql('sii', $taxMode, 'standard', 'quantity');
-
-                // B. Purchases & Weighted Average Purchase Rates (aligned with Tax/Non-Tax rule)
-                $piMap = [];
-                $piAmtMap = [];
-                $piRateMap = [];
-                $totalRawPurchAmt = 0.0;
-                $totalRawPurchQty = 0.0;
-                $totalAllPurchAmt = 0.0;
-                $totalAllPurchQty = 0.0;
-                if (in_array("purchase_invoices", $existingTabs) && in_array("purchase_invoice_items", $existingTabs)) {
-                    $sqlRate = "SELECT pii.item_coa_id as item_id, 
-                                       COALESCE(SUM(pii.quantity), 0) as qty, 
-                                       COALESCE(SUM({$piAmtExpr}), 0) as total_amt,
-                                       MAX(CASE WHEN UPPER(COALESCE(it.category_type, '')) LIKE '%RAW%' OR UPPER(COALESCE(mc.name, '')) LIKE '%RAW%' THEN 1 ELSE 0 END) as is_raw_cat
-                                FROM purchase_invoice_items pii 
-                                JOIN purchase_invoices p ON pii.invoice_id = p.id 
-                                LEFT JOIN inv_items it ON pii.item_coa_id = it.id
-                                LEFT JOIN inv_sub_categories sc ON it.sub_id = sc.id
-                                LEFT JOIN inv_main_categories mc ON sc.main_id = mc.id
-                                WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 " . $dateCond('p.invoice_date') . " 
-                                GROUP BY pii.item_coa_id";
-                    $qRate = $pdo->query($sqlRate);
-                    while ($r = $qRate->fetch(PDO::FETCH_ASSOC)) {
-                        $qty = floatval($r['qty']);
-                        $amt = floatval($r['total_amt']);
-                        if ($qty > 0 && $amt > 0) {
-                            $piRateMap[$r['item_id']] = $amt / $qty;
-                            $totalAllPurchAmt += $amt;
-                            $totalAllPurchQty += $qty;
-                            if (!empty($r['is_raw_cat'])) {
-                                $totalRawPurchAmt += $amt;
-                                $totalRawPurchQty += $qty;
-                            }
-                        }
-                        $piMap[$r['item_id']] = $qty;
-                        $piAmtMap[$r['item_id']] = $amt;
-                    }
-                }
-
-                // Average Raw Material Rate per Kg (Raw Material category prioritized; benchmark fallback ~Rs. 240 / Kg)
-                $avgRawRatePerKg = ($totalRawPurchQty > 0 && $totalRawPurchAmt > 0)
-                    ? round($totalRawPurchAmt / $totalRawPurchQty, 2)
-                    : (($totalAllPurchQty > 0 && $totalAllPurchAmt > 0) ? round($totalAllPurchAmt / $totalAllPurchQty, 2) : 240.0);
-
-                // Gate pass inwards if configured
-                if ($inv_move_in === 'gate_pass' && in_array("inward_gate_passes", $existingTabs) && in_array("inward_gate_pass_items", $existingTabs)) {
-                    $sql = "SELECT igpi.item_id, COALESCE(SUM(igpi.qty), 0) as qty 
-                            FROM inward_gate_pass_items igpi 
-                            JOIN inward_gate_passes p ON igpi.igp_id = p.id 
-                            WHERE p.company_id = $company_id AND p.is_cancelled = 0 " . $dateCond('p.date') . " 
-                            GROUP BY igpi.item_id";
-                    $q = $pdo->query($sql);
-                    while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $piMap[$r['item_id']] = floatval($r['qty']); }
-                }
-
-                // C. Purchase Returns
-                $prMap = [];
-                $prAmtMap = [];
-                if (in_array("purchase_returns", $existingTabs) && in_array("purchase_return_items", $existingTabs)) {
-                    $sql = "SELECT pri.item_coa_id as item_id, COALESCE(SUM(pri.quantity), 0) as qty, COALESCE(SUM({$prAmtExpr}), 0) as total_amt 
-                            FROM purchase_return_items pri 
-                            JOIN purchase_returns p ON pri.return_id = p.id 
-                            WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 " . $dateCond('p.return_date') . " 
-                            GROUP BY pri.item_coa_id";
-                    $q = $pdo->query($sql);
-                    while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
-                        $prMap[$r['item_id']] = floatval($r['qty']);
-                        $prAmtMap[$r['item_id']] = floatval($r['total_amt']);
-                    }
-                }
-
-                // D. Outward Movements & Sales Weighted Average Rates (for Finished Goods)
-                $siMap = [];
-                $siRateMap = [];
-                if (in_array("sale_invoices", $existingTabs) && in_array("sale_invoice_items", $existingTabs)) {
-                    $sqlSale = "SELECT sii.item_coa_id as item_id, 
-                                       COALESCE(SUM(sii.quantity), 0) as qty, 
-                                       COALESCE(SUM({$siAmtExpr}), 0) as total_amt 
-                                FROM sale_invoice_items sii 
-                                JOIN sale_invoices s ON sii.invoice_id = s.id 
-                                WHERE s.company_id = $company_id AND s.is_cancelled = 0 AND s.is_posted = 1 " . $dateCond('s.invoice_date') . " 
-                                GROUP BY sii.item_coa_id";
-                    $qSale = $pdo->query($sqlSale);
-                    while ($r = $qSale->fetch(PDO::FETCH_ASSOC)) {
-                        $qty = floatval($r['qty']);
-                        $amt = floatval($r['total_amt']);
-                        if ($qty > 0 && $amt > 0) {
-                            $siRateMap[$r['item_id']] = $amt / $qty;
-                        }
-                        if ($inv_move_out === 'sale_invoices') {
-                            $siMap[$r['item_id']] = $qty;
-                        }
-                    }
-                }
-                if ($inv_move_out === 'delivery_challans' && in_array("delivery_challans", $existingTabs) && in_array("delivery_challan_items", $existingTabs)) {
-                    $sql = "SELECT dci.item_id, COALESCE(SUM(dci.qty), 0) as qty 
-                            FROM delivery_challan_items dci 
-                            JOIN delivery_challans s ON dci.challan_id = s.id 
-                            WHERE s.company_id = $company_id AND s.is_cancelled = 0 " . $dateCond('s.date') . " 
-                            GROUP BY dci.item_id";
-                    $q = $pdo->query($sql);
-                    while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $siMap[$r['item_id']] = floatval($r['qty']); }
-                }
-
-                // E. Sale Returns
-                $srMap = [];
-                $srAmtMap = [];
-                if (in_array("sale_returns", $existingTabs) && in_array("sale_return_items", $existingTabs)) {
-                    $sql = "SELECT sri.item_coa_id as item_id, COALESCE(SUM(sri.quantity), 0) as qty, COALESCE(SUM({$srAmtExpr}), 0) as total_amt 
-                            FROM sale_return_items sri 
-                            JOIN sale_returns s ON sri.return_id = s.id 
-                            WHERE s.company_id = $company_id AND s.is_cancelled = 0 AND s.is_posted = 1 " . $dateCond('s.return_date') . " 
-                            GROUP BY sri.item_coa_id";
-                    $q = $pdo->query($sql);
-                    while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
-                        $srMap[$r['item_id']] = floatval($r['qty']);
-                        $srAmtMap[$r['item_id']] = floatval($r['total_amt']);
-                    }
-                }
-
-                // F. Adjustments
-                $aiaMap = [];
-                $aiaAmtMap = [];
-                $aiaUnvaluedQtyMap = [];
-                if (in_array("add_inventory_adjustments", $existingTabs) && in_array("add_inventory_adjustment_items", $existingTabs)) {
-                    try {
-                        $sql = "SELECT aii.item_id, COALESCE(SUM(aii.qty), 0) as qty,
-                                       COALESCE(SUM(COALESCE(NULLIF(aii.amount, 0), aii.qty * NULLIF(aii.rate, 0), 0)), 0) as total_amt,
-                                       COALESCE(SUM(CASE WHEN COALESCE(NULLIF(aii.amount, 0), aii.qty * NULLIF(aii.rate, 0), 0) <= 0 AND aii.qty > 0 THEN aii.qty ELSE 0 END), 0) as unvalued_qty
-                                FROM add_inventory_adjustment_items aii 
-                                JOIN add_inventory_adjustments a ON aii.adjustment_id = a.id 
-                                WHERE a.company_id = $company_id AND a.is_cancelled = 0 " . $dateCond('a.date') . " 
-                                GROUP BY aii.item_id";
-                        $q = $pdo->query($sql);
-                        while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
-                            $aiaMap[$r['item_id']] = floatval($r['qty']);
-                            $aiaAmtMap[$r['item_id']] = floatval($r['total_amt']);
-                            $aiaUnvaluedQtyMap[$r['item_id']] = floatval($r['unvalued_qty']);
-                        }
-                    } catch (Exception $eAia) {
-                        $sql = "SELECT aii.item_id, COALESCE(SUM(aii.qty), 0) as qty 
-                                FROM add_inventory_adjustment_items aii 
-                                JOIN add_inventory_adjustments a ON aii.adjustment_id = a.id 
-                                WHERE a.company_id = $company_id AND a.is_cancelled = 0 " . $dateCond('a.date') . " 
-                                GROUP BY aii.item_id";
-                        $q = $pdo->query($sql);
-                        while ($r = $q->fetch(PDO::FETCH_ASSOC)) {
-                            $qVal = floatval($r['qty']);
-                            $aiaMap[$r['item_id']] = $qVal;
-                            if ($qVal > 0) $aiaUnvaluedQtyMap[$r['item_id']] = $qVal;
-                        }
-                    }
-                }
-
-                $riaMap = [];
-                if (in_array("reduce_inventory_adjustments", $existingTabs) && in_array("reduce_inventory_adjustment_items", $existingTabs)) {
-                    $sql = "SELECT rii.item_id, COALESCE(SUM(rii.qty), 0) as qty 
-                            FROM reduce_inventory_adjustment_items rii 
-                            JOIN reduce_inventory_adjustments r ON rii.adjustment_id = r.id 
-                            WHERE r.company_id = $company_id AND r.is_cancelled = 0 " . $dateCond('r.date') . " 
-                            GROUP BY rii.item_id";
-                    $q = $pdo->query($sql);
-                    while ($r = $q->fetch(PDO::FETCH_ASSOC)) { $riaMap[$r['item_id']] = floatval($r['qty']); }
-                }
-
-                // G. Manufacturing (MIN & Production Notes Rates & Volumes)
-                $minMap = [];
-                $totMinQty = 0.0;
-                $totMinVal = 0.0;
-                if (in_array("material_issue_notes", $existingTabs) && in_array("material_issue_note_items", $existingTabs)) {
-                    $sql = "SELECT mii.item_id, COALESCE(SUM(mii.qty), 0) as qty, COALESCE(SUM(mii.amount), 0) as val 
-                            FROM material_issue_note_items mii 
-                            JOIN material_issue_notes m ON mii.min_id = m.id 
-                            WHERE m.company_id = $company_id AND m.is_cancelled = 0 AND m.is_posted = 1 " . $dateCond('m.date') . " 
-                            GROUP BY mii.item_id";
-                    $q = $pdo->query($sql);
-                    while ($r = $q->fetch(PDO::FETCH_ASSOC)) { 
-                        $qVal = floatval($r['qty']);
-                        $minMap[$r['item_id']] = $qVal;
-                        $totMinQty += $qVal;
-                        $totMinVal += floatval($r['val']);
-                    }
-                }
-
-                $pnInMap = [];
-                $pnOutMap = [];
-                $pnRateMap = [];
-                $totPnProducedQty = 0.0;
-                if (in_array("production_notes", $existingTabs) && in_array("production_note_items", $existingTabs)) {
-                    $sqlIn = "SELECT pni.item_id, i.unit, COALESCE(i.unit_weight, 0) as unit_weight, COALESCE(i.qty_per_piece, 0) as qty_per_piece,
-                                     COALESCE(SUM(pni.qty), 0) as qty, 
-                                     COALESCE(SUM(COALESCE(NULLIF(pni.amount, 0), pni.qty * COALESCE(pni.rate, 0))), 0) as total_amt 
-                              FROM production_note_items pni 
-                              JOIN production_notes p ON pni.pn_id = p.id 
-                              LEFT JOIN inv_items i ON pni.item_id = i.id
-                              WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND pni.qty > 0 " . $dateCond('p.date') . " 
-                              GROUP BY pni.item_id, i.unit, i.unit_weight, i.qty_per_piece";
-                    $qIn = $pdo->query($sqlIn);
-                    while ($r = $qIn->fetch(PDO::FETCH_ASSOC)) { 
-                        $qVal = floatval($r['qty']);
-                        $aAmt = floatval($r['total_amt']);
-                        $pnInMap[$r['item_id']] = $qVal;
-                        $uUp = strtoupper(trim((string)($r['unit'] ?? '')));
-                        $uWt = floatval($r['unit_weight'] ?? 0) ?: floatval($r['qty_per_piece'] ?? 0);
-                        $totPnProducedQty += ($uUp !== 'KG' && $uUp !== 'KGS' && $uWt > 0) ? ($qVal * $uWt) : $qVal;
-                        if ($qVal > 0 && $aAmt > 0) {
-                            $pnRateMap[$r['item_id']] = $aAmt / $qVal;
-                        }
-                    }
-
-                    $sqlOut = "SELECT pni.item_id, COALESCE(SUM(ABS(pni.qty)), 0) as qty 
-                               FROM production_note_items pni 
-                               JOIN production_notes p ON pni.pn_id = p.id 
-                               WHERE p.company_id = $company_id AND p.is_cancelled = 0 AND p.is_posted = 1 AND pni.qty < 0 " . $dateCond('p.date') . " 
-                               GROUP BY pni.item_id";
-                    $qOut = $pdo->query($sqlOut);
-                    while ($r = $qOut->fetch(PDO::FETCH_ASSOC)) { $pnOutMap[$r['item_id']] = floatval($r['qty']); }
-                }
-
-                // Dynamic Floor WIP if not already locked/set from mfg_monthly_wip
-                if (!$hasExactWipLock && $valResult['wip_val'] == 0 && $totMinQty > 0) {
-                    $wipNetQty = $totMinQty - $totPnProducedQty;
-                    if ($wipNetQty > 0) {
-                        $avgIssRate = ($totMinQty > 0 && $totMinVal > 0) ? ($totMinVal / $totMinQty) : $avgRawRatePerKg;
-                        $valResult['wip_val'] = round($wipNetQty * $avgIssRate, 2);
-                    }
-                }
-
-                // Production Costing Rates by Brand / Category (Formula Material/KG + Locked or Live Overheads/KG)
-                $brandCostInfo = resolveBrandProductionCostRates($pdo, $company_id, $targetDate, $existingTabs);
-                $brandCostPerKgMap = $brandCostInfo['by_category_id'] ?? [];
-                $brandCostByNameMap = $brandCostInfo['by_name'] ?? [];
-                $mfgMonthlyCostPerKg = floatval($brandCostInfo['fallback_per_kg'] ?? 0);
-
-                // Closing Stock Quantities (KG & Multi-Unit) directly from shared Inventory Balance engine
-                $invClosing = computeInventoryClosingStock($pdo, $company_id, [
-                    'as_of_date' => $targetDate,
-                    'stock_status' => 'positive'
-                ]);
-                $closingRecords = $invClosing['records'] ?? [];
-                $categoryBreakdown = [];
-
-                foreach ($closingRecords as $it) {
-                    $id = intval($it['item_id'] ?? $it['id'] ?? 0);
-                    $grp = $it['group'] ?? 'Others';
-                    $cbPrimary = floatval($it['cb_primary'] ?? 0);
-                    $cbSec = floatval($it['cb_sec'] ?? 0);
-                    $cbKg = floatval($it['cb_kg'] ?? 0);
-                    $wtPerPc = floatval($it['weight_per_pc'] ?? 0);
-                    $unit = strtoupper(trim((string)($it['unit'] ?? '')));
-                    $catId = intval($it['main_category_id'] ?? $it['category_id'] ?? 0);
-                    $catNameRaw = trim((string)($it['main_category_name'] ?? $grp));
-                    $catNameLow = strtolower($catNameRaw);
-                    $iNameLow = strtolower(trim((string)($it['item_name'] ?? $it['name'] ?? '')));
-
-                    $itemVal = 0.0;
-                    $effectiveRatePerKg = 0.0;
-                    $stockKgUsed = $cbKg;
-
-                    if ($grp === 'Raw Material') {
-                        $stockKgUsed = ($cbKg > 0) ? $cbKg : $cbSec;
-                        // Weighted average cost matching Inventory & Material Flow under active Tax Mode
-                        $obQ = $obMap[$id] ?? 0.0;
-                        $obR = $obRateMap[$id] ?? floatval($it['valuation_cost'] ?: $it['purchase_price']);
-                        $unvalAiaQ = $aiaUnvaluedQtyMap[$id] ?? 0.0;
-                        $inQ = max(0.0, $obQ + ($piMap[$id] ?? 0.0) + ($srMap[$id] ?? 0.0) + ($aiaMap[$id] ?? 0.0) - ($prMap[$id] ?? 0.0) - $unvalAiaQ);
-                        $inV = max(0.0, ($obQ * $obR) + ($piAmtMap[$id] ?? 0.0) + ($srAmtMap[$id] ?? 0.0) + ($aiaAmtMap[$id] ?? 0.0) - ($prAmtMap[$id] ?? 0.0));
-                        $rate = ($inQ > 0 && $inV > 0) ? ($inV / $inQ) : ($piRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['valuation_cost'] ?: $it['purchase_price'])));
-                        if ($rate <= 0) $rate = floatval($it['selling_price'] ?? 0);
-                        if ($rate <= 0) $rate = $avgRawRatePerKg;
-
-                        $effectiveRatePerKg = $rate;
-                        $itemVal = ($stockKgUsed > 0 && $rate > 0) ? round($stockKgUsed * $rate, 2) : 0.0;
-
-                        if ($itemVal > 0 || $stockKgUsed > 0) {
-                            $valResult['raw_materials_val'] += $itemVal;
-                            $valResult['raw_materials_count']++;
-                        }
-                    } else {
-                        // Finished Goods (PVC Pipes, Fittings, Others): Category KG from Inventory Balance * Brand Per-KG Rate from Production Costing
-                        $brandRatePerKg = 0.0;
-                        if ($catId > 0 && isset($brandCostPerKgMap[$catId])) {
-                            $brandRatePerKg = $brandCostPerKgMap[$catId];
-                        } elseif ($catNameLow && isset($brandCostByNameMap[$catNameLow])) {
-                            $brandRatePerKg = $brandCostByNameMap[$catNameLow];
-                        } else {
-                            foreach ($brandCostByNameMap as $bKey => $bVal) {
-                                if ($bKey && (strpos($catNameLow, $bKey) !== false || strpos($iNameLow, $bKey) !== false)) {
-                                    $brandRatePerKg = $bVal;
-                                    break;
-                                }
-                            }
-                        }
-                        if ($brandRatePerKg <= 0 && $mfgMonthlyCostPerKg > 0) {
-                            $brandRatePerKg = $mfgMonthlyCostPerKg;
-                        }
-
-                        if ($stockKgUsed > 0 && $brandRatePerKg > 0) {
-                            $effectiveRatePerKg = $brandRatePerKg;
-                            $itemVal = round($stockKgUsed * $brandRatePerKg, 2);
-                        } elseif ($stockKgUsed > 0) {
-                            // Brand has stock in a period without active Formula: fallback to KG rate from Production/Sale/Purchase/Benchmark
-                            $fallbackKgRate = ($unit === 'KG' || $unit === 'KGS')
-                                ? ($pnRateMap[$id] ?? ($siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price'] ?: ($it['valuation_cost'] ?: $it['selling_price'])))))
-                                : $avgRawRatePerKg;
-                            if ($fallbackKgRate <= 0) $fallbackKgRate = $avgRawRatePerKg;
-                            $effectiveRatePerKg = $fallbackKgRate;
-                            $itemVal = round($stockKgUsed * $fallbackKgRate, 2);
-                        } else {
-                            // Unweighed piece/carton item (e.g. Fitting where Weight/Piece is not set yet)
-                            $isCtnUnit = (strpos($unit, 'CTN') !== false || strpos($unit, 'CARTON') !== false);
-                            $unitQty = ($grp === 'Fittings') ? ($isCtnUnit ? $cbPrimary : $cbSec) : $cbPrimary;
-                            $unitRate = $pnRateMap[$id] ?? ($siRateMap[$id] ?? ($obRateMap[$id] ?? floatval($it['purchase_price'] ?: ($it['valuation_cost'] ?: $it['selling_price']))));
-                            if ($unitRate > 0 && $unitQty > 0) {
-                                $itemVal = round($unitQty * $unitRate, 2);
-                            } elseif ($brandRatePerKg > 0 && $cbSec > 0) {
-                                $nu = strtoupper($it['item_name'] ?? '');
-                                $estWt = 0.0;
-                                if (strpos($nu, '4"') !== false) $estWt = 0.400;
-                                elseif (strpos($nu, '3"') !== false) $estWt = 0.300;
-                                elseif (strpos($nu, '2"') !== false) $estWt = 0.200;
-                                elseif (strpos($nu, '1.5"') !== false) $estWt = 0.150;
-                                elseif (strpos($nu, '1.25"') !== false) $estWt = 0.125;
-                                elseif (strpos($nu, '1"') !== false) $estWt = 0.100;
-                                if ($estWt > 0) {
-                                    $stockKgUsed = round($cbSec * $estWt, 2);
-                                    $effectiveRatePerKg = $brandRatePerKg;
-                                    $itemVal = round($stockKgUsed * $brandRatePerKg, 2);
-                                }
-                            }
-                        }
-
-                        if ($itemVal > 0 || $cbPrimary > 0 || $cbSec > 0) {
-                            $valResult['finished_goods_val'] += $itemVal;
-                            $valResult['finished_goods_count']++;
-                        }
-                    }
-
-                    $bKey = $grp . '_' . $catId . '_' . $catNameRaw;
-                    if (!isset($categoryBreakdown[$bKey])) {
-                        $categoryBreakdown[$bKey] = [
-                            'group' => $grp,
-                            'category_id' => $catId,
-                            'category_name' => $catNameRaw,
-                            'stock_kg' => 0.0,
-                            'cost_per_kg' => 0.0,
-                            'total_val' => 0.0,
-                            'items_count' => 0
-                        ];
-                    }
-                    $categoryBreakdown[$bKey]['stock_kg'] += max(0.0, $stockKgUsed);
-                    $categoryBreakdown[$bKey]['total_val'] += $itemVal;
-                    $categoryBreakdown[$bKey]['items_count']++;
-                    if ($categoryBreakdown[$bKey]['stock_kg'] > 0) {
-                        $categoryBreakdown[$bKey]['cost_per_kg'] = round($categoryBreakdown[$bKey]['total_val'] / $categoryBreakdown[$bKey]['stock_kg'], 2);
-                    } elseif ($effectiveRatePerKg > 0) {
-                        $categoryBreakdown[$bKey]['cost_per_kg'] = round($effectiveRatePerKg, 2);
-                    }
-                }
-                foreach ($categoryBreakdown as &$cbItem) {
-                    $cbItem['stock_kg'] = round($cbItem['stock_kg'], 2);
-                    $cbItem['total_val'] = round($cbItem['total_val'], 2);
-                }
-                unset($cbItem);
-                $valResult['category_breakdown'] = array_values($categoryBreakdown);
-                $valResult['total_stock_value'] = $valResult['raw_materials_val'] + $valResult['wip_val'] + $valResult['finished_goods_val'];
-            } catch (Exception $eDyn) {}
-
-            return $valResult;
-        };
-
-        // Compute Inventory Valuations for As-On-Date and Comparative Date under active taxMode
-        $asOnInv = $getInventoryValuation($pdo, $company_id, $as_on_date, $taxMode);
-        $compInv = $comparative_date ? $getInventoryValuation($pdo, $company_id, $comparative_date, $taxMode) : null;
+        // Compute Inventory Valuations via shared Auto / Manual engine for As-On-Date and Comparative Date
+        $asOnInv = calculateBalanceSheetInventoryValuation($pdo, $company_id, $as_on_date, $taxMode);
+        $compInv = $comparative_date ? calculateBalanceSheetInventoryValuation($pdo, $company_id, $comparative_date, $taxMode) : null;
 
         $rawMaterialVal = round($asOnInv['raw_materials_val'], 2);
         $rawMaterialCount = $asOnInv['raw_materials_count'];
@@ -1715,6 +2168,8 @@ try {
                 'total_inventory' => round($totalInventoryStockVal, 2),
                 'category_breakdown' => $asOnInv['category_breakdown'] ?? [],
                 'is_audited' => !empty($asOnInv['is_audited']),
+                'manual_overrides_count' => intval($asOnInv['manual_overrides_count'] ?? 0),
+                'has_manual_override' => !empty($asOnInv['has_manual_override']),
                 'period_month' => $asOnInv['period_month'] ?? date('Y-m', strtotime($as_on_date))
             ],
             'sections' => [
