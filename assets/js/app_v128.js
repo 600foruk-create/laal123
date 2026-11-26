@@ -356,9 +356,11 @@ document.addEventListener('click', function(e) {
                             // Latest note first (already ordered DESC)
                             const latest = notes[0];
                             const display = (latest.title ? latest.title + '\n' : '') + (latest.content || '');
+                            window._cachedDashboardNote = display;
                             noteEl.value = display;
                             currentNote = display;
                         } else if (noteEl && Array.isArray(notes) && notes.length === 0) {
+                            window._cachedDashboardNote = '';
                             noteEl.value = '';
                         }
                     } catch(e) {}
@@ -771,6 +773,9 @@ document.addEventListener('click', function(e) {
 
         function updateWeeklyTrend(data) {
             // data = [{day:'Mon', amount:5000}, ...]
+            if (Array.isArray(data) && data.length) {
+                window._cachedWeeklySalesData = data;
+            }
             const bars = document.querySelectorAll('.graph-bars .bar');
             const labels = document.querySelectorAll('.graph-bars .bar-label');
             if (!bars.length || !data || !data.length) return;
@@ -789,6 +794,7 @@ document.addEventListener('click', function(e) {
                 }
             });
         }
+        window.updateWeeklyTrend = updateWeeklyTrend;
 
         async function saveSummary() {
             const sessionData = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
@@ -2437,6 +2443,8 @@ document.addEventListener('click', function(e) {
                 });
             } catch (err) { console.error('Clear Note Error:', err); }
         }
+        window.saveDashboardNote = saveNote;
+        window.clearDashboardNote = clearNote;
 
 
         function performSearch() {

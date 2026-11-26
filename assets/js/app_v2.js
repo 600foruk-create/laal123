@@ -2399,6 +2399,8 @@ document.addEventListener('click', function(e) {
                 });
             } catch (err) { console.error('Clear Note Error:', err); }
         }
+        window.saveDashboardNote = saveNote;
+        window.clearDashboardNote = clearNote;
 
 
         function performSearch() {

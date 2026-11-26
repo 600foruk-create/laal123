@@ -103,6 +103,22 @@
         right_summary: ['cash_position', 'customer_activity', 'vendor_activity', 'raw_material_activity', 'finished_goods_activity', 'inventory_alerts']
     };
 
+    const isMainAdministrator = function() {
+        try {
+            const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const uid = parseInt(s.user_id || s.id || 0, 10);
+            const uname = String(s.username || '').trim().toLowerCase();
+            return (uid === 1 || uname === 'administrator');
+        } catch (e) {
+            return false;
+        }
+    };
+
+    const getLocalTodayIso = function() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
     const DashboardCustomizer = {
         catalog: CATALOG,
         defaultConfig: DEFAULT_CONFIG,
@@ -168,7 +184,7 @@
                     let rawCfg = (data && data.status === 'success') ? (data.dashboard_customization || data.data || data.config) : null;
                     if (rawCfg && rawCfg.config) rawCfg = rawCfg.config;
                     if (rawCfg && (rawCfg.record_new || rawCfg.view || rawCfg.kpi_cards)) {
-                        this.currentConfig = {
+                        const dbCfg = {
                             record_new: rawCfg.record_new || DEFAULT_CONFIG.record_new,
                             view: rawCfg.view || DEFAULT_CONFIG.view,
                             kpi_cards: rawCfg.kpi_cards || DEFAULT_CONFIG.kpi_cards,
@@ -176,9 +192,15 @@
                             bottom_widgets: rawCfg.bottom_widgets || DEFAULT_CONFIG.bottom_widgets,
                             right_summary: rawCfg.right_summary || DEFAULT_CONFIG.right_summary
                         };
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentConfig));
-                        this.applyAll();
-                        return this.currentConfig;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(dbCfg));
+                        const uId = s.user_id || 0;
+                        const userKey = uId ? `softifyx_dashboard_customization_user_${uId}` : null;
+                        const hasPersonalOverride = !!(userKey && localStorage.getItem(userKey));
+                        if (!hasPersonalOverride) {
+                            this.currentConfig = dbCfg;
+                            this.applyAll();
+                        }
+                        return this.getConfig();
                     }
                 }
             } catch(e) {
@@ -197,6 +219,12 @@
                 right_summary: config.right_summary || DEFAULT_CONFIG.right_summary
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentConfig));
+            try {
+                const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                if (s.user_id) {
+                    localStorage.removeItem(`softifyx_dashboard_customization_user_${s.user_id}`);
+                }
+            } catch (e) {}
             this.applyAll();
 
             try {
@@ -223,21 +251,13 @@
             this.renderMiddleCards();
             this.renderBottomWidgets();
             this.renderRightSidebar();
+            if (window.dailySummary) {
+                try { this.updateValues(window.dailySummary); } catch(e) {}
+            }
             if (typeof window.updateDashboardSummary === 'function') {
                 try { window.updateDashboardSummary(); } catch(e) {}
             }
         },
-
-    const isMainAdministrator = function() {
-        try {
-            const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
-            const uid = parseInt(s.user_id || s.id || 0, 10);
-            const uname = String(s.username || '').trim().toLowerCase();
-            return (uid === 1 || uname === 'administrator');
-        } catch (e) {
-            return false;
-        }
-    };
 
         // --- SECTION 1: Render Left Sidebar ---
         renderLeftSidebar: function() {
@@ -483,6 +503,9 @@
             const grid = document.querySelector('.widgets-grid');
             if (!grid) return;
 
+            const prevNoteEl = document.getElementById('notesText');
+            const prevNoteVal = prevNoteEl ? prevNoteEl.value : undefined;
+
             const cfg = this.getConfig();
             const widgets = cfg.bottom_widgets || ['weekly_sales_trend', 'my_notes'];
 
@@ -495,12 +518,12 @@
                             Weekly Sales Trend
                         </div>
                         <div class="graph-bars">
-                            <div class="bar-container"><div class="bar" style="height: 40px;"></div><span class="bar-label">Mon</span></div>
-                            <div class="bar-container"><div class="bar" style="height: 60px;"></div><span class="bar-label">Tue</span></div>
-                            <div class="bar-container"><div class="bar" style="height: 30px;"></div><span class="bar-label">Wed</span></div>
-                            <div class="bar-container"><div class="bar" style="height: 80px;"></div><span class="bar-label">Thu</span></div>
-                            <div class="bar-container"><div class="bar" style="height: 55px;"></div><span class="bar-label">Fri</span></div>
-                            <div class="bar-container"><div class="bar" style="height: 65px;"></div><span class="bar-label">Sat</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 0px;"></div><span class="bar-label">Mon</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 0px;"></div><span class="bar-label">Tue</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 0px;"></div><span class="bar-label">Wed</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 0px;"></div><span class="bar-label">Thu</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 0px;"></div><span class="bar-label">Fri</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 0px;"></div><span class="bar-label">Sat</span></div>
                         </div>
                     </div>
                 `;
@@ -513,10 +536,10 @@
                             <i class="fas fa-pen"></i>
                             My Notes
                         </div>
-                        <textarea class="notes-textarea" id="notesText" placeholder="Write your notes here...">${localStorage.getItem('user_notes') || 'Meeting with suppliers tomorrow at 10 AM. Follow up with ABC Traders for payment.'}</textarea>
+                        <textarea class="notes-textarea" id="notesText" placeholder="Write your notes here..."></textarea>
                         <div class="notes-actions">
-                            <button class="btn btn-primary" id="saveNoteBtn" onclick="localStorage.setItem('user_notes', document.getElementById('notesText').value); alert('Notes saved successfully!');"><i class="fas fa-save"></i> Save</button>
-                            <button class="btn btn-secondary" id="clearNoteBtn" onclick="document.getElementById('notesText').value=''; localStorage.removeItem('user_notes');"><i class="fas fa-times"></i> Clear</button>
+                            <button class="btn btn-primary" id="saveNoteBtn" onclick="if(typeof window.saveDashboardNote==='function'){window.saveDashboardNote().then(()=>alert('Notes saved successfully!')).catch(()=>{});}else{localStorage.setItem('user_notes', document.getElementById('notesText').value); alert('Notes saved successfully!');}"><i class="fas fa-save"></i> Save</button>
+                            <button class="btn btn-secondary" id="clearNoteBtn" onclick="if(typeof window.clearDashboardNote==='function'){window.clearDashboardNote();}else{document.getElementById('notesText').value='';} localStorage.removeItem('user_notes');"><i class="fas fa-times"></i> Clear</button>
                         </div>
                     </div>
                 `;
@@ -544,6 +567,20 @@
             }
 
             grid.innerHTML = html;
+
+            const newNoteEl = document.getElementById('notesText');
+            if (newNoteEl) {
+                const resolvedNote = (prevNoteVal !== undefined)
+                    ? prevNoteVal
+                    : (window._cachedDashboardNote !== undefined
+                        ? window._cachedDashboardNote
+                        : (localStorage.getItem('user_notes') || ''));
+                newNoteEl.value = resolvedNote;
+            }
+
+            if (window._cachedWeeklySalesData && typeof window.updateWeeklyTrend === 'function') {
+                window.updateWeeklyTrend(window._cachedWeeklySalesData);
+            }
         },
 
         // --- SECTION 5: Render Right Sidebar Summary ---
@@ -1003,8 +1040,10 @@
             // 2. View Checkboxes
             const viewCont = document.getElementById('cfg_dash_view_list');
             if (viewCont) {
+                const allowBalanceSheet = isMainAdministrator();
                 let h = '';
                 CATALOG.view.forEach(item => {
+                    if (item.id === 'v_bs' && !allowBalanceSheet) return;
                     const checked = (cfg.view || []).includes(item.id) ? 'checked' : '';
                     h += `
                         <label style="display:flex; align-items:center; gap:8px; padding:6px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; cursor:pointer;">
@@ -1117,7 +1156,7 @@
                 const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
                 const coId = s.company_id || 1;
                 const dEl = document.getElementById('dailyReportDate');
-                const targetDate = (dEl && dEl.value) ? dEl.value : new Date().toISOString().split('T')[0];
+                const targetDate = (dEl && dEl.value) ? dEl.value : getLocalTodayIso();
                 const cb = `_cb=${Date.now()}`;
                 const res = await fetch(`api/admin.php?action=get_summary&company_id=${coId}&report_date=${targetDate}&${cb}`, { cache: 'no-store' });
                 if (res.ok) {

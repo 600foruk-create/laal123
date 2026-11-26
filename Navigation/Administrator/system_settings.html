@@ -982,6 +982,8 @@
                                 <label style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; cursor:pointer;"><input type="checkbox" name="dash_cfg_right" value="cash_position" checked><span>Cash Position</span></label>
                                 <label style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; cursor:pointer;"><input type="checkbox" name="dash_cfg_right" value="customer_activity" checked><span>Customer Activity</span></label>
                                 <label style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; cursor:pointer;"><input type="checkbox" name="dash_cfg_right" value="vendor_activity" checked><span>Vendor Activity</span></label>
+                                <label style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; cursor:pointer;"><input type="checkbox" name="dash_cfg_right" value="raw_material_activity" checked><span>Raw Material Activity (Bags / Kg)</span></label>
+                                <label style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; cursor:pointer;"><input type="checkbox" name="dash_cfg_right" value="finished_goods_activity" checked><span>Finished Goods Activity (Kg)</span></label>
                                 <label style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; cursor:pointer;"><input type="checkbox" name="dash_cfg_right" value="inventory_alerts" checked><span>Inventory Alerts</span></label>
                                 <label style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; cursor:pointer;"><input type="checkbox" name="dash_cfg_right" value="pos_activity"><span>POS Activity</span></label>
                                 <label style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; cursor:pointer;"><input type="checkbox" name="dash_cfg_right" value="digital_activity"><span>Digital Invoicing / FBR</span></label>
@@ -2196,10 +2198,11 @@
             window.initGridDropdownSettingsInputs();
         }
         if (subId === 'sub_dashboard') {
+            if (window.DashboardCustomizer && window.DashboardCustomizer.populateSettingsForm) {
+                window.DashboardCustomizer.populateSettingsForm();
+            }
             if (window.loadDashboardSettingsInForm) {
                 window.loadDashboardSettingsInForm();
-            } else if (window.DashboardCustomizer && window.DashboardCustomizer.populateSettingsForm) {
-                window.DashboardCustomizer.populateSettingsForm();
             }
         }
     };
@@ -2524,7 +2527,7 @@
         kpi_cards: ['sales', 'cash_hand', 'bank_bal', 'rec_total'],
         middle_cards: ['cash_banks', 'receivables', 'payables'],
         bottom_widgets: ['weekly_sales_trend', 'my_notes'],
-        right_summary: ['cash_position', 'customer_activity', 'vendor_activity', 'inventory_alerts']
+        right_summary: ['cash_position', 'customer_activity', 'vendor_activity', 'raw_material_activity', 'finished_goods_activity', 'inventory_alerts']
     };
 
     window.loadDashboardSettingsInForm = function() {
@@ -2633,8 +2636,12 @@
                 right_summary: Array.from(document.querySelectorAll('input[name="dash_cfg_right"]:checked')).map(el => el.value)
             };
 
-            // Immediate localStorage update
+            // Immediate localStorage update (clear personal user override so Admin sees global change immediately)
             localStorage.setItem('softifyx_dashboard_customization', JSON.stringify(newConfig));
+            const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            if (session.user_id) {
+                localStorage.removeItem(`softifyx_dashboard_customization_user_${session.user_id}`);
+            }
 
             // Sync with DashboardCustomizer and immediately re-render live dashboard
             if (window.DashboardCustomizer) {
@@ -2645,7 +2652,6 @@
             }
 
             // Persist to database
-            const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             const companyId = session.company_id || 1;
 
             try {
@@ -3307,8 +3313,8 @@
         if(window.initThemeSettingsInputs) window.initThemeSettingsInputs(); 
         if(window.initGridDropdownSettingsInputs) window.initGridDropdownSettingsInputs();
         if(window.initRegionLabelsInputs) window.initRegionLabelsInputs();
-        if(window.loadDashboardSettingsInForm) window.loadDashboardSettingsInForm();
         if(window.DashboardCustomizer && window.DashboardCustomizer.populateSettingsForm) window.DashboardCustomizer.populateSettingsForm();
+        if(window.loadDashboardSettingsInForm) window.loadDashboardSettingsInForm();
         if(window.loadSystemSettings) {
             window.loadSystemSettings().then(function() {
                 if(window.syncSystemSettingsTabVisibility) window.syncSystemSettingsTabVisibility();
