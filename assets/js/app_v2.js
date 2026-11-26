@@ -4417,6 +4417,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (approvalDeskNav) approvalDeskNav.style.display = isAdmin ? 'block' : 'none';
             const userSessionsNav = document.getElementById('navUserSessionsBtn');
             if (userSessionsNav) userSessionsNav.style.display = isAdmin ? 'block' : 'none';
+            const isSuperAdmin = (parseInt(sessionUserId || sessionObj.id || 0, 10) === 1 || sessionUsername === 'administrator');
+            document.querySelectorAll('.super-admin-only-item').forEach(el => {
+                el.style.display = isSuperAdmin ? 'block' : 'none';
+            });
+            const balanceSheetNav = document.getElementById('navBalanceSheetBtn');
+            if (balanceSheetNav) balanceSheetNav.style.display = isSuperAdmin ? 'block' : 'none';
             if (typeof window.applyAdminOnlyNavVisibility === 'function') {
                 window.applyAdminOnlyNavVisibility();
             }
