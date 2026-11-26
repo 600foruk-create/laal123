@@ -134,8 +134,26 @@ try {
         }
     }
 
-    // In Option 1, clean up list_regions rows linked to this company's regions before regions/sub_regions deletion
+    // In Option 1, collect party-linked coa_list_ids and clean list_regions before regions/customers/vendors deletion
+    $partyCoaIds = [];
     if ($clear_option === '1') {
+        try {
+            if ($pdo->query("SHOW TABLES LIKE 'customers'")->rowCount() > 0) {
+                $cStmt = $pdo->prepare("SELECT DISTINCT coa_list_id FROM customers WHERE company_id = ? AND coa_list_id IS NOT NULL AND coa_list_id > 0");
+                $cStmt->execute([$company_id]);
+                foreach ($cStmt->fetchAll(PDO::FETCH_COLUMN) as $cid) {
+                    $partyCoaIds[intval($cid)] = intval($cid);
+                }
+            }
+            if ($pdo->query("SHOW TABLES LIKE 'vendors'")->rowCount() > 0) {
+                $vStmt = $pdo->prepare("SELECT DISTINCT coa_list_id FROM vendors WHERE company_id = ? AND coa_list_id IS NOT NULL AND coa_list_id > 0");
+                $vStmt->execute([$company_id]);
+                foreach ($vStmt->fetchAll(PDO::FETCH_COLUMN) as $vid) {
+                    $partyCoaIds[intval($vid)] = intval($vid);
+                }
+            }
+        } catch (Exception $ex) {}
+
         try {
             $hasListRegions = $pdo->query("SHOW TABLES LIKE 'list_regions'")->rowCount() > 0;
             $hasSubRegions = $pdo->query("SHOW TABLES LIKE 'sub_regions'")->rowCount() > 0;
@@ -170,6 +188,66 @@ try {
         $pending = $nextPending;
     }
 
+    // In Option 1, also delete custom Customer/Vendor ledger accounts from coa_list while strictly preserving all hardcoded/system & bank accounts
+    $deletedPartyCoaCount = 0;
+    if ($clear_option === '1' && !empty($partyCoaIds)) {
+        $protected_coa_codes = [
+            '100', '10001', '10001001',
+            '110', '11001', '11001001',
+            '120', '12001', '12001001', '12002',
+            '130', '13001', '13001001',
+            '140', '14001', '14001001', '14002', '14003',
+            '150', '15001',
+            '170', '17001',
+            '180', '18001',
+            '210', '21001', '21001001', '21002',
+            '220', '22001', '22001001', '22001002', '22001003', '22001004', '22002', '22003',
+            '230', '23001',
+            '240', '24001',
+            '300', '30001',
+            '310', '31001',
+            '320', '3200001', '32001', '32001001',
+            '330', '3300001',
+            '400', '40001', '40001001', '40001002', '40001003',
+            '500', '50001', '50001001', '50001002', '50001003', '50001004', '50001005', '50001006', '50001007', '50001008', '50002', '50002001', '50003', '50003001',
+            '600', '60001', '60001001', '60001002',
+            '650', '65001',
+            '670', '67001',
+            '680', '68001',
+            '700', '70001',
+            '800', '80001'
+        ];
+
+        $idPlaceholders = implode(',', array_fill(0, count($partyCoaIds), '?'));
+        $codePlaceholders = implode(',', array_fill(0, count($protected_coa_codes), '?'));
+        $hasBankAccounts = $pdo->query("SHOW TABLES LIKE 'bank_accounts'")->rowCount() > 0;
+        $bankFilterSql = $hasBankAccounts ? "AND id NOT IN (SELECT coa_list_id FROM bank_accounts WHERE coa_list_id IS NOT NULL)" : "";
+
+        $findSql = "
+            SELECT id FROM coa_list
+            WHERE company_id = ?
+              AND id IN ($idPlaceholders)
+              AND code NOT IN ($codePlaceholders)
+              $bankFilterSql
+        ";
+        $findStmt = $pdo->prepare($findSql);
+        $findStmt->execute(array_merge([$company_id], array_values($partyCoaIds), $protected_coa_codes));
+        $deletablePartyCoaIds = array_map('intval', $findStmt->fetchAll(PDO::FETCH_COLUMN));
+
+        if (!empty($deletablePartyCoaIds)) {
+            $delPh = implode(',', array_fill(0, count($deletablePartyCoaIds), '?'));
+            if ($pdo->query("SHOW TABLES LIKE 'company_branches'")->rowCount() > 0) {
+                try {
+                    $clrBranchCust = $pdo->prepare("UPDATE company_branches SET default_customer_id = NULL WHERE company_id = ? AND default_customer_id IN ($delPh)");
+                    $clrBranchCust->execute(array_merge([$company_id], $deletablePartyCoaIds));
+                } catch (Exception $ex) {}
+            }
+            $delCoaStmt = $pdo->prepare("DELETE FROM coa_list WHERE company_id = ? AND id IN ($delPh)");
+            $delCoaStmt->execute(array_merge([$company_id], $deletablePartyCoaIds));
+            $deletedPartyCoaCount = $delCoaStmt->rowCount();
+        }
+    }
+
     // Reset dashboard summary counters
     $stmt = $pdo->prepare("SHOW TABLES LIKE 'dashboard_summary'");
     $stmt->execute();
@@ -189,7 +267,7 @@ try {
     $transactionStarted = false;
 
     $optionLabels = [
-        '1' => 'Company data reset completed successfully! Core Chart of Accounts, branches, users & settings were preserved.',
+        '1' => 'Company data reset completed successfully! Base/system Chart of Accounts, branches, users & settings were preserved; all party ledgers, inventory, opening balances & transactions were cleared.',
         '2' => 'Transactions and Opening Balances cleared successfully! Master Data & Settings were preserved.',
         '3' => 'Transactions cleared successfully! Master Data, Settings & Opening Balances were preserved.',
         '4' => 'Transactions and Chart of Inventory cleared successfully! Accounts, Parties & Settings were preserved.'
@@ -200,7 +278,8 @@ try {
     logActivity('Clear Transactions', 'DELETE', 'option_' . $clear_option, $optionLabels[$clear_option], null, [
         'company_id' => $company_id,
         'clear_option' => $clear_option,
-        'tables_cleared' => count($tables_to_clear)
+        'tables_cleared' => count($tables_to_clear),
+        'party_coa_deleted' => $deletedPartyCoaCount
     ]);
 
     file_put_contents('debug.log', date('Y-m-d H:i:s') . " - Committed clear_transactions (option=$clear_option, tables=" . count($tables_to_clear) . ")\n", FILE_APPEND);
