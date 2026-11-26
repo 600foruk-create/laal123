@@ -10,6 +10,34 @@
             if (document.getElementById('mobileBottomNav')) return;
             this.injectHTML();
             this.bindEvents();
+            this.observeModalState();
+            this.syncModalVisibilityState();
+        },
+
+        syncModalVisibilityState: function() {
+            const isMobile = window.innerWidth <= 768;
+            const hasActiveModal = isMobile && !!document.querySelector('.modal-container:not(.modal-minimized)');
+            document.body.classList.toggle('modal-open-mobile', hasActiveModal);
+            const nav = document.getElementById('mobileBottomNav');
+            if (nav) {
+                if (hasActiveModal) {
+                    nav.style.display = 'none';
+                } else if (isMobile) {
+                    nav.style.display = 'flex';
+                }
+            }
+        },
+
+        observeModalState: function() {
+            if (this._modalObserver) return;
+            const wm = document.getElementById('window-manager') || document.body;
+            this._modalObserver = new MutationObserver(() => this.syncModalVisibilityState());
+            this._modalObserver.observe(wm, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class', 'style']
+            });
         },
 
         injectHTML: function() {
@@ -278,12 +306,13 @@
                 }
             });
 
-            // Auto-hide bottom bar when virtual keyboard opens on mobile to prevent squishing
+            // Auto-hide bottom bar when virtual keyboard opens on mobile or a full-screen modal is active
             const initialHeight = window.innerHeight;
             window.addEventListener('resize', () => {
                 const nav = document.getElementById('mobileBottomNav');
                 if (!nav) return;
-                if (window.innerHeight < initialHeight - 150) {
+                this.syncModalVisibilityState();
+                if (document.body.classList.contains('modal-open-mobile') || window.innerHeight < initialHeight - 150) {
                     nav.style.display = 'none';
                 } else if (window.innerWidth <= 768) {
                     nav.style.display = 'flex';

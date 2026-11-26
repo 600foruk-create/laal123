@@ -2161,6 +2161,14 @@
                 padding: 0 4px !important;
             }
 
+            /* Hide bottom nav while any non-minimized full-screen modal is open so module action bars (e.g. POS Checkout / FBR Post) remain visible */
+            body.modal-open-mobile #mobileBottomNav,
+            body.modal-open-mobile .mobile-bottom-nav,
+            body:has(.modal-container:not(.modal-minimized)) #mobileBottomNav,
+            body:has(.modal-container:not(.modal-minimized)) .mobile-bottom-nav {
+                display: none !important;
+            }
+
             .mob-tab {
                 flex: 1 !important;
                 display: flex !important;
