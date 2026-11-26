@@ -4,6 +4,57 @@ require_once 'db_config.php';
 require_once 'account_ledger.php';
 require_once __DIR__ . '/inventory_costing_helpers.php';
 
+/**
+ * Classifies a Chart of Accounts head using its explicit Financial Statements Component first,
+ * checking Balance Sheet groups before Expense/Revenue keywords so heads like
+ * "Accrued Expenses (Current Liabilities)" stay in Current Liabilities.
+ */
+function classifyCoaAccountGroup($mainComponent, $mainName) {
+    $comp = strtolower(trim((string)$mainComponent));
+    $main = strtolower(trim((string)$mainName));
+
+    if ($comp !== '') {
+        if (strpos($comp, 'non-current asset') !== false || strpos($comp, 'fixed asset') !== false) return 'non_current_asset';
+        if (strpos($comp, 'current asset') !== false || $comp === 'asset' || $comp === 'assets') return 'asset';
+        if (strpos($comp, 'non-current liab') !== false || strpos($comp, 'long term') !== false) return 'non_current_liability';
+        if (strpos($comp, 'current liab') !== false || strpos($comp, 'liabilit') !== false) return 'current_liability';
+        if (strpos($comp, 'capital') !== false || strpos($comp, 'equity') !== false || strpos($comp, 'reserve') !== false) return 'equity';
+        if ($comp === 'cost of sale' || $comp === 'cost of sales' || strpos($comp, 'cogs') !== false) return 'cost_of_sales';
+        if ($comp === 'income' || $comp === 'other income' || $comp === 'revenue' || strpos($comp, 'revenue') !== false || strpos($comp, 'income') !== false) return 'revenue';
+        if (strpos($comp, 'expense') !== false || $comp === 'taxation') return 'expense';
+    }
+
+    if (strpos($main, 'non-current liab') !== false || strpos($main, 'long term') !== false || strpos($main, 'term finance') !== false || strpos($main, 'director loan') !== false || strpos($main, 'loan from director') !== false) {
+        return 'non_current_liability';
+    }
+    if (strpos($main, 'liabilit') !== false || strpos($main, 'accrued') !== false || strpos($main, 'payable') !== false || strpos($main, 'creditor') !== false || strpos($main, 'vendor') !== false || strpos($main, 'supplier') !== false) {
+        return 'current_liability';
+    }
+    if (strpos($main, 'equity') !== false || strpos($main, 'capital') !== false || strpos($main, 'retained earning') !== false || strpos($main, 'drawing') !== false || strpos($main, 'reserve') !== false) {
+        return 'equity';
+    }
+    if (strpos($main, 'fixed asset') !== false || strpos($main, 'non-current asset') !== false || strpos($main, 'plant') !== false || strpos($main, 'machinery') !== false || strpos($main, 'property') !== false || strpos($main, 'equipment') !== false || strpos($main, 'vehicle') !== false || strpos($main, 'building') !== false || strpos($main, 'mould') !== false) {
+        return 'non_current_asset';
+    }
+    if (strpos($main, 'asset') !== false || strpos($main, 'cash') !== false || strpos($main, 'bank') !== false || strpos($main, 'receivable') !== false || strpos($main, 'customer') !== false || strpos($main, 'debtor') !== false || strpos($main, 'inventory') !== false || strpos($main, 'inventor') !== false || strpos($main, 'stock') !== false || strpos($main, 'advance') !== false || strpos($main, 'prepayment') !== false) {
+        return 'asset';
+    }
+    if (strpos($main, 'cost of sale') !== false || strpos($main, 'cogs') !== false) {
+        return 'cost_of_sales';
+    }
+    if (strpos($main, 'revenue') !== false || strpos($main, 'sales') !== false || strpos($main, 'income') !== false) {
+        return 'revenue';
+    }
+    if (strpos($main, 'expense') !== false || strpos($main, 'administrative') !== false || strpos($main, 'marketing') !== false || strpos($main, 'distribution') !== false || strpos($main, 'selling') !== false || strpos($main, 'financial') !== false || strpos($main, 'taxation') !== false) {
+        return 'expense';
+    }
+    if (strpos($main, 'profit') !== false) {
+        return 'equity';
+    }
+
+    return 'current_liability';
+}
+
 try {
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
     $company_id = intval($_GET['company_id'] ?? $_POST['company_id'] ?? 1);
@@ -359,22 +410,18 @@ try {
 
         $totRev = 0; $totCos = 0; $totExp = 0;
         foreach ($plAccs as $acc) {
-            $mComp = strtolower(trim($acc['main_component']));
-            $mName = strtolower($acc['main_name']);
-
-            $isRev = ($mComp === 'revenue' || strpos($mName, 'revenue') !== false || strpos($mName, 'sales') !== false || strpos($mName, 'income') !== false);
-            $isCos = ($mComp === 'cost of sale' || $mComp === 'cost of sales' || strpos($mName, 'cost of sale') !== false || strpos($mName, 'cogs') !== false);
-            $isExp = ($mComp === 'expense' || strpos($mName, 'expense') !== false || strpos($mName, 'administrative') !== false || strpos($mName, 'selling') !== false || strpos($mName, 'financial') !== false || strpos($mName, 'taxation') !== false);
-
-            if (!$isRev && !$isCos && !$isExp) continue;
+            $accGroup = classifyCoaAccountGroup($acc['main_component'], $acc['main_name']);
+            if ($accGroup !== 'revenue' && $accGroup !== 'cost_of_sales' && $accGroup !== 'expense') {
+                continue;
+            }
 
             $txs = fetchLedgerTransactions($pdo, $company_id, intval($acc['id']), '1970-01-01', $closing_date);
             $d = 0; $c = 0;
             foreach ($txs as $t) { $d += floatval($t['debit'] ?? 0); $c += floatval($t['credit'] ?? 0); }
 
-            if ($isRev) $totRev += ($c - $d);
-            else if ($isCos) $totCos += ($d - $c);
-            else if ($isExp) $totExp += ($d - $c);
+            if ($accGroup === 'revenue') $totRev += ($c - $d);
+            else if ($accGroup === 'cost_of_sales') $totCos += ($d - $c);
+            else if ($accGroup === 'expense') $totExp += ($d - $c);
         }
 
         $netProfit = $totRev - ($totCos + $totExp);
@@ -637,23 +684,25 @@ try {
                 }
             }
 
-            // Classification Logic
+            // Classification Logic (COA Financial Statements Component takes priority over keyword checks)
+            $accGroup = classifyCoaAccountGroup($mainComponent, $mainName);
+
             // 1. REVENUE (P&L) -> Normal balance is Credit
-            if ($mainComponent === 'revenue' || strpos($mainLower, 'revenue') !== false || strpos($mainLower, 'sales') !== false || strpos($mainLower, 'income') !== false) {
+            if ($accGroup === 'revenue') {
                 $totalRevenue += ($credit - $debit);
                 $compTotalRevenue += ($compCredit - $compDebit);
                 continue;
             }
 
             // 2. COST OF SALES (P&L) -> Normal balance is Debit
-            if ($mainComponent === 'cost of sale' || $mainComponent === 'cost of sales' || strpos($mainLower, 'cost of sale') !== false || strpos($mainLower, 'cogs') !== false) {
+            if ($accGroup === 'cost_of_sales') {
                 $totalCostOfSales += ($debit - $credit);
                 $compTotalCostOfSales += ($compDebit - $compCredit);
                 continue;
             }
 
             // 3. OPERATING EXPENSES (P&L) -> Normal balance is Debit
-            if ($mainComponent === 'expense' || strpos($mainLower, 'expense') !== false || strpos($mainLower, 'administrative') !== false || strpos($mainLower, 'selling') !== false || strpos($mainLower, 'financial') !== false || strpos($mainLower, 'taxation') !== false) {
+            if ($accGroup === 'expense') {
                 $totalOperatingExpenses += ($debit - $credit);
                 $compTotalOperatingExpenses += ($compDebit - $compCredit);
                 continue;
@@ -661,23 +710,12 @@ try {
 
             // 4. FIXED / NON-CURRENT ASSETS
             $isAccumDepr = (strpos($nameLower, 'accumulated depr') !== false || strpos($nameLower, 'accum depr') !== false);
-            $isFixedAsset = (
-                strpos($mainLower, 'fixed asset') !== false || 
-                strpos($mainLower, 'non-current asset') !== false || 
-                strpos($mainLower, 'plant') !== false || 
-                strpos($mainLower, 'machinery') !== false || 
-                strpos($mainLower, 'property') !== false || 
-                strpos($mainLower, 'equipment') !== false || 
-                strpos($mainLower, 'vehicle') !== false || 
-                strpos($mainLower, 'building') !== false || 
-                strpos($mainLower, 'mould') !== false ||
-                $isAccumDepr
-            );
+            $isFixedAsset = ($accGroup === 'non_current_asset' || $isAccumDepr);
 
             // 5. ASSET check
-            $isAsset = ($mainComponent === 'asset' || strpos($mainLower, 'asset') !== false || strpos($mainLower, 'cash') !== false || strpos($mainLower, 'bank') !== false || strpos($mainLower, 'receivable') !== false || strpos($mainLower, 'customer') !== false || strpos($mainLower, 'inventory') !== false || strpos($mainLower, 'stock') !== false || strpos($mainLower, 'advance') !== false);
+            $isAsset = ($accGroup === 'asset');
 
-            if ($isFixedAsset || ($isAsset && (strpos($mainLower, 'fixed') !== false || strpos($subName, 'Fixed') !== false))) {
+            if ($isFixedAsset || ($isAsset && (strpos($mainLower, 'fixed') !== false || strpos(strtolower($subName), 'fixed') !== false))) {
                 // If contra-asset (Accumulated Depreciation), balance is Credit which reduces assets
                 $val = $isAccumDepr ? -abs($credit - $debit) : $netBalance;
                 $compVal = $isAccumDepr ? -abs($compCredit - $compDebit) : $compNetBalance;
@@ -772,21 +810,8 @@ try {
             }
 
             // 6. LIABILITIES & EQUITY
-            $isLongTermLiab = (
-                strpos($mainLower, 'non-current liab') !== false || 
-                strpos($mainLower, 'long term') !== false || 
-                strpos($mainLower, 'term finance') !== false || 
-                strpos($mainLower, 'director loan') !== false || 
-                strpos($mainLower, 'loan from director') !== false
-            );
-
-            $isEquity = (
-                $mainComponent === 'equity' || 
-                strpos($mainLower, 'equity') !== false || 
-                strpos($mainLower, 'capital') !== false || 
-                strpos($mainLower, 'retained earning') !== false || 
-                strpos($mainLower, 'drawing') !== false
-            );
+            $isLongTermLiab = ($accGroup === 'non_current_liability');
+            $isEquity = ($accGroup === 'equity');
 
             // Liabilities & Equity have normal Credit balance (Credit - Debit is positive)
             $liabEquityVal = $credit - $debit;
@@ -838,26 +863,26 @@ try {
 
             // Current Liability Check:
             // If vendor/liability has net debit balance (liabEquityVal < 0, meaning we overpaid or paid advance):
-            // In smart reclassification: move to Current Assets as "Advance to Suppliers / Vendors"
+            // In smart reclassification: move to Current Assets under Advances & Prepayments
+            $isVendor = (strpos($nameLower, 'vendor') !== false || strpos(strtolower($subName), 'vendor') !== false || strpos($mainLower, 'vendor') !== false || strpos($mainLower, 'supplier') !== false || strpos($mainLower, 'payable') !== false);
             if ($smart_reclass && $liabEquityVal < -0.01) {
                 $currentAssets[] = [
                     'id' => $accId,
                     'code' => $code,
                     'name' => $name,
                     'main_head' => 'Advances & Prepayments',
-                    'sub_head' => 'Advances to Suppliers & Vendors',
+                    'sub_head' => $isVendor ? 'Advances to Suppliers & Vendors' : 'Prepayments & Tax Credits',
                     'amount' => round(abs($liabEquityVal), 2),
                     'comp_amount' => round(abs($compLiabEquityVal), 2),
                     'is_contra' => false,
                     'is_reclassified' => true,
-                    'reclass_type' => 'Advance to Supplier'
+                    'reclass_type' => $isVendor ? 'Advance to Supplier' : 'Prepaid / Tax Receivable'
                 ];
                 continue;
             }
 
             // Normal Current Liability
             if (abs($liabEquityVal) > 0.01 || abs($compLiabEquityVal) > 0.01) {
-                $isVendor = (strpos($nameLower, 'vendor') !== false || strpos(strtolower($subName), 'vendor') !== false || strpos($mainLower, 'payable') !== false);
                 $aging = null;
                 if ($isVendor && $liabEquityVal > 0.01) {
                     $aging = computeFifoAging($txs, $as_on_date, $liabEquityVal, false);

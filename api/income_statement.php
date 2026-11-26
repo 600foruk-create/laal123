@@ -26,11 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'get_statement') {
     }
 
     try {
-        // Get all accounts with their main and sub category names
+        // Get all accounts with their main and sub category names & Financial Statement Component
         $sql = "
             SELECT 
                 cl.id, cl.code, cl.name, 
                 cm.name as main_name, 
+                COALESCE(cm.component, '') as main_component,
                 cs.name as sub_name
             FROM coa_list cl
             LEFT JOIN coa_sub cs ON cl.sub_id = cs.id
@@ -53,27 +54,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'get_statement') {
         ];
 
         foreach ($accounts as $acc) {
-            $main_name = strtolower($acc['main_name'] ?? '');
+            $main_name = strtolower(trim($acc['main_name'] ?? ''));
+            $main_comp = strtolower(trim($acc['main_component'] ?? ''));
+
+            // Skip explicit Balance Sheet accounts (e.g. Accrued Expenses (Current Liabilities), Banks, Assets, Equity)
+            if ($main_comp !== '' && (
+                strpos($main_comp, 'asset') !== false ||
+                strpos($main_comp, 'liabilit') !== false ||
+                strpos($main_comp, 'capital') !== false ||
+                strpos($main_comp, 'equity') !== false ||
+                strpos($main_comp, 'reserve') !== false
+            )) {
+                continue;
+            }
+            if (strpos($main_name, 'liabilit') !== false || strpos($main_name, 'accrued') !== false || strpos($main_name, 'payable') !== false || strpos($main_name, 'asset') !== false || strpos($main_name, 'equity') !== false || strpos($main_name, 'capital') !== false || strpos($main_name, 'receivable') !== false) {
+                continue;
+            }
             
-            // Auto-categorize based on main account name
+            // Auto-categorize based on Financial Statements Component & main account name
             $category = null;
-            if (strpos($main_name, 'revenue') !== false || strpos($main_name, 'sale') !== false || strpos($main_name, 'income') !== false) {
-                if (strpos($main_name, 'other') !== false || strpos($main_name, 'operating') !== false) {
-                    $category = 'Other Operating Income';
+            if ($main_comp === 'other income' || strpos($main_name, 'other income') !== false || strpos($main_name, 'other operating income') !== false) {
+                $category = 'Other Operating Income';
+            } else if ($main_comp === 'income' || strpos($main_name, 'revenue') !== false || strpos($main_name, 'sale') !== false || strpos($main_name, 'income') !== false) {
+                if (strpos($main_name, 'cost of sale') !== false || strpos($main_name, 'cogs') !== false) {
+                    $category = 'Cost of Sales';
                 } else {
                     $category = 'Revenue';
                 }
-            } else if (strpos($main_name, 'cost of sale') !== false || strpos($main_name, 'cogs') !== false || strpos($main_name, 'purchase') !== false) {
+            } else if ($main_comp === 'cost of sale' || $main_comp === 'cost of sales' || strpos($main_name, 'cost of sale') !== false || strpos($main_name, 'cogs') !== false || strpos($main_name, 'purchase') !== false) {
                 $category = 'Cost of Sales';
+            } else if ($main_comp === 'financial expenses' || strpos($main_name, 'financ') !== false) {
+                $category = 'Financial Expenses';
+            } else if ($main_comp === 'taxation' || strpos($main_name, 'tax') !== false) {
+                $category = 'Taxation';
             } else if (strpos($main_name, 'admin') !== false) {
                 $category = 'Administrative Expenses';
             } else if (strpos($main_name, 'market') !== false || strpos($main_name, 'distrib') !== false || strpos($main_name, 'sell') !== false) {
                 $category = 'Marketing & Distribution Expenses';
-            } else if (strpos($main_name, 'financ') !== false || strpos($main_name, 'bank') !== false) {
-                $category = 'Financial Expenses';
-            } else if (strpos($main_name, 'tax') !== false) {
-                $category = 'Taxation';
-            } else if (strpos($main_name, 'expens') !== false) {
+            } else if ($main_comp === 'other expenses') {
+                $category = 'Other Expenses';
+            } else if ($main_comp === 'operating expenses' || strpos($main_name, 'expens') !== false) {
                 $category = 'Other Expenses';
             }
 
