@@ -116,6 +116,38 @@ function fetchBsManualStockRatesMap($pdo, $company_id, $periodMonth) {
 }
 
 /**
+ * Shared resolution of rate-based or direct lump-sum valuation for Raw Material and Floor WIP rows.
+ */
+function resolveBsDirectOrRateValuation($kg, $autoRate, $autoVal, $ov) {
+    $isManual = ($ov && ($ov['mode'] ?? 'auto') === 'manual');
+    if (!$isManual) {
+        return [
+            'mode' => 'auto',
+            'manual_rate' => floatval($ov['manual_rate'] ?? 0),
+            'manual_value' => floatval($ov['manual_value'] ?? 0),
+            'effective_rate' => round($autoRate, 2),
+            'effective_value' => round($autoVal, 2)
+        ];
+    }
+    $mRate = floatval($ov['manual_rate'] ?? 0);
+    $mVal = floatval($ov['manual_value'] ?? 0);
+    if ($kg > 0 && $mRate > 0) {
+        $effVal = round($kg * $mRate, 2);
+        $effRate = round($mRate, 2);
+    } else {
+        $effVal = round($mVal, 2);
+        $effRate = ($kg > 0) ? round($effVal / $kg, 2) : round($mRate, 2);
+    }
+    return [
+        'mode' => 'manual',
+        'manual_rate' => $mRate,
+        'manual_value' => $mVal,
+        'effective_rate' => $effRate,
+        'effective_value' => $effVal
+    ];
+}
+
+/**
  * Single source of truth for Balance Sheet Inventory Valuation (Raw Material, WIP, Finished Goods)
  * supporting both Auto (Production Costing / Weighted Avg / WIP) and per-month Manual overrides.
  */
@@ -130,7 +162,9 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
         'raw_materials_mode' => 'auto',
         'raw_materials_count' => 0,
         'wip_val' => 0.0,
+        'wip_kg' => 0.0,
         'wip_auto_val' => 0.0,
+        'wip_auto_rate' => 0.0,
         'wip_mode' => 'auto',
         'finished_goods_val' => 0.0,
         'finished_goods_kg' => 0.0,
@@ -152,22 +186,32 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
     $targetYear = intval(date('Y', strtotime($targetDate)));
     $targetMonthNum = intval(date('n', strtotime($targetDate)));
 
-    // 1. Fetch WIP Valuation from mfg_monthly_wip (exact month lock takes priority)
+    // 1. Fetch WIP Valuation & KG from mfg_monthly_wip (exact month lock takes priority)
     $hasExactWipLock = false;
+    $wipAutoQty = 0.0;
+    $wipAutoVal = 0.0;
     try {
-        $stmtWip = $pdo->prepare("SELECT closing_wip_val, is_locked FROM mfg_monthly_wip WHERE company_id = ? AND year = ? AND month = ? LIMIT 1");
+        $stmtWip = $pdo->prepare("SELECT closing_wip_qty, closing_wip_val, is_locked FROM mfg_monthly_wip WHERE company_id = ? AND year = ? AND month = ? LIMIT 1");
         $stmtWip->execute([$company_id, $targetYear, $targetMonthNum]);
         $exactWipRow = $stmtWip->fetch(PDO::FETCH_ASSOC);
         if ($exactWipRow) {
-            $valResult['wip_auto_val'] = floatval($exactWipRow['closing_wip_val'] ?? 0);
+            $wipAutoQty = floatval($exactWipRow['closing_wip_qty'] ?? 0);
+            $wipAutoVal = floatval($exactWipRow['closing_wip_val'] ?? 0);
             $hasExactWipLock = !empty($exactWipRow['is_locked']);
         } else {
-            $stmtWipLatest = $pdo->prepare("SELECT closing_wip_val FROM mfg_monthly_wip WHERE company_id = ? AND ((year < ?) OR (year = ? AND month <= ?)) ORDER BY year DESC, month DESC LIMIT 1");
+            $stmtWipLatest = $pdo->prepare("SELECT closing_wip_qty, closing_wip_val FROM mfg_monthly_wip WHERE company_id = ? AND ((year < ?) OR (year = ? AND month <= ?)) ORDER BY year DESC, month DESC LIMIT 1");
             $stmtWipLatest->execute([$company_id, $targetYear, $targetYear, $targetMonthNum]);
-            $valResult['wip_auto_val'] = floatval($stmtWipLatest->fetchColumn() ?: 0);
+            $latestWipRow = $stmtWipLatest->fetch(PDO::FETCH_ASSOC);
+            if ($latestWipRow) {
+                $wipAutoQty = floatval($latestWipRow['closing_wip_qty'] ?? 0);
+                $wipAutoVal = floatval($latestWipRow['closing_wip_val'] ?? 0);
+            }
         }
     } catch (Exception $eWip) {}
-    $valResult['wip_val'] = round($valResult['wip_auto_val'], 2);
+    $valResult['wip_kg'] = round(max(0.0, $wipAutoQty), 2);
+    $valResult['wip_auto_val'] = round($wipAutoVal, 2);
+    $valResult['wip_auto_rate'] = ($wipAutoQty > 0 && $wipAutoVal > 0) ? round($wipAutoVal / $wipAutoQty, 2) : 0.0;
+    $valResult['wip_val'] = $valResult['wip_auto_val'];
 
     // 2. Check inventory_monthly_closings table
     $closingRow = null;
@@ -280,13 +324,13 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
             'row_type' => 'wip',
             'category_id' => 0,
             'row_label' => 'FLOOR WIP (Work-In-Process)',
-            'stock_kg' => 0.0,
-            'auto_rate' => 0.0,
+            'stock_kg' => $valResult['wip_kg'],
+            'auto_rate' => $valResult['wip_auto_rate'],
             'auto_value' => round($valResult['wip_auto_val'], 2),
             'mode' => 'auto',
             'manual_rate' => 0.0,
             'manual_value' => 0.0,
-            'effective_rate' => 0.0,
+            'effective_rate' => $valResult['wip_auto_rate'],
             'effective_value' => round($valResult['wip_val'], 2),
             'items_count' => 0
         ];
@@ -530,20 +574,23 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
             $wipNetQty = $totMinQty - $totPnProducedQty;
             if ($wipNetQty > 0) {
                 $avgIssRate = ($totMinQty > 0 && $totMinVal > 0) ? ($totMinVal / $totMinQty) : $avgRawRatePerKg;
+                $valResult['wip_kg'] = round($wipNetQty, 2);
+                $valResult['wip_auto_rate'] = round($avgIssRate, 2);
                 $valResult['wip_auto_val'] = round($wipNetQty * $avgIssRate, 2);
             }
         }
         $valResult['wip_auto_val'] = round($valResult['wip_auto_val'], 2);
+        if ($valResult['wip_kg'] > 0 && $valResult['wip_auto_rate'] <= 0 && $valResult['wip_auto_val'] > 0) {
+            $valResult['wip_auto_rate'] = round($valResult['wip_auto_val'] / $valResult['wip_kg'], 2);
+        }
 
-        // Apply WIP Manual Override if configured for this month
+        // Apply WIP Manual Override (Rate/KG when KG > 0 or Direct Value)
         $wipOv = $manualOverrides['wip'] ?? null;
-        if ($wipOv && $wipOv['mode'] === 'manual') {
-            $valResult['wip_mode'] = 'manual';
-            $valResult['wip_val'] = round(floatval($wipOv['manual_value'] ?? 0), 2);
+        $wipResolved = resolveBsDirectOrRateValuation($valResult['wip_kg'], $valResult['wip_auto_rate'], $valResult['wip_auto_val'], $wipOv);
+        $valResult['wip_mode'] = $wipResolved['mode'];
+        $valResult['wip_val'] = $wipResolved['effective_value'];
+        if ($wipResolved['mode'] === 'manual') {
             $valResult['manual_overrides_count']++;
-        } else {
-            $valResult['wip_mode'] = 'auto';
-            $valResult['wip_val'] = $valResult['wip_auto_val'];
         }
 
         // Production Costing Rates by Brand / Category
@@ -706,37 +753,25 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
             }
         }
 
-        // Finalize Raw Material row (Auto vs Manual)
+        // Finalize Raw Material row (Auto vs Manual via shared helper)
         $autoRawVal = round($autoRawVal, 2);
         $rawTotalKgRounded = round($rawTotalKg, 2);
         $autoRawRate = ($rawTotalKg > 0) ? round($autoRawVal / $rawTotalKg, 2) : round($avgRawRatePerKg, 2);
         $rmOv = $manualOverrides['raw_material'] ?? null;
-        $rmManual = ($rmOv && $rmOv['mode'] === 'manual');
+        $rmResolved = resolveBsDirectOrRateValuation($rawTotalKg, $autoRawRate, $autoRawVal, $rmOv);
 
         $valResult['raw_materials_kg'] = $rawTotalKgRounded;
         $valResult['raw_materials_auto_val'] = $autoRawVal;
         $valResult['raw_materials_auto_rate'] = $autoRawRate;
         $valResult['raw_materials_count'] = $rawItemsCount;
-
-        if ($rmManual) {
-            $valResult['raw_materials_mode'] = 'manual';
-            $mRate = floatval($rmOv['manual_rate'] ?? 0);
-            $mVal = floatval($rmOv['manual_value'] ?? 0);
-            if ($rawTotalKg > 0 && $mRate > 0) {
-                $effRmVal = round($rawTotalKg * $mRate, 2);
-                $effRmRate = round($mRate, 2);
-            } else {
-                $effRmVal = round($mVal, 2);
-                $effRmRate = ($rawTotalKg > 0) ? round($effRmVal / $rawTotalKg, 2) : round($mRate, 2);
-            }
-            $valResult['raw_materials_val'] = $effRmVal;
+        $valResult['raw_materials_mode'] = $rmResolved['mode'];
+        $valResult['raw_materials_val'] = $rmResolved['effective_value'];
+        if ($rmResolved['mode'] === 'manual') {
             $valResult['manual_overrides_count']++;
-        } else {
-            $valResult['raw_materials_mode'] = 'auto';
-            $effRmVal = $autoRawVal;
-            $effRmRate = $autoRawRate;
-            $valResult['raw_materials_val'] = $autoRawVal;
         }
+        $effRmVal = $rmResolved['effective_value'];
+        $effRmRate = $rmResolved['effective_rate'];
+        $rmManual = ($rmResolved['mode'] === 'manual');
 
         $valResult['raw_material_row'] = [
             'row_key' => 'raw_material',
@@ -746,9 +781,9 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
             'stock_kg' => $rawTotalKgRounded,
             'auto_rate' => $autoRawRate,
             'auto_value' => $autoRawVal,
-            'mode' => $valResult['raw_materials_mode'],
-            'manual_rate' => floatval($rmOv['manual_rate'] ?? 0),
-            'manual_value' => floatval($rmOv['manual_value'] ?? 0),
+            'mode' => $rmResolved['mode'],
+            'manual_rate' => $rmResolved['manual_rate'],
+            'manual_value' => $rmResolved['manual_value'],
             'effective_rate' => $effRmRate,
             'effective_value' => $effRmVal,
             'items_count' => $rawItemsCount
@@ -851,14 +886,14 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
             'row_type' => 'wip',
             'category_id' => 0,
             'row_label' => 'FLOOR WIP (Work-In-Process)',
-            'stock_kg' => 0.0,
-            'auto_rate' => 0.0,
+            'stock_kg' => $valResult['wip_kg'],
+            'auto_rate' => $valResult['wip_auto_rate'],
             'auto_value' => $valResult['wip_auto_val'],
-            'mode' => $valResult['wip_mode'],
-            'manual_rate' => 0.0,
-            'manual_value' => floatval($wipOv['manual_value'] ?? $valResult['wip_val']),
-            'effective_rate' => 0.0,
-            'effective_value' => $valResult['wip_val'],
+            'mode' => $wipResolved['mode'],
+            'manual_rate' => $wipResolved['manual_rate'],
+            'manual_value' => $wipResolved['manual_value'],
+            'effective_rate' => $wipResolved['effective_rate'],
+            'effective_value' => $wipResolved['effective_value'],
             'items_count' => 0
         ];
 
@@ -915,6 +950,7 @@ try {
                 'rm_kg' => round(floatval($inv['raw_materials_kg'] ?? 0), 2),
                 'rm_auto_value' => $rmAuto,
                 'rm_value' => $rmEff,
+                'wip_kg' => round(floatval($inv['wip_kg'] ?? 0), 2),
                 'wip_auto_value' => $wipAuto,
                 'wip_value' => $wipEff,
                 'total_stock_auto_value' => round($fgAuto + $rmAuto + $wipAuto, 2),

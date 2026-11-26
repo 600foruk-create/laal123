@@ -1155,7 +1155,7 @@
                 return { rate: 0, value: mVal };
             }
 
-            if (row.row_type === 'raw_material') {
+            if (row.row_type === 'raw_material' || row.row_type === 'wip') {
                 if (kgExact > 0 && mRate > 0 && !row._directValEdited) {
                     return { rate: mRate, value: Math.round(kgExact * mRate * 100) / 100 };
                 }
@@ -1252,54 +1252,47 @@
                 </tr>
             `;
 
-            // RM-TOTAL row
-            const rm = state.rm_row;
-            const rmEff = this.computeStockRowEffective(rm);
-            const rmIsMan = (rm.mode === 'manual');
-            const rmKg = parseFloat(rm.stock_kg) || 0;
-            const rmRateDisplay = rmIsMan ? (parseFloat(rm.manual_rate) > 0 ? parseFloat(rm.manual_rate) : '') : rmEff.rate;
-            const rmManualValDisplay = rmIsMan ? (parseFloat(rm.manual_value) || 0) : rmEff.value;
+            // Unified renderer for RM-TOTAL and FLOOR WIP (supports KG + Auto Rate + Manual Rate or Direct Value)
+            const renderDirectOrRateRow = (scope, row, titleText, titleColor) => {
+                const eff = this.computeStockRowEffective(row);
+                const isMan = (row.mode === 'manual');
+                const kg = parseFloat(row.stock_kg) || 0;
+                const autoRate = parseFloat(row.auto_rate) || 0;
+                const autoVal = parseFloat(row.auto_value) || 0;
+                const rateDisplay = isMan ? (parseFloat(row.manual_rate) > 0 ? parseFloat(row.manual_rate) : '') : eff.rate;
+                const manualValDisplay = eff.value;
 
-            let rmRateCell = `<span style="color: #94a3b8; font-size: 10px;">Avg ${this.formatCurrency(rm.auto_rate)}</span>`;
-            let rmValCell = `<span id="bsSvRowVal_rm_0" style="font-weight: 800; font-family: monospace;">${this.formatCurrency(rmEff.value)}</span>`;
-            if (rmIsMan && !locked) {
-                rmRateCell = rmKg > 0
-                    ? `<input type="number" step="0.01" min="0" id="bsSvRmRateInput" placeholder="Avg ${(rmKg > 0 ? (rmManualValDisplay / rmKg).toFixed(2) : '0')}" value="${rmRateDisplay}" oninput="window.BalanceSheetModule.onStockRateInput('rm', 0, this.value)" style="width: 92px; text-align: right; padding: 3px 6px; border: 1px solid #eab308; background: #fef9c3; color: #1e293b; font-weight: 700; font-family: monospace; border-radius: 3px;" />`
-                    : `<span style="color: #94a3b8; font-size: 9.5px;">Direct</span>`;
-                rmValCell = `<input type="number" step="0.01" min="0" id="bsSvRmValInput" value="${rmManualValDisplay}" oninput="window.BalanceSheetModule.onStockValueInput('rm', 0, this.value)" style="width: 125px; text-align: right; padding: 3px 6px; border: 1.5px solid #ca8a04; background: #fef08a; color: #1e293b; font-weight: 800; font-family: monospace; border-radius: 3px;" />`;
-            }
+                let rateCell = autoRate > 0
+                    ? `<span style="color: #64748b; font-size: 10px; font-family: monospace;">Avg ${this.formatCurrency(autoRate)}</span>`
+                    : `<span style="color: #94a3b8; font-size: 10px;">-</span>`;
+                let valCell = `<span id="bsSvRowVal_${scope}_0" style="font-weight: 800; font-family: monospace; color: ${eff.value > 0 ? '#0f172a' : '#94a3b8'};">${this.formatCurrency(eff.value)}</span>`;
 
-            html += `
-                <tr style="background: ${rmIsMan ? '#fefce8' : '#f8fafc'};">
-                    <td style="padding: 6px 8px; border: 1px solid #475569; font-weight: 800; color: #92400e;">RM-TOTAL (Raw Material) :-</td>
-                    <td style="padding: 4px 8px; border: 1px solid #475569; text-align: center;">${makeToggle('rm', 0, rm.mode)}</td>
-                    <td style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-family: monospace; font-weight: 600;">${rmKg > 0 ? this.formatQty(rmKg) : '-'}</td>
-                    <td style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-size: 10px; color: #64748b; font-family: monospace;">
-                        @ ${this.formatCurrency(rm.auto_rate)}<br><span style="color: #475569;">Rs. ${this.formatCurrency(rm.auto_value)}</span>
-                    </td>
-                    <td style="padding: 4px 8px; border: 1px solid #475569; text-align: center; background: ${rmIsMan ? '#fef9c3' : 'transparent'};">${rmRateCell}</td>
-                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: right; background: ${rmIsMan ? '#fef9c3' : 'transparent'};">${rmValCell}</td>
-                </tr>
-            `;
+                if (isMan && !locked) {
+                    const avgHint = (kg > 0) ? `Avg ${(manualValDisplay / kg).toFixed(2)}` : 'Direct Rs.';
+                    rateCell = kg > 0
+                        ? `<input type="number" step="0.01" min="0" id="bsSvRateInput_${scope}_0" placeholder="${avgHint}" value="${rateDisplay}" oninput="window.BalanceSheetModule.onStockRateInput('${scope}', 0, this.value)" style="width: 92px; text-align: right; padding: 3px 6px; border: 1px solid #eab308; background: #fef9c3; color: #1e293b; font-weight: 700; font-family: monospace; border-radius: 3px;" />`
+                        : `<span style="color: #854d0e; font-size: 9.5px; font-weight: 700;">Direct Rs.</span>`;
+                    valCell = `<input type="number" step="0.01" min="0" id="bsSvValInput_${scope}_0" value="${manualValDisplay}" oninput="window.BalanceSheetModule.onStockValueInput('${scope}', 0, this.value)" style="width: 125px; text-align: right; padding: 3px 6px; border: 1.5px solid #ca8a04; background: #fef08a; color: #1e293b; font-weight: 800; font-family: monospace; border-radius: 3px;" />`;
+                }
 
-            // FLOOR WIP row
-            const wip = state.wip_row;
-            const wipEff = this.computeStockRowEffective(wip);
-            const wipIsMan = (wip.mode === 'manual');
-            const wipValCell = (wipIsMan && !locked)
-                ? `<input type="number" step="0.01" min="0" value="${parseFloat(wip.manual_value) || 0}" oninput="window.BalanceSheetModule.onStockValueInput('wip', 0, this.value)" style="width: 125px; text-align: right; padding: 3px 6px; border: 1.5px solid #ca8a04; background: #fef08a; color: #1e293b; font-weight: 800; font-family: monospace; border-radius: 3px;" />`
-                : `<span id="bsSvRowVal_wip_0" style="font-weight: 700; font-family: monospace; color: ${wipEff.value > 0 ? '#0f172a' : '#94a3b8'};">${wipEff.value > 0 ? this.formatCurrency(wipEff.value) : '0.00'}</span>`;
+                const autoRefHtml = autoRate > 0
+                    ? `@ ${this.formatCurrency(autoRate)}<br><span style="color: #475569;">Rs. ${this.formatCurrency(autoVal)}</span>`
+                    : `<span style="color: #475569;">Rs. ${this.formatCurrency(autoVal)}</span>`;
 
-            html += `
-                <tr style="background: ${wipIsMan ? '#fefce8' : '#f8fafc'};">
-                    <td style="padding: 5px 8px; border: 1px solid #475569; font-weight: 700; color: #b45309;">FLOOR WIP (Work-In-Process) :-</td>
-                    <td style="padding: 4px 8px; border: 1px solid #475569; text-align: center;">${makeToggle('wip', 0, wip.mode)}</td>
-                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: right; color: #94a3b8;">-</td>
-                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: right; font-size: 10px; color: #475569; font-family: monospace;">Rs. ${this.formatCurrency(wip.auto_value)}</td>
-                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: center; color: #94a3b8; font-size: 9.5px;">Floor WIP</td>
-                    <td style="padding: 5px 8px; border: 1px solid #475569; text-align: right; background: ${wipIsMan ? '#fef9c3' : 'transparent'};">${wipValCell}</td>
-                </tr>
-            `;
+                return `
+                    <tr style="background: ${isMan ? '#fefce8' : '#f8fafc'};">
+                        <td style="padding: 6px 8px; border: 1px solid #475569; font-weight: 800; color: ${titleColor};">${titleText}</td>
+                        <td style="padding: 4px 8px; border: 1px solid #475569; text-align: center;">${makeToggle(scope, 0, row.mode)}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-family: monospace; font-weight: 600;">${kg > 0 ? this.formatQty(kg) : '-'}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #475569; text-align: right; font-size: 10px; color: #64748b; font-family: monospace;">${autoRefHtml}</td>
+                        <td style="padding: 4px 8px; border: 1px solid #475569; text-align: center; background: ${isMan && kg > 0 ? '#fef9c3' : 'transparent'};">${rateCell}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #475569; text-align: right; background: ${isMan ? '#fef9c3' : 'transparent'};">${valCell}</td>
+                    </tr>
+                `;
+            };
+
+            html += renderDirectOrRateRow('rm', state.rm_row, 'RM-TOTAL (Raw Material) :-', '#92400e');
+            html += renderDirectOrRateRow('wip', state.wip_row, 'FLOOR WIP (Work-In-Process) :-', '#b45309');
 
             // GRAND TOTAL STOCK row
             html += `
@@ -1408,7 +1401,7 @@
         onStockRateInput: function(scope, idx, rawVal) {
             const state = this.data.stockValState;
             if (!state) return;
-            const row = (scope === 'fg') ? state.fg_rows[idx] : state.rm_row;
+            const row = (scope === 'fg') ? state.fg_rows[idx] : (scope === 'rm' ? state.rm_row : state.wip_row);
             if (!row) return;
 
             const rate = Math.max(0, parseFloat(rawVal) || 0);
@@ -1416,9 +1409,9 @@
             row.manual_rate = rate;
             row._directValEdited = false;
 
-            if (scope === 'rm') {
+            if (scope === 'rm' || scope === 'wip') {
                 row.manual_value = Math.round(kgExact * rate * 100) / 100;
-                const valInput = document.getElementById('bsSvRmValInput');
+                const valInput = document.getElementById(`bsSvValInput_${scope}_${idx}`);
                 if (valInput) valInput.value = row.manual_value.toFixed(2);
             }
             this.updateStockValuationSummaryDOM();
@@ -1434,13 +1427,13 @@
             row.manual_value = val;
             row._directValEdited = true;
 
-            if (scope === 'rm') {
+            if (scope === 'rm' || scope === 'wip') {
                 row.manual_rate = 0;
-                const rateInput = document.getElementById('bsSvRmRateInput');
+                const rateInput = document.getElementById(`bsSvRateInput_${scope}_${idx}`);
                 if (rateInput) {
                     rateInput.value = '';
                     const kg = parseFloat(row.stock_kg) || 0;
-                    rateInput.placeholder = kg > 0 ? `Avg ${(val / kg).toFixed(2)}` : 'Direct';
+                    rateInput.placeholder = kg > 0 ? `Avg ${(val / kg).toFixed(2)}` : 'Direct Rs.';
                 }
             }
             this.updateStockValuationSummaryDOM();
@@ -1462,9 +1455,9 @@
 
             const serializeRow = (r) => {
                 const eff = this.computeStockRowEffective(r);
-                const mRate = (r.mode === 'manual') ? (parseFloat(r.manual_rate) || 0) : (parseFloat(r.manual_rate) || 0);
-                const mVal = (r.mode === 'manual')
-                    ? ((r.row_type === 'fg_category' && (parseFloat(r.stock_kg) || 0) > 0 && mRate > 0) ? eff.value : (parseFloat(r.manual_value) || 0))
+                const mRate = parseFloat(r.manual_rate) || 0;
+                const mVal = (r.mode === 'manual' && r.row_type === 'fg_category' && (parseFloat(r.stock_kg) || 0) > 0 && mRate > 0)
+                    ? eff.value
                     : (parseFloat(r.manual_value) || 0);
                 return {
                     row_key: r.row_key,
