@@ -193,7 +193,7 @@
                         <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/wht_sale_report.html', 'fa-receipt', 'Tax Transaction Report', () => { if(window.WHTSaleReportModule) window.WHTSaleReportModule.init(); }, 'Tax Transaction Report', true, true)" data-module="Tax Transaction Report">Tax Transaction Report</div>
                         <div class="nested-item" data-target="Navigation/Reports/trial_balance.html" data-module="Trial Balance">Trial Balance</div>
                         <div class="nested-item" data-target="Navigation/Reports/income_statement.html" data-module="Income Statement">Income Statement</div>
-                        <div class="nested-item" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/balance_sheet.html', 'fa-balance-scale', 'Balance Sheet (Statement of Financial Position)', () => { if(window.BalanceSheetModule) window.BalanceSheetModule.init(); }, 'Balance Sheet', true, true)" data-module="Balance Sheet">Balance Sheet</div>
+                        <div class="nested-item super-admin-only-item" id="navBalanceSheetBtn" style="display: none;" onclick="if(window.hideAllDropdowns) window.hideAllDropdowns(); openModularPopup('Navigation/Reports/balance_sheet.html', 'fa-balance-scale', 'Balance Sheet (Statement of Financial Position)', () => { if(window.BalanceSheetModule) window.BalanceSheetModule.init(); }, 'Balance Sheet', true, true)" data-module="Balance Sheet">Balance Sheet</div>
                     </div>
                 </div>
 
@@ -292,13 +292,19 @@ window.applyAdminOnlyNavVisibility = function() {
     try {
         const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
         const role = String(s.role || '').toUpperCase();
-        const username = String(s.username || '').toLowerCase();
-        const uId = parseInt(s.user_id || 0);
+        const username = String(s.username || '').trim().toLowerCase();
+        const uId = parseInt(s.user_id || s.id || 0, 10);
         const isAdmin = (username === 'administrator' || username === 'admin' || role === 'ADMIN' || role === 'ADMINISTRATOR' || uId === 1);
+        const isSuperAdmin = (uId === 1 || username === 'administrator');
         
         document.querySelectorAll('.admin-only-item').forEach(el => {
             el.style.display = isAdmin ? 'block' : 'none';
         });
+        document.querySelectorAll('.super-admin-only-item').forEach(el => {
+            el.style.display = isSuperAdmin ? 'block' : 'none';
+        });
+        const bsNav = document.getElementById('navBalanceSheetBtn');
+        if (bsNav) bsNav.style.display = isSuperAdmin ? 'block' : 'none';
         const appr = document.getElementById('navApprovalDeskBtn');
         if (appr) appr.style.display = isAdmin ? 'block' : 'none';
         const sess = document.getElementById('navUserSessionsBtn');

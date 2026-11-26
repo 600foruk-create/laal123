@@ -24,8 +24,46 @@
             lastReportData: null
         },
 
+        isMainAdministrator: function() {
+            try {
+                const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                const uid = parseInt(s.user_id || s.id || 0, 10);
+                const uname = String(s.username || '').trim().toLowerCase();
+                return (uid === 1 || uname === 'administrator');
+            } catch (e) {
+                return false;
+            }
+        },
+
+        getCurrentUserId: function() {
+            try {
+                const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                return parseInt(s.user_id || s.id || 0, 10) || 0;
+            } catch (e) {
+                return 0;
+            }
+        },
+
+        withUserId: function(url) {
+            const sep = url.includes('?') ? '&' : '?';
+            return `${url}${sep}current_user_id=${this.getCurrentUserId()}`;
+        },
+
         init: function() {
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            if (!this.isMainAdministrator()) {
+                const root = document.getElementById('bsMainContainer');
+                if (root) {
+                    root.innerHTML = `
+                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; text-align:center; color:#dc2626;">
+                            <i class="fas fa-lock" style="font-size:40px; margin-bottom:12px;"></i>
+                            <div style="font-size:16px; font-weight:800;">Access Denied (Administrator Only)</div>
+                            <div style="font-size:12px; color:#64748b; margin-top:6px;">Balance Sheet is restricted exclusively to the main Administrator account.</div>
+                        </div>
+                    `;
+                }
+                return;
+            }
             this.data.company_id = window.selectedCompanyId || session.company_id || 1;
             this.data.companyName = session.company_name || 'SoftifyX Financials';
             this.data.taxMode = null;
@@ -189,7 +227,7 @@
             }
 
             try {
-                const res = await fetch(url);
+                const res = await fetch(this.withUserId(url));
                 if (!res.ok) throw new Error("HTTP " + res.status);
 
                 const data = await res.json();
@@ -678,7 +716,7 @@
             if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 25px; color: var(--theme-primary, #1F4E79);"><i class="fas fa-spinner fa-spin fa-2x"></i><br><span style="margin-top:6px; display:inline-block; font-weight:600;">Fetching Ledger Khata...</span></td></tr>`;
 
             try {
-                const res = await fetch(`api/balance_sheet.php?action=get_account_ledger_mini&company_id=${this.data.company_id}&coa_id=${coaId}&as_on_date=${onDate}`);
+                const res = await fetch(this.withUserId(`api/balance_sheet.php?action=get_account_ledger_mini&company_id=${this.data.company_id}&coa_id=${coaId}&as_on_date=${onDate}`));
                 const data = await res.json();
                 if (data.status !== 'success') {
                     if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #dc2626; padding: 20px;">Error: ${data.error || 'Failed to fetch ledger'}</td></tr>`;
@@ -935,7 +973,7 @@
             }
 
             try {
-                const res = await fetch(`api/balance_sheet.php?action=get_closing_preview&company_id=${this.data.company_id}&closing_date=${cDate}`);
+                const res = await fetch(this.withUserId(`api/balance_sheet.php?action=get_closing_preview&company_id=${this.data.company_id}&closing_date=${cDate}`));
                 const data = await res.json();
                 if (data.status !== 'success') {
                     if (contentBox) contentBox.innerHTML = `<div style="color: #dc2626; padding: 15px;">Error: ${data.error || 'Failed to preview closing'}</div>`;
@@ -1018,6 +1056,7 @@
             const fd = new FormData();
             fd.append('action', 'execute_year_closing');
             fd.append('company_id', this.data.company_id);
+            fd.append('current_user_id', this.getCurrentUserId());
             fd.append('closing_date', cDate);
             fd.append('net_profit', netProf);
 
@@ -1081,7 +1120,7 @@
             const url = `api/balance_sheet.php?action=get_stock_valuation_sheet&company_id=${this.data.company_id}&as_on_date=${encodeURIComponent(asOnDate)}&tax_mode=${encodeURIComponent(taxMode)}`;
 
             try {
-                const res = await fetch(url);
+                const res = await fetch(this.withUserId(url));
                 const data = await res.json();
                 if (data.status !== 'success') {
                     if (container) container.innerHTML = `<div style="color: #dc2626; padding: 20px; text-align: center;">Failed to load Stock Valuation Sheet: ${this.escapeHtml(data.error || 'Unknown error')}</div>`;
@@ -1486,7 +1525,7 @@
             };
 
             try {
-                const res = await fetch(`api/balance_sheet.php?action=save_stock_valuation_sheet&company_id=${this.data.company_id}`, {
+                const res = await fetch(this.withUserId(`api/balance_sheet.php?action=save_stock_valuation_sheet&company_id=${this.data.company_id}`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -1515,7 +1554,7 @@
                 return;
             }
             try {
-                const res = await fetch(`api/balance_sheet.php?action=reset_stock_valuation_sheet&company_id=${this.data.company_id}`, {
+                const res = await fetch(this.withUserId(`api/balance_sheet.php?action=reset_stock_valuation_sheet&company_id=${this.data.company_id}`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1568,7 +1607,7 @@
             const url = `api/balance_sheet.php?action=diagnose_imbalance&company_id=${this.data.company_id}&as_on_date=${onDate}&voucher_status=${vStatus}`;
 
             try {
-                const res = await fetch(url);
+                const res = await fetch(this.withUserId(url));
                 const data = await res.json();
                 if (data.status !== 'success') {
                     body.innerHTML = `<div style="color: #dc2626; padding: 20px; text-align: center;">Diagnostic Failed: ${data.error || 'Unknown error'}</div>`;

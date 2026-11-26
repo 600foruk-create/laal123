@@ -146,7 +146,7 @@
         { category: 'Reports', name: 'Tax Transaction Report', desc: 'Withholding & Sales Tax Audit Report' },
         { category: 'Reports', name: 'Trial Balance', desc: 'Standard & Grouped Trial Balance' },
         { category: 'Reports', name: 'Income Statement', desc: 'Profit & Loss Statement (P&L)' },
-        { category: 'Reports', name: 'Balance Sheet', desc: 'Statement of Financial Position' },
+        { category: 'Reports', name: 'Balance Sheet', desc: 'Statement of Financial Position (Main Administrator Only)', superAdminOnly: true },
         { category: 'Reports', name: 'Sale Summary', desc: 'Total Sales Summary Overview' },
         { category: 'Reports', name: 'Sale Register', desc: 'Date-wise Sales Invoices Register' },
         { category: 'Reports', name: 'Party Sale Summary', desc: 'Customer-wise Sales Volume & Value' },
@@ -408,6 +408,7 @@
 
             const userObj = (this.usersList || []).find(u => String(u.id) === String(this.currentUserId));
             this.isCurrentAdmin = (userObj && (String(userObj.username).toLowerCase() === 'administrator' || String(userObj.role).toLowerCase() === 'admin')) || (String(this.currentUserId) === '1');
+            this.isSuperAdminTarget = (userObj && String(userObj.username).trim().toLowerCase() === 'administrator') || (String(this.currentUserId) === '1');
 
             const adminNotice = document.getElementById('urAdminNotice');
             if (adminNotice) {
@@ -481,7 +482,8 @@
 
                 const icon = CATEGORY_ICONS[cat] || 'fa-folder';
                 const totalInCat = this.modules.filter(m => m.category === cat).length;
-                const assignedInCat = this.modules.filter(m => m.category === cat && (this.isCurrentAdmin || (this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed))).length;
+                const isModAllowed = (m) => m.superAdminOnly ? !!this.isSuperAdminTarget : (this.isCurrentAdmin || !!(this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed));
+                const assignedInCat = this.modules.filter(m => m.category === cat && isModAllowed(m)).length;
                 const catSafeId = cat.replace(/[^a-zA-Z0-9]/g, '_');
                 const grpBadgeStyle = (assignedInCat > 0) ? 'background: #dcfce7; color: #15803d; border: 1px solid #86efac;' : '';
 
@@ -518,21 +520,24 @@
                 // Render Individual Modules in this Group
                 list.forEach(m => {
                     const existing = this.currentRightsMap[m.name] || {};
+                    const isSuperOnly = !!m.superAdminOnly;
+                    const lockRow = this.isCurrentAdmin || isSuperOnly;
 
-                    const isAllowed = this.isCurrentAdmin ? true : !!existing.allowed;
-                    const canView = this.isCurrentAdmin ? true : (existing.view !== undefined ? existing.view : isAllowed);
-                    const canCreate = this.isCurrentAdmin ? true : (existing.create !== undefined ? existing.create : isAllowed);
-                    const canEdit = this.isCurrentAdmin ? true : (existing.edit !== undefined ? existing.edit : isAllowed);
-                    const canDelete = this.isCurrentAdmin ? true : (existing.delete !== undefined ? existing.delete : false);
-                    const canPrint = this.isCurrentAdmin ? true : (existing.print !== undefined ? existing.print : isAllowed);
+                    const isAllowed = isSuperOnly ? !!this.isSuperAdminTarget : (this.isCurrentAdmin ? true : !!existing.allowed);
+                    const canView = isSuperOnly ? !!this.isSuperAdminTarget : (this.isCurrentAdmin ? true : (existing.view !== undefined ? existing.view : isAllowed));
+                    const canCreate = isSuperOnly ? !!this.isSuperAdminTarget : (this.isCurrentAdmin ? true : (existing.create !== undefined ? existing.create : isAllowed));
+                    const canEdit = isSuperOnly ? !!this.isSuperAdminTarget : (this.isCurrentAdmin ? true : (existing.edit !== undefined ? existing.edit : isAllowed));
+                    const canDelete = isSuperOnly ? !!this.isSuperAdminTarget : (this.isCurrentAdmin ? true : (existing.delete !== undefined ? existing.delete : false));
+                    const canPrint = isSuperOnly ? !!this.isSuperAdminTarget : (this.isCurrentAdmin ? true : (existing.print !== undefined ? existing.print : isAllowed));
 
                     const statusColor = isAllowed ? '#10b981' : '#ef4444';
                     const statusBg = isAllowed ? '#ecfdf5' : '#fef2f2';
-                    const statusText = isAllowed ? 'Allowed' : 'Not Allowed';
-                    const disabledAttr = this.isCurrentAdmin ? 'disabled title="Administrator has unrestricted access"' : '';
+                    const statusText = isSuperOnly && !this.isSuperAdminTarget ? 'Admin Only' : (isAllowed ? 'Allowed' : 'Not Allowed');
+                    const lockTitle = isSuperOnly ? 'Restricted exclusively to Main Administrator account' : 'Administrator has unrestricted access';
+                    const disabledAttr = lockRow ? `disabled title="${lockTitle}"` : '';
 
                     rows += `
-                        <tr class="ur-row ${isAllowed ? 'row-allowed' : 'row-denied'}" data-module="${m.name}" data-category="${m.category}" style="border-bottom: 1px solid #e2e8f0;">
+                        <tr class="ur-row ${isAllowed ? 'row-allowed' : 'row-denied'}" data-module="${m.name}" data-category="${m.category}" data-super-admin-only="${isSuperOnly ? '1' : '0'}" style="border-bottom: 1px solid #e2e8f0;">
                             <td style="padding: 7px 10px; color: #64748b; font-size: 11px; text-align: center; width: 40px;">${globalIndex++}</td>
                             <td style="padding: 7px 12px;">
                                 <div style="font-weight: 700; color: #1e293b; font-size: 12.5px;">${m.name}</div>
@@ -542,26 +547,26 @@
                                 </div>
                             </td>
                             <td style="text-align: center; width: 125px;">
-                                <label class="ur-toggle-pill" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}44; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; user-select: none;">
+                                <label class="ur-toggle-pill" style="cursor: ${lockRow ? 'not-allowed' : 'pointer'}; display: inline-flex; align-items: center; gap: 5px; background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}44; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; user-select: none;">
                                     <input type="checkbox" class="ur-chk-allowed" ${isAllowed ? 'checked' : ''} ${disabledAttr} onchange="window.UserRightsManager.onAllowedToggle(this, '${m.name}')" style="display: none;">
                                     <i class="fas ${isAllowed ? 'fa-check-circle' : 'fa-times-circle'}"></i>
                                     <span>${statusText}</span>
                                 </label>
                             </td>
                             <td style="text-align: center; width: 75px;">
-                                <input type="checkbox" class="ur-chk-view" ${canView ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #0284c7;">
+                                <input type="checkbox" class="ur-chk-view" ${canView ? 'checked' : ''} ${!isAllowed || lockRow ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #0284c7;">
                             </td>
                             <td style="text-align: center; width: 75px;">
-                                <input type="checkbox" class="ur-chk-create" ${canCreate ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #10b981;">
+                                <input type="checkbox" class="ur-chk-create" ${canCreate ? 'checked' : ''} ${!isAllowed || lockRow ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #10b981;">
                             </td>
                             <td style="text-align: center; width: 75px;">
-                                <input type="checkbox" class="ur-chk-edit" ${canEdit ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #f59e0b;">
+                                <input type="checkbox" class="ur-chk-edit" ${canEdit ? 'checked' : ''} ${!isAllowed || lockRow ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #f59e0b;">
                             </td>
                             <td style="text-align: center; width: 75px;">
-                                <input type="checkbox" class="ur-chk-delete" ${canDelete ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #ef4444;">
+                                <input type="checkbox" class="ur-chk-delete" ${canDelete ? 'checked' : ''} ${!isAllowed || lockRow ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #ef4444;">
                             </td>
                             <td style="text-align: center; width: 75px;">
-                                <input type="checkbox" class="ur-chk-print" ${canPrint ? 'checked' : ''} ${!isAllowed || this.isCurrentAdmin ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #6366f1;">
+                                <input type="checkbox" class="ur-chk-print" ${canPrint ? 'checked' : ''} ${!isAllowed || lockRow ? 'disabled' : ''} onchange="window.UserRightsManager.onSubCheckChange('${m.name}')" style="width: 17px; height: 17px; cursor: pointer; accent-color: #6366f1;">
                             </td>
                         </tr>
                     `;
@@ -652,7 +657,8 @@
         // Update real-time summary counters (Overall & Category-wise, e.g. 14 / 136)
         updateSummaryBadges: function() {
             const totalOverall = this.modules.length;
-            const assignedOverall = this.modules.filter(m => this.isCurrentAdmin || (this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed)).length;
+            const isEffAllowed = (m) => m.superAdminOnly ? !!this.isSuperAdminTarget : (this.isCurrentAdmin || !!(this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed));
+            const assignedOverall = this.modules.filter(isEffAllowed).length;
             const pct = Math.round((assignedOverall / totalOverall) * 100);
 
             // 1. Overall badge
@@ -667,7 +673,7 @@
 
             ORDERED_CATEGORIES.forEach(cat => {
                 const totalInCat = this.modules.filter(m => m.category === cat).length;
-                const assignedInCat = this.modules.filter(m => m.category === cat && (this.isCurrentAdmin || (this.currentRightsMap[m.name] && this.currentRightsMap[m.name].allowed))).length;
+                const assignedInCat = this.modules.filter(m => m.category === cat && isEffAllowed(m)).length;
                 const catSafeId = cat.replace(/[^a-zA-Z0-9]/g, '_');
 
                 const tabEl = document.getElementById(`tabCount-${catSafeId}`);
@@ -716,9 +722,9 @@
         toggleEntireGroup: function(categoryName, isAllowed) {
             if (this.isCurrentAdmin) return;
 
-            // Update in data map
+            // Update in data map (preserve restricted superAdminOnly modules)
             this.modules.forEach(m => {
-                if (m.category === categoryName) {
+                if (m.category === categoryName && !m.superAdminOnly) {
                     this.currentRightsMap[m.name] = {
                         allowed: isAllowed,
                         view: isAllowed,
@@ -733,9 +739,10 @@
             // Update visible DOM rows
             const rows = document.querySelectorAll(`tr.ur-row[data-category="${categoryName}"]`);
             rows.forEach(row => {
+                if (row.getAttribute('data-super-admin-only') === '1') return;
                 const mod = row.getAttribute('data-module');
                 const chk = row.querySelector('.ur-chk-allowed');
-                if (chk) {
+                if (chk && !chk.disabled) {
                     chk.checked = isAllowed;
                     this.onAllowedToggle(chk, mod);
                 }
@@ -753,7 +760,7 @@
                 let allChecked = true;
                 let hasAllowed = false;
                 this.modules.forEach(m => {
-                    if (m.category === categoryName) {
+                    if (m.category === categoryName && !m.superAdminOnly) {
                         const r = this.currentRightsMap[m.name] || {};
                         if (r.allowed) {
                             hasAllowed = true;
@@ -765,7 +772,7 @@
             }
 
             this.modules.forEach(m => {
-                if (m.category === categoryName) {
+                if (m.category === categoryName && !m.superAdminOnly) {
                     const r = this.currentRightsMap[m.name] || {};
                     if (r.allowed) {
                         r[permType] = targetState;
@@ -775,6 +782,7 @@
 
             const rows = document.querySelectorAll(`tr.ur-row[data-category="${categoryName}"]`);
             rows.forEach(row => {
+                if (row.getAttribute('data-super-admin-only') === '1') return;
                 const isAllowed = row.querySelector('.ur-chk-allowed')?.checked;
                 if (isAllowed) {
                     const chk = row.querySelector(`.ur-chk-${permType}`);
@@ -797,9 +805,10 @@
             if (type === 'allowed') {
                 const targetState = (state !== null && state !== undefined) ? state : true;
                 rows.forEach(row => {
+                    if (row.getAttribute('data-super-admin-only') === '1') return;
                     const mod = row.getAttribute('data-module');
                     const chk = row.querySelector('.ur-chk-allowed');
-                    if (chk && chk.checked !== targetState) {
+                    if (chk && !chk.disabled && chk.checked !== targetState) {
                         chk.checked = targetState;
                         this.onAllowedToggle(chk, mod);
                     }
@@ -916,7 +925,8 @@
             const payload = [];
             this.modules.forEach(m => {
                 const r = this.currentRightsMap[m.name] || {};
-                const isAllowed = r.allowed ? 1 : 0;
+                const blockSuper = (m.superAdminOnly && !this.isSuperAdminTarget);
+                const isAllowed = blockSuper ? 0 : (r.allowed ? 1 : 0);
                 payload.push({
                     module: m.name,
                     allowed: isAllowed,

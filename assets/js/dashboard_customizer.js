@@ -228,14 +228,28 @@
             }
         },
 
+    const isMainAdministrator = function() {
+        try {
+            const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const uid = parseInt(s.user_id || s.id || 0, 10);
+            const uname = String(s.username || '').trim().toLowerCase();
+            return (uid === 1 || uname === 'administrator');
+        } catch (e) {
+            return false;
+        }
+    };
+
         // --- SECTION 1: Render Left Sidebar ---
         renderLeftSidebar: function() {
             const sidebar = document.querySelector('.left-sidebar');
             if (!sidebar) return;
 
             const cfg = this.getConfig();
+            const allowBalanceSheet = isMainAdministrator();
             const recItems = (cfg.record_new || []).map(id => CATALOG.record_new.find(x => x.id === id)).filter(Boolean);
-            const viewItems = (cfg.view || []).map(id => CATALOG.view.find(x => x.id === id)).filter(Boolean);
+            const viewItems = (cfg.view || [])
+                .map(id => CATALOG.view.find(x => x.id === id))
+                .filter(item => item && (item.id !== 'v_bs' || allowBalanceSheet));
 
             let recHtml = '';
             recItems.forEach(item => {

@@ -3407,6 +3407,13 @@ document.addEventListener('click', function(e) {
         function checkUserRights(rightName) {
             if (!rightName) return true;
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+
+            // Balance Sheet is strictly restricted to main Administrator account only
+            if (rightName.trim().toLowerCase() === 'balance sheet') {
+                const uId = parseInt(session.user_id || session.id || 0, 10);
+                const uName = String(session.username || '').trim().toLowerCase();
+                return (uId === 1 || uName === 'administrator');
+            }
             
             if (session.username === 'Administrator') return true;
             if (session.role === 'Admin') return true;
@@ -3667,6 +3674,16 @@ document.addEventListener('click', function(e) {
                     const isAdmin = (username === 'administrator' || username === 'admin' || role === 'ADMIN' || role === 'ADMINISTRATOR' || uId === 1);
                     if (!isAdmin) {
                         showAccessDenied('Administrator Module');
+                        return;
+                    }
+                }
+
+                if (url && url.includes('balance_sheet.html')) {
+                    const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                    const username = String(s.username || '').trim().toLowerCase();
+                    const uId = parseInt(s.user_id || s.id || 0, 10);
+                    if (uId !== 1 && username !== 'administrator') {
+                        showAccessDenied('Balance Sheet (Administrator Only)');
                         return;
                     }
                 }

@@ -111,18 +111,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt->execute([$_GET['user_id']]);
         $rights = $stmt->fetchAll();
 
-        // Admin Override Logic: If user is Administrator or has 'Admin' role, return all as allowed
+        // Admin Override Logic: If user is Administrator or has 'Admin' role, return all as allowed (except Balance Sheet which is Main Administrator only)
+        $isSuperAdminUser = ($user && (intval($_GET['user_id']) === 1 || strcasecmp(trim((string)$user['username']), 'Administrator') === 0));
         if ($user && ($user['username'] === 'Administrator' || $user['role'] === 'Admin')) {
             // We can either return the DB ones or overwrite them on the fly
             // To be 100% sure the UI shows them as allowed, we return virtual 1s
             foreach ($rights as &$r) {
-                $r['is_allowed'] = 1;
-                $r['can_edit'] = 1;
-                $r['can_view'] = 1;
-                $r['can_create'] = 1;
-                $r['can_delete'] = 1;
-                $r['can_print'] = 1;
+                $isBs = (strcasecmp(trim((string)($r['module_name'] ?? '')), 'Balance Sheet') === 0);
+                $allowFlag = ($isBs && !$isSuperAdminUser) ? 0 : 1;
+                $r['is_allowed'] = $allowFlag;
+                $r['can_edit'] = $allowFlag;
+                $r['can_view'] = $allowFlag;
+                $r['can_create'] = $allowFlag;
+                $r['can_delete'] = $allowFlag;
+                $r['can_print'] = $allowFlag;
             }
+            unset($r);
         } elseif ($user && (strtoupper($user['role']) === 'POS')) {
             // POS Role: Guarantee full permissions for POS operational modules
             $posModules = [
@@ -555,7 +559,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($action === 'save_rights') {
         try {
-            $userId = $data['user_id'];
+            $userId = intval($data['user_id']);
+            $uChkStmt = $pdo->prepare("SELECT id, username FROM users WHERE id = ? LIMIT 1");
+            $uChkStmt->execute([$userId]);
+            $uChkRow = $uChkStmt->fetch(PDO::FETCH_ASSOC);
+            $isSuperAdminTarget = ($uChkRow && (intval($uChkRow['id']) === 1 || strcasecmp(trim((string)$uChkRow['username']), 'Administrator') === 0));
+
             $stmt_before = $pdo->prepare("SELECT * FROM user_rights WHERE user_id = ?");
             $stmt_before->execute([$userId]);
             $before_data = $stmt_before->fetchAll();
@@ -572,15 +581,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($hasGranular) {
                 $stmt = $pdo->prepare("INSERT INTO user_rights (user_id, module_name, is_allowed, can_edit, can_view, can_create, can_delete, can_print) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
                 foreach ($data['rights'] as $right) {
-                    $cCreate = isset($right['can_create']) ? intval($right['can_create']) : intval($right['can_edit'] ?? 0);
-                    $cDelete = isset($right['can_delete']) ? intval($right['can_delete']) : intval($right['can_edit'] ?? 0);
-                    $cPrint  = isset($right['can_print']) ? intval($right['can_print']) : (intval($right['can_view'] ?? 0) || intval($right['can_edit'] ?? 0) ? 1 : 0);
+                    $modName = trim((string)($right['module'] ?? ''));
+                    $blockBs = (!$isSuperAdminTarget && strcasecmp($modName, 'Balance Sheet') === 0);
+                    $allowVal = $blockBs ? 0 : intval($right['allowed']);
+                    $cEdit = $blockBs ? 0 : intval($right['can_edit']);
+                    $cView = $blockBs ? 0 : intval($right['can_view']);
+                    $cCreate = $blockBs ? 0 : (isset($right['can_create']) ? intval($right['can_create']) : $cEdit);
+                    $cDelete = $blockBs ? 0 : (isset($right['can_delete']) ? intval($right['can_delete']) : $cEdit);
+                    $cPrint  = $blockBs ? 0 : (isset($right['can_print']) ? intval($right['can_print']) : ($cView || $cEdit ? 1 : 0));
                     $stmt->execute([
                         $userId,
-                        $right['module'],
-                        intval($right['allowed']),
-                        intval($right['can_edit']),
-                        intval($right['can_view']),
+                        $modName,
+                        $allowVal,
+                        $cEdit,
+                        $cView,
                         $cCreate,
                         $cDelete,
                         $cPrint
@@ -589,7 +603,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $stmt = $pdo->prepare("INSERT INTO user_rights (user_id, module_name, is_allowed, can_edit, can_view) VALUES (?, ?, ?, ?, ?)");
                 foreach ($data['rights'] as $right) {
-                    $stmt->execute([$userId, $right['module'], intval($right['allowed']), intval($right['can_edit']), intval($right['can_view'])]);
+                    $modName = trim((string)($right['module'] ?? ''));
+                    $blockBs = (!$isSuperAdminTarget && strcasecmp($modName, 'Balance Sheet') === 0);
+                    $stmt->execute([
+                        $userId,
+                        $modName,
+                        $blockBs ? 0 : intval($right['allowed']),
+                        $blockBs ? 0 : intval($right['can_edit']),
+                        $blockBs ? 0 : intval($right['can_view'])
+                    ]);
                 }
             }
 

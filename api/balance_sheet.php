@@ -856,7 +856,51 @@ function calculateBalanceSheetInventoryValuation($pdo, $company_id, $targetDate,
     return $valResult;
 }
 
+/**
+ * Restricts all Balance Sheet endpoints strictly to the main Administrator account (id = 1 / Administrator).
+ */
+function enforceBalanceSheetAdministratorOnly($pdo) {
+    $sessUserId = intval($_SESSION['user_id'] ?? 0);
+    $reqUserId = intval($_GET['current_user_id'] ?? ($_POST['current_user_id'] ?? 0));
+    $lookupId = ($sessUserId > 0) ? $sessUserId : $reqUserId;
+
+    $resolvedId = 0;
+    $resolvedUsername = '';
+    $isActive = true;
+
+    if ($lookupId > 0) {
+        try {
+            $uStmt = $pdo->prepare("SELECT id, username, status FROM users WHERE id = ? LIMIT 1");
+            $uStmt->execute([$lookupId]);
+            $uRow = $uStmt->fetch(PDO::FETCH_ASSOC);
+            if ($uRow) {
+                $resolvedId = intval($uRow['id']);
+                $resolvedUsername = trim((string)($uRow['username'] ?? ''));
+                $stLow = strtolower(trim((string)($uRow['status'] ?? 'active')));
+                $isActive = ($stLow === '' || $stLow === 'active' || $stLow === '1');
+                if (!$sessUserId) {
+                    $_SESSION['user_id'] = $resolvedId;
+                    $_SESSION['username'] = $resolvedUsername;
+                }
+            }
+        } catch (Exception $e) {}
+    } elseif (!empty($_SESSION['username'])) {
+        $resolvedId = $sessUserId;
+        $resolvedUsername = trim((string)$_SESSION['username']);
+    }
+
+    if ($resolvedId <= 0 && $resolvedUsername === '') {
+        sendResponse(['status' => 'error', 'error' => 'Unauthorized access. Please log in as Administrator.'], 401);
+    }
+
+    $isMainAdmin = ($isActive && ($resolvedId === 1 || strcasecmp($resolvedUsername, 'Administrator') === 0));
+    if (!$isMainAdmin) {
+        sendResponse(['status' => 'error', 'error' => 'Forbidden: Balance Sheet is restricted to main Administrator only.'], 403);
+    }
+}
+
 try {
+    enforceBalanceSheetAdministratorOnly($pdo);
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
     $company_id = intval($_GET['company_id'] ?? $_POST['company_id'] ?? 1);
 
