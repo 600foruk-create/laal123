@@ -1226,6 +1226,133 @@ document.addEventListener('click', function(e) {
         }
         window.toggleMinimize = toggleMinimize;
 
+        window.promptMasterSecurityPin = function(scope = 'balance_sheet', opts = {}) {
+            return new Promise((resolve) => {
+                const existing = document.getElementById('masterPinGateOverlay');
+                if (existing) existing.remove();
+
+                const overlay = document.createElement('div');
+                overlay.id = 'masterPinGateOverlay';
+                overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.72); backdrop-filter:blur(4px); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px;';
+
+                const title = opts.title || 'Master Security PIN Verification';
+                const subtitle = opts.subtitle || 'جاری رکھنے کے لیے 4-Digit Master Security PIN درج کریں';
+
+                overlay.innerHTML = `
+                    <div style="width:100%; max-width:390px; background:#ffffff; border-radius:12px; box-shadow:0 24px 60px rgba(15,23,42,0.45); overflow:hidden; border:1px solid #bfdbfe;">
+                        <div style="background:linear-gradient(135deg,#1e3a8a,#1d4ed8); color:#ffffff; padding:16px 18px; display:flex; align-items:center; gap:10px;">
+                            <i class="fas fa-shield-alt" style="font-size:20px; color:#93c5fd;"></i>
+                            <div>
+                                <div style="font-size:14.5px; font-weight:800; line-height:1.2;">${title}</div>
+                                <div style="font-size:11px; color:#dbeafe; margin-top:2px;">Main Administrator Authorization Required</div>
+                            </div>
+                        </div>
+                        <div style="padding:18px; text-align:center;">
+                            <div style="font-size:12.5px; color:#334155; margin-bottom:12px; font-weight:600;">${subtitle}</div>
+                            <input type="password" id="masterPinGateInput" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="••••"
+                                style="width:100%; text-align:center; font-size:24px; letter-spacing:14px; font-weight:800; padding:10px 12px; border:2px solid #3b82f6; border-radius:8px; color:#0f172a; outline:none;">
+                            <div id="masterPinGateError" style="display:none; color:#dc2626; font-size:12px; font-weight:700; margin-top:10px;"></div>
+                            <div style="display:flex; gap:10px; margin-top:16px;">
+                                <button type="button" id="masterPinGateCancelBtn" style="flex:1; padding:9px 12px; border-radius:7px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-weight:700; font-size:12.5px; cursor:pointer;">Cancel</button>
+                                <button type="button" id="masterPinGateSubmitBtn" style="flex:1.4; padding:9px 12px; border-radius:7px; border:none; background:#1e40af; color:#ffffff; font-weight:800; font-size:12.5px; cursor:pointer;"><i class="fas fa-lock-open"></i> Verify &amp; Open</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+
+                const inputEl = document.getElementById('masterPinGateInput');
+                const errEl = document.getElementById('masterPinGateError');
+                const cancelBtn = document.getElementById('masterPinGateCancelBtn');
+                const submitBtn = document.getElementById('masterPinGateSubmitBtn');
+                let busy = false;
+
+                const finish = (ok) => {
+                    document.removeEventListener('keydown', onKeyDown, true);
+                    if (overlay.parentNode) overlay.remove();
+                    resolve(!!ok);
+                };
+
+                const submitPin = async () => {
+                    if (busy) return;
+                    const pin = (inputEl ? inputEl.value : '').replace(/[^0-9]/g, '').trim();
+                    if (!/^\d{4}$/.test(pin)) {
+                        if (errEl) {
+                            errEl.textContent = 'Please enter exact 4-digit numeric Security PIN.';
+                            errEl.style.display = 'block';
+                        }
+                        if (inputEl) inputEl.focus();
+                        return;
+                    }
+                    busy = true;
+                    const origHtml = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+                    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+                    try {
+                        const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                        const uid = parseInt(s.user_id || s.id || 0, 10) || 0;
+                        const res = await fetch('api/auth.php?action=verify_action_pin', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ scope, pin, current_user_id: uid })
+                        });
+                        let data = {};
+                        try { data = await res.json(); } catch (e) {}
+
+                        if (res.ok && data.status === 'success' && data.pin_token) {
+                            if (scope === 'balance_sheet') {
+                                window._bsActivePinToken = data.pin_token;
+                            }
+                            finish(true);
+                            return;
+                        }
+                        if (errEl) {
+                            errEl.textContent = (data && data.error) ? data.error : 'Invalid Master 4-Digit Security PIN.';
+                            errEl.style.display = 'block';
+                        }
+                        if (inputEl) {
+                            inputEl.value = '';
+                            inputEl.focus();
+                        }
+                    } catch (e) {
+                        if (errEl) {
+                            errEl.textContent = 'Connection error verifying Master Security PIN.';
+                            errEl.style.display = 'block';
+                        }
+                    } finally {
+                        busy = false;
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = origHtml;
+                        }
+                    }
+                };
+
+                const onKeyDown = (ev) => {
+                    if (!document.getElementById('masterPinGateOverlay')) return;
+                    if (ev.key === 'Escape') {
+                        ev.preventDefault();
+                        finish(false);
+                    } else if (ev.key === 'Enter' && document.activeElement === inputEl) {
+                        ev.preventDefault();
+                        submitPin();
+                    }
+                };
+
+                if (inputEl) {
+                    inputEl.addEventListener('input', () => {
+                        inputEl.value = inputEl.value.replace(/[^0-9]/g, '').slice(0, 4);
+                    });
+                    setTimeout(() => inputEl.focus(), 40);
+                }
+                if (cancelBtn) cancelBtn.addEventListener('click', () => finish(false));
+                if (submitBtn) submitBtn.addEventListener('click', submitPin);
+                document.addEventListener('keydown', onKeyDown, true);
+            });
+        };
+
         function closeModal(windowId) {
             setTimeout(() => {
                 if (window.DashboardCustomizer && typeof window.DashboardCustomizer.refresh === 'function') {
@@ -1239,6 +1366,17 @@ document.addEventListener('click', function(e) {
                     window.sysSecretUnlocked = false;
                     if (typeof window.relockSecretSystemSettings === 'function') {
                         window.relockSecretSystemSettings();
+                    }
+                }
+                if (win.querySelector('#bsMainContainer') || win.getAttribute('data-module') === 'Balance Sheet') {
+                    const prevTok = window._bsActivePinToken || '';
+                    window._bsActivePinToken = null;
+                    if (prevTok) {
+                        fetch('api/auth.php?action=revoke_action_pin', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pin_token: prevTok, scope: 'balance_sheet' })
+                        }).catch(() => {});
                     }
                 }
                 const wasMinimized = win.classList.contains('modal-minimized');
@@ -3148,12 +3286,21 @@ document.addEventListener('click', function(e) {
         // --- CLEAR TRANSACTIONS LOGIC --- //
         function executeClearTransactions() {
             const pwdInput = document.getElementById('clearTxPassword').value.trim();
+            const pinRow = document.getElementById('clearTxPinRow');
+            const pinInputEl = document.getElementById('clearTxPin');
+            const isPinRequired = (!pinRow || pinRow.style.display !== 'none');
+            const pinInput = pinInputEl ? pinInputEl.value.replace(/[^0-9]/g, '').trim() : '';
             const errorMsg = document.getElementById('clearTxErrorMsg');
             
             errorMsg.textContent = '';
             
             if(!pwdInput) {
                 errorMsg.textContent = 'Hardware Authorization: Admin Password is required!';
+                return;
+            }
+            if (isPinRequired && !/^\d{4}$/.test(pinInput)) {
+                errorMsg.textContent = 'Security Authorization: Valid 4-Digit Master PIN is required!';
+                if (pinInputEl) pinInputEl.focus();
                 return;
             }
             
@@ -3185,6 +3332,7 @@ document.addEventListener('click', function(e) {
                 formData.append('company_id', companyId);
                 formData.append('clear_option', selectedOption);
                 formData.append('password', pwdInput);
+                formData.append('security_pin', pinInput);
                 formData.append('user_id', currentUserId);
 
                 fetch('api/clear_transactions.php', {
@@ -3686,6 +3834,32 @@ document.addEventListener('click', function(e) {
                         showAccessDenied('Balance Sheet (Administrator Only)');
                         return;
                     }
+                    window._bsActivePinToken = null;
+                    let requireBsPin = true;
+                    try {
+                        const pinRes = await fetch('api/settings.php?action=get_security_pin_status&_t=' + Date.now(), { cache: 'no-store' });
+                        const pinJson = await pinRes.json();
+                        if (pinJson && pinJson.status === 'success' && pinJson.settings) {
+                            requireBsPin = !!pinJson.settings.pin_on_balance_sheet;
+                        }
+                    } catch (e) {}
+                    if (requireBsPin) {
+                        const pinOk = await window.promptMasterSecurityPin('balance_sheet', {
+                            title: 'Balance Sheet Master Security PIN',
+                            subtitle: 'ہر بار Balance Sheet کھولنے کے لیے 4-Digit Master PIN درج کریں'
+                        });
+                        if (!pinOk) return;
+                    }
+                }
+
+                if (url && url.includes('clear_transactions.html')) {
+                    const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                    const username = String(s.username || '').trim().toLowerCase();
+                    const uId = parseInt(s.user_id || s.id || 0, 10);
+                    if (uId !== 1 && username !== 'administrator') {
+                        showAccessDenied('Clear Transactions (Administrator Only)');
+                        return;
+                    }
                 }
 
                 // IMPORTANT: Normalize module tracking for rights enforcement
@@ -3716,6 +3890,27 @@ document.addEventListener('click', function(e) {
                     }
                     
                     openModal({ icon: titleIcon, text: titleText }, html, isWide, activeModuleKey, isFull);
+
+                    if (url.includes('clear_transactions.html')) {
+                        setTimeout(() => {
+                            const pwdEl = document.getElementById('clearTxPassword');
+                            const pinRow = document.getElementById('clearTxPinRow');
+                            const pinEl = document.getElementById('clearTxPin');
+                            const errEl = document.getElementById('clearTxErrorMsg');
+                            if (pwdEl) pwdEl.value = '';
+                            if (pinEl) pinEl.value = '';
+                            if (errEl) errEl.textContent = '';
+                            if (pinRow) {
+                                fetch('api/settings.php?action=get_security_pin_status&_t=' + Date.now(), { cache: 'no-store' })
+                                    .then(r => r.json())
+                                    .then(d => {
+                                        const req = (d && d.status === 'success' && d.settings) ? !!d.settings.pin_on_clear_tx : true;
+                                        pinRow.style.display = req ? 'flex' : 'none';
+                                    })
+                                    .catch(() => { pinRow.style.display = 'flex'; });
+                            }
+                        }, 10);
+                    }
                     
                     if (typeof initCallback === 'function') {
                         setTimeout(() => initCallback(), 10);

@@ -11,11 +11,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $company_id = $_POST['company_id'] ?? 1;
 $clear_option = $_POST['clear_option'] ?? '3'; // 1: All, 2: Tx+Opening, 3: Tx Only
-$password = $_POST['password'] ?? '';
-$user_id = $_POST['user_id'] ?? null;
-if ($user_id === '') $user_id = null;
+$password = (string)($_POST['password'] ?? '');
+$securityPin = trim((string)($_POST['security_pin'] ?? $_POST['pin'] ?? ''));
+$user_id = intval($_POST['user_id'] ?? 0);
 
-if (empty($password)) {
+if ($password === '') {
     echo json_encode(['status' => 'error', 'message' => 'Admin password is required.']);
     exit;
 }
@@ -23,14 +23,34 @@ if (empty($password)) {
 try {
     $transactionStarted = false;
     file_put_contents('debug.log', date('Y-m-d H:i:s') . " - Started clear_transactions.php for company $company_id\n", FILE_APPEND);
-    
-    // Verify password
-    $authQuery = "SELECT id FROM users WHERE (id = ? OR role = 'Admin') AND password = ? AND company_id = ? LIMIT 1";
-    $authStmt = $pdo->prepare($authQuery);
-    $authStmt->execute([$user_id, $password, $company_id]);
-    if ($authStmt->rowCount() === 0 && $password !== '123') { // Fallback if admin changes password and gets locked out, but user wants their actual password to work
-        echo json_encode(['status' => 'error', 'message' => 'Incorrect Admin Password!']);
+
+    // Verify Main Administrator identity + hashed Login Password + 4-Digit Master Security PIN
+    if ($user_id <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Forbidden: Only Main Administrator can clear transactions.']);
         exit;
+    }
+    $authStmt = $pdo->prepare("SELECT id, username, password, status FROM users WHERE id = ? LIMIT 1");
+    $authStmt->execute([$user_id]);
+    $authUser = $authStmt->fetch(PDO::FETCH_ASSOC);
+    $stLow = strtolower(trim((string)($authUser['status'] ?? 'active')));
+    $isMainAdmin = ($authUser && ($stLow === '' || $stLow === 'active' || $stLow === '1') && (intval($authUser['id']) === 1 || strcasecmp(trim((string)$authUser['username']), 'Administrator') === 0));
+    if (!$isMainAdmin) {
+        echo json_encode(['status' => 'error', 'message' => 'Forbidden: Only Main Administrator can clear transactions.']);
+        exit;
+    }
+
+    if (!verifyAndUpgradePassword($password, $authUser['password'], $authUser['id'], $pdo)) {
+        echo json_encode(['status' => 'error', 'message' => 'Incorrect Administrator Password!']);
+        exit;
+    }
+
+    $pinCfg = getSecurityPinSettings($pdo);
+    if (!empty($pinCfg['pin_on_clear_tx'])) {
+        $pinRes = verifyMasterSecurityPin($pdo, $securityPin, true);
+        if (!$pinRes['ok']) {
+            echo json_encode(['status' => 'error', 'message' => $pinRes['error'] ?? 'Invalid 4-Digit Security PIN!']);
+            exit;
+        }
     }
     
     // KILL ANY PREVIOUS HANGING PROCESSES THAT MIGHT BE LOCKING TABLES

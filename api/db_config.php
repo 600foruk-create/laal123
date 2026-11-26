@@ -757,3 +757,5 @@ function invLineAmountSql($alias, $taxMode = 'tax', $schemaType = 'standard', $q
     }
     return "COALESCE(NULLIF({$a}.net_amount, 0), {$a}.{$q} * {$a}.rate, 0)";
 }
+
+require_once __DIR__ . '/security_pin_helpers.php';

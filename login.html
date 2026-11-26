@@ -700,6 +700,37 @@
             style="display: none; color: #b91c1c; font-size: 11.5px; font-weight: 700; text-align: center; margin-top: 8px; padding: 6px 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; line-height: 1.4;">
         </div>
 
+        <!-- Two-Factor 4-Digit Security PIN Step (Shown when 2FA is active for Administrator) -->
+        <div id="twoFactorPinCard" style="display: none; margin-top: 8px; text-align: center;">
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                <div style="font-size: 26px; margin-bottom: 4px;"><i class="fas fa-lock" style="color: #d97706;"></i></div>
+                <div style="font-weight: 800; color: #1e3a8a; font-size: 14px;">Two-Factor PIN &bull; دو فیکٹر سیکیورٹی تصدیق</div>
+                <div style="font-size: 12px; color: #2563eb; margin-top: 4px;">
+                    Welcome <strong id="twoFactorUserLabel">Administrator</strong>!
+                </div>
+                <div style="font-size: 11.5px; color: #3b82f6; margin-top: 2px;">
+                    Admin Security Code / Master PIN درج فرمائیں
+                </div>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="display: block; font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">4-Digit Security PIN (سیکیورٹی پن)</label>
+                <input type="password" id="twoFactorPinInput" inputmode="numeric" maxlength="4" autocomplete="one-time-code"
+                    placeholder="••••"
+                    oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4);"
+                    style="width: 100%; text-align: center; font-size: 22px; letter-spacing: 14px; padding: 8px 12px; border: 2px solid #3b82f6; border-radius: 8px; font-weight: 800; color: #0f172a;">
+            </div>
+            <div id="twoFactorErrorMsg" style="display: none; color: #dc2626; font-size: 11.5px; font-weight: 700; margin-bottom: 8px;"></div>
+            <button type="button" id="btnVerifyTwoFactorPin" onclick="window.submitTwoFactorPin()"
+                style="width: 100%; background: #1e40af; color: #ffffff; border: none; padding: 10px 14px; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <i class="fas fa-check-square" style="color: #4ade80;"></i> Verify &amp; Enter (تصدیق کریں)
+            </button>
+            <div style="margin-top: 10px;">
+                <a href="javascript:void(0)" onclick="window.cancelTwoFactorLogin()" style="font-size: 11.5px; color: #475569; text-decoration: none; font-weight: 600;">
+                    &larr; Cancel (کسی دوسرے صارف سے لاگ ان کریں)
+                </a>
+            </div>
+        </div>
+
         <div class="branding">
             <div class="brand-title">SOFTIFYX FINANCIALS</div>
             <div>A Project of <span style="font-weight:700">SOFTIFYX TECHNOLOGIES</span> | <a
@@ -955,9 +986,165 @@
             }).catch(() => { });
         }
 
+        let pendingTwoFactorState = null;
+
+        function setPrimaryLoginRowsVisible(showPrimary) {
+            ['row_user', 'row_company', 'row_year', 'row_password'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = showPrimary ? 'flex' : 'none';
+            });
+            const alertBox = document.getElementById('loginSecurityAlert');
+            if (alertBox && !showPrimary) {
+                alertBox.style.display = 'none';
+            }
+            const pinCard = document.getElementById('twoFactorPinCard');
+            if (pinCard) {
+                pinCard.style.display = showPrimary ? 'none' : 'block';
+            }
+        }
+
+        function finalizeClientLoginSession(result, usernameFallback, coName) {
+            const selectedYearLabel = yearSelect.value || savedDefaults.year || (financialYears[0] ? (financialYears[0].abbreviation || financialYears[0].year) : '');
+            const selectedYearData = financialYears.find(y => (y.abbreviation || y.year) === selectedYearLabel) || {};
+
+            const sessionInfo = {
+                user_id: result.user.id,
+                username: result.user.username,
+                role: result.user.role,
+                company_id: result.user.company_id,
+                company_name: result.user.company_name || coName,
+                branch_id: result.user.branch_id || null,
+                branch_name: result.user.branch_name || '',
+                branch_code: result.user.branch_code || '',
+                invoice_series: result.user.invoice_series || '',
+                opening_time: result.user.opening_time || null,
+                closing_time: result.user.closing_time || null,
+                off_day: result.user.off_day || null,
+                enable_geofencing: result.user.enable_geofencing || 0,
+                radius_meters: result.user.radius_meters || 100,
+                loginTime: Date.now(),
+                // Financial Year Metadata
+                fy_id: selectedYearData.id || 0,
+                fy_label: selectedYearLabel,
+                fy_start: selectedYearData.start_date || '',
+                fy_end: selectedYearData.end_date || ''
+            };
+            localStorage.setItem('softifyx_session', JSON.stringify(sessionInfo));
+            localStorage.setItem('softifyx_is_locked', 'false');
+            if (savedDefaults.username === usernameFallback) {
+                savedDefaults.role = result.user.role;
+                localStorage.setItem('softifyx_login_defaults', JSON.stringify(savedDefaults));
+            }
+            window.location.href = 'index.html';
+        }
+
+        window.submitTwoFactorPin = async function() {
+            if (!pendingTwoFactorState) return;
+            const pinEl = document.getElementById('twoFactorPinInput');
+            const errEl = document.getElementById('twoFactorErrorMsg');
+            const btnEl = document.getElementById('btnVerifyTwoFactorPin');
+            const pin = (pinEl ? pinEl.value : '').replace(/[^0-9]/g, '').trim();
+
+            if (!/^\d{4}$/.test(pin)) {
+                if (errEl) {
+                    errEl.textContent = 'Please enter your 4-digit numeric Security PIN (4 ہندسوں کا پن درج کریں).';
+                    errEl.style.display = 'block';
+                }
+                if (pinEl) pinEl.focus();
+                return;
+            }
+
+            if (errEl) {
+                errEl.style.display = 'none';
+                errEl.textContent = '';
+            }
+            const origBtnHtml = btnEl ? btnEl.innerHTML : '';
+            if (btnEl) {
+                btnEl.disabled = true;
+                btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying PIN...';
+            }
+
+            try {
+                const res = await fetch('api/auth.php?action=verify_2fa_pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pin: pin,
+                        pending_token: pendingTwoFactorState.pending_token,
+                        user_id: pendingTwoFactorState.user_id,
+                        company_id: pendingTwoFactorState.company_id,
+                        company_name: pendingTwoFactorState.company_name
+                    })
+                });
+                let result = {};
+                try { result = await res.json(); } catch (e) {}
+
+                if (res.ok && result.status === 'success') {
+                    const st = pendingTwoFactorState;
+                    pendingTwoFactorState = null;
+                    finalizeClientLoginSession(result, st.username, st.company_name);
+                    return;
+                }
+
+                if (result && result.session_expired) {
+                    alert(result.error || 'Verification session expired. Please sign in again.');
+                    window.cancelTwoFactorLogin();
+                    return;
+                }
+
+                if (errEl) {
+                    errEl.textContent = (result && result.error) ? result.error : 'Invalid 4-Digit Security PIN.';
+                    errEl.style.display = 'block';
+                }
+                if (pinEl) {
+                    pinEl.value = '';
+                    pinEl.focus();
+                }
+                gsap.to('#twoFactorPinCard', 0.05, { x: 8, repeat: 5, yoyo: true });
+            } catch (err) {
+                console.error('2FA PIN verification error:', err);
+                if (errEl) {
+                    errEl.textContent = 'Server connection error while verifying Security PIN.';
+                    errEl.style.display = 'block';
+                }
+            } finally {
+                if (btnEl) {
+                    btnEl.disabled = false;
+                    btnEl.innerHTML = origBtnHtml;
+                }
+            }
+        };
+
+        window.cancelTwoFactorLogin = function() {
+            const tok = pendingTwoFactorState ? pendingTwoFactorState.pending_token : '';
+            pendingTwoFactorState = null;
+            if (tok) {
+                fetch('api/auth.php?action=cancel_2fa', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pending_token: tok })
+                }).catch(() => {});
+            }
+            const pinEl = document.getElementById('twoFactorPinInput');
+            const errEl = document.getElementById('twoFactorErrorMsg');
+            if (pinEl) pinEl.value = '';
+            if (errEl) {
+                errEl.style.display = 'none';
+                errEl.textContent = '';
+            }
+            if (passwordInput) passwordInput.value = '';
+            setPrimaryLoginRowsVisible(true);
+            const focusTarget = (loginSettings.login_user_dropdown !== '0') ? userSelect : userInputText;
+            if (focusTarget) focusTarget.focus();
+        };
+
         // Form Submit
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (pendingTwoFactorState) {
+                await window.submitTwoFactorPin();
+                return;
+            }
             await attemptLogin(false);
         });
 
@@ -1007,39 +1194,30 @@
                     result = { error: "Server response error (HTTP " + response.status + "). Please check api/db_config.php settings." };
                 }
 
-                if (response.ok && result.status === 'success') {
-                    const selectedYearLabel = yearSelect.value || savedDefaults.year || (financialYears[0] ? (financialYears[0].abbreviation || financialYears[0].year) : '');
-                    const selectedYearData = financialYears.find(y => (y.abbreviation || y.year) === selectedYearLabel) || {};
-
-                    const sessionInfo = {
-                        user_id: result.user.id,
-                        username: result.user.username,
-                        role: result.user.role,
-                        company_id: result.user.company_id,
-                        company_name: result.user.company_name || coName,
-                        branch_id: result.user.branch_id || null,
-                        branch_name: result.user.branch_name || '',
-                        branch_code: result.user.branch_code || '',
-                        invoice_series: result.user.invoice_series || '',
-                        opening_time: result.user.opening_time || null,
-                        closing_time: result.user.closing_time || null,
-                        off_day: result.user.off_day || null,
-                        enable_geofencing: result.user.enable_geofencing || 0,
-                        radius_meters: result.user.radius_meters || 100,
-                        loginTime: Date.now(),
-                        // Financial Year Metadata
-                        fy_id: selectedYearData.id || 0,
-                        fy_label: selectedYearLabel,
-                        fy_start: selectedYearData.start_date || '',
-                        fy_end: selectedYearData.end_date || ''
+                if (response.ok && result.status === '2fa_required' && result.pending_token) {
+                    pendingTwoFactorState = {
+                        pending_token: result.pending_token,
+                        user_id: (result.user && result.user.id) ? result.user.id : 1,
+                        username: (result.user && result.user.username) ? result.user.username : u,
+                        company_id: (result.user && result.user.company_id) ? result.user.company_id : 1,
+                        company_name: (result.user && result.user.company_name) ? result.user.company_name : coName
                     };
-                    localStorage.setItem('softifyx_session', JSON.stringify(sessionInfo));
-                    localStorage.setItem('softifyx_is_locked', 'false');
-                    if (savedDefaults.username === u) {
-                        savedDefaults.role = result.user.role;
-                        localStorage.setItem('softifyx_login_defaults', JSON.stringify(savedDefaults));
+                    const lbl = document.getElementById('twoFactorUserLabel');
+                    const errEl = document.getElementById('twoFactorErrorMsg');
+                    const pinEl = document.getElementById('twoFactorPinInput');
+                    if (lbl) lbl.textContent = pendingTwoFactorState.username || 'Administrator';
+                    if (errEl) {
+                        errEl.style.display = 'none';
+                        errEl.textContent = '';
                     }
-                    window.location.href = 'index.html';
+                    if (pinEl) pinEl.value = '';
+                    setPrimaryLoginRowsVisible(false);
+                    setTimeout(() => { if (pinEl) pinEl.focus(); }, 60);
+                    return;
+                }
+
+                if (response.ok && result.status === 'success') {
+                    finalizeClientLoginSession(result, u, coName);
                 } else {
                         if (result && result.is_locked) {
                             showLockoutModal(result);

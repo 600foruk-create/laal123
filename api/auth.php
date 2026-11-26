@@ -4,8 +4,171 @@ require_once 'db_config.php';
 // SoftifyX Auth API
 $action = $_GET['action'] ?? '';
 
+/**
+ * Shared finalization after credentials (and 2FA PIN if enabled) succeed.
+ */
+function completeAuthenticatedLogin($pdo, $user, $companyId, $companyName, $clientIp) {
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['username'] = $user['username'];
+    $_SESSION['company_id'] = $companyId;
+    $_SESSION['company_name'] = $companyName;
+    $_SESSION['role'] = $user['role'];
+    $_SESSION['branch_id'] = $user['branch_id'] ?? null;
+    $_SESSION['branch_name'] = $user['branch_name'] ?? null;
+    $_SESSION['branch_code'] = $user['branch_code'] ?? null;
+    $_SESSION['invoice_series'] = $user['invoice_series'] ?? null;
+    $_SESSION['opening_time'] = $user['opening_time'] ?? null;
+    $_SESSION['closing_time'] = $user['closing_time'] ?? null;
+    $_SESSION['off_day'] = $user['off_day'] ?? null;
+    $_SESSION['enable_geofencing'] = $user['enable_geofencing'] ?? 0;
+    $_SESSION['branch_lat'] = $user['branch_lat'] ?? null;
+    $_SESSION['branch_lng'] = $user['branch_lng'] ?? null;
+    $_SESSION['radius_meters'] = $user['radius_meters'] ?? 100;
+
+    $loginSessionId = 0;
+    try {
+        $pdo->prepare("DELETE FROM user_login_attempts WHERE (LOWER(TRIM(username)) = LOWER(?) OR ip_address = ?)")->execute([$user['username'], $clientIp]);
+        $pdo->prepare("INSERT INTO user_login_attempts (ip_address, username, attempt_time, is_successful) VALUES (?, ?, NOW(), 1)")->execute([$clientIp, $user['username']]);
+    } catch (Exception $e) {}
+
+    try {
+        $closeOld = $pdo->prepare("
+            UPDATE user_login_sessions
+            SET logout_time = NOW(),
+                duration_seconds = TIMESTAMPDIFF(SECOND, login_time, NOW()),
+                logout_reason = 'New Login / Closed',
+                status = 'ended'
+            WHERE user_id = ? AND status = 'active'
+        ");
+        $closeOld->execute([$user['id']]);
+
+        $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown Browser', 0, 250);
+        $sessStmt = $pdo->prepare("INSERT INTO user_login_sessions (company_id, user_id, username, login_time, last_heartbeat, ip_address, user_agent, logout_reason, status) VALUES (?, ?, ?, NOW(), NOW(), ?, ?, 'Active', 'active')");
+        $sessStmt->execute([$companyId, $user['id'], $user['username'], $clientIp, $userAgent]);
+        $loginSessionId = intval($pdo->lastInsertId());
+        $_SESSION['login_session_id'] = $loginSessionId;
+    } catch (Exception $e) {
+        try {
+            $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown Browser', 0, 250);
+            $sessStmt = $pdo->prepare("INSERT INTO user_login_sessions (company_id, user_id, username, login_time, ip_address, user_agent, logout_reason, status) VALUES (?, ?, ?, NOW(), ?, ?, 'Active', 'active')");
+            $sessStmt->execute([$companyId, $user['id'], $user['username'], $clientIp, $userAgent]);
+            $loginSessionId = intval($pdo->lastInsertId());
+            $_SESSION['login_session_id'] = $loginSessionId;
+        } catch (Exception $e2) {
+            error_log("Login session record error: " . $e2->getMessage());
+        }
+    }
+
+    sendResponse([
+        'status' => 'success',
+        'session_id' => $loginSessionId,
+        'user' => [
+            'id' => $user['id'],
+            'username' => $user['username'],
+            'role' => $user['role'],
+            'company_id' => $companyId,
+            'company_name' => $companyName,
+            'branch_id' => $user['branch_id'] ?? null,
+            'branch_name' => $user['branch_name'] ?? null,
+            'branch_code' => $user['branch_code'] ?? null,
+            'invoice_series' => $user['invoice_series'] ?? null,
+            'opening_time' => $user['opening_time'] ?? null,
+            'closing_time' => $user['closing_time'] ?? null,
+            'off_day' => $user['off_day'] ?? null,
+            'enable_geofencing' => $user['enable_geofencing'] ?? 0,
+            'radius_meters' => $user['radius_meters'] ?? 100
+        ]
+    ]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($data)) $data = $_POST;
+
+    if ($action === 'verify_2fa_pin') {
+        $pin = trim((string)($data['pin'] ?? ''));
+        $pendingToken = trim((string)($data['pending_token'] ?? ''));
+        $pendingUserId = intval($_SESSION['pending_2fa_user_id'] ?? ($data['user_id'] ?? 0));
+        $pendingCompanyId = intval($_SESSION['pending_2fa_company_id'] ?? ($data['company_id'] ?? 1));
+        $pendingCompanyName = trim((string)($_SESSION['pending_2fa_company_name'] ?? ($data['company_name'] ?? 'Default Business')));
+
+        $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+        if (strpos($clientIp, ',') !== false) $clientIp = trim(explode(',', $clientIp)[0]);
+
+        $tokenValid = ($pendingUserId > 0 && validateSecurityActionPinToken($pdo, $pendingToken, $pendingUserId, 'login_2fa'));
+        if (!$tokenValid) {
+            sendResponse(['status' => 'error', 'session_expired' => true, 'error' => 'Login verification expired. Please enter username and password again.'], 401);
+        }
+
+        $pinCheck = verifyMasterSecurityPin($pdo, $pin, true);
+        if (!$pinCheck['ok']) {
+            sendResponse([
+                'status' => 'error',
+                'is_locked' => !empty($pinCheck['is_locked']),
+                'remaining_attempts' => $pinCheck['remaining_attempts'] ?? null,
+                'error' => $pinCheck['error']
+            ], intval($pinCheck['status_code'] ?? 401));
+        }
+
+        $uStmt = $pdo->prepare("
+            SELECT u.*, b.branch_name, b.branch_code, b.invoice_series, b.opening_time, b.closing_time, b.off_day,
+                   b.enable_geofencing, b.latitude as branch_lat, b.longitude as branch_lng, b.radius_meters
+            FROM users u
+            LEFT JOIN company_branches b ON u.branch_id = b.id
+            WHERE u.id = ? LIMIT 1
+        ");
+        $uStmt->execute([$pendingUserId]);
+        $userRow = $uStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$userRow) {
+            sendResponse(['status' => 'error', 'error' => 'User account not found.'], 404);
+        }
+
+        revokeSecurityActionPinToken($pdo, $pendingToken, 'login_2fa');
+        unset($_SESSION['pending_2fa_user_id'], $_SESSION['pending_2fa_company_id'], $_SESSION['pending_2fa_company_name']);
+        completeAuthenticatedLogin($pdo, $userRow, $pendingCompanyId, $pendingCompanyName, $clientIp);
+    }
+
+    if ($action === 'cancel_2fa') {
+        $pendingToken = trim((string)($data['pending_token'] ?? ''));
+        if ($pendingToken !== '') {
+            revokeSecurityActionPinToken($pdo, $pendingToken, 'login_2fa');
+        }
+        unset($_SESSION['pending_2fa_user_id'], $_SESSION['pending_2fa_company_id'], $_SESSION['pending_2fa_company_name']);
+        sendResponse(['status' => 'success']);
+    }
+
+    if ($action === 'verify_action_pin') {
+        $auth = resolveMainAdministratorUser($pdo, intval($data['current_user_id'] ?? 0));
+        if (!$auth['is_main_admin']) {
+            sendResponse(['status' => 'error', 'error' => 'Forbidden: Only Main Administrator can authorize Security PIN.'], 403);
+        }
+        $scope = trim((string)($data['scope'] ?? 'balance_sheet'));
+        $pin = trim((string)($data['pin'] ?? ''));
+        $pinCheck = verifyMasterSecurityPin($pdo, $pin, true);
+        if (!$pinCheck['ok']) {
+            sendResponse([
+                'status' => 'error',
+                'is_locked' => !empty($pinCheck['is_locked']),
+                'remaining_attempts' => $pinCheck['remaining_attempts'] ?? null,
+                'error' => $pinCheck['error']
+            ], intval($pinCheck['status_code'] ?? 401));
+        }
+        $actionToken = issueSecurityActionPinToken($pdo, $auth['id'], $scope);
+        sendResponse([
+            'status' => 'success',
+            'pin_token' => $actionToken,
+            'scope' => $scope
+        ]);
+    }
+
+    if ($action === 'revoke_action_pin') {
+        $tok = trim((string)($data['pin_token'] ?? ''));
+        $scope = trim((string)($data['scope'] ?? 'balance_sheet'));
+        if ($tok !== '') {
+            revokeSecurityActionPinToken($pdo, $tok, $scope);
+        }
+        sendResponse(['status' => 'success']);
+    }
     
     if ($action === 'login') {
         $username = trim($data['username'] ?? '');
@@ -260,85 +423,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['company_id'] = $companyId;
-            $_SESSION['company_name'] = $companyName;
-            $_SESSION['role'] = $user['role'];
-            $_SESSION['branch_id'] = $user['branch_id'] ?? null;
-            $_SESSION['branch_name'] = $user['branch_name'] ?? null;
-            $_SESSION['branch_code'] = $user['branch_code'] ?? null;
-            $_SESSION['invoice_series'] = $user['invoice_series'] ?? null;
-            $_SESSION['opening_time'] = $user['opening_time'] ?? null;
-            $_SESSION['closing_time'] = $user['closing_time'] ?? null;
-            $_SESSION['off_day'] = $user['off_day'] ?? null;
-            $_SESSION['enable_geofencing'] = $user['enable_geofencing'] ?? 0;
-            $_SESSION['branch_lat'] = $user['branch_lat'] ?? null;
-            $_SESSION['branch_lng'] = $user['branch_lng'] ?? null;
-            $_SESSION['radius_meters'] = $user['radius_meters'] ?? 100;
+            $isMainAdmin = (intval($user['id']) === 1 || strcasecmp(trim((string)($user['username'] ?? '')), 'Administrator') === 0);
+            $pinCfg = getSecurityPinSettings($pdo);
+            if ($isMainAdmin && !empty($pinCfg['pin_on_login'])) {
+                $pending2faTok = issueSecurityActionPinToken($pdo, $user['id'], 'login_2fa');
+                $_SESSION['pending_2fa_user_id'] = intval($user['id']);
+                $_SESSION['pending_2fa_company_id'] = intval($companyId);
+                $_SESSION['pending_2fa_company_name'] = $companyName;
 
-            // Track User Login Session for Admin Audit History
-            $loginSessionId = 0;
-            try {
-                // Clear past failed attempts upon successful login
-                $pdo->prepare("DELETE FROM user_login_attempts WHERE (LOWER(TRIM(username)) = LOWER(?) OR ip_address = ?)")->execute([$username, $clientIp]);
-                $pdo->prepare("INSERT INTO user_login_attempts (ip_address, username, attempt_time, is_successful) VALUES (?, ?, NOW(), 1)")->execute([$clientIp, $username]);
-            } catch (Exception $e) {}
-
-            try {
-                // 1. Close any older active sessions for this user so only the new live session remains active
-                $closeOld = $pdo->prepare("
-                    UPDATE user_login_sessions 
-                    SET logout_time = NOW(), 
-                        duration_seconds = TIMESTAMPDIFF(SECOND, login_time, NOW()), 
-                        logout_reason = 'New Login / Closed', 
-                        status = 'ended' 
-                    WHERE user_id = ? AND status = 'active'
-                ");
-                $closeOld->execute([$user['id']]);
-
-                // 2. Insert new session
-                $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
-                if (strpos($clientIp, ',') !== false) {
-                    $clientIp = trim(explode(',', $clientIp)[0]);
-                }
-                $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown Browser', 0, 250);
-                $sessStmt = $pdo->prepare("INSERT INTO user_login_sessions (company_id, user_id, username, login_time, last_heartbeat, ip_address, user_agent, logout_reason, status) VALUES (?, ?, ?, NOW(), NOW(), ?, ?, 'Active', 'active')");
-                $sessStmt->execute([$companyId, $user['id'], $user['username'], $clientIp, $userAgent]);
-                $loginSessionId = intval($pdo->lastInsertId());
-                $_SESSION['login_session_id'] = $loginSessionId;
-            } catch (Exception $e) {
-                // Fallback if last_heartbeat column isn't migrated yet
-                try {
-                    $sessStmt = $pdo->prepare("INSERT INTO user_login_sessions (company_id, user_id, username, login_time, ip_address, user_agent, logout_reason, status) VALUES (?, ?, ?, NOW(), ?, ?, 'Active', 'active')");
-                    $sessStmt->execute([$companyId, $user['id'], $user['username'], $clientIp, $userAgent]);
-                    $loginSessionId = intval($pdo->lastInsertId());
-                    $_SESSION['login_session_id'] = $loginSessionId;
-                } catch (Exception $e2) {
-                    error_log("Login session record error: " . $e2->getMessage());
-                }
+                sendResponse([
+                    'status' => '2fa_required',
+                    'pending_token' => $pending2faTok,
+                    'user' => [
+                        'id' => intval($user['id']),
+                        'username' => $user['username'],
+                        'company_id' => intval($companyId),
+                        'company_name' => $companyName
+                    ]
+                ]);
             }
-            
-            sendResponse([
-                'status' => 'success',
-                'session_id' => $loginSessionId,
-                'user' => [
-                    'id' => $user['id'],
-                    'username' => $user['username'],
-                    'role' => $user['role'],
-                    'company_id' => $companyId,
-                    'company_name' => $companyName,
-                    'branch_id' => $user['branch_id'] ?? null,
-                    'branch_name' => $user['branch_name'] ?? null,
-                    'branch_code' => $user['branch_code'] ?? null,
-                    'invoice_series' => $user['invoice_series'] ?? null,
-                    'opening_time' => $user['opening_time'] ?? null,
-                    'closing_time' => $user['closing_time'] ?? null,
-                    'off_day' => $user['off_day'] ?? null,
-                    'enable_geofencing' => $user['enable_geofencing'] ?? 0,
-                    'radius_meters' => $user['radius_meters'] ?? 100
-                ]
-            ]);
+
+            completeAuthenticatedLogin($pdo, $user, $companyId, $companyName, $clientIp);
         } else {
             // Record failed login attempt
             try {

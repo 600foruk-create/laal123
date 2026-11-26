@@ -2310,6 +2310,16 @@
                 if (window.SIModule.reindexRows) window.SIModule.reindexRows();
             }
 
+            // Save Master 4-Digit Security PIN toggles & optional new PIN (Main Administrator only)
+            if (typeof window._persistMasterSecurityPinSettings === 'function') {
+                const pinValidationErr = window._validateMasterPinInputsBeforeSave ? window._validateMasterPinInputsBeforeSave() : null;
+                if (pinValidationErr) {
+                    alert(pinValidationErr);
+                    return;
+                }
+                window._persistMasterSecurityPinSettings(false);
+            }
+
             const fb = document.getElementById('save_feedback_msg');
             if (fb) {
                 fb.style.display = 'inline-block';
@@ -2330,6 +2340,107 @@
             alert('Error saving settings: ' + (e && e.message ? e.message : e));
             console.error('Error saving system settings:', e);
         }
+    };
+
+    window._getMainAdminSecuritySession = function() {
+        try {
+            const s = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const uid = parseInt(s.user_id || s.id || 0, 10) || 0;
+            const uname = String(s.username || '').trim().toLowerCase();
+            return { isMainAdmin: (uid === 1 || uname === 'administrator'), userId: uid };
+        } catch (e) {
+            return { isMainAdmin: false, userId: 0 };
+        }
+    };
+
+    window._validateMasterPinInputsBeforeSave = function() {
+        const pNewEl = document.getElementById('setting_pin_new');
+        const pConfEl = document.getElementById('setting_pin_confirm');
+        if (!pNewEl && !pConfEl) return null;
+        const pNew = (pNewEl ? pNewEl.value : '').trim();
+        const pConf = (pConfEl ? pConfEl.value : '').trim();
+        if (pNew !== '' || pConf !== '') {
+            if (!/^\d{4}$/.test(pNew)) {
+                return 'Master Security PIN must be exactly 4 numeric digits (0-9).';
+            }
+            if (pNew !== pConf) {
+                return 'New 4-Digit PIN and Confirm PIN do not match.';
+            }
+        }
+        return null;
+    };
+
+    window._persistMasterSecurityPinSettings = function(showFeedbackAlert) {
+        const adminInfo = window._getMainAdminSecuritySession();
+        if (!adminInfo.isMainAdmin) return Promise.resolve({ skipped: true });
+
+        const chkLogin = document.getElementById('setting_pin_on_login');
+        const chkBs = document.getElementById('setting_pin_on_balance_sheet');
+        const chkClear = document.getElementById('setting_pin_on_clear_tx');
+        if (!chkLogin && !chkBs && !chkClear) return Promise.resolve({ skipped: true });
+
+        const err = window._validateMasterPinInputsBeforeSave();
+        if (err) {
+            if (showFeedbackAlert) alert(err);
+            return Promise.resolve({ status: 'error', message: err });
+        }
+
+        const pNewEl = document.getElementById('setting_pin_new');
+        const pConfEl = document.getElementById('setting_pin_confirm');
+        const pNew = (pNewEl ? pNewEl.value : '').trim();
+        const pConf = (pConfEl ? pConfEl.value : '').trim();
+        const fbPin = document.getElementById('save_feedback_msg_pin');
+
+        return fetch('api/settings.php?action=save_security_pin_settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                current_user_id: adminInfo.userId,
+                pin_on_login: chkLogin ? chkLogin.checked : true,
+                pin_on_balance_sheet: chkBs ? chkBs.checked : true,
+                pin_on_clear_tx: chkClear ? chkClear.checked : true,
+                new_pin: pNew,
+                confirm_pin: pConf
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.status === 'success') {
+                if (pNewEl) pNewEl.value = '';
+                if (pConfEl) pConfEl.value = '';
+                const badge = document.getElementById('setting_pin_status_badge');
+                if (badge) badge.textContent = 'Encrypted Active';
+                if (fbPin) {
+                    fbPin.style.color = '#15803d';
+                    fbPin.textContent = data.pin_changed
+                        ? 'Master 4-Digit Security PIN & lock switches updated successfully!'
+                        : 'Security PIN lock switches updated successfully!';
+                    fbPin.style.display = 'block';
+                    setTimeout(() => { fbPin.style.display = 'none'; }, 4000);
+                }
+                if (showFeedbackAlert) {
+                    alert(data.pin_changed ? 'Master 4-Digit Security PIN changed successfully!' : 'Security PIN lock switches saved successfully!');
+                }
+            } else {
+                const msg = (data && (data.message || data.error)) || 'Failed to update Security PIN settings.';
+                if (fbPin) {
+                    fbPin.style.color = '#dc2626';
+                    fbPin.textContent = msg;
+                    fbPin.style.display = 'block';
+                }
+                if (showFeedbackAlert) alert(msg);
+            }
+            return data;
+        })
+        .catch(e => {
+            console.warn('Error saving PIN settings:', e);
+            if (showFeedbackAlert) alert('Connection error while saving Security PIN settings.');
+            return { status: 'error' };
+        });
+    };
+
+    window.saveSecurityPinSettingsOnly = function() {
+        window._persistMasterSecurityPinSettings(true);
     };
 
     window.loadSystemSettings = async function() {
@@ -2440,6 +2551,30 @@
             if (typeof window.toggleLockCodeInput === 'function') {
                 window.toggleLockCodeInput();
             }
+
+            // Load Master 4-Digit Security PIN configuration (Hidden Settings)
+            fetch('api/settings.php?action=get_security_pin_status&_t=' + Date.now(), { cache: 'no-store' })
+                .then(r => r.json())
+                .then(pinResp => {
+                    if (pinResp && pinResp.status === 'success' && pinResp.settings) {
+                        const cfg = pinResp.settings;
+                        const chkLogin = document.getElementById('setting_pin_on_login');
+                        const chkBs = document.getElementById('setting_pin_on_balance_sheet');
+                        const chkClear = document.getElementById('setting_pin_on_clear_tx');
+                        if (chkLogin) chkLogin.checked = !!cfg.pin_on_login;
+                        if (chkBs) chkBs.checked = !!cfg.pin_on_balance_sheet;
+                        if (chkClear) chkClear.checked = !!cfg.pin_on_clear_tx;
+                        const badge = document.getElementById('setting_pin_status_badge');
+                        if (badge) {
+                            badge.textContent = cfg.pin_configured ? 'Encrypted Active' : 'Default 1234';
+                        }
+                    }
+                    const pNew = document.getElementById('setting_pin_new');
+                    const pConf = document.getElementById('setting_pin_confirm');
+                    if (pNew) pNew.value = '';
+                    if (pConf) pConf.value = '';
+                })
+                .catch(e => console.warn('Security PIN load warning:', e));
 
             // Load Invoice defaults
             const resSale = await fetch('api/settings.php?action=get_setting&key=default_sale_invoice&company_id=' + companyId + '&_t=' + Date.now());

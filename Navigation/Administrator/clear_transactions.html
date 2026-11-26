@@ -39,11 +39,18 @@
 
     <!-- Security Authorization Panel -->
     <div style="background: #fdfdfd; padding: 10px; border-radius: 4px; border: 1px dashed #d63031; margin-bottom: 10px;">
-        <div class="form-group" style="display: flex; align-items: center; margin-bottom: 0; flex-wrap: wrap;">
-            <label style="width: 220px; font-weight: 600; color: #1f4668; margin-bottom: 5px;"><i class="fas fa-lock" style="color: #d63031; margin-right: 5px;"></i> Admin Authorization</label>
+        <div class="form-group" style="display: flex; align-items: center; margin-bottom: 8px; flex-wrap: wrap;">
+            <label style="width: 220px; font-weight: 600; color: #1f4668; margin-bottom: 5px;"><i class="fas fa-lock" style="color: #d63031; margin-right: 5px;"></i> Admin Password</label>
             <div style="flex: 1; min-width: 200px; max-width: 250px; position: relative;">
                 <input type="password" class="form-control" id="clearTxPassword" style="width: 100%; border: 1px solid #d63031; padding-right: 30px;" placeholder="Enter Login Password" autocomplete="new-password">
                 <i class="fas fa-eye" onclick="togglePasswordVisibility('clearTxPassword', this)" style="position: absolute; right: 10px; top: 11px; cursor: pointer; color: #888;"></i>
+            </div>
+        </div>
+        <div class="form-group" id="clearTxPinRow" style="display: flex; align-items: center; margin-bottom: 0; flex-wrap: wrap;">
+            <label style="width: 220px; font-weight: 600; color: #1f4668; margin-bottom: 5px;"><i class="fas fa-shield-alt" style="color: #d63031; margin-right: 5px;"></i> 4-Digit Security PIN</label>
+            <div style="flex: 1; min-width: 200px; max-width: 250px; position: relative;">
+                <input type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" class="form-control" id="clearTxPin" style="width: 100%; border: 1px solid #d63031; padding-right: 30px; letter-spacing: 6px; font-weight: 700;" placeholder="••••" autocomplete="one-time-code" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4);">
+                <i class="fas fa-eye" onclick="togglePasswordVisibility('clearTxPin', this)" style="position: absolute; right: 10px; top: 11px; cursor: pointer; color: #888;"></i>
             </div>
         </div>
     </div>

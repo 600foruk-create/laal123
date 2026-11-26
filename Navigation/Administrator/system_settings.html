@@ -1862,6 +1862,73 @@
                             </div>
                         </div>
 
+                        <!-- Two-Factor & Master 4-Digit Security PIN Control (Administrator Only) -->
+                        <div id="master_security_pin_box" style="margin-top: 16px; margin-bottom: 14px; padding: 14px 16px; background: #eff6ff; border: 1.5px solid #93c5fd; border-left: 4px solid #1e40af; border-radius: 8px; max-width: 640px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                                <div>
+                                    <div style="font-weight: 800; color: #1e3a8a; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fas fa-key" style="color: #1d4ed8;"></i>
+                                        <span>Two-Factor &amp; Master 4-Digit Security PIN (ماسٹر سیکیورٹی پن)</span>
+                                    </div>
+                                    <div style="font-size: 11px; color: #475569; margin-top: 2px;">
+                                        Protects Administrator Login, Balance Sheet (every open), and Clear Transactions. First-time default PIN: <strong>1234</strong>.
+                                    </div>
+                                </div>
+                                <span id="setting_pin_status_badge" style="font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 12px; background: #dbeafe; color: #1e40af; white-space: nowrap;">
+                                    Encrypted Active
+                                </span>
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 8px; background: #ffffff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+                                <label style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0; cursor: pointer;">
+                                    <span style="font-size: 12px; color: #1e293b;">
+                                        <strong>1. Require Two-Factor PIN at Administrator Login</strong>
+                                        <span style="display:block; font-size: 10.5px; color: #64748b;">Password کے بعد Main Administrator لاگ ان پر 4-digit PIN مانگے گا۔</span>
+                                    </span>
+                                    <input type="checkbox" id="setting_pin_on_login" checked style="width: 16px; height: 16px; cursor: pointer; accent-color: #1e40af;">
+                                </label>
+                                <hr style="margin: 2px 0; border-color: #e2e8f0;">
+                                <label style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0; cursor: pointer;">
+                                    <span style="font-size: 12px; color: #1e293b;">
+                                        <strong>2. Require Master PIN Every Time Balance Sheet Opens</strong>
+                                        <span style="display:block; font-size: 10.5px; color: #64748b;">ہر بار Balance Sheet کھولتے وقت دوبارہ PIN مانگے گا (بند کرنے پر دوبارہ لاک ہو جائے گا)۔</span>
+                                    </span>
+                                    <input type="checkbox" id="setting_pin_on_balance_sheet" checked style="width: 16px; height: 16px; cursor: pointer; accent-color: #1e40af;">
+                                </label>
+                                <hr style="margin: 2px 0; border-color: #e2e8f0;">
+                                <label style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0; cursor: pointer;">
+                                    <span style="font-size: 12px; color: #1e293b;">
+                                        <strong>3. Require Master PIN on Clear Transactions</strong>
+                                        <span style="display:block; font-size: 10.5px; color: #64748b;">Clear Transactions چلانے کے لیے Password کے ساتھ 4-digit Master PIN بھی لازمی ہوگا۔</span>
+                                    </span>
+                                    <input type="checkbox" id="setting_pin_on_clear_tx" checked style="width: 16px; height: 16px; cursor: pointer; accent-color: #1e40af;">
+                                </label>
+                            </div>
+
+                            <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 175px;">
+                                    <label style="font-weight: 700; color: #1e3a8a; margin-bottom: 3px; font-size: 11.5px; display: block;">New 4-Digit PIN (نیا پن)</label>
+                                    <input type="password" id="setting_pin_new" class="form-control" inputmode="numeric" maxlength="4" autocomplete="new-password"
+                                        oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4);"
+                                        style="width: 100%; height: 34px; font-size: 14px; font-weight: 700; letter-spacing: 5px; padding: 5px 10px; border: 1.5px solid #93c5fd;"
+                                        placeholder="•••• (optional)">
+                                </div>
+                                <div style="flex: 1; min-width: 175px;">
+                                    <label style="font-weight: 700; color: #1e3a8a; margin-bottom: 3px; font-size: 11.5px; display: block;">Confirm 4-Digit PIN (تصدیق)</label>
+                                    <input type="password" id="setting_pin_confirm" class="form-control" inputmode="numeric" maxlength="4" autocomplete="new-password"
+                                        oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4);"
+                                        style="width: 100%; height: 34px; font-size: 14px; font-weight: 700; letter-spacing: 5px; padding: 5px 10px; border: 1.5px solid #93c5fd;"
+                                        placeholder="•••• (repeat)">
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-primary" onclick="window.saveSecurityPinSettingsOnly()" style="height: 34px; padding: 5px 14px; font-weight: 700; font-size: 12px; background: #1e40af; border-color: #1e40af;">
+                                        <i class="fas fa-key"></i> Update Master PIN
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="save_feedback_msg_pin" style="display: none; margin-top: 8px; font-size: 11.5px; font-weight: 700;"></div>
+                        </div>
+
                         <div style="margin-top: 14px;">
                             <button class="btn btn-primary" onclick="window.saveSystemSettings()" style="padding: 5px 16px; font-weight: 700; font-size: 12px;">
                                 <i class="fas fa-save"></i> Save Security Settings

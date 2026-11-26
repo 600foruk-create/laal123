@@ -416,5 +416,45 @@ switch ($action) {
             'config' => $parsed
         ]);
         break;
+
+    case 'get_security_pin_status':
+        $pinSettings = getSecurityPinSettings($pdo);
+        echo json_encode([
+            'status' => 'success',
+            'settings' => $pinSettings
+        ]);
+        break;
+
+    case 'save_security_pin_settings':
+        $data = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+        $auth = resolveMainAdministratorUser($pdo, intval($data['current_user_id'] ?? 0));
+        if (!$auth['is_main_admin']) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => 'Forbidden: Only Main Administrator can modify Security PIN settings.']);
+            break;
+        }
+        $newPin = isset($data['new_pin']) ? trim((string)$data['new_pin']) : '';
+        $confirmPin = isset($data['confirm_pin']) ? trim((string)$data['confirm_pin']) : '';
+        if ($newPin !== '' && $newPin !== $confirmPin) {
+            echo json_encode(['status' => 'error', 'message' => 'New PIN and Confirm PIN do not match.']);
+            break;
+        }
+        $res = updateMasterSecurityPinSettings($pdo, [
+            'pin_on_login' => !empty($data['pin_on_login']),
+            'pin_on_balance_sheet' => !empty($data['pin_on_balance_sheet']),
+            'pin_on_clear_tx' => !empty($data['pin_on_clear_tx'])
+        ], $newPin !== '' ? $newPin : null);
+
+        if (!$res['ok']) {
+            echo json_encode(['status' => 'error', 'message' => $res['error'] ?? 'Invalid Security PIN settings.']);
+            break;
+        }
+        logActivity('Security PIN', 'UPDATE', 'master_pin', $newPin !== '' ? 'Updated Master 4-Digit Security PIN & flags' : 'Updated Security PIN lock switches', [], $res['settings']);
+        echo json_encode([
+            'status' => 'success',
+            'pin_changed' => ($newPin !== ''),
+            'settings' => $res['settings']
+        ]);
+        break;
 }
 ?>

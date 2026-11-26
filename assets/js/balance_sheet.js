@@ -46,7 +46,8 @@
 
         withUserId: function(url) {
             const sep = url.includes('?') ? '&' : '?';
-            return `${url}${sep}current_user_id=${this.getCurrentUserId()}`;
+            const pinTok = window._bsActivePinToken || '';
+            return `${url}${sep}current_user_id=${this.getCurrentUserId()}&pin_token=${encodeURIComponent(pinTok)}`;
         },
 
         init: function() {
@@ -228,11 +229,27 @@
 
             try {
                 const res = await fetch(this.withUserId(url));
-                if (!res.ok) throw new Error("HTTP " + res.status);
+                let data = {};
+                try { data = await res.json(); } catch (e) {}
 
-                const data = await res.json();
-                if (data.status !== 'success') {
-                    const errHtml = `<div style="text-align: center; color: #dc2626; padding: 20px; font-weight: 600;">Error: ${data.error || 'Failed to load Balance Sheet'}</div>`;
+                if (!res.ok || data.status !== 'success') {
+                    if (res.status === 403 && data && data.pin_required && !this._pinPromptActive && typeof window.promptMasterSecurityPin === 'function') {
+                        this._pinPromptActive = true;
+                        let unlocked = false;
+                        try {
+                            unlocked = await window.promptMasterSecurityPin('balance_sheet', {
+                                title: 'Balance Sheet Master Security PIN',
+                                subtitle: 'Balance Sheet دیکھنے کے لیے 4-Digit Master PIN درج کریں'
+                            });
+                        } finally {
+                            this._pinPromptActive = false;
+                        }
+                        if (unlocked) {
+                            return await this.loadReport();
+                        }
+                    }
+                    const errMsg = (data && data.error) ? data.error : (!res.ok ? ('HTTP ' + res.status) : 'Failed to load Balance Sheet');
+                    const errHtml = `<div style="text-align: center; color: #dc2626; padding: 20px; font-weight: 600;">Error: ${errMsg}</div>`;
                     if (assetsBox) assetsBox.innerHTML = errHtml;
                     if (liabBox) liabBox.innerHTML = errHtml;
                     if (vertBox) vertBox.innerHTML = errHtml;
@@ -1057,6 +1074,7 @@
             fd.append('action', 'execute_year_closing');
             fd.append('company_id', this.data.company_id);
             fd.append('current_user_id', this.getCurrentUserId());
+            fd.append('pin_token', window._bsActivePinToken || '');
             fd.append('closing_date', cDate);
             fd.append('net_profit', netProf);
 
