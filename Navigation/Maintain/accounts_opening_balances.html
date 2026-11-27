@@ -18,7 +18,7 @@
             <button class="ob-btn ob-save" onclick="saveOpeningBalances()">
                 Save<br>(Ctrl+S)
             </button>
-            <button class="ob-btn ob-cancel" onclick="closeModularPopup()">
+            <button class="ob-btn ob-cancel" onclick="window.closeContainerModal ? window.closeContainerModal('openingBalancesContainer') : (window.closeModal && window.closeModal())">
                 Cancel
             </button>
             <button class="ob-btn ob-delete" onclick="deleteOBAccount()">Delete</button>

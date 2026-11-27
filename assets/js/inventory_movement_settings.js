@@ -69,9 +69,11 @@ window.InvMovementPrefs = {
             const result = await res.json();
             if (result.status === 'success') {
                 alert("Movement preferences saved successfully!");
-                const modal = document.querySelector('.modal-body[data-module="inventory_movement_settings"]')?.closest('.modal-container');
-                if (modal && typeof window.closeModal === 'function') {
-                    window.closeModal(modal.id);
+                if (typeof window.closeContainerModal === 'function') {
+                    window.closeContainerModal('invMovementSettingsContainer');
+                } else {
+                    const modal = (document.getElementById('invMovementSettingsContainer') || document.querySelector('.modal-body[data-module="Inventory Movement Settings"]'))?.closest('.modal-container');
+                    if (modal && typeof window.closeModal === 'function') window.closeModal(modal.id);
                 }
             } else {
                 alert("Error: " + result.message);

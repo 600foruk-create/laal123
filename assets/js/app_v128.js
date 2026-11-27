@@ -1405,6 +1405,10 @@ document.addEventListener('click', function(e) {
             }
         }
         window.closeModal = closeModal;
+        window.closeContainerModal = function(containerId) {
+            const win = containerId ? document.getElementById(containerId)?.closest('.modal-container') : null;
+            closeModal(win ? win.id : undefined);
+        };
 
         function refreshActiveModulesDependencies() {
             const modulesToRefresh = [
@@ -4841,9 +4845,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // === EMPLOYEES MODULE LOGIC ===
         let allEmployeesData = [];
         let currentEmployeeId = null;
+        let prevEmployeeId = null;
 
         async function initEmployeesView() {
             console.log("SoftifyX: Init Employees View");
+            currentEmployeeId = null;
+            prevEmployeeId = null;
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             const coId = session.company_id || 1;
             
@@ -4895,6 +4902,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const emp = allEmployeesData.find(e => e.id == id);
             if (!emp) return;
             currentEmployeeId = id;
+            const list = document.getElementById('employeeList');
+            if (list) list.value = id;
 
             const fields = {
                 'empName': emp.name, 'empFatherName': emp.father_name, 'empAddress': emp.address,
@@ -4923,19 +4932,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         function resetEmployeeForm(isAdd = false) {
-            currentEmployeeId = isAdd ? null : currentEmployeeId;
             if (!isAdd) {
+                const restoreId = currentEmployeeId || prevEmployeeId;
+                prevEmployeeId = null;
                 const list = document.getElementById('employeeList');
                 if (list && list.options.length > 0) {
-                    list.selectedIndex = 0;
-                    currentEmployeeId = list.options[0].value;
+                    const hasTarget = restoreId && Array.from(list.options).some(o => o.value == restoreId);
+                    currentEmployeeId = hasTarget ? restoreId : list.options[0].value;
+                    list.value = currentEmployeeId;
                     return onEmployeeSelect(currentEmployeeId);
                 }
+                currentEmployeeId = null;
                 enableEmployeeFields(false);
                 const saveBtn = document.getElementById('empSaveBtn');
                 if (saveBtn) saveBtn.disabled = true;
                 return;
             }
+            prevEmployeeId = currentEmployeeId;
+            currentEmployeeId = null;
+            const list = document.getElementById('employeeList');
+            if (list) list.selectedIndex = -1;
 
             // Clear fields for Add
             const inputs = document.querySelectorAll('#employeesContainer .coa-input, #employeesContainer input[type="checkbox"]');
@@ -4997,12 +5013,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (res.ok) {
                     const result = await res.json();
                     alert("Employee profile saved successfully!");
+                    currentEmployeeId = result.id || currentEmployeeId;
+                    prevEmployeeId = null;
                     await fetchEmployeesList(coId);
-                    
-                    // Force a small delay to ensure the list is rendered before selecting
-                    setTimeout(() => {
-                        onEmployeeSelect(result.id);
-                    }, 100);
+                    if (currentEmployeeId) onEmployeeSelect(currentEmployeeId);
                 } else {
                     const errText = await res.text();
                     console.error("Save failed response:", errText);
@@ -5028,6 +5042,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (res.ok) {
                         alert("Employee deleted successfully.");
                         currentEmployeeId = null;
+                        prevEmployeeId = null;
                         await fetchEmployeesList(coId);
                         resetEmployeeForm(false);
                     } else {
@@ -5057,6 +5072,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         let prevCustAccountCode = null;
         let selectedVendTypeCode = null;
         let selectedVendAccountCode = null;
+        let prevVendTypeCode = null;
+        let prevVendAccountCode = null;
         let customerData = []; 
         let vendorData = [];
         let selectedMainRegionId = null;
@@ -5073,9 +5090,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const list = document.getElementById('mainAccountList');
                 if (list) {
                     clearInterval(checkAndRender);
-                    resetMainForm();
-                    resetSubForm();
-                    resetListForm();
+                    prevMainCode = null;
+                    prevSubCode = null;
+                    prevListCode = null;
                     renderCOAMainList();
                 } else if (++retries >= maxRetries) {
                     clearInterval(checkAndRender);
@@ -5089,10 +5106,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(!list) return;
             list.innerHTML = coaMain.map(m => `<option value="${m.code}">${m.name}</option>`).join('');
             
-            // Auto-select first main account if available
-            if (list.options.length > 0 && !selectedMainCode) {
-                list.selectedIndex = 0;
-                onMainAccountSelect(list.value);
+            if (list.options.length > 0) {
+                const targetCode = (selectedMainCode && Array.from(list.options).some(o => o.value == selectedMainCode))
+                    ? selectedMainCode
+                    : list.options[0].value;
+                list.value = targetCode;
+                onMainAccountSelect(targetCode);
+            } else {
+                selectedMainCode = null;
+                resetMainForm();
+                resetSubForm();
+                resetListForm();
             }
         }
 
@@ -5170,11 +5194,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     // Local check/update
                     if(idx > -1) {
-                        coaMain[idx] = { ...coaMain[idx], name: mainName, component };
+                        coaMain[idx] = { ...coaMain[idx], code, name: mainName, component };
                     } else {
                         coaMain.push({ id: resData.id, code, name: mainName, component });
                     }
-                    
+                    selectedMainCode = code;
+                    prevMainCode = null;
                     renderCOAMainList();
                     resetMainForm(); // Back to locked state
                 }
@@ -5949,20 +5974,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.applyCustomRegionLabels();
             }
             let retries = 0;
-            const checkAndRender = setInterval(() => {
+            const checkAndRender = setInterval(async () => {
                 const list = document.getElementById('customerTypeList');
                 if (list) {
                     clearInterval(checkAndRender);
                     if (typeof window.applyCustomRegionLabels === 'function') {
                         window.applyCustomRegionLabels();
                     }
-                    loadCustomerLookups();
                     renderCustomerTypeList();
+                    await loadCustomerLookups();
                     
-                    // Auto-select first type if available and fetch data
-                    if (list.options.length > 0) {
+                    // Auto-select first valid type after lookups finish
+                    if (list.options.length > 0 && !list.options[0].disabled) {
                         list.selectedIndex = 0;
-                        onCustomerTypeSelect(list.value);
+                        await onCustomerTypeSelect(list.value);
                     } else {
                         resetCustomerTypeForm();
                         resetCustomerForm();
@@ -5973,42 +5998,42 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         async function loadCustomerLookups() {
             try {
-                const regRes = await fetch('api/maintain.php?action=get_regions');
-                const regions = await regRes.json();
-                const regSelect = document.getElementById('custRegion');
-                if(regSelect) {
-                    regSelect.innerHTML = '<option value="">None</option>' + 
-                        regions.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
-                }
-
-                const secRes = await fetch('api/maintain.php?action=get_sectors');
-                const sectors = await secRes.json();
-                const secSelect = document.getElementById('custSector');
-                if(secSelect) {
-                    secSelect.innerHTML = '<option value="">None</option>' + 
-                        sectors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                }
-                
-                // Load Managers (Employees)
                 const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
                 const coId = session.company_id || 1;
-                const manRes = await fetch(`api/maintain.php?action=get_employees&company_id=${coId}`);
-                if (manRes.ok) {
-                    const employees = await manRes.json();
-                    const manSelect = document.getElementById('custAccManager');
-                    if(manSelect) {
-                        manSelect.innerHTML = '<option value="">None</option>' + 
-                            employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-                    }
-                }
-                loadCustomerTaxTypes();
-                if (typeof fetchBuyerTypes === 'function') {
-                    fetchBuyerTypes();
-                } else if (typeof loadCustomerBuyerTypes === 'function') {
-                    loadCustomerBuyerTypes();
-                }
+                const populateSelect = (el, html) => {
+                    if (!el) return;
+                    const curVal = el.value;
+                    el.innerHTML = html;
+                    if (curVal) el.value = curVal;
+                };
+
+                await Promise.all([
+                    fetch('api/maintain.php?action=get_regions')
+                        .then(r => r.json())
+                        .then(regions => populateSelect(
+                            document.getElementById('custRegion'),
+                            '<option value="">None</option>' + (regions || []).map(r => `<option value="${r.id}">${r.name}</option>`).join('')
+                        )).catch(() => {}),
+                    fetch('api/maintain.php?action=get_sectors')
+                        .then(r => r.json())
+                        .then(sectors => populateSelect(
+                            document.getElementById('custSector'),
+                            '<option value="">None</option>' + (sectors || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('')
+                        )).catch(() => {}),
+                    fetch(`api/maintain.php?action=get_employees&company_id=${coId}`)
+                        .then(r => r.ok ? r.json() : [])
+                        .then(employees => populateSelect(
+                            document.getElementById('custAccManager'),
+                            '<option value="">None</option>' + (employees || []).map(e => `<option value="${e.id}">${e.name}</option>`).join('')
+                        )).catch(() => {}),
+                    loadCustomerTaxTypes(),
+                    (typeof fetchBuyerTypes === 'function')
+                        ? fetchBuyerTypes()
+                        : (typeof loadCustomerBuyerTypes === 'function' ? Promise.resolve(loadCustomerBuyerTypes()) : Promise.resolve())
+                ]);
             } catch(e) { console.error("Lookup load failed", e); }
         }
+        window.loadCustomerLookups = loadCustomerLookups;
         
         async function loadCustomerTaxTypes() {
             try {
@@ -6116,7 +6141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             list.innerHTML = filtered.map(s => `<option value="${s.code}">${s.name}</option>`).join('');
         }
 
-        function onCustomerTypeSelect(code, custCodeToSelect = null) {
+        async function onCustomerTypeSelect(code, custCodeToSelect = null) {
             selectedCustTypeCode = code;
             selectedCustAccountCode = null;
             prevCustAccountCode = null;
@@ -6127,7 +6152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('custSubTypeCode').disabled = false;
                 document.getElementById('custTypeName').disabled = false;
             }
-            fetchCustomersDetailed(code, custCodeToSelect);
+            await fetchCustomersDetailed(code, custCodeToSelect);
         }
 
         async function fetchCustomersDetailed(subCode, custCodeToSelect = null) {
@@ -6142,10 +6167,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (list && list.options.length > 0) {
                     if (custCodeToSelect) {
                         list.value = custCodeToSelect;
-                        onCustomerSelect(custCodeToSelect);
+                        await onCustomerSelect(custCodeToSelect);
                     } else {
                         list.selectedIndex = 0;
-                        onCustomerSelect(list.value);
+                        await onCustomerSelect(list.value);
                     }
                 } else {
                     resetCustomerForm();
@@ -6302,7 +6327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     } else {
                         coaList.push({ id: resData.id, sub_id: sub.id, code, name });
                     }
-                    fetchCustomersDetailed(selectedCustTypeCode);
+                    await fetchCustomersDetailed(selectedCustTypeCode, code);
                 }
             } catch(e) { alert("Save failed"); }
         }
@@ -6320,6 +6345,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         alert("Customer Type deleted.");
                         // Refresh coaSub locally or re-sync
                         coaSub = coaSub.filter(s => s.id != sub.id);
+                        selectedCustTypeCode = null;
+                        prevCustTypeCode = null;
                         renderCustomerTypeList();
                         resetCustomerTypeForm();
                     }
@@ -6336,7 +6363,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(confirm(`Are you sure you want to delete the profile for "${cust.name}"?`)) {
                 try {
                     const res = await fetch(`api/maintain.php?action=delete_coa_list&id=${cust.id}`, { method: 'POST' });
-                    if(res.ok) { alert("Customer Profile deleted."); coaList = coaList.filter(l => l.id != cust.id); fetchCustomersDetailed(selectedCustTypeCode); } else { const err = await res.json(); alert(err.message || "Delete failed."); }
+                    if(res.ok) {
+                        alert("Customer Profile deleted.");
+                        coaList = coaList.filter(l => l.id != cust.id);
+                        selectedCustAccountCode = null;
+                        prevCustAccountCode = null;
+                        await fetchCustomersDetailed(selectedCustTypeCode);
+                    } else { const err = await res.json(); alert(err.message || "Delete failed."); }
                 } catch(e) { alert("Delete failed"); }
             }
         }
@@ -6755,7 +6788,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         function enableVendorFields(enabled) {
             const fields = [
                 'vendAccountCode', 'vendAccountName', 'vendContactPerson', 'vendAddress',
-                'vendTelephone', 'vendMobile', 'vendFax', 'vendWebsite', 'vendEmail', 
+                'vendTelephone', 'vendMobile', 'vendFax', 'vendWebsite', 'vendEmail',
                 'vendStReg', 'vendNtn', 'vendCreditTerms', 'vendRemarks'
             ];
             fields.forEach(f => {
@@ -6838,7 +6871,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     } else {
                         coaList.push({ id: resData.id, sub_id: sub.id, code, name });
                     }
-                    fetchVendorsDetailed(selectedVendTypeCode);
+                    await fetchVendorsDetailed(selectedVendTypeCode, code);
                 }
             } catch(e) { alert("Save failed"); }
         }
@@ -6859,6 +6892,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if(res.ok) {
                         alert("Vendor Type deleted.");
                         coaSub = coaSub.filter(s => s.id != sub.id);
+                        selectedVendTypeCode = null;
+                        prevVendTypeCode = null;
                         renderVendorTypeList();
                         resetVendorTypeForm();
                     }
@@ -6873,13 +6908,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(confirm(`Are you sure you want to delete the profile for "${vend.name}"?`)) {
                 try {
                     const res = await fetch(`api/maintain.php?action=delete_vendor&id=${vend.id}`, { method: 'POST' });
-                    if(res.ok) { alert("Vendor Profile deleted."); fetchVendorsDetailed(selectedVendTypeCode); } else { const err = await res.json(); alert(err.message || "Delete failed."); }
+                    if(res.ok) {
+                        alert("Vendor Profile deleted.");
+                        coaList = coaList.filter(l => l.id != vend.id);
+                        selectedVendAccountCode = null;
+                        prevVendAccountCode = null;
+                        await fetchVendorsDetailed(selectedVendTypeCode);
+                    } else { const err = await res.json(); alert(err.message || "Delete failed."); }
                 } catch(e) { alert("Delete failed"); }
             }
         }
 
         function resetVendorTypeForm(generate = false) {
             if(generate) {
+                prevVendTypeCode = selectedVendTypeCode;
                 selectedVendTypeCode = null;
                 enableVendorTypeFields(true);
                 const vendMain = coaMain.find(m => m.name.toLowerCase().includes('vendor') || m.name.toLowerCase().includes('supplier') || m.name.toLowerCase().includes('creditor'));
@@ -6899,9 +6941,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 resetVendorForm();
             } else {
                 const list = document.getElementById('vendorTypeList');
+                const codeToRestore = selectedVendTypeCode || prevVendTypeCode;
+                prevVendTypeCode = null;
                 if (list && list.options.length > 0 && !list.options[0].disabled) {
-                    list.selectedIndex = 0;
-                    onVendorTypeSelect(list.value);
+                    const hasTarget = codeToRestore && Array.from(list.options).some(o => o.value == codeToRestore);
+                    const targetCode = hasTarget ? codeToRestore : list.options[0].value;
+                    list.value = targetCode;
+                    if (targetCode) onVendorTypeSelect(targetCode);
                 } else {
                     selectedVendTypeCode = null;
                     enableVendorTypeFields(false);
@@ -6915,28 +6961,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         function resetVendorForm(generate = false) {
+            const vendorFields = [
+                'vendAccountCode', 'vendAccountName', 'vendContactPerson', 'vendAddress',
+                'vendTelephone', 'vendMobile', 'vendFax', 'vendWebsite', 'vendEmail',
+                'vendStReg', 'vendNtn', 'vendCreditTerms', 'vendRemarks'
+            ];
+            const clearVendorInputs = () => {
+                vendorFields.forEach(f => {
+                    const el = document.getElementById(f);
+                    if(el) el.value = (f === 'vendCreditTerms') ? 'CASH' : '';
+                });
+            };
             if(generate) {
+                prevVendAccountCode = selectedVendAccountCode;
                 selectedVendAccountCode = null;
                 enableVendorFields(true);
-                const fields = [
-                    'vendAccountCode', 'vendAccountName', 'vendContactPerson', 'vendAddress',
-                    'vendTelephone', 'vendMobile', 'vendFax', 'vendWebsite', 'vendEmail', 
-                    'vendStReg', 'vendNtn', 'vendCreditTerms', 'vendRemarks'
-                ];
-                fields.forEach(f => {
-                    const el = document.getElementById(f);
-                    if(el) {
-                        if(f === 'vendCreditTerms') el.value = 'CASH';
-                        else el.value = '';
-                    }
-                });
+                clearVendorInputs();
                 document.getElementById('vendorList').value = '';
                 
                 if(!selectedVendTypeCode) {
                     alert("Select a Vendor Type first!");
                     return;
                 }
-                const sub = coaSub.find(s => s.code == selectedVendTypeCode);
                 const siblings = vendorData;
                 let nextNum = 1;
                 if(siblings.length > 0) {
@@ -6947,24 +6993,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('vendAccountName').focus();
             } else {
                 const list = document.getElementById('vendorList');
+                const codeToRestore = selectedVendAccountCode || prevVendAccountCode;
+                prevVendAccountCode = null;
                 if (list && list.options.length > 0) {
-                    list.selectedIndex = 0;
-                    onVendorSelect(list.value);
+                    const hasTarget = codeToRestore && Array.from(list.options).some(o => o.value == codeToRestore);
+                    const targetCode = hasTarget ? codeToRestore : list.options[0].value;
+                    list.value = targetCode;
+                    onVendorSelect(targetCode);
                 } else {
                     selectedVendAccountCode = null;
                     enableVendorFields(false);
-                    const fields = [
-                        'vendAccountCode', 'vendAccountName', 'vendContactPerson', 'vendAddress',
-                        'vendTelephone', 'vendMobile', 'vendFax', 'vendWebsite', 'vendEmail', 
-                        'vendStReg', 'vendNtn', 'vendCreditTerms', 'vendRemarks'
-                    ];
-                    fields.forEach(f => {
-                        const el = document.getElementById(f);
-                        if(el) {
-                            if(f === 'vendCreditTerms') el.value = 'CASH';
-                            else el.value = '';
-                        }
-                    });
+                    clearVendorInputs();
                     if (list) list.value = '';
                 }
             }
@@ -7238,7 +7277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             list.innerHTML = filtered.map(s => `<option value="${s.code}">${s.name}</option>`).join('');
         }
 
-        function onBankTypeSelect(code) {
+        async function onBankTypeSelect(code, bankCodeToSelect = null) {
             try {
                 selectedBankTypeCode = code;
                 const sub = coaSub.find(s => s && (s.code == code || String(s.code || '').trim() === String(code || '').trim()));
@@ -7252,12 +7291,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('bankSubName').value = 'sub not found for: ' + code;
                 }
                 
-                fetchBanksDetailed(code).catch(e => {
-                    document.getElementById('bankSubName').value = 'fetch err: ' + e.message;
-                });
+                await fetchBanksDetailed(code, bankCodeToSelect);
             } catch(err) {
                 const el = document.getElementById('bankSubName');
-                if (el) el.value = 'JS ERR: ' + err.message;
+                if (el) el.value = 'JS/FETCH ERR: ' + err.message;
             }
         }
 
@@ -7267,7 +7304,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Never disable bankSubTypeCode so text stays black; it is readonly in HTML.
         }
 
-        async function fetchBanksDetailed(subCode) {
+        async function fetchBanksDetailed(subCode, bankCodeToSelect = null) {
             try {
                 const sub = coaSub.find(s => s && (s.code == subCode || String(s.code || '').trim() === String(subCode || '').trim()));
                 if(!sub) return;
@@ -7279,14 +7316,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     bankData = [];
                 }
                 
-                renderBankList();
+                renderBankList(bankCodeToSelect);
             } catch(err) {
                 const el = document.getElementById('bankSubName');
                 if (el) el.value = 'FETCH JS ERR: ' + err.message;
             }
         }
 
-        function renderBankList() {
+        function renderBankList(bankCodeToSelect = null) {
             const list = document.getElementById('bankList');
             if(!list) return;
             const sub = coaSub.find(s => s.code == selectedBankTypeCode);
@@ -7295,8 +7332,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             // BankData should already be filtered for this sub_id by fetchBanksDetailed
             list.innerHTML = bankData.map(b => `<option value="${b.code}">${b.name}</option>`).join('');
             if(bankData.length > 0 && list.options.length > 0) {
-                list.selectedIndex = 0;
-                onBankSelect(list.options[0].value);
+                const hasTarget = bankCodeToSelect && bankData.some(b => b.code == bankCodeToSelect);
+                const codeToSelect = hasTarget ? bankCodeToSelect : list.options[0].value;
+                list.value = codeToSelect;
+                onBankSelect(codeToSelect);
             } else {
                 resetBankFields();
                 document.getElementById('bankAccountCode').value = '';
@@ -7595,20 +7634,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderFindBankTable();
         }
 
-        function selectBankFromFind(typeCode, bankCode) {
+        async function selectBankFromFind(typeCode, bankCode) {
             closeFindBankModal();
             const typeList = document.getElementById('bankTypeList');
             if (typeList) {
                 typeList.value = typeCode;
-                onBankTypeSelect(typeCode);
-                
-                setTimeout(() => {
-                    const bList = document.getElementById('bankList');
-                    if (bList) {
-                        bList.value = bankCode;
-                        onBankSelect(bankCode);
-                    }
-                }, 300);
+                await onBankTypeSelect(typeCode, bankCode);
             }
         }
 
@@ -9924,16 +9955,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         async function initChartOfInventoryView() {
             try {
-                loadInvBrands(); // Ensure brands are ready
-                if(window.loadInvHsCodes) loadInvHsCodes(); // Ensure HS Codes are ready
-                if(window.loadInvItemSizes) loadInvItemSizes();
-                if(window.loadInvItemFittingTypes) loadInvItemFittingTypes();
-                if(window.loadInvItemLengths) loadInvItemLengths();
-                if(window.loadInvItemSigns) loadInvItemSigns();
-                if(window.loadInvItemClasses) loadInvItemClasses();
                 const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
                 const coId = session.company_id || 1;
-                const res = await fetch(`api/inventory.php?action=get_inventory_tree&company_id=${coId}`);
+                const [, , , , , , , res] = await Promise.all([
+                    loadInvBrands(),
+                    window.loadInvHsCodes ? window.loadInvHsCodes() : Promise.resolve(),
+                    window.loadInvItemSizes ? window.loadInvItemSizes() : Promise.resolve(),
+                    window.loadInvItemFittingTypes ? window.loadInvItemFittingTypes() : Promise.resolve(),
+                    window.loadInvItemLengths ? window.loadInvItemLengths() : Promise.resolve(),
+                    window.loadInvItemSigns ? window.loadInvItemSigns() : Promise.resolve(),
+                    window.loadInvItemClasses ? window.loadInvItemClasses() : Promise.resolve(),
+                    fetch(`api/inventory.php?action=get_inventory_tree&company_id=${coId}`)
+                ]);
                 if (!res.ok) {
                     alert("SoftifyX: API Error - get_inventory_tree returned " + res.status);
                     return;
@@ -11203,7 +11236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Fitting Image preview update
             const main = invMains.find(m => m.id == selectedInvMainId);
             syncSubCategoryImageSection(main, sub);
-            fetchInvItems(id);
+            await fetchInvItems(id);
         }
 
         function updateSubImageUI(imagePath) {
@@ -11552,10 +11585,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         function resetInvItemForm(generate = false) {
             if (generate && !selectedInvSubId) return alert("Select a Sub Category first!");
-            if (generate) {
-                prevInvItemId = selectedInvItemId;
-                selectedInvItemId = null;
-                enableInvItemFields(true);
+            const clearAllInvFields = () => {
                 const ids = [
                     'invItemHsCode', 'invItemName', 'invItemDesc', 'invItemBrand', 'invItemRack',
                     'invItemPurchasePrice', 'invItemSellingPrice', 'invItemValuationCost', 'invItemOrderQty',
@@ -11567,6 +11597,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const el = document.getElementById(id);
                     if (el) el.value = '';
                 });
+                const chkSize = document.getElementById('chkEnablePipeSize');
+                if (chkSize) chkSize.checked = false;
+                const chkLength = document.getElementById('chkEnablePipeLength');
+                if (chkLength) chkLength.checked = false;
+            };
+            if (generate) {
+                prevInvItemId = selectedInvItemId;
+                selectedInvItemId = null;
+                enableInvItemFields(true);
+                clearAllInvFields();
                 let defaultUnit = 'Pcs';
                 let catType = '';
                 if (selectedInvMainId) {
@@ -11600,11 +11640,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const lengthOption = Array.from(lengthSelect.options).find(opt => opt.value.trim() === "13'");
                     if (lengthOption) lengthSelect.value = lengthOption.value;
                 }
-                
-                const chkSize = document.getElementById('chkEnablePipeSize');
-                if (chkSize) chkSize.checked = false;
-                const chkLength = document.getElementById('chkEnablePipeLength');
-                if (chkLength) chkLength.checked = false;
                 
                 if (typeof togglePipeSizeLength === 'function') togglePipeSizeLength();
                 
@@ -11661,14 +11696,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     if (selectedInvItemId) return onInvItemSelect(selectedInvItemId);
                     selectedInvItemId = null;
-                    const ids = [
-                        'invItemName', 'invItemDesc', 'invItemBrand', 'invItemRack',
-                        'invItemPurchasePrice', 'invItemSellingPrice', 'invItemValuationCost', 'invItemOrderQty'
-                    ];
-                    ids.forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el) el.value = '';
-                    });
+                    clearAllInvFields();
+                    if (typeof togglePipeSizeLength === 'function') togglePipeSizeLength();
                     document.getElementById('invItemUnit').value = 'Pcs';
                     document.getElementById('invItemQtyPerPiece').value = '';
                     document.getElementById('invItemTaxRate').value = '';

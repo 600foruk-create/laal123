@@ -11,7 +11,7 @@ window.ChartOfServices = {
     },
 
     // --- CATEGORY LOGIC ---
-    loadCategories: async function() {
+    loadCategories: async function(preferCatId = null) {
         const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
         const companyId = session.company_id || 1;
         try {
@@ -20,8 +20,13 @@ window.ChartOfServices = {
             this.renderCategories();
             
             if (this.categories && this.categories.length > 0) {
-                this.selectCategory(this.categories[0].id);
+                const candidate = preferCatId || this.selectedCatId;
+                const targetId = (candidate && this.categories.some(c => c.id == candidate))
+                    ? candidate
+                    : this.categories[0].id;
+                this.selectCategory(targetId);
             } else {
+                this.selectedCatId = null;
                 this.resetCatForm();
             }
         } catch (e) { console.error("Load Categories Error:", e); }
@@ -82,8 +87,9 @@ window.ChartOfServices = {
             });
             const result = await res.json();
             if (result.status === 'success') {
-                await this.loadCategories();
-                this.resetCatForm();
+                this.selectedCatId = result.id || this.selectedCatId;
+                this.prevCatId = null;
+                await this.loadCategories(this.selectedCatId);
             } else {
                 alert("Error: " + result.message);
             }
@@ -107,10 +113,13 @@ window.ChartOfServices = {
             const res = await fetch(`api/services.php?action=delete_category&id=${this.selectedCatId}&company_id=${companyId}`);
             const result = await res.json();
             if (result.status === 'success') {
+                this.selectedCatId = null;
+                this.prevCatId = null;
                 await this.loadCategories();
-                this.resetCatForm();
-                this.services = [];
-                this.renderServices();
+                if (!this.categories || this.categories.length === 0) {
+                    this.services = [];
+                    this.renderServices();
+                }
             }
         } catch (e) { console.error("Delete Category Error:", e); }
     },
@@ -129,7 +138,7 @@ window.ChartOfServices = {
     },
 
     // --- SERVICES LOGIC ---
-    loadServices: async function(catId) {
+    loadServices: async function(catId, preferItemId = null) {
         const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
         const companyId = session.company_id || 1;
         try {
@@ -138,8 +147,13 @@ window.ChartOfServices = {
             this.renderServices();
             
             if (this.services && this.services.length > 0) {
-                this.selectService(this.services[0].id);
+                const candidate = preferItemId || this.selectedItemId;
+                const targetId = (candidate && this.services.some(s => s.id == candidate))
+                    ? candidate
+                    : this.services[0].id;
+                this.selectService(targetId);
             } else {
+                this.selectedItemId = null;
                 this.resetItemForm();
             }
         } catch (e) { console.error("Load Services Error:", e); }
@@ -227,7 +241,9 @@ window.ChartOfServices = {
             });
             const result = await res.json();
             if (result.status === 'success') {
-                await this.loadServices(this.selectedCatId);
+                this.selectedItemId = result.id || this.selectedItemId;
+                this.prevItemId = null;
+                await this.loadServices(this.selectedCatId, this.selectedItemId);
             } else {
                 alert("Error: " + result.message);
             }
@@ -244,6 +260,8 @@ window.ChartOfServices = {
             const res = await fetch(`api/services.php?action=delete_service&id=${this.selectedItemId}&company_id=${companyId}`);
             const result = await res.json();
             if (result.status === 'success') {
+                this.selectedItemId = null;
+                this.prevItemId = null;
                 await this.loadServices(this.selectedCatId);
             }
         } catch (e) { console.error("Delete Service Error:", e); }

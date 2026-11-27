@@ -194,8 +194,10 @@ window.TaxRatesModule = {
 
     cancel: function() {
         this.load();
-        if (typeof closeModularPopup === 'function') {
-            closeModularPopup();
+        if (typeof window.closeContainerModal === 'function') {
+            window.closeContainerModal('itemTaxRatesContainer');
+        } else if (typeof window.closeModal === 'function') {
+            window.closeModal();
         }
     },
 

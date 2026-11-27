@@ -65,18 +65,23 @@
             modalContainer.style.borderRadius = '12px';
             modalContainer.style.overflow = 'hidden';
             modalContainer.style.backgroundColor = '#f8f9fa';
-        }
-        
-        const orgClose = window.closeModal;
-        window.closeModal = function() {
-            if(modalContainer) {
-                modalContainer.style.width = '';
-                modalContainer.style.padding = '';
-                modalContainer.style.borderRadius = '';
-                modalContainer.style.overflow = '';
-                modalContainer.style.backgroundColor = '';
+
+            const orgClose = window.closeModal;
+            if (typeof orgClose === 'function') {
+                window.closeModal = function(windowId) {
+                    const closingBackup = !document.getElementById('backupPopupWrapper') || !windowId || windowId === modalContainer.id;
+                    if (closingBackup) {
+                        modalContainer.style.width = '';
+                        modalContainer.style.maxWidth = '';
+                        modalContainer.style.padding = '';
+                        modalContainer.style.borderRadius = '';
+                        modalContainer.style.overflow = '';
+                        modalContainer.style.backgroundColor = '';
+                        window.closeModal = orgClose;
+                    }
+                    return orgClose(windowId);
+                };
             }
-            if(orgClose) orgClose();
-        };
+        }
     }, 10);
 </script>

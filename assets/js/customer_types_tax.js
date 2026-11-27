@@ -1,5 +1,6 @@
 let custTypeTaxData = [];
 let selectedCustTypeTaxId = null;
+let prevCustTypeTaxId = null;
 
 async function fetchCustTypeTax() {
     try {
@@ -8,8 +9,18 @@ async function fetchCustTypeTax() {
         const res = await fetch(`api/maintain.php?action=get_customer_types_tax&company_id=${coId}`);
         custTypeTaxData = await res.json();
         const list = document.getElementById('custTypeTaxList');
-        if(list) {
+        if (list) {
             list.innerHTML = custTypeTaxData.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            if (custTypeTaxData.length > 0) {
+                const targetId = (selectedCustTypeTaxId && custTypeTaxData.some(c => c.id == selectedCustTypeTaxId))
+                    ? selectedCustTypeTaxId
+                    : custTypeTaxData[0].id;
+                list.value = targetId;
+                onCustTypeTaxSelect(targetId);
+            } else {
+                selectedCustTypeTaxId = null;
+                resetCustomerTypeTaxForm(false);
+            }
         }
     } catch(e) {}
 }
@@ -28,9 +39,11 @@ function onCustTypeTaxSelect(id) {
 }
 
 function resetCustomerTypeTaxForm(isNew) {
-    if(isNew) {
+    const list = document.getElementById('custTypeTaxList');
+    if (isNew) {
+        prevCustTypeTaxId = selectedCustTypeTaxId;
         selectedCustTypeTaxId = null;
-        document.getElementById('custTypeTaxList').selectedIndex = -1;
+        if (list) list.selectedIndex = -1;
         document.getElementById('custTypeTaxName').value = '';
         document.getElementById('custTypeTaxRate').value = '0';
         document.getElementById('custTypeTaxWht').value = '';
@@ -39,14 +52,24 @@ function resetCustomerTypeTaxForm(isNew) {
         document.getElementById('custTypeTaxWht').disabled = false;
         document.getElementById('custTypeTaxName').focus();
     } else {
-        selectedCustTypeTaxId = null;
-        document.getElementById('custTypeTaxList').selectedIndex = -1;
-        document.getElementById('custTypeTaxName').value = '';
-        document.getElementById('custTypeTaxRate').value = '';
-        document.getElementById('custTypeTaxWht').value = '';
-        document.getElementById('custTypeTaxName').disabled = true;
-        document.getElementById('custTypeTaxRate').disabled = true;
-        document.getElementById('custTypeTaxWht').disabled = true;
+        const restoreId = selectedCustTypeTaxId || prevCustTypeTaxId;
+        prevCustTypeTaxId = null;
+        if (custTypeTaxData && custTypeTaxData.length > 0) {
+            const targetId = (restoreId && custTypeTaxData.some(c => c.id == restoreId))
+                ? restoreId
+                : custTypeTaxData[0].id;
+            if (list) list.value = targetId;
+            onCustTypeTaxSelect(targetId);
+        } else {
+            selectedCustTypeTaxId = null;
+            if (list) list.selectedIndex = -1;
+            document.getElementById('custTypeTaxName').value = '';
+            document.getElementById('custTypeTaxRate').value = '';
+            document.getElementById('custTypeTaxWht').value = '';
+            document.getElementById('custTypeTaxName').disabled = true;
+            document.getElementById('custTypeTaxRate').disabled = true;
+            document.getElementById('custTypeTaxWht').disabled = true;
+        }
     }
 }
 
@@ -71,8 +94,9 @@ async function saveCustomerTypeTax() {
         });
         const data = await res.json();
         if(data.status === 'success') {
+            selectedCustTypeTaxId = data.id || selectedCustTypeTaxId;
+            prevCustTypeTaxId = null;
             await fetchCustTypeTax();
-            resetCustomerTypeTaxForm(false);
             // Refresh customer tax dropdowns globally if needed
             if (typeof loadCustomerTaxTypes === 'function') {
                 loadCustomerTaxTypes();
@@ -90,8 +114,9 @@ async function deleteCustomerTypeTax() {
         const res = await fetch(`api/maintain.php?action=delete_customer_type_tax&id=${selectedCustTypeTaxId}`);
         const data = await res.json();
         if(data.status === 'success') {
+            selectedCustTypeTaxId = null;
+            prevCustTypeTaxId = null;
             await fetchCustTypeTax();
-            resetCustomerTypeTaxForm(false);
             if (typeof loadCustomerTaxTypes === 'function') {
                 loadCustomerTaxTypes();
             }

@@ -194,8 +194,10 @@ window.CostMethodModule = {
 
     cancel: function() {
         this.load();
-        if (typeof closeModularPopup === 'function') {
-            closeModularPopup();
+        if (typeof window.closeContainerModal === 'function') {
+            window.closeContainerModal('itemCostMethodContainer');
+        } else if (typeof window.closeModal === 'function') {
+            window.closeModal();
         }
     },
 

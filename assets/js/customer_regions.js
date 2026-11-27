@@ -259,7 +259,6 @@
                     selectedSubRegionId = data.id;
                 }
                 await fetchSubRegions(selectedMainRegionId);
-                resetSubRegionForm(false);
             } else {
                 alert(`Error saving ${lbls.sub}: ` + (data.message || 'Unknown error'));
             }
@@ -327,7 +326,6 @@
                     selectedListRegionId = data.id;
                 }
                 await fetchListRegions(selectedSubRegionId);
-                resetListRegionForm(false);
             } else {
                 alert(`Error saving ${lbls.list}: ` + (data.message || 'Unknown error'));
             }
