@@ -351,7 +351,7 @@
 
                         <div class="plm-form-row">
                             <span class="plm-form-label">Adjustment Type</span>
-                            <select id="plm_adj_type" class="plm-select" onchange="window.PriceListManagementModule.triggerAutoPreview()">
+                            <select id="plm_adj_type" class="plm-select">
                                 <option value="Increase">Increase</option>
                                 <option value="Decrease">Decrease</option>
                             </select>
@@ -381,14 +381,14 @@
 
                         <div class="plm-form-row">
                             <span class="plm-form-label">Item</span>
-                            <select id="plm_item" class="plm-select" onchange="window.PriceListManagementModule.triggerAutoPreview()">
+                            <select id="plm_item" class="plm-select">
                                 <option value="">All Items</option>
                             </select>
                         </div>
 
                         <div class="plm-form-row" id="plm_cust_row" style="display: flex;">
                             <span class="plm-form-label">Customer</span>
-                            <select id="plm_customer" class="plm-select" onchange="window.PriceListManagementModule.triggerAutoPreview()">
+                            <select id="plm_customer" class="plm-select">
                                 <option value="">All Customers</option>
                             </select>
                         </div>
@@ -397,17 +397,17 @@
                             <span class="plm-form-label">Method</span>
                             <div style="display: flex; gap: 14px; align-items: center;">
                                 <label style="display:inline-flex; align-items:center; gap:4px; font-weight:600; cursor:pointer;">
-                                    <input type="radio" name="plm_method" value="Fixed" checked onchange="window.PriceListManagementModule.triggerAutoPreview()"> Fixed Amount
+                                    <input type="radio" name="plm_method" value="Fixed" checked onchange="window.PriceListManagementModule.syncBrandTableDisplay()"> Fixed Amount
                                 </label>
                                 <label style="display:inline-flex; align-items:center; gap:4px; font-weight:600; cursor:pointer;">
-                                    <input type="radio" name="plm_method" value="Percentage" onchange="window.PriceListManagementModule.triggerAutoPreview()"> Percentage (%)
+                                    <input type="radio" name="plm_method" value="Percentage" onchange="window.PriceListManagementModule.syncBrandTableDisplay()"> Percentage (%)
                                 </label>
                             </div>
                         </div>
 
                         <div class="plm-form-row">
                             <span class="plm-form-label">Adjustment Value</span>
-                            <input type="number" step="0.01" id="plm_adj_value" class="plm-input" value="5.00" style="font-weight:700;" oninput="window.PriceListManagementModule.triggerAutoPreview()">
+                            <input type="number" step="0.01" id="plm_adj_value" class="plm-input" value="0" style="font-weight:700;" oninput="window.PriceListManagementModule.syncBrandTableDisplay()">
                         </div>
 
                         <div class="plm-form-row" style="align-items: flex-start;">
@@ -428,7 +428,7 @@
                 <div class="plm-card">
                     <div class="plm-card-header">
                         <span><i class="fas fa-layer-group mr-1"></i> Bulk Brand-wise Adjustment (Optional)</span>
-                        <span style="font-size: 10px; color: #64748b; font-weight: 600;">Custom rule per brand</span>
+                        <span style="font-size: 10px; color: #64748b; font-weight: 600;">Select brands to update (Rate synced from setup)</span>
                     </div>
                     <div style="flex: 1; overflow-y: auto; max-height: 250px;">
                         <table class="plm-table" id="plm_brand_table">

@@ -27,7 +27,6 @@ window.PriceListManagementModule = {
         await this.loadMeta();
         this.renderBrandAdjustmentGrid();
         this.resetRevisionForm();
-        this.calculatePreview();
         this.loadGeneralPrices();
         this.loadBrandPricingStats();
     },
@@ -113,6 +112,10 @@ window.PriceListManagementModule = {
         const tbody = document.getElementById('plm_brand_tbody');
         if (!tbody) return;
         
+        const method = document.querySelector('input[name="plm_method"]:checked')?.value || 'Fixed';
+        const methodLabel = method === 'Percentage' ? 'Percentage (%)' : 'Fixed Amount';
+        const val = parseFloat(document.getElementById('plm_adj_value')?.value || 0).toFixed(2);
+
         let html = '';
         (this.meta.brands || []).forEach((b, idx) => {
             html += `
@@ -123,13 +126,10 @@ window.PriceListManagementModule = {
                     </td>
                     <td style="font-weight:700; color:#1e293b;">${b.name}</td>
                     <td>
-                        <select class="plm-select plm-brand-method" style="padding:2px 4px; font-size:10.5px;" onchange="window.PriceListManagementModule.triggerAutoPreview()">
-                            <option value="Fixed">Fixed Amount</option>
-                            <option value="Percentage">Percentage (%)</option>
-                        </select>
+                        <span class="plm-brand-method-display" style="padding:2px 6px; font-size:11px; background:#f1f5f9; color:#475569; border-radius:3px; display:inline-block; font-weight:600;">${methodLabel}</span>
                     </td>
                     <td>
-                        <input type="number" step="0.01" class="plm-input num-cell plm-brand-val" style="padding:2px 4px; font-size:11px; font-weight:700;" value="5.00" oninput="window.PriceListManagementModule.triggerAutoPreview()">
+                        <input type="number" step="0.01" class="plm-input num-cell plm-brand-val" style="padding:2px 4px; font-size:11px; font-weight:700; background:#f8fafc; color:#334155; cursor:not-allowed;" value="${val}" readonly tabindex="-1">
                     </td>
                 </tr>
             `;
@@ -141,14 +141,24 @@ window.PriceListManagementModule = {
         tbody.innerHTML = html;
     },
 
+    syncBrandTableDisplay: function() {
+        const method = document.querySelector('input[name="plm_method"]:checked')?.value || 'Fixed';
+        const methodLabel = method === 'Percentage' ? 'Percentage (%)' : 'Fixed Amount';
+        const val = parseFloat(document.getElementById('plm_adj_value')?.value || 0).toFixed(2);
+
+        const methodDisplays = document.querySelectorAll('.plm-brand-method-display');
+        methodDisplays.forEach(el => el.innerText = methodLabel);
+
+        const valInputs = document.querySelectorAll('.plm-brand-val');
+        valInputs.forEach(el => el.value = val);
+    },
+
     onBrandCheckChange: function() {
         this.filterItemsDropdown();
-        this.triggerAutoPreview();
     },
 
     onCategoryOrBrandChange: function() {
         this.filterItemsDropdown();
-        this.triggerAutoPreview();
     },
 
     filterItemsDropdown: function() {
@@ -200,7 +210,6 @@ window.PriceListManagementModule = {
         const checkboxes = document.querySelectorAll('.plm-brand-check');
         checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
         this.filterItemsDropdown();
-        this.triggerAutoPreview();
     },
 
     // 3. Tab Switching
@@ -249,7 +258,6 @@ window.PriceListManagementModule = {
                 document.getElementById('plm_customer').value = '';
             }
         }
-        this.triggerAutoPreview();
     },
 
     triggerAutoPreview: function() {
@@ -270,16 +278,14 @@ window.PriceListManagementModule = {
         const method = document.querySelector('input[name="plm_method"]:checked')?.value || 'Fixed';
         const adjValue = parseFloat(document.getElementById('plm_adj_value')?.value || 0);
 
-        // Collect brand adjustments
+        // Collect brand adjustments (brands checked use the revision setup method & value)
         const brandAdjustments = [];
         const rows = document.querySelectorAll('#plm_brand_tbody tr');
         rows.forEach(r => {
             const bId = r.dataset.brandId;
             const cb = r.querySelector('.plm-brand-check');
-            const m = r.querySelector('.plm-brand-method')?.value || 'Fixed';
-            const v = parseFloat(r.querySelector('.plm-brand-val')?.value || 0);
             if (bId && cb && cb.checked) {
-                brandAdjustments.push({ brand_id: bId, method: m, value: v, enabled: true });
+                brandAdjustments.push({ brand_id: bId, method: method, value: adjValue, enabled: true });
             }
         });
 
@@ -421,16 +427,14 @@ window.PriceListManagementModule = {
             return;
         }
 
-        // Collect brand adjustments
+        // Collect brand adjustments (brands checked use the revision setup method & value)
         const brandAdjustments = [];
         const rows = document.querySelectorAll('#plm_brand_tbody tr');
         rows.forEach(r => {
             const bId = r.dataset.brandId;
             const cb = r.querySelector('.plm-brand-check');
-            const m = r.querySelector('.plm-brand-method')?.value || 'Fixed';
-            const v = parseFloat(r.querySelector('.plm-brand-val')?.value || 0);
             if (bId && cb && cb.checked) {
-                brandAdjustments.push({ brand_id: bId, method: m, value: v, enabled: true });
+                brandAdjustments.push({ brand_id: bId, method: method, value: adjValue, enabled: true });
             }
         });
 
@@ -470,7 +474,7 @@ window.PriceListManagementModule = {
             if (data.status === 'success') {
                 alert(`✓ SUCCESS:\n\n${data.message}`);
                 await this.loadMeta();
-                this.calculatePreview();
+                this.resetRevisionForm();
                 this.loadGeneralPrices();
                 this.loadHistory();
             } else {
@@ -487,7 +491,6 @@ window.PriceListManagementModule = {
         await this.loadMeta();
         this.resetRevisionForm();
         this.switchTab('bulk_revision');
-        this.calculatePreview();
     },
 
     resetRevisionForm: function() {
@@ -519,10 +522,10 @@ window.PriceListManagementModule = {
         if (fixedRadio) fixedRadio.checked = true;
 
         const adjVal = document.getElementById('plm_adj_value');
-        if (adjVal) adjVal.value = '5.00';
+        if (adjVal) adjVal.value = '0';
 
         const rem = document.getElementById('plm_remarks');
-        if (rem) rem.value = 'General price increase Rs. 5 for all customers';
+        if (rem) rem.value = '';
 
         // Uncheck all brands
         const checkboxes = document.querySelectorAll('.plm-brand-check');
@@ -530,7 +533,42 @@ window.PriceListManagementModule = {
         const checkAll = document.getElementById('plm_brand_check_all');
         if (checkAll) checkAll.checked = false;
 
+        this.syncBrandTableDisplay();
         this.filterItemsDropdown();
+
+        // Reset KPIs
+        const kpiItems = document.getElementById('plm_kpi_items');
+        const kpiCusts = document.getElementById('plm_kpi_customers');
+        const kpiRs = document.getElementById('plm_kpi_avg_rs');
+        const kpiPct = document.getElementById('plm_kpi_avg_pct');
+        if (kpiItems) kpiItems.innerText = '0';
+        if (kpiCusts) kpiCusts.innerText = '0';
+        if (kpiRs) kpiRs.innerText = 'Rs. 0.00';
+        if (kpiPct) kpiPct.innerText = '0.00 %';
+
+        // Reset Preview table
+        this.previewData = null;
+        const thead = document.getElementById('plm_preview_thead');
+        if (thead) {
+            thead.innerHTML = `
+                <tr>
+                    <th style="width: 32px; text-align: center;">#</th>
+                    <th style="width: 110px;">Brand</th>
+                    <th>Item Name</th>
+                    <th class="num-cell" style="width: 110px;">General Rate (Old)</th>
+                    <th class="num-cell" style="width: 120px; background:#15803d; border-right:2px solid #ffffff;">General Rate (New)</th>
+                    <th class="num-cell" style="width: 140px;">Customer Custom Rates</th>
+                </tr>
+            `;
+        }
+        const tbody = document.getElementById('plm_preview_tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;"><i class="fas fa-info-circle mr-1"></i> Select criteria and click 'Preview Price Update' to preview changes before applying.</td></tr>`;
+        }
+        const footerSum = document.getElementById('plm_footer_summary');
+        if (footerSum) {
+            footerSum.innerHTML = `<b>Status:</b> Ready. Click 'Preview Price Update' to calculate affected items.`;
+        }
     },
 
     // 8. Tab 1: General Price List (With Manual Rate Editing for Purchase & Selling)
