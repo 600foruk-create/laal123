@@ -5,7 +5,9 @@ window.RecoveryReceiptsReport = {
     customers: [],
 
     init: function() {
-        if (this.isInitialized) return;
+        const marker = document.getElementById('rrr_btn_display');
+        if (marker && marker.dataset.rrrBound === '1') return;
+        if (marker) marker.dataset.rrrBound = '1';
         this.bindEvents();
         this.loadDropdowns();
         this.setupCustomerSuggest();
@@ -194,11 +196,17 @@ window.RecoveryReceiptsReport = {
             });
         };
 
-        document.addEventListener('click', (e) => {
-            if (e.target !== codeInput && e.target !== nameInput && e.target !== suggest) {
-                suggest.style.display = 'none';
-            }
-        });
+        if (!window._rrrDocClickBound) {
+            window._rrrDocClickBound = true;
+            document.addEventListener('click', (e) => {
+                const cInp = document.getElementById('rrr_customer_code');
+                const nInp = document.getElementById('rrr_customer_name');
+                const sug = document.getElementById('rrr_customer_suggest');
+                if (sug && e.target !== cInp && e.target !== nInp && e.target !== sug) {
+                    sug.style.display = 'none';
+                }
+            });
+        }
     },
 
     async fetchReport() {

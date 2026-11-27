@@ -5,8 +5,9 @@ window.PurchaseSummaryReport = {
 
     init: function() {
         const self = window.PurchaseSummaryReport;
-        
-        if (self.initialized) return;
+        const marker = document.getElementById('ps_tbody');
+        if (marker && marker.dataset.psBound === '1') return;
+        if (marker) marker.dataset.psBound = '1';
         self.initialized = true;
 
         // Reset state
@@ -376,12 +377,18 @@ window.PurchaseSummaryReport = {
         codeInput.addEventListener('keydown', onKeydown);
         nameInput.addEventListener('keydown', onKeydown);
 
-        document.addEventListener('click', (e) => {
-            if (!nameInput.contains(e.target) && !codeInput.contains(e.target) && !suggest.contains(e.target)) {
-                suggest.style.display = 'none';
-                suggestIndex = -1;
-            }
-        });
+        if (!window._psDocClickBound) {
+            window._psDocClickBound = true;
+            document.addEventListener('click', (e) => {
+                const nInp = document.getElementById('ps_vendor_name');
+                const cInp = document.getElementById('ps_vendor_code');
+                const sug = document.getElementById('ps_vendor_suggest');
+                if (sug && (!nInp || !nInp.contains(e.target)) && (!cInp || !cInp.contains(e.target)) && !sug.contains(e.target)) {
+                    sug.style.display = 'none';
+                    suggestIndex = -1;
+                }
+            });
+        }
     },
 
     selectSuggestion: function(codeId, nameId, hiddenId, suggestId, id, code, name) {

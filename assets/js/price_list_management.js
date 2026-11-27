@@ -2164,7 +2164,7 @@ ${data.message}`);
                 let stdRows = '';
                 items.forEach((it, idx) => {
                     const price = parseFloat(it.custom_price !== undefined ? it.custom_price : (it.selling_price || 0));
-                    const ctn = parseFloat(it.pcs_per_carton || it.qty_per_piece || item.carton || 0);
+                    const ctn = parseFloat(it.pcs_per_carton || it.qty_per_piece || it.carton || 0);
                     const rateCtn = ctn > 0 ? (price * ctn) : 0;
 
                     const priceFormatted = price.toFixed(2);

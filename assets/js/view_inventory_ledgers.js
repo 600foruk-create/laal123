@@ -8,7 +8,9 @@ window.ViewInventoryLedgersModule = {
     init: async function() {
         try {
             const self = window.ViewInventoryLedgersModule;
-            if (self.isInitialized) return;
+            const marker = self.getEl('vil_btn_display');
+            if (marker && marker.dataset.vilBound === '1') return;
+            if (marker) marker.dataset.vilBound = '1';
             self.isInitialized = true;
             
             self.bindEvents();
@@ -118,7 +120,10 @@ window.ViewInventoryLedgersModule = {
             window.openModularPopup('Navigation/Reports/print_inventory_ledgers.html', 'fa-layer-group', 'Print Inventory Ledgers', () => { if(window.PrintInventoryLedgersModule) window.PrintInventoryLedgersModule.init(); }, 'Print Inventory Ledgers', true, true);
         };
         
-        document.addEventListener('keydown', self.handleKeydown);
+        if (!self._docKeyBound) {
+            self._docKeyBound = true;
+            document.addEventListener('keydown', self.handleKeydown);
+        }
     },
     
     fetchLookupData: async function() {

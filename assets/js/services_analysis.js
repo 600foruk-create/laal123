@@ -6,7 +6,9 @@ window.ServicesAnalysisModule = {
     selectedIndex: -1,
 
     init: async function() {
-        if (this.isInitialized) return;
+        const marker = document.getElementById('sva_date_from');
+        if (marker && marker.dataset.svaBound === '1') return;
+        if (marker) marker.dataset.svaBound = '1';
         this.bindEvents();
         await this.loadLookups();
         this.setupItemSearch();
@@ -17,6 +19,8 @@ window.ServicesAnalysisModule = {
 
     bindEvents: function() {
         const self = window.ServicesAnalysisModule;
+        if (self._docEventsBound) return;
+        self._docEventsBound = true;
         document.addEventListener('keydown', self.handleKeydown);
 
         document.addEventListener('click', (e) => {

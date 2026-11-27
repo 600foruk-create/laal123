@@ -122,28 +122,8 @@
             color: white; 
         }
     </style>
-    
-    <!-- Force load script reliably -->
-    <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="display:none;" onload="
-        if(!window.PrintInventoryLedgersModule) {
-            let s = document.createElement('script');
-            s.src = 'assets/js/print_inventory_ledgers.js?v=' + Date.now();
-            s.onload = () => { 
-                setTimeout(() => {
-                    if(window.PrintInventoryLedgersModule) window.PrintInventoryLedgersModule.init(); 
-                }, 50);
-            };
-            document.head.appendChild(s);
-        } else {
-            setTimeout(() => {
-                if(window.PrintInventoryLedgersModule.init) {
-                    window.PrintInventoryLedgersModule.init();
-                }
-            }, 50);
-        }
-    ">
 </div>
-<!-- Robust Auto-Loader for detached modal injection -->
+<!-- Auto-Loader for detached modal injection -->
 <img src="x_pil_loader" style="display:none;" onerror="
     (function() {
         if (!window.PrintInventoryLedgersModule) {

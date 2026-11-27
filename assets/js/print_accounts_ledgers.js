@@ -7,7 +7,9 @@ window.PrintAccountsLedgersModule = {
     getEl: function(id) { return document.getElementById(id); },
 
     init: async function() {
-        if(this.isInitialized) return;
+        const marker = this.getEl('pal_btn_print');
+        if (marker && marker.dataset.palBound === '1') return;
+        if (marker) marker.dataset.palBound = '1';
         this.isInitialized = true;
         
         const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
@@ -138,12 +140,15 @@ window.PrintAccountsLedgersModule = {
             btnWa.addEventListener('click', () => self.printLedgers());
         }
         
-        // Document click to close suggests
-        document.addEventListener('click', (e) => {
-            if(!e.target.closest('.pal-suggest') && e.target.tagName !== 'INPUT') {
-                document.querySelectorAll('.pal-suggest').forEach(el => el.style.display = 'none');
-            }
-        });
+        // Document click to close suggests (bind once)
+        if (!self._docClickBound) {
+            self._docClickBound = true;
+            document.addEventListener('click', (e) => {
+                if(!e.target.closest('.pal-suggest') && e.target.tagName !== 'INPUT') {
+                    document.querySelectorAll('.pal-suggest').forEach(el => el.style.display = 'none');
+                }
+            });
+        }
     },
 
     toggleInputs: function() {

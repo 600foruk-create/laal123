@@ -7,7 +7,9 @@ window.ItemWiseProfitsModule = {
     subs: [],
     
     init: async function() {
-        if(this.isInitialized) return;
+        const marker = this.getEl('iwp_from_date');
+        if (marker && marker.dataset.iwpBound === '1') return;
+        if (marker) marker.dataset.iwpBound = '1';
         this.isInitialized = true;
         this.bindEvents();
         this.setDefaultDates();

@@ -6,7 +6,9 @@ window.SaleActivityReport = {
     customers: [],
 
     init: function() {
-        if (this.isInitialized) return;
+        const marker = document.getElementById('sar_date_from');
+        if (marker && marker.dataset.sarBound === '1') return;
+        if (marker) marker.dataset.sarBound = '1';
         this.bindEvents();
         this.loadDropdowns();
         this.setupCustomerSuggest();
@@ -145,11 +147,17 @@ window.SaleActivityReport = {
             }
         });
 
-        document.addEventListener('click', (e) => {
-            if (!codeInput.contains(e.target) && !nameInput.contains(e.target) && !suggest.contains(e.target)) {
-                suggest.style.display = 'none';
-            }
-        });
+        if (!window._sarDocClickBound) {
+            window._sarDocClickBound = true;
+            document.addEventListener('click', (e) => {
+                const cInp = document.getElementById('sar_customer_code');
+                const nInp = document.getElementById('sar_customer_name');
+                const sug = document.getElementById('sar_customer_suggest');
+                if (sug && (!cInp || !cInp.contains(e.target)) && (!nInp || !nInp.contains(e.target)) && !sug.contains(e.target)) {
+                    sug.style.display = 'none';
+                }
+            });
+        }
     },
 
     async fetchReport() {

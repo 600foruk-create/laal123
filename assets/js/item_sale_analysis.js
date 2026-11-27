@@ -5,8 +5,10 @@ window.ItemSaleAnalysisModule = {
     items: [],
     selectedIndex: -1,
 
-    init: async function() {
-        if (this.isInitialized) return;
+    init: async function () {
+        const marker = document.getElementById('isa_date_from');
+        if (marker && marker.dataset.isaBound === '1') return;
+        if (marker) marker.dataset.isaBound = '1';
         this.bindEvents();
         await this.loadLookups();
         this.setupItemSearch();
@@ -15,23 +17,25 @@ window.ItemSaleAnalysisModule = {
         this.isInitialized = true;
     },
 
-    bindEvents: function() {
+    bindEvents: function () {
         const self = window.ItemSaleAnalysisModule;
+        if (self._docEventsBound) return;
+        self._docEventsBound = true;
         document.addEventListener('keydown', self.handleKeydown);
 
         document.addEventListener('click', (e) => {
             if (e.target.id !== 'isa_item_code' && e.target.id !== 'isa_item_name' && !e.target.closest('#isa_item_suggest')) {
                 const itemSugg = document.getElementById('isa_item_suggest');
-                if(itemSugg) itemSugg.style.display = 'none';
+                if (itemSugg) itemSugg.style.display = 'none';
             }
             if (!e.target.closest('#isa_use_customer') && e.target.id !== 'isa_customer_code' && e.target.id !== 'isa_customer_name' && !e.target.closest('#isa_customer_suggest')) {
                 const custSugg = document.getElementById('isa_customer_suggest');
-                if(custSugg) custSugg.style.display = 'none';
+                if (custSugg) custSugg.style.display = 'none';
             }
         });
     },
 
-    setupCheckboxToggles: function() {
+    setupCheckboxToggles: function () {
         const toggles = [
             { chk: 'isa_use_customer', target: ['isa_customer_code', 'isa_customer_name'] },
             { chk: 'isa_use_region', target: 'isa_region' },
@@ -45,20 +49,20 @@ window.ItemSaleAnalysisModule = {
         toggles.forEach(t => {
             const chk = document.getElementById(t.chk);
             if (!chk) return;
-            chk.addEventListener('change', function() {
+            chk.addEventListener('change', function () {
                 if (Array.isArray(t.target)) {
                     t.target.forEach(id => {
                         const el = document.getElementById(id);
-                        if(el) {
+                        if (el) {
                             el.disabled = !this.checked;
-                            if(this.checked && id === t.target[0]) el.focus();
+                            if (this.checked && id === t.target[0]) el.focus();
                         }
                     });
                 } else {
                     const el = document.getElementById(t.target);
-                    if(el) {
+                    if (el) {
                         el.disabled = !this.checked;
-                        if(this.checked) el.focus();
+                        if (this.checked) el.focus();
                     }
                 }
             });
@@ -74,7 +78,7 @@ window.ItemSaleAnalysisModule = {
         }
     },
 
-    loadLookups: async function() {
+    loadLookups: async function () {
         const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
         const companyId = window.selectedCompanyId || session.company_id || 1;
 
@@ -138,20 +142,20 @@ window.ItemSaleAnalysisModule = {
         }
     },
 
-    selectItem: function(id, code, name) {
+    selectItem: function (id, code, name) {
         document.getElementById('isa_item_id').value = id;
         document.getElementById('isa_item_code').value = code;
         document.getElementById('isa_item_name').value = name;
         document.getElementById('isa_item_suggest').style.display = 'none';
     },
 
-    setupItemSearch: function() {
+    setupItemSearch: function () {
         const self = window.ItemSaleAnalysisModule;
         const codeInput = document.getElementById('isa_item_code');
         const nameInput = document.getElementById('isa_item_name');
         const suggest = document.getElementById('isa_item_suggest');
         const hiddenInput = document.getElementById('isa_item_id');
-        
+
         if (!codeInput || !nameInput || !suggest || !hiddenInput) return;
 
         let suggestIndex = -1;
@@ -159,7 +163,7 @@ window.ItemSaleAnalysisModule = {
         const handleSearch = (val) => {
             if (!val || val.length < 1) { suggest.style.display = 'none'; return; }
             val = val.toLowerCase();
-            
+
             const filtered = self.items.filter(item => {
                 const code = String(item.code || '').toLowerCase();
                 const name = String(item.name || '').toLowerCase();
@@ -194,8 +198,8 @@ window.ItemSaleAnalysisModule = {
         codeInput.addEventListener('input', onInput);
         nameInput.addEventListener('input', onInput);
 
-        codeInput.addEventListener('focus', function() { this.select(); handleSearch(this.value.trim()); });
-        nameInput.addEventListener('focus', function() { this.select(); handleSearch(this.value.trim()); });
+        codeInput.addEventListener('focus', function () { this.select(); handleSearch(this.value.trim()); });
+        nameInput.addEventListener('focus', function () { this.select(); handleSearch(this.value.trim()); });
 
         const updateHighlight = (items) => {
             items.forEach((item, idx) => {
@@ -234,20 +238,20 @@ window.ItemSaleAnalysisModule = {
         nameInput.addEventListener('keydown', onKeydown);
     },
 
-    selectCustomer: function(id, code, name) {
+    selectCustomer: function (id, code, name) {
         document.getElementById('isa_customer_id').value = id;
         document.getElementById('isa_customer_code').value = code;
         document.getElementById('isa_customer_name').value = name;
         document.getElementById('isa_customer_suggest').style.display = 'none';
     },
 
-    setupCustomerSearch: function() {
+    setupCustomerSearch: function () {
         const self = window.ItemSaleAnalysisModule;
         const codeInput = document.getElementById('isa_customer_code');
         const nameInput = document.getElementById('isa_customer_name');
         const suggest = document.getElementById('isa_customer_suggest');
         const hiddenInput = document.getElementById('isa_customer_id');
-        
+
         if (!codeInput || !nameInput || !suggest || !hiddenInput) return;
 
         let suggestIndex = -1;
@@ -255,7 +259,7 @@ window.ItemSaleAnalysisModule = {
         const handleSearch = (val) => {
             if (!val || val.length < 1) { suggest.style.display = 'none'; return; }
             val = val.toLowerCase();
-            
+
             const filtered = self.customers.filter(item => {
                 const code = String(item.code || '').toLowerCase();
                 const name = String(item.name || '').toLowerCase();
@@ -290,8 +294,8 @@ window.ItemSaleAnalysisModule = {
         codeInput.addEventListener('input', onInput);
         nameInput.addEventListener('input', onInput);
 
-        codeInput.addEventListener('focus', function() { this.select(); handleSearch(this.value.trim()); });
-        nameInput.addEventListener('focus', function() { this.select(); handleSearch(this.value.trim()); });
+        codeInput.addEventListener('focus', function () { this.select(); handleSearch(this.value.trim()); });
+        nameInput.addEventListener('focus', function () { this.select(); handleSearch(this.value.trim()); });
 
         const updateHighlight = (items) => {
             items.forEach((item, idx) => {
@@ -330,27 +334,27 @@ window.ItemSaleAnalysisModule = {
         nameInput.addEventListener('keydown', onKeydown);
     },
 
-    formatNumber: function(num) {
+    formatNumber: function (num) {
         return parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
 
-    formatDateDisplay: function(isoDate) {
-        if(!isoDate) return '';
+    formatDateDisplay: function (isoDate) {
+        if (!isoDate) return '';
         const d = new Date(isoDate);
-        if(isNaN(d)) return isoDate;
+        if (isNaN(d)) return isoDate;
         const dd = String(d.getDate()).padStart(2, '0');
         const mm = String(d.getMonth() + 1).padStart(2, '0');
         const yyyy = d.getFullYear();
         return `${dd}-${mm}-${yyyy}`;
     },
 
-    display: async function() {
+    display: async function () {
         const self = window.ItemSaleAnalysisModule;
         const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
         const companyId = window.selectedCompanyId || session.company_id || 1;
 
         let qs = `?action=get_data&company_id=${companyId}`;
-        
+
         if (document.getElementById('isa_item_id') && document.getElementById('isa_item_id').value) {
             qs += `&item_coa_id=${document.getElementById('isa_item_id').value}`;
         }
@@ -367,11 +371,11 @@ window.ItemSaleAnalysisModule = {
             const t = document.getElementById('isa_date_to').value;
             if (f) {
                 const fd = new Date(f);
-                qs += `&from_date=${fd.getFullYear()}-${String(fd.getMonth()+1).padStart(2,'0')}-${String(fd.getDate()).padStart(2,'0')}`;
+                qs += `&from_date=${fd.getFullYear()}-${String(fd.getMonth() + 1).padStart(2, '0')}-${String(fd.getDate()).padStart(2, '0')}`;
             }
             if (t) {
                 const td = new Date(t);
-                qs += `&to_date=${td.getFullYear()}-${String(td.getMonth()+1).padStart(2,'0')}-${String(td.getDate()).padStart(2,'0')}`;
+                qs += `&to_date=${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}-${String(td.getDate()).padStart(2, '0')}`;
             }
         }
 
@@ -391,7 +395,7 @@ window.ItemSaleAnalysisModule = {
         }
     },
 
-    renderTable: function() {
+    renderTable: function () {
         const self = window.ItemSaleAnalysisModule;
         const tbody = document.getElementById('isa_tbody');
         tbody.innerHTML = '';
@@ -448,7 +452,7 @@ window.ItemSaleAnalysisModule = {
         }
     },
 
-    selectRow: function(index) {
+    selectRow: function (index) {
         const self = window.ItemSaleAnalysisModule;
         if (self.reportData.length === 0) return;
         if (index < 0) index = 0;
@@ -468,7 +472,7 @@ window.ItemSaleAnalysisModule = {
         self.selectedIndex = index;
         const newIcon = document.getElementById(`isa_row_icon_${self.selectedIndex}`);
         if (newIcon) newIcon.style.visibility = 'visible';
-        
+
         const newTr = document.querySelector(`#isa_tbody tr:nth-child(${self.selectedIndex + 1})`);
         if (newTr) {
             newTr.classList.add('selected');
@@ -479,13 +483,13 @@ window.ItemSaleAnalysisModule = {
         }
     },
 
-    handleKeydown: function(e) {
+    handleKeydown: function (e) {
         const self = window.ItemSaleAnalysisModule;
         // Ignore if focus is in an input/select or suggest box
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
         if (document.getElementById('isa_item_suggest') && document.getElementById('isa_item_suggest').style.display === 'block') return;
         if (document.getElementById('isa_customer_suggest') && document.getElementById('isa_customer_suggest').style.display === 'block') return;
-        
+
         // Ensure this module is currently visible
         const table = document.getElementById('isa_table');
         if (!table || table.offsetParent === null) return;
@@ -509,34 +513,34 @@ window.ItemSaleAnalysisModule = {
         }
     },
 
-    openInvoice: function(invoiceId) {
-        if(!invoiceId) return;
-        if(window.hideAllDropdowns) window.hideAllDropdowns();
-        if(typeof openModularPopup === 'function') {
-            openModularPopup('Navigation/Sales/sale_invoice.html', 'fa-file-invoice-dollar', 'Sale Invoice', async () => { 
+    openInvoice: function (invoiceId) {
+        if (!invoiceId) return;
+        if (window.hideAllDropdowns) window.hideAllDropdowns();
+        if (typeof openModularPopup === 'function') {
+            openModularPopup('Navigation/Sales/sale_invoice.html', 'fa-file-invoice-dollar', 'Sale Invoice', async () => {
                 const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
                 const companyId = window.selectedCompanyId || session.company_id || 1;
-                if(window.SIModule) { 
-                    if(window.SIModule.init) await window.SIModule.init(); 
+                if (window.SIModule) {
+                    if (window.SIModule.init) await window.SIModule.init();
                     window.SIModule.currentId = invoiceId;
                 }
                 try {
                     const r = await fetch(`api/sale_invoice.php?action=get_invoice&id=${invoiceId}&company_id=${companyId}`);
                     if (!r.ok) throw new Error(`HTTP Error: ${r.status}`);
                     const d = await r.json();
-                    if(d && d.id && window.SIModule) {
-                        window.SIModule.loadInvoiceData(d); 
+                    if (d && d.id && window.SIModule) {
+                        window.SIModule.loadInvoiceData(d);
                     } else {
                         console.error("API returned empty data for ID: " + invoiceId);
                     }
-                } catch(e) {
+                } catch (e) {
                     console.error("Error loading invoice:", e);
                 }
             }, 'Sale Invoice', true, true);
         }
     },
 
-    printReport: async function() {
+    printReport: async function () {
         const self = window.ItemSaleAnalysisModule;
         if (self.reportData.length === 0) {
             alert("No data to print.");
@@ -554,14 +558,14 @@ window.ItemSaleAnalysisModule = {
                 const data = await res.json();
                 if (data && !data.error) {
                     companyInfo = {
-                        name:    (data.name    || '').trim(),
+                        name: (data.name || '').trim(),
                         address: (data.address || '').trim(),
-                        phone:   (data.phone   || '').trim(),
-                        email:   (data.email   || '').trim(),
+                        phone: (data.phone || '').trim(),
+                        email: (data.email || '').trim(),
                     };
                 }
             }
-        } catch(e) { console.error('Could not fetch company info:', e); }
+        } catch (e) { console.error('Could not fetch company info:', e); }
 
         const companyName = companyInfo.name || session.company_name || 'SOFTIFYX TECHNOLOGIES';
         const actualLogo = (typeof window.getCompanyLogo === 'function') ? window.getCompanyLogo() : ((typeof logoData !== 'undefined' && logoData) ? logoData : 'assets/logos/logo.png');
@@ -569,8 +573,8 @@ window.ItemSaleAnalysisModule = {
 
         let contactParts = [];
         if (companyInfo.address) contactParts.push(companyInfo.address);
-        if (companyInfo.phone)   contactParts.push('Phone: ' + companyInfo.phone);
-        if (companyInfo.email)   contactParts.push('Email: ' + companyInfo.email);
+        if (companyInfo.phone) contactParts.push('Phone: ' + companyInfo.phone);
+        if (companyInfo.email) contactParts.push('Email: ' + companyInfo.email);
         const contactLine = contactParts.length > 0
             ? `<div style="font-size:11px; color:#555; margin-top:2px; font-weight:normal;">${contactParts.join(' | ')}</div>`
             : '';
@@ -673,10 +677,10 @@ window.ItemSaleAnalysisModule = {
         setTimeout(() => { win.print(); win.close(); }, 250);
     },
 
-    exportExcel: function() {
+    exportExcel: function () {
         let csv = 'Tran. No.,Date,Customer,Pieces,Quantity,Unit,Rate,Gross Amount,Discount,Amt. Excl. Tax,Sales Tax,Fur. Tax,Amt. Incl. Tax\n';
         this.reportData.forEach(row => {
-            csv += `"${row.invoice_no||''}","${this.formatDateDisplay(row.invoice_date)}","${row.customer_name||''}",${row.pieces||0},${row.quantity||0},"${row.unit||''}",${row.rate||0},${row.gross_amount||0},${row.discount_amount||0},${row.amount_excl_tax||0},${row.sales_tax||0},${row.fur_tax||0},${row.amount_incl_tax||0}\n`;
+            csv += `"${row.invoice_no || ''}","${this.formatDateDisplay(row.invoice_date)}","${row.customer_name || ''}",${row.pieces || 0},${row.quantity || 0},"${row.unit || ''}",${row.rate || 0},${row.gross_amount || 0},${row.discount_amount || 0},${row.amount_excl_tax || 0},${row.sales_tax || 0},${row.fur_tax || 0},${row.amount_incl_tax || 0}\n`;
         });
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);

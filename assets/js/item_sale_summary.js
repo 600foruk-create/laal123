@@ -5,7 +5,9 @@ window.ItemSaleSummaryModule = {
     selectedIndex: -1,
 
     init: async function() {
-        if (this.isInitialized) return;
+        const marker = document.getElementById('iss_use_date');
+        if (marker && marker.dataset.issBound === '1') return;
+        if (marker) marker.dataset.issBound = '1';
         this.bindEvents();
         await this.loadLookups();
         this.setupCustomerSearch();
@@ -15,6 +17,8 @@ window.ItemSaleSummaryModule = {
 
     bindEvents: function() {
         const self = window.ItemSaleSummaryModule;
+        if (self._docEventsBound) return;
+        self._docEventsBound = true;
         document.addEventListener('keydown', self.handleKeydown);
 
         document.addEventListener('click', (e) => {

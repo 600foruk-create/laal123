@@ -6,7 +6,9 @@ window.SaleActivityCustomerWise = {
     selectedIndex: -1,
 
     init: function() {
-        if (this.isInitialized) return;
+        const marker = document.getElementById('sacw_date_from');
+        if (marker && marker.dataset.sacwBound === '1') return;
+        if (marker) marker.dataset.sacwBound = '1';
         this.bindEvents();
         this.loadDropdowns();
         this.setupCustomerSuggest();
@@ -159,11 +161,17 @@ window.SaleActivityCustomerWise = {
             }
         });
 
-        document.addEventListener('click', (e) => {
-            if (!codeInput.contains(e.target) && !nameInput.contains(e.target) && !suggest.contains(e.target)) {
-                suggest.style.display = 'none';
-            }
-        });
+        if (!window._sacwDocClickBound) {
+            window._sacwDocClickBound = true;
+            document.addEventListener('click', (e) => {
+                const cInp = document.getElementById('sacw_customer_code');
+                const nInp = document.getElementById('sacw_customer_name');
+                const sug = document.getElementById('sacw_customer_suggest');
+                if (sug && (!cInp || !cInp.contains(e.target)) && (!nInp || !nInp.contains(e.target)) && !sug.contains(e.target)) {
+                    sug.style.display = 'none';
+                }
+            });
+        }
     },
 
     setupKeyboardNavigation() {
