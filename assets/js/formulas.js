@@ -5,6 +5,8 @@
             items: [],
             gridRows: 40,
             inventoryItems: [],
+            categories: [],
+            selectedCategoryIds: [],
             jobs: [],
             locations: [],
             employees: [],
@@ -37,10 +39,101 @@
         },
 
         populateSelects: function() {
-            const catSelect = document.getElementById('frm_category_id');
-            if (catSelect) {
-                catSelect.innerHTML = '<option value="">Select Option</option>' + 
-                    this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            const listEl = document.getElementById('frm_cat_checkbox_list');
+            if (listEl) {
+                if (!this.data.categories.length) {
+                    listEl.innerHTML = '<div style="padding:8px; color:#64748b; font-size:12px;">No categories found</div>';
+                } else {
+                    listEl.innerHTML = this.data.categories.map(c => {
+                        const rawName = String(c.name || '');
+                        const safeHtml = rawName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        const safeAttr = safeHtml.replace(/"/g, '&quot;');
+                        return `<label class="frm-cat-option" data-name="${safeAttr.toLowerCase()}" style="display:flex; align-items:center; gap:7px; padding:4px 8px; cursor:pointer; font-size:12px; border-bottom:1px solid #f1f5f9; user-select:none;">
+                            <input type="checkbox" class="frm-cat-chk" value="${c.id}" style="margin:0; cursor:pointer;">
+                            <span style="flex:1; color:#0f172a;">${safeHtml}</span>
+                        </label>`;
+                    }).join('');
+                }
+            }
+            this.syncCategoryMultiUI();
+        },
+
+        toggleCategoryDropdown: function(e) {
+            if (e) e.stopPropagation();
+            const dd = document.getElementById('frm_cat_multi_dropdown');
+            if (!dd) return;
+            const willOpen = dd.style.display === 'none' || !dd.style.display;
+            dd.style.display = willOpen ? 'block' : 'none';
+            if (willOpen) {
+                const search = document.getElementById('frm_cat_search');
+                if (search) {
+                    search.value = '';
+                    this.filterCategoryOptions('');
+                    setTimeout(() => search.focus(), 20);
+                }
+            }
+        },
+
+        filterCategoryOptions: function(term) {
+            const q = String(term || '').trim().toLowerCase();
+            document.querySelectorAll('#frm_cat_checkbox_list .frm-cat-option').forEach(lbl => {
+                const name = lbl.dataset.name || '';
+                lbl.style.display = (!q || name.includes(q)) ? 'flex' : 'none';
+            });
+        },
+
+        clearSelectedCategories: function() {
+            this.data.selectedCategoryIds = [];
+            this.syncCategoryMultiUI();
+        },
+
+        setSelectedCategoryIds: function(ids) {
+            const clean = [];
+            (Array.isArray(ids) ? ids : []).forEach(v => {
+                const n = parseInt(v, 10);
+                if (n > 0 && !clean.includes(n)) clean.push(n);
+            });
+            this.data.selectedCategoryIds = clean;
+            this.syncCategoryMultiUI();
+        },
+
+        getSelectedCategoryIds: function() {
+            return (this.data.selectedCategoryIds || []).slice();
+        },
+
+        getSelectedCategoryNames: function() {
+            const ids = this.getSelectedCategoryIds();
+            return ids
+                .map(id => this.data.categories.find(c => parseInt(c.id, 10) === id))
+                .filter(Boolean)
+                .map(c => c.name);
+        },
+
+        syncCategoryMultiUI: function() {
+            const ids = this.getSelectedCategoryIds();
+            document.querySelectorAll('#frm_cat_checkbox_list .frm-cat-chk').forEach(chk => {
+                chk.checked = ids.includes(parseInt(chk.value, 10));
+            });
+            const hiddenEl = document.getElementById('frm_category_id');
+            if (hiddenEl) hiddenEl.value = ids.length ? String(ids[0]) : '';
+
+            const names = this.getSelectedCategoryNames();
+            const labelEl = document.getElementById('frm_cat_multi_label');
+            const triggerEl = document.getElementById('frm_cat_multi_trigger');
+            if (labelEl) {
+                if (names.length === 0) {
+                    labelEl.textContent = 'Select Brand(s) / Category...';
+                    labelEl.style.color = '#64748b';
+                } else if (names.length === 1) {
+                    labelEl.textContent = names[0];
+                    labelEl.style.color = '#0f172a';
+                } else {
+                    labelEl.textContent = `${names.length} Brands: ${names.join(', ')}`;
+                    labelEl.style.color = '#0f172a';
+                }
+            }
+            if (triggerEl) {
+                triggerEl.title = names.length ? names.join(', ') : 'Select Category / Brands';
             }
         },
 
@@ -105,11 +198,30 @@
                 cancelCheck.addEventListener('change', () => this.updateCancellationUI());
             }
 
-            // Close suggestions and deselect row on outside click
+            const catListEl = document.getElementById('frm_cat_checkbox_list');
+            if (catListEl) {
+                catListEl.addEventListener('change', (e) => {
+                    if (e.target.classList.contains('frm-cat-chk')) {
+                        const checked = Array.from(catListEl.querySelectorAll('.frm-cat-chk:checked'))
+                            .map(c => parseInt(c.value, 10))
+                            .filter(n => n > 0);
+                        this.data.selectedCategoryIds = checked;
+                        this.syncCategoryMultiUI();
+                    }
+                });
+            }
+
+            // Close suggestions, category dropdown, and deselect row on outside click
             document.addEventListener('click', (e) => {
                 const results = document.getElementById('frm_item_results');
                 if (results && !results.contains(e.target) && !e.target.classList.contains('ria-item-code')) {
                     results.style.display = 'none';
+                }
+
+                const catWrap = document.getElementById('frm_cat_multi_wrap');
+                const catDd = document.getElementById('frm_cat_multi_dropdown');
+                if (catDd && catWrap && !catWrap.contains(e.target)) {
+                    catDd.style.display = 'none';
                 }
 
                 if (!e.target.closest('.ria-row-selector')) {
@@ -429,7 +541,7 @@
             document.getElementById('frm_date').value = new Date().toISOString().substring(0, 10);
             
             document.getElementById('frm_formula_name').value = '';
-            document.getElementById('frm_category_id').value = '';
+            this.setSelectedCategoryIds([]);
             
             document.getElementById('frm_remarks').value = '';
             
@@ -544,6 +656,7 @@
                 date: document.getElementById('frm_date').value,
                 formula_name: document.getElementById('frm_formula_name').value,
                 category_id: document.getElementById('frm_category_id').value,
+                category_ids: this.getSelectedCategoryIds(),
                 
                 remarks: document.getElementById('frm_remarks').value,
                 total_pieces: parseFloat(document.getElementById('frm_total_pieces').value) || 0,
@@ -662,7 +775,10 @@
             document.getElementById('frm_sn').value = data.serial_no;
             document.getElementById('frm_date').value = data.date;
             document.getElementById('frm_formula_name').value = data.formula_name || '';
-            document.getElementById('frm_category_id').value = data.category_id || '';
+            const loadedCatIds = (Array.isArray(data.category_ids) && data.category_ids.length)
+                ? data.category_ids
+                : (data.category_id ? [data.category_id] : []);
+            this.setSelectedCategoryIds(loadedCatIds);
             
             document.getElementById('frm_remarks').value = data.remarks || '';
             document.getElementById('frm_is_cancelled').checked = (data.is_cancelled == 1);
@@ -934,7 +1050,7 @@
             const sn = document.getElementById('frm_sn').value;
             const date = document.getElementById('frm_date').value;
             const location = document.getElementById('frm_formula_name').value;
-            const job = document.getElementById('frm_category_id').options[document.getElementById('frm_category_id').selectedIndex]?.text || '';
+            const job = this.getSelectedCategoryNames().join(', ');
             const remarks = document.getElementById('frm_remarks').value;
             const amountWords = document.getElementById('frm_amount_words').innerText;
 

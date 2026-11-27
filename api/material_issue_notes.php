@@ -170,7 +170,35 @@ switch ($action) {
             } catch (Exception $e) {}
 
             $formulas = [];
-            try { $formulas = $pdo->query("SELECT id, serial_no, formula_name, category_id FROM formulas WHERE company_id = $company_id AND (is_cancelled = 0 OR is_cancelled IS NULL)")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
+            try {
+                $hasFcMin = ($pdo->query("SHOW TABLES LIKE 'formula_categories'")->rowCount() > 0);
+                if ($hasFcMin) {
+                    $formulas = $pdo->query("
+                        SELECT f.id, f.serial_no, f.formula_name, f.category_id,
+                               COALESCE(
+                                   NULLIF(GROUP_CONCAT(DISTINCT m.name ORDER BY m.name SEPARATOR ', '), ''),
+                                   MAX(m_legacy.name),
+                                   ''
+                               ) AS linked_categories
+                        FROM formulas f
+                        LEFT JOIN formula_categories fc ON fc.formula_id = f.id
+                        LEFT JOIN inv_main_categories m ON m.id = fc.category_id
+                        LEFT JOIN inv_main_categories m_legacy ON m_legacy.id = f.category_id
+                        WHERE f.company_id = $company_id AND (f.is_cancelled = 0 OR f.is_cancelled IS NULL)
+                        GROUP BY f.id, f.serial_no, f.formula_name, f.category_id
+                        ORDER BY f.serial_no DESC
+                    ")->fetchAll(PDO::FETCH_ASSOC);
+                } else {
+                    $formulas = $pdo->query("
+                        SELECT f.id, f.serial_no, f.formula_name, f.category_id,
+                               COALESCE(m.name, '') AS linked_categories
+                        FROM formulas f
+                        LEFT JOIN inv_main_categories m ON m.id = f.category_id
+                        WHERE f.company_id = $company_id AND (f.is_cancelled = 0 OR f.is_cancelled IS NULL)
+                        ORDER BY f.serial_no DESC
+                    ")->fetchAll(PDO::FETCH_ASSOC);
+                }
+            } catch (Exception $e) {}
 
             sendResponse([
                 'locations' => $locations,

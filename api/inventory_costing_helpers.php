@@ -1045,17 +1045,36 @@ if (!function_exists('resolveBrandProductionCostRates')) {
         $ovhPerKg = 0.0;
 
         try {
-            $stmtFormulas = $pdo->prepare("
-                SELECT f.category_id, f.formula_name, f.total_qty, f.total_amount, m.name as category_name
-                FROM formulas f
-                LEFT JOIN inv_main_categories m ON f.category_id = m.id
-                WHERE (f.company_id = ? OR f.company_id = 1 OR f.company_id IS NULL)
-                  AND f.is_cancelled = 0 AND f.is_posted = 1
-                ORDER BY f.date DESC, f.id DESC
-            ");
+            $hasFormulaCats = false;
+            try {
+                $hasFormulaCats = ($pdo->query("SHOW TABLES LIKE 'formula_categories'")->rowCount() > 0);
+            } catch (Exception $eFcChk) {}
+
+            if ($hasFormulaCats) {
+                $stmtFormulas = $pdo->prepare("
+                    SELECT f.id as formula_id, COALESCE(fc.category_id, f.category_id) as effective_cat_id,
+                           f.formula_name, f.total_qty, f.total_amount, m.name as category_name
+                    FROM formulas f
+                    LEFT JOIN formula_categories fc ON fc.formula_id = f.id
+                    LEFT JOIN inv_main_categories m ON COALESCE(fc.category_id, f.category_id) = m.id
+                    WHERE (f.company_id = ? OR f.company_id = 1 OR f.company_id IS NULL)
+                      AND f.is_cancelled = 0 AND f.is_posted = 1
+                    ORDER BY f.date DESC, f.id DESC
+                ");
+            } else {
+                $stmtFormulas = $pdo->prepare("
+                    SELECT f.id as formula_id, f.category_id as effective_cat_id,
+                           f.formula_name, f.total_qty, f.total_amount, m.name as category_name
+                    FROM formulas f
+                    LEFT JOIN inv_main_categories m ON f.category_id = m.id
+                    WHERE (f.company_id = ? OR f.company_id = 1 OR f.company_id IS NULL)
+                      AND f.is_cancelled = 0 AND f.is_posted = 1
+                    ORDER BY f.date DESC, f.id DESC
+                ");
+            }
             $stmtFormulas->execute([$company_id]);
             while ($fRow = $stmtFormulas->fetch(PDO::FETCH_ASSOC)) {
-                $cId = intval($fRow['category_id'] ?? 0);
+                $cId = intval($fRow['effective_cat_id'] ?? 0);
                 $fQty = floatval($fRow['total_qty'] ?? 0);
                 $fAmt = floatval($fRow['total_amount'] ?? 0);
                 if ($fQty > 0 && $fAmt > 0) {

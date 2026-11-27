@@ -46,6 +46,29 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS formula_items (
     FOREIGN KEY (formula_id) REFERENCES formulas(id) ON DELETE CASCADE
 ) ENGINE=InnoDB");
 
+$pdo->exec("CREATE TABLE IF NOT EXISTS formula_categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    company_id INT NOT NULL DEFAULT 1,
+    formula_id INT NOT NULL,
+    category_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_formula_cat (formula_id, category_id),
+    INDEX idx_fc_comp_cat (company_id, category_id),
+    FOREIGN KEY (formula_id) REFERENCES formulas(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// Auto-backfill existing single-category formulas on first creation of formula_categories
+try {
+    $fcCnt = intval($pdo->query("SELECT COUNT(*) FROM formula_categories")->fetchColumn());
+    if ($fcCnt === 0) {
+        $pdo->exec("
+            INSERT IGNORE INTO formula_categories (company_id, formula_id, category_id)
+            SELECT company_id, id, category_id FROM formulas
+            WHERE category_id IS NOT NULL AND category_id > 0
+        ");
+    }
+} catch (Exception $e) {}
+
 try { $pdo->exec("ALTER TABLE inv_items ADD COLUMN is_inactive TINYINT DEFAULT 0"); } catch (Exception $e) {}
 try { $pdo->exec("ALTER TABLE inv_items ADD COLUMN hs_code VARCHAR(100) DEFAULT NULL"); } catch (Exception $e) {}
 try { $pdo->exec("ALTER TABLE inv_items ADD COLUMN unit VARCHAR(50) DEFAULT 'Pcs'"); } catch (Exception $e) {}
@@ -93,6 +116,23 @@ switch ($action) {
         try {
             $id = $data['id'] ?? null;
             $before_data = $id ? fetchRecordData('formulas', 'formula_items', 'formula_id', $id) : null;
+
+            // Normalize linked category/brand IDs (multi-select array + legacy single category_id fallback)
+            $selectedCatIds = [];
+            if (!empty($data['category_ids']) && is_array($data['category_ids'])) {
+                foreach ($data['category_ids'] as $cid) {
+                    $cInt = intval($cid);
+                    if ($cInt > 0 && !in_array($cInt, $selectedCatIds, true)) {
+                        $selectedCatIds[] = $cInt;
+                    }
+                }
+            }
+            if (empty($selectedCatIds) && !empty($data['category_id'])) {
+                $singleCat = intval($data['category_id']);
+                if ($singleCat > 0) $selectedCatIds[] = $singleCat;
+            }
+            $primaryCategoryId = !empty($selectedCatIds) ? $selectedCatIds[0] : null;
+
             $pdo->beginTransaction();
 
             if ($id) {
@@ -105,7 +145,7 @@ switch ($action) {
                 $stmt->execute([
                     $data['date'], 
                     $data['formula_name'] ?: null, 
-                    $data['category_id'] ?: null, 
+                    $primaryCategoryId,
                     $data['remarks'] ?? '', 
                     floatval($data['total_pieces'] ?? 0), 
                     floatval($data['total_qty'] ?? 0), 
@@ -127,7 +167,7 @@ switch ($action) {
                     $data['serial_no'], 
                     $data['date'], 
                     $data['formula_name'] ?: null, 
-                    $data['category_id'] ?: null, 
+                    $primaryCategoryId,
                     $data['remarks'] ?? '', 
                     floatval($data['total_pieces'] ?? 0), 
                     floatval($data['total_qty'] ?? 0), 
@@ -136,6 +176,15 @@ switch ($action) {
                     $data['is_posted'] ? 1 : 0
                 ]);
                 $id = $pdo->lastInsertId();
+            }
+
+            // Save linked Categories / Brands
+            $pdo->prepare("DELETE FROM formula_categories WHERE formula_id = ?")->execute([$id]);
+            if (!empty($selectedCatIds)) {
+                $catStmt = $pdo->prepare("INSERT IGNORE INTO formula_categories (company_id, formula_id, category_id) VALUES (?, ?, ?)");
+                foreach ($selectedCatIds as $cid) {
+                    $catStmt->execute([$company_id, $id, $cid]);
+                }
             }
 
             // Save Items
@@ -238,6 +287,38 @@ switch ($action) {
                                           WHERE i.formula_id = ? ORDER BY i.sort_order");
                 $itemStmt->execute([$adjustment['id']]);
                 $adjustment['items'] = $itemStmt->fetchAll();
+
+                // Load linked Categories / Brands (fallback to legacy single category_id)
+                $catStmt = $pdo->prepare("
+                    SELECT fc.category_id, m.name
+                    FROM formula_categories fc
+                    LEFT JOIN inv_main_categories m ON m.id = fc.category_id
+                    WHERE fc.formula_id = ?
+                    ORDER BY fc.id ASC
+                ");
+                $catStmt->execute([$adjustment['id']]);
+                $linkedRows = $catStmt->fetchAll(PDO::FETCH_ASSOC);
+                $catIds = [];
+                $catNames = [];
+                foreach ($linkedRows as $lr) {
+                    $cid = intval($lr['category_id']);
+                    if ($cid > 0) {
+                        $catIds[] = $cid;
+                        if (!empty($lr['name'])) $catNames[] = $lr['name'];
+                    }
+                }
+                if (empty($catIds) && !empty($adjustment['category_id'])) {
+                    $legacyCid = intval($adjustment['category_id']);
+                    if ($legacyCid > 0) {
+                        $catIds[] = $legacyCid;
+                        $mStmt = $pdo->prepare("SELECT name FROM inv_main_categories WHERE id = ?");
+                        $mStmt->execute([$legacyCid]);
+                        $mName = $mStmt->fetchColumn();
+                        if ($mName) $catNames[] = $mName;
+                    }
+                }
+                $adjustment['category_ids'] = $catIds;
+                $adjustment['category_names'] = $catNames;
                 
                 sendResponse($adjustment);
             } else {
@@ -252,6 +333,7 @@ switch ($action) {
         $id = $_GET['id'] ?? 0;
         $before_data = fetchRecordData('formulas', 'formula_items', 'formula_id', $id);
         $serial_no = $before_data['header']['serial_no'] ?? '';
+        $pdo->prepare("DELETE FROM formula_categories WHERE formula_id = ? AND company_id = ?")->execute([$id, $company_id]);
         $stmt = $pdo->prepare("DELETE FROM formulas WHERE id = ? AND company_id = ?");
         $stmt->execute([$id, $company_id]);
         logActivity('Formulas', 'DELETE', $id, 'Adjustment Serial: ' . $serial_no, $before_data, null);

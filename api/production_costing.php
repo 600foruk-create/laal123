@@ -193,12 +193,26 @@ if ($action === 'get_costing_statement') {
         $category_id = $_GET['category_id'] ?? $product_id;
 
         // Brand / Category Material Issue filter
-        // Only count material issues that were created using formulas belonging to the selected category
+        // Count material issues linked to formulas belonging to the selected category (supports multi-brand formula_categories + legacy single category_id)
+        $hasFormulaCats = false;
+        try {
+            $hasFormulaCats = ($pdo->query("SHOW TABLES LIKE 'formula_categories'")->rowCount() > 0);
+        } catch (Exception $e) {}
+
         $catMinFilter = "";
         $catHistProdFilter = "";
         if ($category_id !== 'all' && intval($category_id) > 0) {
             $catIdInt = intval($category_id);
-            $catMinFilter = " AND m.formula_id IN (SELECT f.id FROM formulas f WHERE f.category_id = $catIdInt)";
+            if ($hasFormulaCats) {
+                $catMinFilter = " AND m.formula_id IN (
+                    SELECT f.id FROM formulas f
+                    LEFT JOIN formula_categories fc ON fc.formula_id = f.id
+                    WHERE fc.category_id = $catIdInt
+                       OR (f.category_id = $catIdInt AND NOT EXISTS (SELECT 1 FROM formula_categories fc2 WHERE fc2.formula_id = f.id))
+                )";
+            } else {
+                $catMinFilter = " AND m.formula_id IN (SELECT f.id FROM formulas f WHERE f.category_id = $catIdInt)";
+            }
             $catHistProdFilter = " AND pp.item_id IN (SELECT i2.id FROM inv_items i2 JOIN inv_sub_categories s2 ON i2.sub_id = s2.id WHERE s2.main_id = $catIdInt)";
         }
 
@@ -456,12 +470,23 @@ if ($action === 'get_costing_statement') {
         // Load active formulas by category to derive category-specific raw material cost per KG
         $categoryFormulaRates = [];
         try {
-            $stmtFormulas = $pdo->prepare("
-                SELECT f.category_id, f.formula_name, f.total_qty, f.total_amount
-                FROM formulas f
-                WHERE f.company_id = ? AND f.is_cancelled = 0 AND f.is_posted = 1
-                ORDER BY f.date DESC, f.id DESC
-            ");
+            $hasFormulaCatsTable = (bool)$pdo->query("SHOW TABLES LIKE 'formula_categories'")->fetchColumn();
+            if ($hasFormulaCatsTable) {
+                $stmtFormulas = $pdo->prepare("
+                    SELECT COALESCE(fc.category_id, f.category_id) AS category_id, f.formula_name, f.total_qty, f.total_amount
+                    FROM formulas f
+                    LEFT JOIN formula_categories fc ON fc.formula_id = f.id
+                    WHERE f.company_id = ? AND f.is_cancelled = 0 AND f.is_posted = 1
+                    ORDER BY f.date DESC, f.id DESC
+                ");
+            } else {
+                $stmtFormulas = $pdo->prepare("
+                    SELECT f.category_id, f.formula_name, f.total_qty, f.total_amount
+                    FROM formulas f
+                    WHERE f.company_id = ? AND f.is_cancelled = 0 AND f.is_posted = 1
+                    ORDER BY f.date DESC, f.id DESC
+                ");
+            }
             $stmtFormulas->execute([$company_id]);
             while ($fRow = $stmtFormulas->fetch(PDO::FETCH_ASSOC)) {
                 $cId = intval($fRow['category_id']);

@@ -92,7 +92,7 @@ try {
         'inv_main_categories', 'inv_sub_categories', 'inv_brands', 'inv_items',
         'inv_hs_codes', 'inv_item_signs', 'inv_item_sizes', 'inv_item_lengths',
         'inv_item_classes', 'inv_item_fitting_types',
-        'formulas', 'formula_items',
+        'formulas', 'formula_items', 'formula_categories',
         'pos_assigned_items', 'customer_item_prices', 'price_revisions', 'price_revision_items'
     ];
 

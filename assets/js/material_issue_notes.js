@@ -88,7 +88,10 @@
             const formulaSelect = document.getElementById('min_formula_id');
             if (formulaSelect) {
                 formulaSelect.innerHTML = '<option value="">Select Formula</option>' + 
-                    this.data.formulas.map(f => `<option value="${f.id}">${f.serial_no} - ${f.formula_name || 'Formula'}</option>`).join('');
+                    this.data.formulas.map(f => {
+                        const brandsLabel = f.linked_categories ? ` [${f.linked_categories}]` : '';
+                        return `<option value="${f.id}">${f.serial_no} - ${f.formula_name || 'Formula'}${brandsLabel}</option>`;
+                    }).join('');
             }
         },
 
