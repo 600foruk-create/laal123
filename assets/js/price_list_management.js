@@ -64,6 +64,7 @@ window.PriceListManagementModule = {
 
                 this.populateSelect('plm_item', data.items, 'id', 'name', 'All Items');
                 this.populateSelect('plm_modal_item_select', data.items, 'id', 'name', '-- Select Item --');
+                this.filterItemsDropdown();
 
                 this.populateSelect('plm_customer', data.customers, 'id', 'name', 'All Customers');
                 if (document.getElementById('plm_cust_list_filter')) {
@@ -118,7 +119,7 @@ window.PriceListManagementModule = {
                 <tr data-brand-id="${b.id}">
                     <td style="text-align:center; color:#64748b;">${idx + 1}</td>
                     <td style="text-align:center;">
-                        <input type="checkbox" class="plm-brand-check" onchange="window.PriceListManagementModule.triggerAutoPreview()">
+                        <input type="checkbox" class="plm-brand-check" onchange="window.PriceListManagementModule.onBrandCheckChange()">
                     </td>
                     <td style="font-weight:700; color:#1e293b;">${b.name}</td>
                     <td>
@@ -140,9 +141,65 @@ window.PriceListManagementModule = {
         tbody.innerHTML = html;
     },
 
+    onBrandCheckChange: function() {
+        this.filterItemsDropdown();
+        this.triggerAutoPreview();
+    },
+
+    onCategoryOrBrandChange: function() {
+        this.filterItemsDropdown();
+        this.triggerAutoPreview();
+    },
+
+    filterItemsDropdown: function() {
+        const catId = document.getElementById('plm_category')?.value || '';
+        const brandId = document.getElementById('plm_brand')?.value || '';
+        const itemSelect = document.getElementById('plm_item');
+        if (!itemSelect) return;
+
+        // Check if specific brands are checked in the table
+        const checkedBrandIds = [];
+        const rows = document.querySelectorAll('#plm_brand_tbody tr');
+        rows.forEach(r => {
+            const cb = r.querySelector('.plm-brand-check');
+            if (cb && cb.checked && r.dataset.brandId) {
+                checkedBrandIds.push(String(r.dataset.brandId));
+            }
+        });
+
+        const currentVal = itemSelect.value;
+        let filteredItems = this.meta.items || [];
+
+        // 1. Filter by Category if chosen
+        if (catId) {
+            filteredItems = filteredItems.filter(it => String(it.category_id || '') === String(catId));
+        }
+
+        // 2. Filter by Brand: Dropdown takes precedence, otherwise checked brands in table
+        if (brandId) {
+            filteredItems = filteredItems.filter(it => String(it.brand_id || '') === String(brandId));
+        } else if (checkedBrandIds.length > 0) {
+            filteredItems = filteredItems.filter(it => checkedBrandIds.includes(String(it.brand_id || '')));
+        }
+
+        let html = `<option value="">All Items (${filteredItems.length} Items)</option>`;
+        filteredItems.forEach(it => {
+            const codePrefix = it.code ? `[${it.code}] ` : '';
+            html += `<option value="${it.id}">${codePrefix}${it.name}</option>`;
+        });
+        itemSelect.innerHTML = html;
+
+        if (currentVal && filteredItems.some(it => String(it.id) === String(currentVal))) {
+            itemSelect.value = currentVal;
+        } else {
+            itemSelect.value = '';
+        }
+    },
+
     toggleAllBrands: function(masterCheckbox) {
         const checkboxes = document.querySelectorAll('.plm-brand-check');
         checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+        this.filterItemsDropdown();
         this.triggerAutoPreview();
     },
 
@@ -472,6 +529,8 @@ window.PriceListManagementModule = {
         checkboxes.forEach(cb => cb.checked = false);
         const checkAll = document.getElementById('plm_brand_check_all');
         if (checkAll) checkAll.checked = false;
+
+        this.filterItemsDropdown();
     },
 
     // 8. Tab 1: General Price List (With Manual Rate Editing for Purchase & Selling)

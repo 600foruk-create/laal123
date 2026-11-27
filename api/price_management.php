@@ -132,9 +132,12 @@ try {
 
             // Items (Quick lookup)
             $itemsStmt = $pdo->prepare("
-                SELECT i.id, i.code, i.name, i.brand_id, b.name as brand_name, i.selling_price 
+                SELECT i.id, i.code, i.name, i.brand_id, b.name as brand_name, i.selling_price,
+                       sc.main_id as category_id, c.name as category_name
                 FROM inv_items i 
                 LEFT JOIN inv_brands b ON i.brand_id = b.id 
+                LEFT JOIN inv_sub_categories sc ON i.sub_id = sc.id
+                LEFT JOIN inv_main_categories c ON sc.main_id = c.id
                 WHERE i.company_id = ? AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
                 ORDER BY i.name ASC
             ");
@@ -467,6 +470,8 @@ try {
                 }
             }
 
+            $enabledBrandIds = array_keys($brand_rules);
+
             // Query targeted items
             $itemSql = "
                 SELECT i.id, i.code, i.name, i.brand_id, b.name as brand_name, i.selling_price
@@ -481,11 +486,17 @@ try {
             if ($item_id) {
                 $itemSql .= " AND i.id = ?";
                 $itemParams[] = $item_id;
-            }
-            if ($brand_id) {
+            } elseif ($brand_id) {
                 $itemSql .= " AND i.brand_id = ?";
                 $itemParams[] = $brand_id;
+            } elseif (!empty($enabledBrandIds)) {
+                $inBrands = implode(',', array_fill(0, count($enabledBrandIds), '?'));
+                $itemSql .= " AND i.brand_id IN ($inBrands)";
+                foreach ($enabledBrandIds as $ebid) {
+                    $itemParams[] = $ebid;
+                }
             }
+
             if ($category_id) {
                 $itemSql .= " AND c.id = ?";
                 $itemParams[] = $category_id;
@@ -548,6 +559,11 @@ try {
                 $bId = intval($item['brand_id']);
                 $oldGeneralPrice = floatval($item['selling_price']);
 
+                // If specific brand rules are provided, skip items of unselected brands
+                if (!empty($enabledBrandIds) && !isset($brand_rules[$bId])) {
+                    continue;
+                }
+
                 // Determine adjustment method & value for this item
                 $useMethod = $method;
                 $useValue = $value;
@@ -604,7 +620,7 @@ try {
                 }
 
                 $previewRows[] = [
-                    'seq' => $idx + 1,
+                    'seq' => count($previewRows) + 1,
                     'item_id' => $itmId,
                     'item_code' => $item['code'],
                     'item_name' => $item['name'],
@@ -617,6 +633,7 @@ try {
                 ];
             }
 
+            $itemsCount = count($previewRows);
             $avgIncRs = $itemsCount > 0 ? round($totalIncRs / $itemsCount, 2) : 0;
             $avgIncPct = $itemsCount > 0 ? round($totalIncPct / $itemsCount, 2) : 0;
 
@@ -690,6 +707,8 @@ try {
                 }
             }
 
+            $enabledBrandIds = array_keys($brand_rules);
+
             // Query targeted items
             $itemSql = "
                 SELECT i.id, i.code, i.name, i.brand_id, i.selling_price
@@ -699,9 +718,23 @@ try {
                 WHERE i.company_id = ? AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
             ";
             $itemParams = [$company_id];
-            if ($item_id) { $itemSql .= " AND i.id = ?"; $itemParams[] = $item_id; }
-            if ($brand_id) { $itemSql .= " AND i.brand_id = ?"; $itemParams[] = $brand_id; }
-            if ($cat_id) { $itemSql .= " AND c.id = ?"; $itemParams[] = $cat_id; }
+            if ($item_id) {
+                $itemSql .= " AND i.id = ?";
+                $itemParams[] = $item_id;
+            } elseif ($brand_id) {
+                $itemSql .= " AND i.brand_id = ?";
+                $itemParams[] = $brand_id;
+            } elseif (!empty($enabledBrandIds)) {
+                $inBrands = implode(',', array_fill(0, count($enabledBrandIds), '?'));
+                $itemSql .= " AND i.brand_id IN ($inBrands)";
+                foreach ($enabledBrandIds as $ebid) {
+                    $itemParams[] = $ebid;
+                }
+            }
+            if ($cat_id) {
+                $itemSql .= " AND c.id = ?";
+                $itemParams[] = $cat_id;
+            }
 
             $stmt = $pdo->prepare($itemSql);
             $stmt->execute($itemParams);
@@ -765,6 +798,11 @@ try {
                 $itmId = intval($itm['id']);
                 $bId = intval($itm['brand_id']);
                 $oldGenPrice = floatval($itm['selling_price']);
+
+                // If specific brand rules are provided, skip items of unselected brands
+                if (!empty($enabledBrandIds) && !isset($brand_rules[$bId])) {
+                    continue;
+                }
 
                 // Calculate Delta
                 $useMethod = $method;
