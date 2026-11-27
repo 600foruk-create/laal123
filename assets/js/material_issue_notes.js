@@ -1218,7 +1218,9 @@
                     sn = (data.next_no || data.next_sn || 2) - 1;
                     dir = undefined;
                 } catch(e) { return; }
-            } else if (sn === 0 || dir === 'this') {
+            } else if (dir === 'this') {
+                dir = undefined;
+            } else if (sn === 0) {
                 if (dir === 'next') {
                     try {
                         const res = await fetch(`api/material_issue_notes.php?action=get_next_serial_no&company_id=${companyId}`);
@@ -1601,7 +1603,7 @@
                 tr.ondblclick = () => {
                     this.closeFindModal();
                     document.getElementById('min_sn').value = min.serial_no;
-                    this.navigate('this');
+                    this.navigateBySN(min.serial_no);
                 };
                 
                 tbody.appendChild(tr);

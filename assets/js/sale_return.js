@@ -1369,7 +1369,9 @@ window.SRModule = {
                 sn = (data.next_sn || 2) - 1;
                 dir = undefined;
             } catch(e) { return; }
-        } else if (sn === 0 || dir === 'this') {
+        } else if (dir === 'this') {
+            dir = undefined;
+        } else if (sn === 0) {
             if (dir === 'next') {
                 try {
                     const res = await fetch(`api/sale_return.php?action=get_next_serial&company_id=${companyId}&is_tax=${isTax}`);
@@ -2395,7 +2397,7 @@ window.SRModule = {
                 const srIsTaxEl = document.getElementById('sr_is_tax');
                 if (srIsTaxEl) srIsTaxEl.checked = (inv.is_tax_invoice == 1);
                 document.getElementById('sr_sn').value = inv.serial_no;
-                this.navigate('this');
+                this.navigateBySN(inv.serial_no);
             };
             
             tbody.appendChild(tr);
@@ -2479,7 +2481,7 @@ window.SRModule = {
                 const srIsTaxEl = document.getElementById('sr_is_tax');
                 if (srIsTaxEl) srIsTaxEl.checked = (inv.is_tax_invoice == 1);
                 document.getElementById('sr_sn').value = inv.serial_no;
-                this.navigate('this');
+                this.navigateBySN(inv.serial_no);
             }
         } else if (e.key === 'Escape') {
             this.closeFindModal();
