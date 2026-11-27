@@ -148,7 +148,7 @@
     </style>
     <link rel="stylesheet" href="assets/css/style.css?v=v74-mobile-modal-nav">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="assets/js/theme_manager.js?v=21-master-security-pin"></script>
+    <script src="assets/js/theme_manager.js?v=22-settings-sync-fix"></script>
 </head>
 
 <body>
@@ -359,14 +359,13 @@
         <div id="window-manager"></div>
     </div>
 
-    <script src="assets/js/app_v128.js?v=v82-inv-cat-type-fix"></script>
+    <script src="assets/js/app_v128.js?v=v83-batch1-routing"></script>
     <script src="assets/js/inventory_price_settings.js?v=10"></script>
     <script src="assets/js/inventory_tax_rates.js?v=4"></script>
     <script src="assets/js/inventory_reorder_levels.js?v=3"></script>
     <script src="assets/js/inventory_cost_method.js?v=4"></script>
     <script src="assets/js/chart_of_services.js?v=8"></script>
-    <script src="assets/js/dashboard_customizer.js?v=14-customizer-fix"></script>
-    <script src="assets/js/app_v2.js?v=v181-customizer-sync"></script>
+    <script src="assets/js/dashboard_customizer.js?v=15-sidebar-fix"></script>
     <script src="assets/js/voucher_preferences.js?v=1"></script>
     <script src="assets/js/inventory_movement_settings.js?v=4-closing-policy"></script>
     <script src="assets/js/jobs.js?v=6"></script>
@@ -469,6 +468,7 @@
         let appTypedSequence = '';
         let targetUnlockCode = 'open';
         let targetHiddenRevealCode = 'unlock';
+        window.targetHiddenRevealCode = targetHiddenRevealCode;
 
         function shouldLockApplyForCurrentUser() {
             if (!appLockScreenEnabled) return false;
@@ -551,7 +551,10 @@
         fetch('api/settings.php?action=get_global_setting&key=hidden_reveal_code')
             .then(res => res.json())
             .then(data => {
-                if (data.value) targetHiddenRevealCode = data.value.toLowerCase();
+                if (data.value) {
+                    targetHiddenRevealCode = data.value.toLowerCase();
+                    window.targetHiddenRevealCode = targetHiddenRevealCode;
+                }
             }).catch(e => console.error(e));
 
         fetch('api/settings.php?action=get_global_setting&key=security_404_timeout')
@@ -566,82 +569,19 @@
                 }
             }).catch(e => console.error(e));
 
-        window.syncNavbarModules = async function () {
-            try {
-                const sessionStr = localStorage.getItem('softifyx_session');
-                const sess = sessionStr ? JSON.parse(sessionStr) : {};
-                const companyId = sess.company_id || 1;
-                const isPosRole = (sess.role === 'POS' || String(sess.role).toLowerCase() === 'pos');
-
-                const fbrMenu = document.getElementById('fbrMenu');
-                const posMenu = document.getElementById('posMenu');
-
-                // 1. Instant local display from localStorage (zero delay on refresh)
-                const localFbr = localStorage.getItem('module_fbr_enabled');
-                const localPos = localStorage.getItem('module_pos_enabled');
-
-                if (fbrMenu && localFbr !== null) {
-                    fbrMenu.style.display = (localFbr === '1') ? 'inline-block' : 'none';
-                }
-                if (posMenu && localPos !== null) {
-                    posMenu.style.display = (isPosRole || localPos === '1') ? 'inline-block' : 'none';
-                }
-
-                // 2. Integration Settings dropdown item visibility
-                const localFbrIntegration = localStorage.getItem('fbr_allow_integration_settings');
-                const fbrIntegrationItem = document.getElementById('fbrMenuIntegrationSettings');
-                if (fbrIntegrationItem && localFbrIntegration !== null) {
-                    fbrIntegrationItem.style.display = (localFbrIntegration === '0') ? 'none' : '';
-                }
-
-                // 3. Fetch latest verified settings from API
-                const [rFbr, rPos, rFbrInteg] = await Promise.all([
-                    fetch(`api/settings.php?action=get_setting&key=module_fbr_enabled&company_id=${companyId}&_t=${Date.now()}`),
-                    fetch(`api/settings.php?action=get_setting&key=module_pos_enabled&company_id=${companyId}&_t=${Date.now()}`),
-                    fetch(`api/settings.php?action=get_setting&key=fbr_allow_integration_settings&company_id=${companyId}&_t=${Date.now()}`)
-                ]);
-
-                if (rFbr.ok) {
-                    const dFbr = await rFbr.json();
-                    if (dFbr && dFbr.value !== null && dFbr.value !== undefined) {
-                        const val = String(dFbr.value);
-                        localStorage.setItem('module_fbr_enabled', val);
-                        const m = document.getElementById('fbrMenu');
-                        if (m) m.style.display = (val === '1') ? 'inline-block' : 'none';
-                    }
-                }
-                if (rPos.ok) {
-                    const dPos = await rPos.json();
-                    if (dPos && dPos.value !== null && dPos.value !== undefined) {
-                        const val = String(dPos.value);
-                        localStorage.setItem('module_pos_enabled', val);
-                        const m = document.getElementById('posMenu');
-                        if (m) m.style.display = (isPosRole || val === '1') ? 'inline-block' : 'none';
-                    }
-                }
-                if (rFbrInteg.ok) {
-                    const dInteg = await rFbrInteg.json();
-                    if (dInteg && dInteg.value !== null && dInteg.value !== undefined) {
-                        const val = String(dInteg.value);
-                        localStorage.setItem('fbr_allow_integration_settings', val);
-                        const itm = document.getElementById('fbrMenuIntegrationSettings');
-                        if (itm) itm.style.display = (val === '0') ? 'none' : '';
-                    }
-                }
-            } catch (e) {
-                console.error('syncNavbarModules error:', e);
-            }
-        };
-
-        // Immediate run
-        window.syncNavbarModules();
+        // Initial navbar module sync (actual implementation lives in theme_manager.js)
+        if (typeof window.syncNavbarModules === 'function') {
+            window.syncNavbarModules();
+        }
 
         // Observe navbar-container so when components/navbar.html is injected asynchronously, menus sync immediately
         const navContainerEl = document.getElementById('navbar-container');
         if (navContainerEl) {
             const navObserver = new MutationObserver(() => {
                 if (document.getElementById('fbrMenu') || document.getElementById('posMenu')) {
-                    window.syncNavbarModules();
+                    if (typeof window.syncNavbarModules === 'function') {
+                        window.syncNavbarModules();
+                    }
                     if (typeof window.applyAdminOnlyNavVisibility === 'function') {
                         window.applyAdminOnlyNavVisibility();
                     }
@@ -724,367 +664,14 @@
             }
         };
 
-        window.loadSystemSettings = async function () {
-            try {
-                const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
-                const companyId = session.company_id || 1;
-
-                // 1. FAST LOCAL RESTORE: Instant sync with 0ms delay
-                if (window.syncLoginSettingsFromStorage) {
-                    window.syncLoginSettingsFromStorage();
-                } else {
-                    try {
-                        const raw = localStorage.getItem('softifyx_login_display_settings');
-                        if (raw) {
-                            const cfg = JSON.parse(raw);
-                            const chkDropdown = document.getElementById('setting_login_user_dropdown');
-                            const chkUser = document.getElementById('setting_login_show_username');
-                            const chkCompany = document.getElementById('setting_login_show_company');
-                            const chkYear = document.getElementById('setting_login_show_financial_year');
-                            if (chkDropdown && cfg.login_user_dropdown !== undefined) chkDropdown.checked = (cfg.login_user_dropdown !== '0');
-                            if (chkUser && cfg.login_show_username !== undefined) chkUser.checked = (cfg.login_show_username !== '0');
-                            if (chkCompany && cfg.login_show_company !== undefined) chkCompany.checked = (cfg.login_show_company !== '0');
-                            if (chkYear && cfg.login_show_financial_year !== undefined) chkYear.checked = (cfg.login_show_financial_year !== '0');
-                            if (chkDropdown && window.onLoginUserDropdownChange) window.onLoginUserDropdownChange(chkDropdown.checked);
-                        }
-                    } catch (e) { }
-                }
-
-                // Parallel non-blocking fetch from backend
-                fetch(`api/settings.php?action=get_login_settings&company_id=${companyId}&_t=${Date.now()}`)
-                    .then(r => r.json())
-                    .then(dataLogin => {
-                        const loginCfg = (dataLogin && dataLogin.settings) ? dataLogin.settings : {};
-                        const chkDropdown = document.getElementById('setting_login_user_dropdown');
-                        const chkUser = document.getElementById('setting_login_show_username');
-                        const chkCompany = document.getElementById('setting_login_show_company');
-                        const chkYear = document.getElementById('setting_login_show_financial_year');
-
-                        if (chkDropdown && loginCfg.login_user_dropdown !== undefined) chkDropdown.checked = (loginCfg.login_user_dropdown !== '0');
-                        if (chkUser && loginCfg.login_show_username !== undefined) chkUser.checked = (loginCfg.login_show_username !== '0');
-                        if (chkCompany && loginCfg.login_show_company !== undefined) chkCompany.checked = (loginCfg.login_show_company !== '0');
-                        if (chkYear && loginCfg.login_show_financial_year !== undefined) chkYear.checked = (loginCfg.login_show_financial_year !== '0');
-
-                        if (chkDropdown && window.onLoginUserDropdownChange) window.onLoginUserDropdownChange(chkDropdown.checked);
-
-                        localStorage.setItem('softifyx_login_display_settings', JSON.stringify({
-                            login_user_dropdown: chkDropdown ? (chkDropdown.checked ? '1' : '0') : '1',
-                            login_show_username: chkUser ? (chkUser.checked ? '1' : '0') : '1',
-                            login_show_company: chkCompany ? (chkCompany.checked ? '1' : '0') : '1',
-                            login_show_financial_year: chkYear ? (chkYear.checked ? '1' : '0') : '1'
-                        }));
-                    }).catch(e => console.warn(e));
-
-                if (window.initThemeSettingsInputs) {
-                    window.initThemeSettingsInputs();
-                }
-                if (window.initRegionLabelsInputs) {
-                    window.initRegionLabelsInputs();
-                }
-
-                const res1 = await fetch('api/settings.php?action=get_global_setting&key=security_404_active');
-                const data1 = await res1.json();
-                const isActive = (data1.value !== null) ? (data1.value === '1') : true;
-                const activeCheckbox = document.getElementById('setting_404_active');
-                if (activeCheckbox) activeCheckbox.checked = isActive;
-
-                const res2 = await fetch('api/settings.php?action=get_global_setting&key=security_404_code');
-                const data2 = await res2.json();
-                const codeInput = document.getElementById('setting_404_code');
-                if (codeInput) codeInput.value = data2.value || 'open';
-
-                const res3 = await fetch('api/settings.php?action=get_global_setting&key=security_404_timeout');
-                const data3 = await res3.json();
-                const timeoutInput = document.getElementById('setting_404_timeout');
-                if (timeoutInput) timeoutInput.value = data3.value || '3';
-
-                const resOverride = await fetch('api/settings.php?action=get_global_setting&key=backup_override_code');
-                const dataOverride = await resOverride.json();
-                const overrideInput = document.getElementById('setting_backup_override_code');
-                if (overrideInput) overrideInput.value = dataOverride.value || '';
-
-                const resReveal = await fetch('api/settings.php?action=get_global_setting&key=hidden_reveal_code');
-                const dataReveal = await resReveal.json();
-                const revealInput = document.getElementById('setting_hidden_reveal_code');
-                if (revealInput) revealInput.value = dataReveal.value || 'unlock';
-
-                // Load Target Scope Checkboxes (ERP, Digital Invoicing, POS)
-                const resTErp = await fetch('api/settings.php?action=get_global_setting&key=security_404_target_erp');
-                const dataTErp = await resTErp.json();
-                const isTargetErp = (dataTErp.value !== null) ? (dataTErp.value === '1') : true;
-                const chkTargetErp = document.getElementById('setting_404_target_erp');
-                if (chkTargetErp) chkTargetErp.checked = isTargetErp;
-
-                const resTDig = await fetch('api/settings.php?action=get_global_setting&key=security_404_target_digital_invoice');
-                const dataTDig = await resTDig.json();
-                const isTargetDig = (dataTDig.value !== null) ? (dataTDig.value === '1') : true;
-                const chkTargetDig = document.getElementById('setting_404_target_digital_invoice');
-                if (chkTargetDig) chkTargetDig.checked = isTargetDig;
-
-                const resTPos = await fetch('api/settings.php?action=get_global_setting&key=security_404_target_pos');
-                const dataTPos = await resTPos.json();
-                const isTargetPos = (dataTPos.value !== null) ? (dataTPos.value === '1') : true;
-                const chkTargetPos = document.getElementById('setting_404_target_pos');
-                if (chkTargetPos) chkTargetPos.checked = isTargetPos;
-
-                localStorage.setItem('softifyx_404_targets', JSON.stringify({
-                    erp: isTargetErp,
-                    digital_invoice: isTargetDig,
-                    pos: isTargetPos
-                }));
-
-                const res4 = await fetch(`api/settings.php?action=get_setting&key=default_sale_invoice&company_id=${companyId}`);
-                const data4 = await res4.json();
-                const defaultSale = document.getElementById('setting_default_sale_invoice');
-                if (defaultSale) defaultSale.value = data4.value || 'non_tax';
-                localStorage.setItem('default_sale_invoice', data4.value || 'non_tax');
-
-                const res5 = await fetch(`api/settings.php?action=get_setting&key=default_purchase_invoice&company_id=${companyId}`);
-                const data5 = await res5.json();
-                const defaultPurchase = document.getElementById('setting_default_purchase_invoice');
-                if (defaultPurchase) defaultPurchase.value = data5.value || 'non_tax';
-
-                const res6 = await fetch(`api/settings.php?action=get_setting&key=default_min_mode&company_id=${companyId}`);
-                const data6 = await res6.json();
-                const defaultMinMode = document.getElementById('setting_default_min_mode');
-                if (defaultMinMode) defaultMinMode.value = data6.value || 'job';
-
-                const resFbr = await fetch(`api/settings.php?action=get_setting&key=module_fbr_enabled&company_id=${companyId}&_t=${Date.now()}`);
-                const dataFbr = await resFbr.json();
-                const fbrEnabled = (dataFbr && dataFbr.value !== null && dataFbr.value !== undefined) ? String(dataFbr.value) : (localStorage.getItem('module_fbr_enabled') || '0');
-                const fbrSetting = document.getElementById('setting_module_fbr_enabled');
-                if (fbrSetting) fbrSetting.value = fbrEnabled;
-                localStorage.setItem('module_fbr_enabled', fbrEnabled);
-
-                const resPos = await fetch(`api/settings.php?action=get_setting&key=module_pos_enabled&company_id=${companyId}&_t=${Date.now()}`);
-                const dataPos = await resPos.json();
-                const posEnabled = (dataPos && dataPos.value !== null && dataPos.value !== undefined) ? String(dataPos.value) : (localStorage.getItem('module_pos_enabled') || '0');
-                const posSetting = document.getElementById('setting_module_pos_enabled');
-                if (posSetting) posSetting.value = posEnabled;
-                localStorage.setItem('module_pos_enabled', posEnabled);
-
-                const resAddBranch = await fetch(`api/settings.php?action=get_setting&key=pos_allow_add_branch&company_id=${companyId}&_t=${Date.now()}`);
-                const dataAddBranch = await resAddBranch.json();
-                let addBranchVal = (dataAddBranch && dataAddBranch.value !== undefined && dataAddBranch.value !== null && dataAddBranch.value !== '') ? String(dataAddBranch.value) : localStorage.getItem('pos_allow_add_branch');
-                if (addBranchVal === null || addBranchVal === undefined) addBranchVal = '1';
-                const addBranchSetting = document.getElementById('setting_pos_allow_add_branch');
-                if (addBranchSetting) addBranchSetting.value = addBranchVal;
-                localStorage.setItem('pos_allow_add_branch', addBranchVal);
-
-                // Load POS FBR Integration Tab Setting
-                const resPosFbr = await fetch(`api/settings.php?action=get_setting&key=pos_allow_fbr_integration&company_id=${companyId}&_t=${Date.now()}`);
-                const dataPosFbr = await resPosFbr.json();
-                const selPosFbr = document.getElementById('setting_pos_allow_fbr_integration');
-                let posFbrVal = (dataPosFbr && dataPosFbr.value !== undefined && dataPosFbr.value !== null && dataPosFbr.value !== '') ? String(dataPosFbr.value) : localStorage.getItem('pos_allow_fbr_integration');
-                if (posFbrVal === null || posFbrVal === undefined) posFbrVal = '1';
-                if (selPosFbr) selPosFbr.value = posFbrVal;
-                localStorage.setItem('pos_allow_fbr_integration', posFbrVal);
-
-                // Load Digital Invoicing Integration Settings Setting
-                const resFbrIntegration = await fetch(`api/settings.php?action=get_setting&key=fbr_allow_integration_settings&company_id=${companyId}&_t=${Date.now()}`);
-                const dataFbrIntegration = await resFbrIntegration.json();
-                const selFbrIntegration = document.getElementById('setting_fbr_allow_integration_settings');
-                let fbrIntegrationVal = (dataFbrIntegration && dataFbrIntegration.value !== undefined && dataFbrIntegration.value !== null && dataFbrIntegration.value !== '') ? String(dataFbrIntegration.value) : localStorage.getItem('fbr_allow_integration_settings');
-                if (fbrIntegrationVal === null || fbrIntegrationVal === undefined) fbrIntegrationVal = '1';
-                if (selFbrIntegration) selFbrIntegration.value = fbrIntegrationVal;
-                localStorage.setItem('fbr_allow_integration_settings', fbrIntegrationVal);
-
-                if (window.syncNavbarModules) window.syncNavbarModules();
-                if (window.POSSettings && typeof window.POSSettings.applyBranchButtonVisibility === 'function') {
-                    window.POSSettings.applyBranchButtonVisibility();
-                }
-                if (window.POSSettings && typeof window.POSSettings.applyFbrTabVisibility === 'function') {
-                    window.POSSettings.applyFbrTabVisibility();
-                }
-                if (window.syncSystemSettingsTabVisibility) {
-                    window.syncSystemSettingsTabVisibility();
-                }
-                if (window.centerSystemSettingsWindow) {
-                    window.centerSystemSettingsWindow();
-                }
-
-                window.toggleLockCodeInput();
-            } catch (e) {
-                console.error(e);
-            }
-        };
-
-        window.saveSystemSettings = async function () {
-            try {
-                const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
-                const companyId = session.company_id || 1;
-
-                // Priority 1: Save Login Page Settings Immediately
-                const chkLoginDropdown = document.getElementById('setting_login_user_dropdown');
-                const chkLoginUser = document.getElementById('setting_login_show_username');
-                const chkLoginCompany = document.getElementById('setting_login_show_company');
-                const chkLoginYear = document.getElementById('setting_login_show_financial_year');
-
-                if (chkLoginDropdown || chkLoginUser || chkLoginCompany || chkLoginYear) {
-                    const loginUserDropdown = chkLoginDropdown ? (chkLoginDropdown.checked ? '1' : '0') : '1';
-                    const loginShowUsername = chkLoginUser ? (chkLoginUser.checked ? '1' : '0') : '1';
-                    const loginShowCompany = chkLoginCompany ? (chkLoginCompany.checked ? '1' : '0') : '1';
-                    const loginShowFinancialYear = chkLoginYear ? (chkLoginYear.checked ? '1' : '0') : '1';
-
-                    const loginSettingsObj = {
-                        login_user_dropdown: loginUserDropdown,
-                        login_show_username: loginShowUsername,
-                        login_show_company: loginShowCompany,
-                        login_show_financial_year: loginShowFinancialYear
-                    };
-                    localStorage.setItem('softifyx_login_display_settings', JSON.stringify(loginSettingsObj));
-
-                    fetch(`api/settings.php?action=save_login_settings&company_id=${companyId}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ company_id: companyId, settings: loginSettingsObj })
-                    }).catch(e => console.warn(e));
-                }
-
-                const isActive = document.getElementById('setting_404_active')?.checked ? '1' : '0';
-                let code = (document.getElementById('setting_404_code')?.value || 'open').toLowerCase().trim() || 'open';
-
-                let timeoutVal = (document.getElementById('setting_404_timeout')?.value || '3').toString().trim();
-                if (!timeoutVal || isNaN(parseFloat(timeoutVal))) timeoutVal = '3';
-
-                let overrideCode = (document.getElementById('setting_backup_override_code')?.value || '').toLowerCase().trim();
-                let revealCode = (document.getElementById('setting_hidden_reveal_code')?.value || 'unlock').toLowerCase().trim() || 'unlock';
-
-                const defaultSale = document.getElementById('setting_default_sale_invoice')?.value || 'non_tax';
-                const defaultPurchase = document.getElementById('setting_default_purchase_invoice')?.value || 'non_tax';
-                const defaultMinMode = document.getElementById('setting_default_min_mode')?.value || 'job';
-                const moduleFbrEnabled = document.getElementById('setting_module_fbr_enabled')?.value || localStorage.getItem('module_fbr_enabled') || '0';
-                const modulePosEnabled = document.getElementById('setting_module_pos_enabled')?.value || localStorage.getItem('module_pos_enabled') || '0';
-
-                const elAddBranch = document.getElementById('setting_pos_allow_add_branch');
-                const posAllowAddBranch = elAddBranch ? elAddBranch.value : (localStorage.getItem('pos_allow_add_branch') || '1');
-
-                const elPosFbr = document.getElementById('setting_pos_allow_fbr_integration');
-                const posAllowFbr = elPosFbr ? elPosFbr.value : (localStorage.getItem('pos_allow_fbr_integration') || '1');
-
-                const elFbrIntegration = document.getElementById('setting_fbr_allow_integration_settings');
-                const fbrAllowIntegrationSettings = elFbrIntegration ? elFbrIntegration.value : (localStorage.getItem('fbr_allow_integration_settings') || '1');
-
-                // Immediate local storage update so there is zero latency
-                localStorage.setItem('module_fbr_enabled', moduleFbrEnabled);
-                localStorage.setItem('module_pos_enabled', modulePosEnabled);
-                localStorage.setItem('pos_allow_add_branch', posAllowAddBranch);
-                localStorage.setItem('pos_allow_fbr_integration', posAllowFbr);
-                localStorage.setItem('fbr_allow_integration_settings', fbrAllowIntegrationSettings);
-                localStorage.setItem('default_sale_invoice', defaultSale);
-
-                // Target Scope Checkboxes (ERP, Digital Invoicing, POS)
-                const targetErp = document.getElementById('setting_404_target_erp')?.checked ? '1' : '0';
-                const targetDigitalInvoice = document.getElementById('setting_404_target_digital_invoice')?.checked ? '1' : '0';
-                const targetPos = document.getElementById('setting_404_target_pos')?.checked ? '1' : '0';
-
-                // Theme Customization values
-                const primaryColor = document.getElementById('theme_hex_primary')?.value;
-                const toolbarColor = document.getElementById('theme_hex_toolbar')?.value;
-                const accentColor = document.getElementById('theme_hex_accent')?.value;
-
-                if (primaryColor) {
-                    const themeConfig = {
-                        primary: primaryColor,
-                        toolbar: toolbarColor || primaryColor,
-                        accent: accentColor || '#F5A623',
-                        btnHover: window.shadeColor ? window.shadeColor(primaryColor, -15) : '#153550'
-                    };
-                    if (window.saveERPTheme) {
-                        await window.saveERPTheme(themeConfig);
-                    } else if (window.applyERPTheme) {
-                        localStorage.setItem('softifyx_theme', JSON.stringify(themeConfig));
-                        window.applyERPTheme(themeConfig);
-                    }
-                }
-
-                await fetch(`api/settings.php?action=save_all_settings&company_id=${companyId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        company_id: companyId,
-                        settings: {
-                            security_404_active: isActive,
-                            security_404_code: code,
-                            security_404_timeout: timeoutVal,
-                            security_404_target_erp: targetErp,
-                            security_404_target_digital_invoice: targetDigitalInvoice,
-                            security_404_target_pos: targetPos,
-                            backup_override_code: overrideCode,
-                            hidden_reveal_code: revealCode,
-                            default_sale_invoice: defaultSale,
-                            default_purchase_invoice: defaultPurchase,
-                            default_min_mode: defaultMinMode,
-                            module_fbr_enabled: moduleFbrEnabled,
-                            module_pos_enabled: modulePosEnabled,
-                            pos_allow_add_branch: posAllowAddBranch,
-                            pos_allow_fbr_integration: posAllowFbr,
-                            fbr_allow_integration_settings: fbrAllowIntegrationSettings
-                        }
-                    })
-                });
-
-                if (window.saveRegionLabelsOnly) {
-                    await window.saveRegionLabelsOnly(true);
-                }
-
-                if (window.syncNavbarModules) window.syncNavbarModules();
-                if (window.POSSettings && typeof window.POSSettings.applyBranchButtonVisibility === 'function') {
-                    window.POSSettings.applyBranchButtonVisibility();
-                }
-                if (window.POSSettings && typeof window.POSSettings.applyFbrTabVisibility === 'function') {
-                    window.POSSettings.applyFbrTabVisibility();
-                }
-                if (window.syncSystemSettingsTabVisibility) {
-                    window.syncSystemSettingsTabVisibility();
-                }
-
-                const targetObj = {
-                    erp: targetErp === '1',
-                    digital_invoice: targetDigitalInvoice === '1',
-                    pos: targetPos === '1'
-                };
-                localStorage.setItem('softifyx_404_targets', JSON.stringify(targetObj));
-
-                const fb = document.getElementById('save_feedback_msg');
-                if (fb) {
-                    fb.style.display = 'inline-block';
-                    setTimeout(function () { fb.style.display = 'none'; }, 3000);
-                }
-                const fbLogin = document.getElementById('save_feedback_msg_login');
-                if (fbLogin) {
-                    fbLogin.style.display = 'inline-block';
-                    setTimeout(function () { fbLogin.style.display = 'none'; }, 3000);
-                }
-                alert('Settings saved successfully!');
-
-                // Notify the app of the update
-                targetHiddenRevealCode = revealCode;
-                if (typeof window.updateLockScreenSettings === 'function') {
-                    window.updateLockScreenSettings(isActive === '1', code, parseFloat(timeoutVal), targetObj);
-                }
-            } catch (e) {
-                alert('Error saving settings: ' + (e && e.message ? e.message : e));
-                console.error('Error saving system settings:', e);
-            }
-        };
-
-        window.onLoginUserDropdownChange = function (isChecked) {
-            const desc = document.getElementById('desc_login_user_dropdown');
-            if (desc) {
-                desc.innerHTML = isChecked
-                    ? 'Checked: Users list dropdown will show on login page. (Uncheck to type username manually).'
-                    : 'Unchecked: User dropdown is hidden. User will type their username manually into a text box.';
-            }
-        };
-
         // Listen for typed sequence to unlock
         let settingsTypedSequence = '';
         document.addEventListener('keydown', (e) => {
             if (e.key.length === 1) {
                 // Secret settings unhide logic
                 settingsTypedSequence += e.key.toLowerCase();
-                if (settingsTypedSequence.endsWith(targetHiddenRevealCode)) {
+                const activeRevealCode = (window.targetHiddenRevealCode || targetHiddenRevealCode || 'unlock').toLowerCase();
+                if (settingsTypedSequence.endsWith(activeRevealCode)) {
                     window.sysSecretUnlocked = true;
                     if (typeof window.unlockSecretSystemSettings === 'function') {
                         window.unlockSecretSystemSettings();

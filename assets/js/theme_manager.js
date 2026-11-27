@@ -2221,6 +2221,7 @@
             if (typeof window.updateLockScreenSettings === 'function') {
                 window.updateLockScreenSettings(isActive === '1', code, parseFloat(timeoutVal), targetObj);
             }
+            window.targetHiddenRevealCode = revealCode;
 
             // Save Custom Region Labels
             const inpMainReg = document.getElementById('setting_custom_label_main_region');
@@ -2495,6 +2496,7 @@
                 }).catch(e => console.warn(e));
 
             if (window.initThemeSettingsInputs) window.initThemeSettingsInputs();
+            if (window.initRegionLabelsInputs) window.initRegionLabelsInputs();
 
             // Load Security 404
             const res1 = await fetch('api/settings.php?action=get_global_setting&key=security_404_active&_t=' + Date.now());
@@ -2734,6 +2736,7 @@
                     }
                 }).catch(e => console.warn(e));
 
+            if (typeof window.toggleLockCodeInput === 'function') window.toggleLockCodeInput();
             if (window.syncNavbarModules) window.syncNavbarModules();
             if (window.POSSettings && typeof window.POSSettings.applyBranchButtonVisibility === 'function') {
                 window.POSSettings.applyBranchButtonVisibility();

@@ -3928,10 +3928,14 @@ document.addEventListener('click', function(e) {
                         else if (url.includes('user_rights.html')) setTimeout(() => initUserRightsView(), 10);
                         else if (url.includes('financial_year.html')) setTimeout(() => initFinancialYearView(), 10);
                         else if (url.includes('currency.html')) setTimeout(() => initCurrencyView(), 10);
-                        else if (url.includes('chart_of_accounts.html')) setTimeout(() => initChartOfAccountsView(), 10);
+                        else if (url.includes('chart_of_accounts.html')) setTimeout(() => window.initChartOfAccountsView && window.initChartOfAccountsView(), 10);
+                        else if (url.includes('chart_of_inventory.html')) setTimeout(() => window.initChartOfInventoryView && window.initChartOfInventoryView(), 10);
+                        else if (url.includes('business_sectors.html')) setTimeout(() => window.initSectorsView && window.initSectorsView(), 10);
                         else if (url.includes('employees.html')) setTimeout(() => window.initEmployeesView(), 10);
                         else if (url.includes('inventory_locations.html')) setTimeout(() => window.initInventoryLocationsView(), 10);
-                        else if (url.includes('item_price_settings.html')) setTimeout(() => window.initPriceSettings && window.initPriceSettings(), 10);
+                        else if (url.includes('item_price_settings.html')) setTimeout(() => window.PriceSettingsModule && window.PriceSettingsModule.init(), 10);
+                        else if (url.includes('production_notes.html')) setTimeout(() => { if (window.PNModule && typeof window.PNModule.init === 'function') window.PNModule.init(); }, 10);
+                        else if (url.includes('view_inventory_ledgers.html')) setTimeout(() => { if (window.ViewInventoryLedgersModule && !window.ViewInventoryLedgersModule.isInitialized) window.ViewInventoryLedgersModule.init(); }, 10);
                         else if (url.includes('inward_gate_passes.html')) setTimeout(() => window.IGPModule && window.IGPModule.init(), 10);
                         else if (url.includes('pos_sale.html')) setTimeout(() => window.POSModule && window.POSModule.init(), 10);
                         else if (url.includes('pos_settings.html')) setTimeout(() => window.POSSettings && window.POSSettings.init(), 10);
@@ -4621,6 +4625,99 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (sideContainer) sideContainer.style.display = 'none';
         }
 
+        function bindNavigationPopupItem(item, options = {}) {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                let targetUrl = item.getAttribute('data-target');
+                let moduleName = item.getAttribute('data-module');
+                let rawTitle = (options.useFirstChildText && item.childNodes[0]) ? item.childNodes[0].textContent : item.textContent;
+                let titleText = (rawTitle || '').trim() || targetUrl.split('/').pop().replace('.html', '');
+                const matchesModule = (name, filePart) => (moduleName === name || (targetUrl && targetUrl.includes(filePart)));
+
+                let isCoa = matchesModule("Chart of Accounts", 'chart_of_accounts.html');
+                let isCust = matchesModule("Customers", 'customers.html');
+                let isVend = matchesModule("Vendors/Suppliers", 'vendors.html');
+                let isReg = matchesModule("Customer Regions", 'customer_regions.html');
+                let isEmp = matchesModule("Employees", 'employees.html');
+                let isBank = matchesModule("Bank Accounts", 'bank_accounts.html');
+                let isOB = matchesModule("Accounts Opening Balances", 'accounts_opening_balances.html');
+                let isInv = matchesModule("Chart of Inventory", 'chart_of_inventory.html');
+                let isSec = matchesModule("Business Sectors", 'business_sectors.html');
+                let isPriceSettings = matchesModule("Item Price Settings", 'item_price_settings.html');
+                let isProdNote = matchesModule("Production Notes", 'production_notes.html');
+                let isInvBrands = matchesModule("Inventory Brands", 'inventory_brands.html');
+                let isHsCodes = matchesModule("HS Codes", 'hs_codes.html');
+                let isBuyerTypes = matchesModule("Buyer Types", 'buyer_types.html');
+                let isInvLoc = matchesModule("Inventory Locations", 'inventory_locations.html');
+                let isInvOB = matchesModule("Inventory Opening Balances", 'inventory_opening_balances.html');
+                let isIGP = matchesModule("Inward Gate Passes", 'inward_gate_passes.html');
+                let isOGP = matchesModule("Outward Gate Passes", 'outward_gate_passes.html');
+                let isLedger = matchesModule("View Account Ledger", 'view_account_ledger.html');
+                let isJournal = matchesModule("Journal Report", 'journal_report.html');
+                let isSys = matchesModule("System Settings", 'system_settings.html');
+
+                let initCallback = null;
+                if (isCoa) initCallback = initChartOfAccountsView;
+                else if (isCust) initCallback = initCustomersView;
+                else if (isVend) initCallback = initVendorsView;
+                else if (isReg) initCallback = initRegionsView;
+                else if (isEmp) initCallback = initEmployeesView;
+                else if (isBank) initCallback = initBankAccountsView;
+                else if (isOB) initCallback = initOpeningBalancesView;
+                else if (isInv) initCallback = initChartOfInventoryView;
+                else if (isSec) initCallback = initSectorsView;
+                else if (isPriceSettings) initCallback = () => { if (window.PriceSettingsModule) window.PriceSettingsModule.init(); };
+                else if (isProdNote) initCallback = () => { if (window.PNModule) window.PNModule.init(); };
+                else if (isInvBrands) initCallback = initInventoryBrandsView;
+                else if (isHsCodes) initCallback = initHsCodesView;
+                else if (isBuyerTypes) initCallback = () => { if (typeof fetchBuyerTypes === 'function') fetchBuyerTypes(); };
+                else if (isInvLoc) initCallback = initInventoryLocationsView;
+                else if (isInvOB) initCallback = initInventoryOpeningBalancesView;
+                else if (isLedger) initCallback = () => { if (window.AccountLedgerModule) window.AccountLedgerModule.init(); };
+                else if (isJournal) initCallback = () => { if (window.JournalReportModule) window.JournalReportModule.init(); };
+                else if (moduleName === "Item Below Re-Order Level") initCallback = () => { if (window.ItemsBelowReorder) window.ItemsBelowReorder.init(); };
+                else if (moduleName === "Purchase Order Tracking") initCallback = () => { if (window.PurchaseOrderTracker) window.PurchaseOrderTracker.init(); };
+                else if (moduleName === "Sale Order Tracking") initCallback = () => { if (window.SaleOrderTracker) window.SaleOrderTracker.init(); };
+                else if (moduleName === "Purchase Summary") initCallback = () => { if (window.PurchaseSummaryReport) window.PurchaseSummaryReport.init(); };
+                else if (moduleName === "Purchase Register") initCallback = () => { if (window.PurchaseRegisterReport) window.PurchaseRegisterReport.init(); };
+                else if (moduleName === "Party Purchase Summary") initCallback = () => { if (window.PartyPurchaseSummaryReport) window.PartyPurchaseSummaryReport.init(); };
+                else if (moduleName === "Payments Reports") initCallback = () => { if (window.PaymentsReportsModule) window.PaymentsReportsModule.init(); };
+                else if (moduleName === "View Inventory Ledgers") initCallback = () => { if (window.ViewInventoryLedgersModule) window.ViewInventoryLedgersModule.init(); };
+
+                const isMaintain = (!options.urlOnlyFull && item.closest('#maintainMenu')) || (targetUrl && targetUrl.includes('Navigation/Maintain/'));
+                const isPurchases = (!options.urlOnlyFull && item.closest('#purchasesMenu')) || (targetUrl && targetUrl.includes('Navigation/Purchases/'));
+                const isReports = (!options.urlOnlyFull && item.closest('#reportsMenu')) || (targetUrl && targetUrl.includes('Navigation/Reports/'));
+                const isSales = !!(options.includeSalesFull && targetUrl && targetUrl.includes('Navigation/Sales/'));
+                let isFull = isMaintain || isPurchases || isReports || isSales;
+                if (targetUrl && (targetUrl.includes('income_statement.html') || targetUrl.includes('balance_sheet.html') || isInvBrands || isInvLoc || isHsCodes || isBuyerTypes || isCust || targetUrl.includes('drivers.html') || moduleName === 'Drivers')) {
+                    isFull = false;
+                }
+
+                const isAbout = (targetUrl && targetUrl.includes('Navigation/About/'));
+                const isWide = (isCoa || isCust || isVend || isReg || isEmp || isBank || isOB || isInv || isInvOB || isIGP || isOGP || isLedger || isJournal || isAbout || isSys);
+
+                if (targetUrl && targetUrl.includes('license_details.html')) {
+                    initCallback = () => {
+                        const companyName = (window.companyData && window.companyData.name) ? window.companyData.name : 'M/S SEASTONE PLASTIC INDUSTRIES';
+                        const el = document.getElementById('licenseCompanyName');
+                        if (el) el.textContent = companyName;
+                        const el2 = document.getElementById('licenseSummaryCompanyName');
+                        if (el2) el2.textContent = companyName;
+                        const actDateEl = document.getElementById('licenseActivationDate');
+                        if (actDateEl) {
+                            const d = new Date();
+                            d.setFullYear(d.getFullYear() - 1);
+                            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                            actDateEl.textContent = `${d.getDate().toString().padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
+                        }
+                    };
+                }
+
+                window.openModularPopup(targetUrl, 'fa-file-alt', titleText, initCallback, moduleName, isWide, isFull);
+                if (typeof options.onAfterOpen === 'function') options.onAfterOpen();
+            });
+        }
+
         // Load Navbar
         const navRes = await fetch('components/navbar.html?v=' + Date.now());
         if(navRes.ok) {
@@ -4682,91 +4779,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Attach SPA event listeners to all generic dropdown menus using Popup System
             document.querySelectorAll('.dropdown-item[data-target], .nested-item[data-target]').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    let targetUrl = item.getAttribute('data-target');
-                    let moduleName = item.getAttribute('data-module');
-                    let titleText = item.childNodes[0].textContent.trim() || targetUrl.split('/').pop().replace('.html', '');
-                    let isCoa = (moduleName === "Chart of Accounts" || (targetUrl && targetUrl.includes('chart_of_accounts.html')));
-                    let isCust = (moduleName === "Customers" || (targetUrl && targetUrl.includes('customers.html')));
-                    let isVend = (moduleName === "Vendors/Suppliers" || (targetUrl && targetUrl.includes('vendors.html')));
-                    let isReg = (moduleName === "Customer Regions" || (targetUrl && targetUrl.includes('customer_regions.html')));
-                    let isEmp = (moduleName === "Employees" || (targetUrl && targetUrl.includes('employees.html')));
-                    let isBank = (moduleName === "Bank Accounts" || (targetUrl && targetUrl.includes('bank_accounts.html')));
-                    let isOB = (moduleName === "Accounts Opening Balances" || (targetUrl && targetUrl.includes('accounts_opening_balances.html')));
-                    let isInv = (moduleName === "Chart of Inventory" || (targetUrl && targetUrl.includes('chart_of_inventory.html')));
-                    let isInvBrands = (moduleName === "Inventory Brands" || (targetUrl && targetUrl.includes('inventory_brands.html')));
-                    let isHsCodes = (moduleName === "HS Codes" || (targetUrl && targetUrl.includes('hs_codes.html')));
-                    let isBuyerTypes = (moduleName === "Buyer Types" || (targetUrl && targetUrl.includes('buyer_types.html')));
-                    let isInvLoc = (moduleName === "Inventory Locations" || (targetUrl && targetUrl.includes('inventory_locations.html')));
-                    let isInvOB = (moduleName === "Inventory Opening Balances" || (targetUrl && targetUrl.includes('inventory_opening_balances.html')));
-                    let isIGP = (moduleName === "Inward Gate Passes" || (targetUrl && targetUrl.includes('inward_gate_passes.html')));
-                    let isOGP = (moduleName === "Outward Gate Passes" || (targetUrl && targetUrl.includes('outward_gate_passes.html')));
-                    let isLedger = (moduleName === "View Account Ledger" || (targetUrl && targetUrl.includes('view_account_ledger.html')));
-                    let isJournal = (moduleName === "Journal Report" || (targetUrl && targetUrl.includes('journal_report.html')));
-                    
-                    let initCallback = null;
-                    if (isCoa) initCallback = initChartOfAccountsView;
-                    else if (isCust) initCallback = initCustomersView;
-                    else if (isVend) initCallback = initVendorsView;
-                    else if (isReg) initCallback = initRegionsView;
-                    else if (isEmp) initCallback = initEmployeesView;
-                    else if (isBank) initCallback = initBankAccountsView;
-                    else if (isOB) initCallback = initOpeningBalancesView;
-                    else if (isInv) initCallback = initChartOfInventoryView;
-                    else if (isInvBrands) initCallback = initInventoryBrandsView;
-                    else if (isHsCodes) initCallback = initHsCodesView;
-                    else if (isBuyerTypes) initCallback = () => { if (typeof fetchBuyerTypes === 'function') fetchBuyerTypes(); };
-                    else if (isInvLoc) initCallback = initInventoryLocationsView;
-                    else if (isInvOB) initCallback = initInventoryOpeningBalancesView;
-                    else if (isLedger) initCallback = () => { if (window.AccountLedgerModule) window.AccountLedgerModule.init(); };
-                    else if (isJournal) initCallback = () => { if (window.JournalReportModule) window.JournalReportModule.init(); };
-                    else if (moduleName === "Item Below Re-Order Level") initCallback = () => { if (window.ItemsBelowReorder) window.ItemsBelowReorder.init(); };
-                    else if (moduleName === "Purchase Order Tracking") initCallback = () => { if (window.PurchaseOrderTracker) window.PurchaseOrderTracker.init(); };
-                    else if (moduleName === "Sale Order Tracking") initCallback = () => { if (window.SaleOrderTracker) window.SaleOrderTracker.init(); };
-                    else if (moduleName === "Purchase Summary") initCallback = () => { if (window.PurchaseSummaryReport) window.PurchaseSummaryReport.init(); };
-                    else if (moduleName === "Purchase Register") initCallback = () => { if (window.PurchaseRegisterReport) window.PurchaseRegisterReport.init(); };
-                    else if (moduleName === "Party Purchase Summary") initCallback = () => { if (window.PartyPurchaseSummaryReport) window.PartyPurchaseSummaryReport.init(); };
-                    else if (moduleName === "Payments Reports") initCallback = () => { if (window.PaymentsReportsModule) window.PaymentsReportsModule.init(); };
-                    else if (moduleName === "View Inventory Ledgers") initCallback = () => { if (window.ViewInventoryLedgersModule) window.ViewInventoryLedgersModule.init(); };
-                    const isMaintain = item.closest('#maintainMenu') || (targetUrl && targetUrl.includes('Navigation/Maintain/'));
-                    const isPurchases = item.closest('#purchasesMenu') || (targetUrl && targetUrl.includes('Navigation/Purchases/'));
-                    const isReports = item.closest('#reportsMenu') || (targetUrl && targetUrl.includes('Navigation/Reports/'));
-                    let isFull = isMaintain || isPurchases || isReports;
-                    if (targetUrl && (targetUrl.includes('income_statement.html') || targetUrl.includes('balance_sheet.html') || isInvBrands || isInvLoc || isHsCodes || isBuyerTypes || isCust || targetUrl.includes('drivers.html') || moduleName === 'Drivers')) {
-                        isFull = false;
+                bindNavigationPopupItem(item, {
+                    useFirstChildText: true,
+                    onAfterOpen: () => {
+                        if (window.hideAllDropdowns) window.hideAllDropdowns();
+                        // Close ALL mobile layers
+                        const navMenu = document.getElementById('navMenu');
+                        if (navMenu) navMenu.classList.remove('active');
+                        document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('show'));
                     }
-
-                    const isAbout = (targetUrl && targetUrl.includes('Navigation/About/'));
-                    const isWide = (isCoa || isCust || isVend || isReg || isEmp || isBank || isOB || isInv || isInvOB || isIGP || isOGP || isLedger || isJournal || isAbout);
-                    
-                    if (targetUrl && targetUrl.includes('license_details.html')) {
-                        initCallback = () => {
-                            const companyName = (window.companyData && window.companyData.name) ? window.companyData.name : 'M/S SEASTONE PLASTIC INDUSTRIES';
-                            
-                            const el = document.getElementById('licenseCompanyName');
-                            if (el) el.textContent = companyName;
-
-                            const el2 = document.getElementById('licenseSummaryCompanyName');
-                            if (el2) el2.textContent = companyName;
-
-                            const actDateEl = document.getElementById('licenseActivationDate');
-                            if (actDateEl) {
-                                const d = new Date();
-                                d.setFullYear(d.getFullYear() - 1);
-                                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                                actDateEl.textContent = `${d.getDate().toString().padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
-                            }
-                        };
-                    }
-
-                    window.openModularPopup(targetUrl, 'fa-file-alt', titleText, initCallback, moduleName, isWide, isFull);
-                    
-                    if (window.hideAllDropdowns) window.hideAllDropdowns();
-                    // Close ALL mobile layers
-                    const navMenu = document.getElementById('navMenu');
-                    if(navMenu) navMenu.classList.remove('active');
-                    document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('show'));
                 });
             });
         }
@@ -4774,95 +4795,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Load Sidebar (Skip for POS role)
         if (!isPosUser) {
             const sideRes = await fetch('components/sidebar.html?v=' + Date.now());
+            if (sideRes.ok) {
                 document.getElementById('sidebar-container').innerHTML = await sideRes.text();
                 if (window.DashboardCustomizer && typeof window.DashboardCustomizer.renderLeftSidebar === 'function') {
                     window.DashboardCustomizer.renderLeftSidebar();
                 }
-            
-            // Attach SPA event listeners to all sidebar menus using Popup System
-            document.querySelectorAll('.sidebar-item[data-target]').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    let targetUrl = item.getAttribute('data-target');
-                    let moduleName = item.getAttribute('data-module');
-                    let titleText = item.textContent.trim() || targetUrl.split('/').pop().replace('.html', '');
-                    let isCoa = (moduleName === "Chart of Accounts" || (targetUrl && targetUrl.includes('chart_of_accounts.html')));
-                    let isCust = (moduleName === "Customers" || (targetUrl && targetUrl.includes('customers.html')));
-                    let isVend = (moduleName === "Vendors/Suppliers" || (targetUrl && targetUrl.includes('vendors.html')));
-                    let isReg = (moduleName === "Customer Regions" || (targetUrl && targetUrl.includes('customer_regions.html')));
-                    let isEmp = (moduleName === "Employees" || (targetUrl && targetUrl.includes('employees.html')));
-                    let isBank = (moduleName === "Bank Accounts" || (targetUrl && targetUrl.includes('bank_accounts.html')));
-                    let isOB = (moduleName === "Accounts Opening Balances" || (targetUrl && targetUrl.includes('accounts_opening_balances.html')));
-                    let isInvBrands = (moduleName === "Inventory Brands" || (targetUrl && targetUrl.includes('inventory_brands.html')));
-                    let isHsCodes = (moduleName === "HS Codes" || (targetUrl && targetUrl.includes('hs_codes.html')));
-                    let isBuyerTypes = (moduleName === "Buyer Types" || (targetUrl && targetUrl.includes('buyer_types.html')));
-                    let isInvLoc = (moduleName === "Inventory Locations" || (targetUrl && targetUrl.includes('inventory_locations.html')));
-                    let isInvOB = (moduleName === "Inventory Opening Balances" || (targetUrl && targetUrl.includes('inventory_opening_balances.html')));
-                    let isIGP = (moduleName === "Inward Gate Passes" || (targetUrl && targetUrl.includes('inward_gate_passes.html')));
-                    let isOGP = (moduleName === "Outward Gate Passes" || (targetUrl && targetUrl.includes('outward_gate_passes.html')));
-                    let isLedger = (moduleName === "View Account Ledger" || (targetUrl && targetUrl.includes('view_account_ledger.html')));
-                    let isJournal = (moduleName === "Journal Report" || (targetUrl && targetUrl.includes('journal_report.html')));
-                    
-                    const isMaintain = (targetUrl && targetUrl.includes('Navigation/Maintain/'));
-                    const isPurchases = (targetUrl && targetUrl.includes('Navigation/Purchases/'));
-                    const isReports = (targetUrl && targetUrl.includes('Navigation/Reports/'));
-                    const isSales = (targetUrl && targetUrl.includes('Navigation/Sales/'));
-                    let isFull = isMaintain || isPurchases || isReports || isSales;
-                    if (targetUrl && (targetUrl.includes('income_statement.html') || targetUrl.includes('balance_sheet.html') || isInvBrands || isInvLoc || isHsCodes || isBuyerTypes || isCust || targetUrl.includes('drivers.html') || moduleName === 'Drivers')) {
-                        isFull = false;
-                    }
 
-                    let initCallback = null;
-                    if (isCoa) initCallback = initChartOfAccountsView;
-                    else if (isCust) initCallback = initCustomersView;
-                    else if (isVend) initCallback = initVendorsView;
-                    else if (isReg) initCallback = initRegionsView;
-                    else if (isEmp) initCallback = initEmployeesView;
-                    else if (isBank) initCallback = initBankAccountsView;
-                    else if (isOB) initCallback = initOpeningBalancesView;
-                    else if (isInvBrands) initCallback = initInventoryBrandsView;
-                    else if (isHsCodes) initCallback = initHsCodesView;
-                    else if (isBuyerTypes) initCallback = () => { if (typeof fetchBuyerTypes === 'function') fetchBuyerTypes(); };
-                    else if (isInvLoc) initCallback = initInventoryLocationsView;
-                    else if (isInvOB) initCallback = initInventoryOpeningBalancesView;
-                    else if (isLedger) initCallback = () => { if (window.AccountLedgerModule) window.AccountLedgerModule.init(); };
-                    else if (isJournal) initCallback = () => { if (window.JournalReportModule) window.JournalReportModule.init(); };
-                    else if (moduleName === "Item Below Re-Order Level") initCallback = () => { if (window.ItemsBelowReorder) window.ItemsBelowReorder.init(); };
-                    else if (moduleName === "Purchase Order Tracking") initCallback = () => { if (window.PurchaseOrderTracker) window.PurchaseOrderTracker.init(); };
-                    else if (moduleName === "Sale Order Tracking") initCallback = () => { if (window.SaleOrderTracker) window.SaleOrderTracker.init(); };
-                    else if (moduleName === "Purchase Summary") initCallback = () => { if (window.PurchaseSummaryReport) window.PurchaseSummaryReport.init(); };
-                    else if (moduleName === "Purchase Register") initCallback = () => { if (window.PurchaseRegisterReport) window.PurchaseRegisterReport.init(); };
-                    else if (moduleName === "Party Purchase Summary") initCallback = () => { if (window.PartyPurchaseSummaryReport) window.PartyPurchaseSummaryReport.init(); };
-                    else if (moduleName === "Payments Reports") initCallback = () => { if (window.PaymentsReportsModule) window.PaymentsReportsModule.init(); };
-                    else if (moduleName === "View Inventory Ledgers") initCallback = () => { if (window.ViewInventoryLedgersModule) window.ViewInventoryLedgersModule.init(); };
-                    
-                    const isAbout = (targetUrl && targetUrl.includes('Navigation/About/'));
-                    const isWide = (isCoa || isCust || isVend || isReg || isEmp || isBank || isOB || isInvOB || isIGP || isOGP || isLedger || isJournal || isAbout);
-                    
-                    if (targetUrl && targetUrl.includes('license_details.html')) {
-                        initCallback = () => {
-                            const companyName = (window.companyData && window.companyData.name) ? window.companyData.name : 'M/S SEASTONE PLASTIC INDUSTRIES';
-                            
-                            const el = document.getElementById('licenseCompanyName');
-                            if (el) el.textContent = companyName;
-
-                            const el2 = document.getElementById('licenseSummaryCompanyName');
-                            if (el2) el2.textContent = companyName;
-
-                            const actDateEl = document.getElementById('licenseActivationDate');
-                            if (actDateEl) {
-                                const d = new Date();
-                                d.setFullYear(d.getFullYear() - 1);
-                                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                                actDateEl.textContent = `${d.getDate().toString().padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
-                            }
-                        };
-                    }
-
-                    window.openModularPopup(targetUrl, 'fa-file-alt', titleText, initCallback, moduleName, isWide, isFull);
+                // Attach SPA event listeners to all sidebar menus using Popup System
+                document.querySelectorAll('.sidebar-item[data-target]').forEach(item => {
+                    bindNavigationPopupItem(item, {
+                        urlOnlyFull: true,
+                        includeSalesFull: true
+                    });
                 });
-            });
             }
+        }
 
         // Load Default View FIRST
         if (isPosUser) {

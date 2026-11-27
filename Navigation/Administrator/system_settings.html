@@ -2384,19 +2384,22 @@
         if (window.centerSystemSettingsWindow) window.centerSystemSettingsWindow();
     }, 50);
 
-    // Listen for local typing inside the System Settings modal
-    let localSequence = '';
-    window.addEventListener('keydown', function(e) {
-        if (e.key && e.key.length === 1) {
-            localSequence += e.key.toLowerCase();
-            const revealInput = document.getElementById('setting_hidden_reveal_code');
-            const targetCode = (revealInput && revealInput.value) ? revealInput.value.toLowerCase().trim() : (window.targetHiddenRevealCode || 'unlock');
-            if (localSequence.endsWith(targetCode) || localSequence.endsWith('unlock')) {
-                window.unlockSecretSystemSettings();
+    // Listen for local typing inside the System Settings modal (bind once)
+    if (!window._sysSettingsLocalSecretKeyBound) {
+        window._sysSettingsLocalSecretKeyBound = true;
+        let localSequence = '';
+        window.addEventListener('keydown', function(e) {
+            if (e.key && e.key.length === 1) {
+                localSequence += e.key.toLowerCase();
+                const revealInput = document.getElementById('setting_hidden_reveal_code');
+                const targetCode = (revealInput && revealInput.value) ? revealInput.value.toLowerCase().trim() : (window.targetHiddenRevealCode || 'unlock');
+                if (localSequence.endsWith(targetCode) || localSequence.endsWith('unlock')) {
+                    if (typeof window.unlockSecretSystemSettings === 'function') window.unlockSecretSystemSettings();
+                }
+                if (localSequence.length > 20) localSequence = localSequence.slice(-20);
             }
-            if (localSequence.length > 20) localSequence = localSequence.slice(-20);
-        }
-    });
+        });
+    }
 
     // -------------------------------------------------------------------------
     // Login Settings Synchronization Helpers

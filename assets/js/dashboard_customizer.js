@@ -34,7 +34,7 @@
             { id: 'pos_closing', label: 'POS Day Closing', icon: 'fas fa-door-closed', action: "openModularPopup('Navigation/POS/pos_day_closing.html', 'fa-door-closed', 'POS Day Closing', () => { if(window.POSDayClosingModule) window.POSDayClosingModule.init(); }, 'POS Day Closing', true, true)" },
             { id: 'gjv', label: 'General Journal Voucher', icon: 'fas fa-book', action: "openModularPopup('Navigation/Adjustment/general_journal_voucher.html', 'fa-book', 'General Journal Voucher', () => window.initGJVModule(), 'General Journal Voucher', true, true)" },
             { id: 'min', label: 'Material Issue Note', icon: 'fas fa-dolly-flatbed', action: "openModularPopup('Navigation/Store/material_issue_notes.html', 'fa-dolly-flatbed', 'Material Issue Notes', () => window.MINModule && window.MINModule.init(), 'Material Issue Notes', true, true)" },
-            { id: 'prod_note', label: 'Production Note', icon: 'fas fa-industry', action: "openModularPopup('Navigation/Store/production_notes.html', 'fa-industry', 'Production Notes', () => window.ProdNoteModule && window.ProdNoteModule.init(), 'Production Notes', true, true)" }
+            { id: 'prod_note', label: 'Production Note', icon: 'fas fa-industry', action: "openModularPopup('Navigation/Store/production_notes.html', 'fa-industry', 'Production Notes', () => window.PNModule && window.PNModule.init(), 'Production Notes', true, true)" }
         ],
         view: [
             { id: 'v_pr', label: 'Purchase Report', icon: 'fas fa-chart-line', target: 'Navigation/Reports/purchase_summary.html', module: 'Purchase Summary' },
