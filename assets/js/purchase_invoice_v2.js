@@ -1266,6 +1266,7 @@ window.PIModule = {
         
         const dateEl = document.getElementById('pi_date');
         if (dateEl) dateEl.valueAsDate = new Date();
+        this.syncHeaderDropdownTexts();
         
         const tbody = document.getElementById('piGridBody');
         if (tbody) {
@@ -1455,6 +1456,21 @@ window.PIModule = {
         } catch (e) { console.error("Navigation error:", e); }
     },
 
+    syncHeaderDropdownTexts: function() {
+        const mappings = [
+            { valId: 'pi_location', txtId: 'pi_location_text', list: this.locations, def: 'Select Location', fmt: l => l.name || '' },
+            { valId: 'pi_job_desc', txtId: 'pi_job_text', list: this.jobs, def: 'Select Job', fmt: j => `${j.job_no || ''} - ${j.description || ''}`.trim() },
+            { valId: 'pi_emp_ref', txtId: 'pi_emp_text', list: this.employees, def: 'Select Employee', fmt: e => (e.name || '').trim() }
+        ];
+        mappings.forEach(m => {
+            const val = document.getElementById(m.valId)?.value || '';
+            const txtEl = document.getElementById(m.txtId);
+            if (!txtEl) return;
+            const found = val ? (m.list || []).find(item => String(item.id) === String(val)) : null;
+            txtEl.innerText = found ? m.fmt(found) : m.def;
+        });
+    },
+
     loadInvoiceData: function(inv) {
         this.currentId = inv.id;
         document.getElementById('pi_sn').value = inv.serial_no;
@@ -1487,6 +1503,7 @@ window.PIModule = {
         document.getElementById('pi_location').value = inv.inventory_location_id || '';
         document.getElementById('pi_job_desc').value = inv.job_no || '';
         document.getElementById('pi_emp_ref').value = inv.employee_ref || '';
+        this.syncHeaderDropdownTexts();
         document.getElementById('pi_remarks').value = inv.remarks || '';
         document.getElementById('pi_freight').value = inv.carriage_freight || '0.00';
         document.getElementById('pi_add_disc').value = inv.additional_discount || '0.00';

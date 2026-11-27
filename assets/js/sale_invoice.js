@@ -2542,6 +2542,7 @@ window.SIModule = {
         
         const dateEl = document.getElementById('si_date');
         if (dateEl) dateEl.valueAsDate = new Date();
+        this.syncHeaderDropdownTexts();
         
         const tbody = document.getElementById('siGridBody');
         if (tbody) {
@@ -3267,6 +3268,21 @@ window.SIModule = {
         } catch (e) { console.error("Navigation error:", e); }
     },
 
+    syncHeaderDropdownTexts: function() {
+        const mappings = [
+            { valId: 'si_location', txtId: 'si_location_text', list: this.locations, def: 'Select Location', fmt: l => l.name || '' },
+            { valId: 'si_job_desc', txtId: 'si_job_text', list: this.jobs, def: 'Select Job', fmt: j => `${j.job_no || ''} - ${j.description || ''}`.trim() },
+            { valId: 'si_emp_ref', txtId: 'si_emp_text', list: this.employees, def: 'Select Employee', fmt: e => (e.name || '').trim() }
+        ];
+        mappings.forEach(m => {
+            const val = document.getElementById(m.valId)?.value || '';
+            const txtEl = document.getElementById(m.txtId);
+            if (!txtEl) return;
+            const found = val ? (m.list || []).find(item => String(item.id) === String(val)) : null;
+            txtEl.innerText = found ? m.fmt(found) : m.def;
+        });
+    },
+
     loadInvoiceData: function(inv) {
         this.currentId = inv.id;
         document.getElementById('si_sn').value = inv.serial_no;
@@ -3299,6 +3315,7 @@ window.SIModule = {
         document.getElementById('si_location').value = inv.inventory_location_id || '';
         document.getElementById('si_job_desc').value = inv.job_no || '';
         document.getElementById('si_emp_ref').value = inv.employee_ref || '';
+        this.syncHeaderDropdownTexts();
         document.getElementById('si_remarks').value = inv.remarks || '';
         document.getElementById('si_freight').value = inv.carriage_freight || '0.00';
         if (document.getElementById('si_net_tot')) document.getElementById('si_net_tot').value = '0.00';

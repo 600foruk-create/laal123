@@ -1055,6 +1055,7 @@ window.SRModule = {
         
         const dateEl = document.getElementById('sr_date');
         if (dateEl && !dateEl.value) dateEl.valueAsDate = new Date();
+        this.syncHeaderDropdownTexts();
         
         const tbody = document.getElementById('srGridBody');
         if (tbody) {
@@ -1415,6 +1416,21 @@ window.SRModule = {
         } catch (e) { console.error("Navigation error:", e); }
     },
 
+    syncHeaderDropdownTexts: function() {
+        const mappings = [
+            { valId: 'sr_location', txtId: 'sr_location_text', list: this.locations, def: 'Select Location', fmt: l => l.name || '' },
+            { valId: 'sr_job_desc', txtId: 'sr_job_text', list: this.jobs, def: 'Select Job', fmt: j => `${j.job_no || ''} - ${j.description || ''}`.trim() },
+            { valId: 'sr_emp_ref', txtId: 'sr_emp_text', list: this.employees, def: 'Select Employee', fmt: e => (e.name || '').trim() }
+        ];
+        mappings.forEach(m => {
+            const val = document.getElementById(m.valId)?.value || '';
+            const txtEl = document.getElementById(m.txtId);
+            if (!txtEl) return;
+            const found = val ? (m.list || []).find(item => String(item.id) === String(val)) : null;
+            txtEl.innerText = found ? m.fmt(found) : m.def;
+        });
+    },
+
     loadInvoiceData: async function(inv) {
         this.currentId = inv.id;
         document.getElementById('sr_sn').value = inv.serial_no;
@@ -1448,6 +1464,7 @@ window.SRModule = {
         setVal('sr_location', inv.inventory_location_id);
         setVal('sr_job_desc', inv.job_no);
         setVal('sr_emp_ref', inv.employee_ref);
+        this.syncHeaderDropdownTexts();
         setVal('sr_remarks', inv.remarks);
         setVal('sr_freight', inv.carriage_freight || '0.00');
         setVal('sr_paid', inv.amount_paid || inv.amount_received || '0.00');
@@ -2375,7 +2392,8 @@ window.SRModule = {
             tr.onclick = () => this.selectFindRow(index, tr, inv);
             tr.ondblclick = () => {
                 this.closeFindModal();
-                document.getElementById('sr_is_tax').checked = (inv.is_tax_invoice == 1);
+                const srIsTaxEl = document.getElementById('sr_is_tax');
+                if (srIsTaxEl) srIsTaxEl.checked = (inv.is_tax_invoice == 1);
                 document.getElementById('sr_sn').value = inv.serial_no;
                 this.navigate('this');
             };
@@ -2458,7 +2476,8 @@ window.SRModule = {
                 e.preventDefault();
                 const inv = this.currentRenderedFindData[idx];
                 this.closeFindModal();
-                document.getElementById('sr_is_tax').checked = (inv.is_tax_invoice == 1);
+                const srIsTaxEl = document.getElementById('sr_is_tax');
+                if (srIsTaxEl) srIsTaxEl.checked = (inv.is_tax_invoice == 1);
                 document.getElementById('sr_sn').value = inv.serial_no;
                 this.navigate('this');
             }

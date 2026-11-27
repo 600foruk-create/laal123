@@ -60,49 +60,54 @@ window.BPModule = {
                 gridBody.addEventListener('keydown', (e) => this.handleGridKeyDown(e));
             }
             
-            document.addEventListener('keydown', (e) => {
-                if (e.ctrlKey && e.key === 's') {
-                    e.preventDefault();
-                    this.save();
-                } else if (e.key === 'Delete' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-                    const selectedRow = document.querySelector('#bpGridBody tr.selected-row');
-                    if (selectedRow) {
-                        selectedRow.remove();
-                        this.calculateTotals();
-                    }
-                } else if (e.key === 'F4') {
-                    e.preventDefault();
-                    const focusedId = document.activeElement ? document.activeElement.id : '';
-                    const paidToIds = ['bp_paid_to_code', 'bp_paid_to_name'];
-                    if (paidToIds.includes(focusedId) || document.activeElement?.closest('#bpGridBody')) {
-                        this.showPendingInvoices();
-                    }
-                }
-                if (e.key === 'Enter' && !e.target.classList.contains('grid-input')) {
-                    const masterSequence = ['bp_date', 'bp_job_id', 'bp_employee_id', 'bp_cash_code', 'bp_cash_name', 'bp_paid_to_code', 'bp_paid_to_name'];
-                    if (masterSequence.includes(e.target.id)) {
+            if (!window._bpDocEventsBound) {
+                window._bpDocEventsBound = true;
+                document.addEventListener('keydown', (e) => {
+                    const container = document.getElementById('bankPaymentContainer');
+                    if (!container || container.offsetParent === null) return;
+                    if (e.ctrlKey && e.key === 's') {
                         e.preventDefault();
-                        const index = masterSequence.indexOf(e.target.id);
-                        if (index < masterSequence.length - 1) {
-                            const next = document.getElementById(masterSequence[index + 1]);
-                            if (next) next.focus();
-                        } else {
-                            const firstGridInput = document.querySelector('#bpGridBody input:not([readonly]):not([type="hidden"])');
-                            if (firstGridInput) firstGridInput.focus();
+                        this.save();
+                    } else if (e.key === 'Delete' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                        const selectedRow = document.querySelector('#bpGridBody tr.selected-row');
+                        if (selectedRow) {
+                            selectedRow.remove();
+                            this.calculateTotals();
+                        }
+                    } else if (e.key === 'F4') {
+                        e.preventDefault();
+                        const focusedId = document.activeElement ? document.activeElement.id : '';
+                        const paidToIds = ['bp_paid_to_code', 'bp_paid_to_name'];
+                        if (paidToIds.includes(focusedId) || document.activeElement?.closest('#bpGridBody')) {
+                            this.showPendingInvoices();
                         }
                     }
-                }
-            });
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.row-selector')) {
-                    document.querySelectorAll('#bpGridBody tr').forEach((r) => {
-                        r.classList.remove('selected-row');
-                        r.style.backgroundColor = 'transparent';
-                        const s = r.querySelector('.row-selector');
-                        if (s) s.innerHTML = s.getAttribute('data-idx');
-                    });
-                }
-            });
+                    if (e.key === 'Enter' && !e.target.classList.contains('grid-input')) {
+                        const masterSequence = ['bp_date', 'bp_job_id', 'bp_employee_id', 'bp_cash_code', 'bp_cash_name', 'bp_paid_to_code', 'bp_paid_to_name'];
+                        if (masterSequence.includes(e.target.id)) {
+                            e.preventDefault();
+                            const index = masterSequence.indexOf(e.target.id);
+                            if (index < masterSequence.length - 1) {
+                                const next = document.getElementById(masterSequence[index + 1]);
+                                if (next) next.focus();
+                            } else {
+                                const firstGridInput = document.querySelector('#bpGridBody input:not([readonly]):not([type="hidden"])');
+                                if (firstGridInput) firstGridInput.focus();
+                            }
+                        }
+                    }
+                });
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.row-selector')) {
+                        document.querySelectorAll('#bpGridBody tr').forEach((r) => {
+                            r.classList.remove('selected-row');
+                            r.style.backgroundColor = 'transparent';
+                            const s = r.querySelector('.row-selector');
+                            if (s) s.innerHTML = s.getAttribute('data-idx');
+                        });
+                    }
+                });
+            }
 
             const cancelCb = document.getElementById('bp_is_cancelled');
             if (cancelCb) cancelCb.addEventListener('change', () => window.BPModule.updateCancellationUI());
@@ -1429,7 +1434,7 @@ window.BPModule = {
         if (unpostedStamp) unpostedStamp.style.display = (!isCancelled && this.currentId && !isPosted) ? 'block' : 'none';
 
         // Disable all inputs except search and nav buttons
-        document.querySelectorAll('#cashPaymentContainer input, #cashPaymentContainer select, #cashPaymentContainer textarea').forEach(el => {
+        document.querySelectorAll('#bankPaymentContainer input, #bankPaymentContainer select, #bankPaymentContainer textarea').forEach(el => {
             const alwaysEditable = ['bp_date', 'bp_job_id', 'bp_employee_id', 'bp_remarks'];
             if (el.id !== 'nav_search' && !el.classList.contains('po-nav-btn') && el.id !== 'bp_is_cancelled' && !alwaysEditable.includes(el.id)) {
                 el.disabled = isReadOnly;

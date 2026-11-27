@@ -23,50 +23,55 @@ window.BRModule = {
                 gridBody.addEventListener('keydown', (e) => this.handleGridKeyDown(e));
             }
             
-            // Centralized keyboard shortcuts
-            document.addEventListener('keydown', (e) => {
-                if (e.ctrlKey && e.key === 's') {
-                    e.preventDefault();
-                    this.save();
-                } else if (e.key === 'F4') {
-                    e.preventDefault();
-                    const focusedId = document.activeElement ? document.activeElement.id : '';
-                    const customerIds = ['br_received_from_code', 'br_received_from_name'];
-                    if (customerIds.includes(focusedId) || document.activeElement?.closest('#brGridBody')) {
-                        this.showPendingInvoices();
-                    }
-                } else if (e.key === 'Delete' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-                    const selectedRow = document.querySelector('#brGridBody tr.selected-row');
-                    if (selectedRow) {
-                        selectedRow.remove();
-                        this.calculateTotals();
-                    }
-                }
-                if (e.key === 'Enter' && !e.target.classList.contains('br-grid-input')) {
-                    const masterSequence = ['br_date', 'br_job_id', 'br_employee_id', 'br_cash_code', 'br_cash_name', 'br_cheque_no', 'br_drawn_on_bank', 'br_cheque_date', 'br_received_from_code', 'br_received_from_name'];
-                    if (masterSequence.includes(e.target.id)) {
+            // Centralized keyboard shortcuts (bind once)
+            if (!window._brDocEventsBound) {
+                window._brDocEventsBound = true;
+                document.addEventListener('keydown', (e) => {
+                    const grid = document.getElementById('brGridBody');
+                    if (!grid || grid.offsetParent === null) return;
+                    if (e.ctrlKey && e.key === 's') {
                         e.preventDefault();
-                        const index = masterSequence.indexOf(e.target.id);
-                        if (index < masterSequence.length - 1) {
-                            const next = document.getElementById(masterSequence[index + 1]);
-                            if (next) next.focus();
-                        } else {
-                            const firstGridInput = document.querySelector('#brGridBody input:not([readonly]):not([type="hidden"])');
-                            if (firstGridInput) firstGridInput.focus();
+                        this.save();
+                    } else if (e.key === 'F4') {
+                        e.preventDefault();
+                        const focusedId = document.activeElement ? document.activeElement.id : '';
+                        const customerIds = ['br_received_from_code', 'br_received_from_name'];
+                        if (customerIds.includes(focusedId) || document.activeElement?.closest('#brGridBody')) {
+                            this.showPendingInvoices();
+                        }
+                    } else if (e.key === 'Delete' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                        const selectedRow = document.querySelector('#brGridBody tr.selected-row');
+                        if (selectedRow) {
+                            selectedRow.remove();
+                            this.calculateTotals();
                         }
                     }
-                }
-            });
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.row-selector')) {
-                    document.querySelectorAll('#brGridBody tr').forEach((r) => {
-                        r.classList.remove('selected-row');
-                        r.style.backgroundColor = 'transparent';
-                        const s = r.querySelector('.row-selector');
-                        if (s) s.innerHTML = s.getAttribute('data-idx');
-                    });
-                }
-            });
+                    if (e.key === 'Enter' && !e.target.classList.contains('br-grid-input')) {
+                        const masterSequence = ['br_date', 'br_job_id', 'br_employee_id', 'br_cash_code', 'br_cash_name', 'br_cheque_no', 'br_drawn_on_bank', 'br_cheque_date', 'br_received_from_code', 'br_received_from_name'];
+                        if (masterSequence.includes(e.target.id)) {
+                            e.preventDefault();
+                            const index = masterSequence.indexOf(e.target.id);
+                            if (index < masterSequence.length - 1) {
+                                const next = document.getElementById(masterSequence[index + 1]);
+                                if (next) next.focus();
+                            } else {
+                                const firstGridInput = document.querySelector('#brGridBody input:not([readonly]):not([type="hidden"])');
+                                if (firstGridInput) firstGridInput.focus();
+                            }
+                        }
+                    }
+                });
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.row-selector')) {
+                        document.querySelectorAll('#brGridBody tr').forEach((r) => {
+                            r.classList.remove('selected-row');
+                            r.style.backgroundColor = 'transparent';
+                            const s = r.querySelector('.row-selector');
+                            if (s) s.innerHTML = s.getAttribute('data-idx');
+                        });
+                    }
+                });
+            }
         } catch (err) { console.error("BR Module Init Error:", err); }
     },
 

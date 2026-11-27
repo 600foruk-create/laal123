@@ -49,49 +49,54 @@ window.CPModule = {
                 gridBody.addEventListener('keydown', (e) => this.handleGridKeyDown(e));
             }
             
-            document.addEventListener('keydown', (e) => {
-                if (e.ctrlKey && e.key === 's') {
-                    e.preventDefault();
-                    this.save();
-                } else if (e.key === 'Delete' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-                    const selectedRow = document.querySelector('#cpGridBody tr.selected-row');
-                    if (selectedRow) {
-                        selectedRow.remove();
-                        this.calculateTotals();
-                    }
-                } else if (e.key === 'F4') {
-                    e.preventDefault();
-                    const focusedId = document.activeElement ? document.activeElement.id : '';
-                    const paidToIds = ['cp_paid_to_code', 'cp_paid_to_name'];
-                    if (paidToIds.includes(focusedId) || document.activeElement?.closest('#cpGridBody')) {
-                        this.showPendingInvoices();
-                    }
-                }
-                if (e.key === 'Enter' && !e.target.classList.contains('grid-input')) {
-                    const masterSequence = ['cp_date', 'cp_job_id', 'cp_employee_id', 'cp_cash_code', 'cp_cash_name', 'cp_paid_to_code', 'cp_paid_to_name'];
-                    if (masterSequence.includes(e.target.id)) {
+            if (!window._cpDocEventsBound) {
+                window._cpDocEventsBound = true;
+                document.addEventListener('keydown', (e) => {
+                    const container = document.getElementById('cashPaymentContainer');
+                    if (!container || container.offsetParent === null) return;
+                    if (e.ctrlKey && e.key === 's') {
                         e.preventDefault();
-                        const index = masterSequence.indexOf(e.target.id);
-                        if (index < masterSequence.length - 1) {
-                            const next = document.getElementById(masterSequence[index + 1]);
-                            if (next) next.focus();
-                        } else {
-                            const firstGridInput = document.querySelector('#cpGridBody input:not([readonly]):not([type="hidden"])');
-                            if (firstGridInput) firstGridInput.focus();
+                        this.save();
+                    } else if (e.key === 'Delete' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                        const selectedRow = document.querySelector('#cpGridBody tr.selected-row');
+                        if (selectedRow) {
+                            selectedRow.remove();
+                            this.calculateTotals();
+                        }
+                    } else if (e.key === 'F4') {
+                        e.preventDefault();
+                        const focusedId = document.activeElement ? document.activeElement.id : '';
+                        const paidToIds = ['cp_paid_to_code', 'cp_paid_to_name'];
+                        if (paidToIds.includes(focusedId) || document.activeElement?.closest('#cpGridBody')) {
+                            this.showPendingInvoices();
                         }
                     }
-                }
-            });
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.row-selector')) {
-                    document.querySelectorAll('#cpGridBody tr').forEach((r) => {
-                        r.classList.remove('selected-row');
-                        r.style.backgroundColor = 'transparent';
-                        const s = r.querySelector('.row-selector');
-                        if (s) s.innerHTML = '';
-                    });
-                }
-            });
+                    if (e.key === 'Enter' && !e.target.classList.contains('grid-input')) {
+                        const masterSequence = ['cp_date', 'cp_job_id', 'cp_employee_id', 'cp_cash_code', 'cp_cash_name', 'cp_paid_to_code', 'cp_paid_to_name'];
+                        if (masterSequence.includes(e.target.id)) {
+                            e.preventDefault();
+                            const index = masterSequence.indexOf(e.target.id);
+                            if (index < masterSequence.length - 1) {
+                                const next = document.getElementById(masterSequence[index + 1]);
+                                if (next) next.focus();
+                            } else {
+                                const firstGridInput = document.querySelector('#cpGridBody input:not([readonly]):not([type="hidden"])');
+                                if (firstGridInput) firstGridInput.focus();
+                            }
+                        }
+                    }
+                });
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.row-selector')) {
+                        document.querySelectorAll('#cpGridBody tr').forEach((r) => {
+                            r.classList.remove('selected-row');
+                            r.style.backgroundColor = 'transparent';
+                            const s = r.querySelector('.row-selector');
+                            if (s) s.innerHTML = '';
+                        });
+                    }
+                });
+            }
 
             const cancelCb = document.getElementById('cp_is_cancelled');
             if (cancelCb) cancelCb.addEventListener('change', () => window.CPModule.updateCancellationUI());

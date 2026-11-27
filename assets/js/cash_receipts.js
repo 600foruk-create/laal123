@@ -63,16 +63,19 @@ window.CRModule = {
                 window._cr_keydown_bound = true;
             }
 
-            // Document click to hide any invoice suggest boxes
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.cr-suggest') && !e.target.classList.contains('acc-code') && !e.target.classList.contains('cr_received_from_code')) {
-                    document.querySelectorAll('.cr-suggest').forEach(s => s.style.display = 'none');
-                }
-                const suggest = document.getElementById('cr_invoice_suggest');
-                if (suggest && !suggest.contains(e.target) && !e.target.classList.contains('inv-no')) {
-                    suggest.style.display = 'none';
-                }
-            });
+            // Document click to hide any invoice suggest boxes (bind once)
+            if (!window._cr_click_bound) {
+                window._cr_click_bound = true;
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.cr-suggest') && !e.target.classList.contains('acc-code') && !e.target.classList.contains('cr_received_from_code')) {
+                        document.querySelectorAll('.cr-suggest').forEach(s => s.style.display = 'none');
+                    }
+                    const suggest = document.getElementById('cr_invoice_suggest');
+                    if (suggest && !suggest.contains(e.target) && !e.target.classList.contains('inv-no')) {
+                        suggest.style.display = 'none';
+                    }
+                });
+            }
 
             const cancelCb = document.getElementById('cr_is_cancelled');
             if (cancelCb) cancelCb.addEventListener('change', () => window.CRModule.updateCancellationUI());
