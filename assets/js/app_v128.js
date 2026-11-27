@@ -10014,12 +10014,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     selectedInvMainId = prevMainId;
                     
                     const main = invMains.find(m => m.id == prevMainId);
-                    if (main) {
-                        document.getElementById('invMainCode').value = main.code;
-                        document.getElementById('invMainName').value = main.name;
-                        enableInvMainFields(true);
-                        document.getElementById('invMainCode').disabled = true;
-                    }
+                    applyInvMainSelectionToForm(main);
                     
                     const filteredSubs = invSubs.filter(s => s.main_id == prevMainId);
                     const subList = document.getElementById('invSubList');
@@ -10035,6 +10030,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             enableInvSubFields(true);
                             document.getElementById('invSubCode').disabled = true;
                         }
+                        syncSubCategoryImageSection(main, sub);
                         await fetchInvItems(prevSubId, prevItemId);
                     } else if (filteredSubs.length > 0) {
                         subList.selectedIndex = 0;
@@ -11186,6 +11182,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         window.deleteItemClass = deleteItemClass;
 
+        function applyInvMainSelectionToForm(main) {
+            if (main) {
+                document.getElementById('invMainCode').value = main.code;
+                document.getElementById('invMainName').value = main.name;
+                const catTypeEl = document.getElementById('invMainCategoryType');
+                if (catTypeEl) catTypeEl.value = main.category_type || '';
+                enableInvMainFields(true); // Auto-edit enabled
+                document.getElementById('invMainCode').disabled = true; // Lock code
+            }
+            if (typeof updateItemFormUI === 'function') updateItemFormUI();
+        }
+
+        function syncSubCategoryImageSection(main, sub) {
+            const subImgBox = document.getElementById('invSubImageSection');
+            const subImgLbl = document.getElementById('invSubImageLabel');
+            if (!subImgBox) return;
+            if (main && (main.category_type === 'Fitting' || (main.name && main.name.toUpperCase().includes('FITTING')))) {
+                subImgBox.style.display = 'flex';
+                if (subImgLbl) subImgLbl.style.display = 'inline-block';
+                updateSubImageUI(sub ? sub.image_path : null);
+            } else {
+                subImgBox.style.display = 'none';
+                if (subImgLbl) subImgLbl.style.display = 'none';
+            }
+        }
+
         function renderInvMainList() {
             const list = document.getElementById('invMainList');
             if (!list) return;
@@ -11198,14 +11220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectedInvSubId = null;
             selectedInvItemId = null;
             const main = invMains.find(m => m.id == id);
-            if (main) {
-                document.getElementById('invMainCode').value = main.code;
-                document.getElementById('invMainName').value = main.name;
-                if(document.getElementById('invMainCategoryType')) document.getElementById('invMainCategoryType').value = main.category_type || '';
-                enableInvMainFields(true); // Auto-edit enabled
-                document.getElementById('invMainCode').disabled = true; // Lock code
-            }
-            if (typeof updateItemFormUI === 'function') updateItemFormUI();
+            applyInvMainSelectionToForm(main);
             renderInvSubList();
             const list = document.getElementById('invSubList');
             if (list && list.options.length > 0) {
@@ -11240,18 +11255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             // Fitting Image preview update
             const main = invMains.find(m => m.id == selectedInvMainId);
-            const subImgBox = document.getElementById('invSubImageSection');
-            const subImgLbl = document.getElementById('invSubImageLabel');
-            if (subImgBox) {
-                if (main && (main.category_type === 'Fitting' || (main.name && main.name.toUpperCase().includes('FITTING')))) {
-                    subImgBox.style.display = 'flex';
-                    if (subImgLbl) subImgLbl.style.display = 'inline-block';
-                    updateSubImageUI(sub ? sub.image_path : null);
-                } else {
-                    subImgBox.style.display = 'none';
-                    if (subImgLbl) subImgLbl.style.display = 'none';
-                }
-            }
+            syncSubCategoryImageSection(main, sub);
             fetchInvItems(id);
         }
 
@@ -13418,12 +13422,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (mainList) mainList.value = sub.main_id;
             
             const main = invMains.find(m => m.id == sub.main_id);
-            if (main) {
-                document.getElementById('invMainCode').value = main.code;
-                document.getElementById('invMainName').value = main.name;
-                enableInvMainFields(true);
-                document.getElementById('invMainCode').disabled = true;
-            }
+            applyInvMainSelectionToForm(main);
             
             // Re-render sub list for this main category
             renderInvSubList();
@@ -13439,6 +13438,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 enableInvSubFields(true);
                 document.getElementById('invSubCode').disabled = true;
             }
+            syncSubCategoryImageSection(main, sub);
             
             // 3. Set Item (fetchInvItems handles rendering and item selection logic correctly if we pass forceItemId)
             await fetchInvItems(sub.id, item.id);
