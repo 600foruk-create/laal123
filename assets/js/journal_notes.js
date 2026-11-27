@@ -9,6 +9,7 @@
         init: async function() {
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             this.data.company_id = session.company_id || 1;
+            this.cancelEdit();
 
             // Set default dates
             const today = new Date().toISOString().split('T')[0];
@@ -175,7 +176,7 @@
                 }
 
                 div.innerHTML = `
-                    <div class="jn-note-header" onclick="const body = this.nextElementSibling; body.style.display = body.style.display === 'none' ? 'block' : 'none';">
+                    <div class="jn-note-header" onclick="const body = this.nextElementSibling; body.style.display = body.style.display === 'block' ? 'none' : 'block';">
                         <div style="display: flex; flex-direction: column; gap: 3px;">
                             <strong style="color: #1e293b; font-size: 13px;">${this.escapeHTML(note.title)}</strong>
                             <div style="font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 8px;">

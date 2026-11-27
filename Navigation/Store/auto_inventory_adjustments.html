@@ -83,10 +83,10 @@
             </select>
 
             <label class="ria-label">From Date</label>
-            <input type="date" id="aa_date_from" class="ria-input" onchange="window.AAModule.refreshList()">
+            <input type="date" id="aa_date_from" class="ria-input" onchange="window.AAModule.loadData()">
 
             <label class="ria-label">To Date</label>
-            <input type="date" id="aa_date_to" class="ria-input" onchange="window.AAModule.refreshList()">
+            <input type="date" id="aa_date_to" class="ria-input" onchange="window.AAModule.loadData()">
 
             <label class="ria-label">Search</label>
             <input type="text" id="aa_search" class="ria-input" placeholder="Search..." oninput="window.AAModule.refreshList()">
@@ -139,10 +139,10 @@
 if (!window.AAModuleLoaded) {
     var script = document.createElement('script');
     script.src = 'assets/js/auto_inventory_adjustments.js?v=' + new Date().getTime();
-    script.onload = function() { window.AAModule.init(); window.AAModule.loadData(); };
+    script.onload = function() { window.AAModule.init().then(() => window.AAModule.loadData()); };
     document.body.appendChild(script);
     window.AAModuleLoaded = true;
 } else {
-    window.AAModule.init(); window.AAModule.loadData();
+    window.AAModule.init().then(() => window.AAModule.loadData());
 }
 </script>

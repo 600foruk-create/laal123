@@ -1077,7 +1077,7 @@
                             <td style="text-align:center; border: 1px solid #333; padding: 5px;">${i + 1}</td>
                             <td style="border: 1px solid #333; padding: 5px;">${desc}</td>
                             <td style="text-align:center; border: 1px solid #333; padding: 5px;">${parsedPieces > 0 ? parsedPieces : ''}</td>
-                            <td style="text-align:center; border: 1px solid #333; padding: 5px;">${parsedQty > 0 ? parsedqty.toFixed(4) + ' ' + unit : ''}</td>
+                            <td style="text-align:center; border: 1px solid #333; padding: 5px;">${parsedQty > 0 ? parsedQty.toFixed(4) + ' ' + unit : ''}</td>
                             <td style="border: 1px solid #333; padding: 5px;">${packing}</td>
                         </tr>
                     `;
@@ -1210,7 +1210,7 @@
                             <tr style="font-weight: bold; background: #f1f5f9;">
                                 <td colspan="2" style="text-align: right; border: 1px solid #333; border-top: 2px solid #333; padding: 6px 4px; font-size: 11px;">TOTALS</td>
                                 <td style="text-align: center; border: 1px solid #333; border-top: 2px solid #333; padding: 6px 4px; font-size: 11px;">${totalPieces.toFixed(2)}</td>
-                                <td style="text-align: center; border: 1px solid #333; border-top: 2px solid #333; padding: 6px 4px; font-size: 11px;">${totalqty.toFixed(4)}</td>
+                                <td style="text-align: center; border: 1px solid #333; border-top: 2px solid #333; padding: 6px 4px; font-size: 11px;">${totalQty.toFixed(4)}</td>
                                 <td style="border: 1px solid #333; border-top: 2px solid #333; padding: 6px 4px;"></td>
                             </tr>
                         </tfoot>

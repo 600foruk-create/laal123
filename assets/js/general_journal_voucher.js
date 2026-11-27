@@ -219,6 +219,7 @@ window.GJVModule = {
 
     resetForm: function(isNew = false) {
         this.currentId = null;
+        this.is_posted = false;
         const ids = ['gj_sn', 'gj_date', 'gj_job_id', 'gj_employee_id', 'gj_description', 'gj_total_debit', 'gj_total_credit', 'gj_remarks'];
         ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         
@@ -704,20 +705,23 @@ window.GJVModule = {
         }
     },
 
-    filterFindTable: function() {
+    getFilteredFindData: function() {
         const qInput = document.getElementById('gj_find_search');
         const q = (qInput ? qInput.value : '').toLowerCase();
         const fInput = document.getElementById('gj_find_field');
         const field = fInput ? fInput.value : 'serial_no';
-        
-        let filtered = (this.findData || []).filter(it => {
+
+        return (this.findData || []).filter(it => {
             if (!q) return true;
             let val = it[field];
+            if (val === undefined && field === 'date') val = it.voucher_date;
             if (val == null) return false;
             return val.toString().toLowerCase().includes(q);
         });
-        
-        this.renderFindGrid(filtered);
+    },
+
+    filterFindTable: function() {
+        this.renderFindGrid(this.getFilteredFindData());
     },
 
     sortFindGrid: function(field) {
@@ -728,16 +732,7 @@ window.GJVModule = {
             this.findSortDesc = false;
         }
         
-        const qInput = document.getElementById('gj_find_search');
-        const q = (qInput ? qInput.value : '').toLowerCase();
-        const fInput = document.getElementById('gj_find_field');
-        const filterField = fInput ? fInput.value : 'serial_no';
-        let data = (this.findData || []).filter(it => {
-            if (!q) return true;
-            let val = it[filterField];
-            if (val == null) return false;
-            return val.toString().toLowerCase().includes(q);
-        });
+        let data = this.getFilteredFindData();
         
         data.sort((a, b) => {
             let valA = a[this.findSortField];

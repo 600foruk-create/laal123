@@ -360,6 +360,7 @@
             }
             
             // Scroll row into view if it's too close to the bottom
+            const spaceBelow = window.innerHeight - input.getBoundingClientRect().bottom;
             if (spaceBelow < 150) {
                 const container = input.closest('div[style*="overflow: auto"]');
                 if (container) {
