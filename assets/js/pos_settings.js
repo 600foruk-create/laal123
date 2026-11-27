@@ -31,7 +31,7 @@ window.POSSettings = {
         }
     },
 
-    init: function() {
+    init: async function() {
         this.bindEvents();
         
         // Instant restore from local cache so checkboxes never reset or flicker on reopen/refresh
@@ -44,9 +44,12 @@ window.POSSettings = {
             }
         } catch(e) {}
 
-        this.loadSettings();
-        this.loadBranchesAndWarehouses();
-        this.loadBranchMappings();
+        await this.loadSettings();
+        const curEnv = document.getElementById('fbr_environment')?.value || 'sandbox';
+        await Promise.all([
+            this.loadBranchesAndWarehouses(),
+            this.loadBranchMappings(curEnv)
+        ]);
         this.applyBranchButtonVisibility();
         this.applyFbrTabVisibility();
     },
@@ -98,13 +101,16 @@ window.POSSettings = {
             });
         }
         
-        document.addEventListener('click', (e) => {
-            const searchInput = document.getElementById('branch_default_customer_search');
-            if (searchInput && e.target !== searchInput) {
-                const dd = document.getElementById('branch_customer_dropdown');
-                if(dd) dd.style.display = 'none';
-            }
-        });
+        if (!window._pos_settings_click_bound) {
+            window._pos_settings_click_bound = true;
+            document.addEventListener('click', (e) => {
+                const searchInput = document.getElementById('branch_default_customer_search');
+                if (searchInput && e.target !== searchInput) {
+                    const dd = document.getElementById('branch_customer_dropdown');
+                    if(dd) dd.style.display = 'none';
+                }
+            });
+        }
     },
 
     loadSettings: async function() {

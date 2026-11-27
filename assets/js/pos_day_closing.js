@@ -204,14 +204,14 @@ window.POSDayClosingModule = {
             }
         }
 
-        this.calculateDifference();
+        this.calculateDifference(false);
     },
 
-    calculateDifference: function() {
+    calculateDifference: function(isUserAction = false) {
         if (!this.liveSummary) return;
         const expected = parseFloat(this.liveSummary.cash_reconciliation?.expected_cash || 0);
         const actualInput = document.getElementById('dc_actual_cash_input');
-        if (actualInput) actualInput.dataset.touched = '1';
+        if (actualInput && isUserAction) actualInput.dataset.touched = '1';
         const actual = parseFloat(actualInput?.value || 0);
 
         const diff = actual - expected;
@@ -258,7 +258,8 @@ window.POSDayClosingModule = {
         const actualInput = document.getElementById('dc_actual_cash_input');
         if (actualInput) {
             actualInput.value = total.toFixed(2);
-            this.calculateDifference();
+            actualInput.dataset.touched = '1';
+            this.calculateDifference(true);
         }
     },
 

@@ -130,6 +130,37 @@ window.DigitalInvoiceModule = (function () {
         }
     }
 
+    // Helper: Select Customer Type Option safely by code, value, or loose name match
+    function setCustomerTypeByMatch(desiredType) {
+        const el = document.getElementById('di_customer_type');
+        if (!el || !el.options) return;
+        const target = (desiredType || '').trim();
+        const targetLow = target.toLowerCase();
+        const isReg = targetLow === 'reg' || (targetLow.includes('reg') && !targetLow.includes('unreg'));
+        const isUnreg = targetLow === 'unreg' || targetLow.includes('unreg') || targetLow.includes('non-filer');
+
+        for (let i = 0; i < el.options.length; i++) {
+            if (el.options[i].value === target) {
+                el.selectedIndex = i;
+                return;
+            }
+        }
+        for (let i = 0; i < el.options.length; i++) {
+            const opt = el.options[i];
+            const val = (opt.value || '').toLowerCase();
+            const code = (opt.dataset.code || '').toLowerCase();
+            if (isReg && (code === 'registered' || (val.includes('reg') && !val.includes('unreg')))) {
+                el.selectedIndex = i;
+                return;
+            }
+            if (isUnreg && (code === 'unregistered' || val.includes('unreg') || val.includes('non-filer'))) {
+                el.selectedIndex = i;
+                return;
+            }
+        }
+        populateBuyerTypesDropdown(buyerTypesList, target);
+    }
+
     // Number to Words Converter (Pakistani / English Rupee Format)
     function numberToWords(amount) {
         const words = [
@@ -182,7 +213,8 @@ window.DigitalInvoiceModule = (function () {
                 window.pendingFbrConversion = null;
                 window.hasConvertedFbr = true;
                 await convertFromSaleInvoice(payload);
-            } else if (!window.hasConvertedFbr) {
+            } else {
+                window.hasConvertedFbr = false;
                 await newInvoice();
             }
         } catch (err) {
@@ -2250,9 +2282,9 @@ window.DigitalInvoiceModule = (function () {
 
                 if (custTypeEl) {
                     if (isReg && (hasNtn || isStReg) && (json.data.atl_status === 'Active Taxpayer' || json.data.atl_status === 'Active')) {
-                        custTypeEl.value = 'Registered Person (Filer)';
+                        setCustomerTypeByMatch('Registered Person (Filer)');
                     } else {
-                        custTypeEl.value = 'Unregistered Buyer (Non-Filer)';
+                        setCustomerTypeByMatch('Unregistered Buyer (Non-Filer)');
                     }
                     onCustomerTypeChange();
                 }
@@ -2358,9 +2390,9 @@ window.DigitalInvoiceModule = (function () {
             const isStReg = (v.sales_tax_registered && v.sales_tax_registered.toLowerCase().startsWith('yes')) || (v.sales_tax_status && v.sales_tax_status.toUpperCase() === 'OPERATIVE');
 
             if (isReg && (hasNtn || isStReg) && (v.atl_status === 'Active Taxpayer' || v.atl_status === 'Active')) {
-                custTypeSelect.value = 'Registered Person (Filer)';
+                setCustomerTypeByMatch('Registered Person (Filer)');
             } else if (v.atl_status === 'Not Active' || !isReg) {
-                custTypeSelect.value = 'Unregistered Buyer (Non-Filer)';
+                setCustomerTypeByMatch('Unregistered Buyer (Non-Filer)');
             }
             onCustomerTypeChange();
         }
@@ -4911,6 +4943,8 @@ window.DigitalInvoiceModule = (function () {
     function setupEventListeners() {
         const container = document.getElementById('digitalInvoiceContainer');
         if (!container) return;
+        if (container.dataset.eventsBound === '1') return;
+        container.dataset.eventsBound = '1';
 
         container.addEventListener('keydown', function (e) {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {

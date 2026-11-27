@@ -212,7 +212,7 @@ window.POSReportsModule = {
 
     applyQuickDate: function(preset) {
         const now = new Date();
-        const to = this.formatLocalYMD(now);
+        let to = this.formatLocalYMD(now);
         let from = '';
 
         if (preset === 'today') {

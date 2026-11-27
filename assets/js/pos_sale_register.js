@@ -631,8 +631,8 @@ window.POSRegisterModule = {
                     taxCalc += tax;
 
                     // Clean item title & code (prevent customer details from ever leaking into item column)
-                    const custName = (header.customer_name || '').trim().toLowerCase();
-                    const custCode = (header.customer_code || '').trim().toLowerCase();
+                    const custName = (inv.customer_name || '').trim().toLowerCase();
+                    const custCode = (inv.customer_code || '').trim().toLowerCase();
 
                     let itemTitle = (it.item_title || '').trim();
                     if (custName && itemTitle.toLowerCase() === custName) {

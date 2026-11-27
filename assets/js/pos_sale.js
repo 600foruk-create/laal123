@@ -19,7 +19,7 @@ window.POSModule = {
         return new Date(d.getTime() - off).toISOString().split('T')[0];
     },
     
-    init: function() {
+    init: async function() {
         const editId = window.editingPosInvoiceId || null;
         window.editingPosInvoiceId = null;
 
@@ -63,17 +63,21 @@ window.POSModule = {
             custSearch.addEventListener('keydown', (e) => this.handleCustomerKeyDown(e));
         }
         
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.item-search-container')) {
-                document.querySelectorAll('.item-dropdown').forEach(el => el.style.display = 'none');
-            }
-        });
+        if (!window._pos_sale_click_bound) {
+            window._pos_sale_click_bound = true;
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.item-search-container')) {
+                    document.querySelectorAll('.item-dropdown').forEach(el => el.style.display = 'none');
+                }
+            });
+        }
 
         // Setup Branches
         const locSelect = document.getElementById('pos_branch');
+        let branchPromise = Promise.resolve();
         if(locSelect) {
             locSelect.innerHTML = '<option value="">Select Branch</option>';
-            this.fetchBranches(locSelect);
+            branchPromise = this.fetchBranches(locSelect);
             
             locSelect.addEventListener('change', () => {
                 this.applyBranchDefaultCustomer();
@@ -83,14 +87,15 @@ window.POSModule = {
             });
         }
 
-        this.fetchInventory();
-        this.fetchCustomers();
-        this.fetchPosSettings();
+        const invPromise = this.fetchInventory();
+        const custPromise = this.fetchCustomers();
+        const settingsPromise = this.fetchPosSettings();
         this.setupKeyboardShortcuts();
         this.updateFbrButtonState();
 
         if (editId) {
-            this.loadInvoice(editId);
+            await Promise.all([branchPromise, custPromise, invPromise, settingsPromise]);
+            await this.loadInvoice(editId);
         } else {
             this.fetchNextInvoiceNo();
             // Start with 20 empty rows by default
