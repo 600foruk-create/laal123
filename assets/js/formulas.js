@@ -693,10 +693,13 @@
                 });
                 const result = await res.json();
                 if (result.status === 'success') {
-                    this.data.currentId = result.id;
-                    await this.navigateBySN(data.serial_no);
                     if (!silent) {
                         alert("Formula saved successfully!");
+                        this.data.currentId = null;
+                        await this.resetForm(true);
+                    } else {
+                        this.data.currentId = result.id;
+                        await this.navigateBySN(data.serial_no);
                     }
                     return true;
                 } else {
@@ -853,7 +856,9 @@
                     sn = (data.next_no || data.next_sn || 2) - 1;
                     dir = undefined;
                 } catch(e) { return; }
-            } else if (sn === 0 || dir === 'this') {
+            } else if (dir === 'this') {
+                dir = undefined;
+            } else if (sn === 0) {
                 if (dir === 'next') {
                     try {
                         const res = await fetch(`api/formulas.php?action=get_next_serial_no&company_id=${companyId}`);
@@ -1000,7 +1005,7 @@
                 tr.ondblclick = () => {
                     this.closeFindModal();
                     document.getElementById('frm_sn').value = it.serial_no;
-                    this.navigate('this');
+                    this.navigateBySN(it.serial_no);
                 };
                 
                 tbody.appendChild(tr);

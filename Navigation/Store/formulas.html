@@ -29,7 +29,7 @@
             <label class="ria-label">Serial No</label>
             <div style="position: relative; width: 130px; display: flex; align-items: center;">
                 <button class="ria-nav-btn" onclick="window.FRMModule.navigate('prev')" style="font-weight: 900; width: 30px; height: 22px; position: absolute; left: -34px;">&lt;&lt;</button>
-                <input type="text" id="frm_sn" class="ria-input" style="width: 100%; text-align: center; color: blue; font-weight: 800; font-size: 14px; box-sizing: border-box;">
+                <input type="text" id="frm_sn" class="ria-input" style="width: 100%; text-align: center; color: blue; font-weight: 800; font-size: 14px; box-sizing: border-box;" onchange="window.FRMModule.navigate('this')" onkeydown="if(event.key==='Enter'){event.preventDefault();window.FRMModule.navigate('this');}">
                 <button class="ria-nav-btn" onclick="window.FRMModule.navigate('next')" style="font-weight: 900; width: 30px; height: 22px; position: absolute; right: -34px;">&gt;&gt;</button>
                 <div style="position: absolute; left: 100%; margin-left: 55px; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
                     <label id="frm_cancel_label" style="display:flex;align-items:center;gap:2px;font-weight:bold;color:#c00;margin-bottom:0;cursor:pointer;">

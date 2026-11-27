@@ -1,4 +1,4 @@
-(function() {
+(function () {
     window.RIAModule = {
         data: {
             currentId: null,
@@ -12,7 +12,7 @@
             suggestIndex: -1
         },
 
-        init: async function() {
+        init: async function () {
             console.log("Initializing Reduce Inventory Adjustments Module...");
             const container = document.getElementById('reduceInventoryAdjustmentsContainer');
             if (!container) {
@@ -24,11 +24,11 @@
             await this.resetForm(true);
         },
 
-        loadDependencies: async function() {
+        loadDependencies: async function () {
             try {
                 const res = await fetch(`api/reduce_inventory_adjustments.php?action=get_dependencies`);
                 const json = await res.json();
-                
+
                 this.data.locations = json.locations || [];
                 this.data.jobs = json.jobs || [];
                 this.data.employees = json.employees || [];
@@ -38,26 +38,26 @@
             } catch (err) { console.error("ria Dependency Load Error:", err); }
         },
 
-        populateSelects: function() {
+        populateSelects: function () {
             const locSelect = document.getElementById('ria_location_id');
             const jobSelect = document.getElementById('ria_job_id');
             const empSelect = document.getElementById('ria_employee_id');
 
             if (locSelect) {
-                locSelect.innerHTML = '<option value="">Select Option</option>' + 
+                locSelect.innerHTML = '<option value="">Select Option</option>' +
                     this.data.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
             }
             if (jobSelect) {
-                jobSelect.innerHTML = '<option value="">Select Option</option>' + 
+                jobSelect.innerHTML = '<option value="">Select Option</option>' +
                     this.data.jobs.map(j => `<option value="${j.id}">${j.job_no} - ${j.description || ''}</option>`).join('');
             }
             if (empSelect) {
-                empSelect.innerHTML = '<option value="">Select Option</option>' + 
+                empSelect.innerHTML = '<option value="">Select Option</option>' +
                     this.data.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
             }
         },
 
-        setupEventListeners: function() {
+        setupEventListeners: function () {
             const container = document.getElementById('reduceInventoryAdjustmentsContainer');
             if (!container) return;
 
@@ -135,7 +135,7 @@
             });
         },
 
-        handleItemSearch: function(input) {
+        handleItemSearch: function (input) {
             const row = input.closest('tr');
             this.data.activeRowIndex = row.dataset.index;
 
@@ -151,8 +151,8 @@
             const query = val.trim().toLowerCase();
             let matches = this.data.inventoryItems;
             if (query) {
-                matches = matches.filter(item => 
-                    (item.item_code && (typeof window.smartSearchMatchWord === 'function' ? window.smartSearchMatchWord(item.item_code.toLowerCase(), query) : item.item_code.toLowerCase().includes(query))) || 
+                matches = matches.filter(item =>
+                    (item.item_code && (typeof window.smartSearchMatchWord === 'function' ? window.smartSearchMatchWord(item.item_code.toLowerCase(), query) : item.item_code.toLowerCase().includes(query))) ||
                     (item.item_name && (typeof window.smartSearchMatchWord === 'function' ? window.smartSearchMatchWord(item.item_name.toLowerCase(), query) : item.item_name.toLowerCase().includes(query)))
                 );
             }
@@ -180,7 +180,7 @@
                 results.style.zIndex = '9999';
                 input.closest('td').appendChild(results);
             }
-            
+
             // Scroll row into view if it's too close to the bottom
             const spaceBelow = window.innerHeight - input.getBoundingClientRect().bottom;
             if (spaceBelow < 150) {
@@ -193,7 +193,7 @@
             }
         },
 
-        handleItemKey: function(e) {
+        handleItemKey: function (e) {
             const results = document.getElementById('ria_item_results');
             if (!results || results.style.display === 'none') return false;
 
@@ -220,57 +220,57 @@
             return false;
         },
 
-        selectItem: function(item) {
+        selectItem: function (item) {
             const row = document.querySelector(`#ria_grid tbody tr[data-index="${this.data.activeRowIndex}"]`);
             if (row) {
                 const codeInput = row.querySelector('.ria-item-code');
                 codeInput.value = item.item_code;
                 codeInput.dataset.id = item.id;
                 codeInput.dataset.qtyPerPiece = item.qty_per_piece || 0;
-                
+
                 row.querySelector('.ria-desc').value = item.item_name;
                 row.querySelector('.ria-unit').value = item.unit || 'Pcs';
-                
+
                 const rate = parseFloat(item.purchase_rate || item.sale_rate) || 0;
                 row.querySelector('.ria-rate').value = rate > 0 ? rate.toFixed(2) : '';
                 row.querySelector('.ria-pieces').value = '';
                 row.querySelector('.ria-qty').value = '';
-                
+
                 const results = document.getElementById('ria_item_results');
                 if (results) results.style.display = 'none';
-                
+
                 this.calculateRow(row);
                 this.calculateTotals();
-                
+
                 row.querySelector('.ria-pieces').focus();
             }
         },
 
-        calculateRow: function(row) {
+        calculateRow: function (row) {
             if (!row) return;
             const codeInput = row.querySelector('.ria-item-code');
             const piecesInput = row.querySelector('.ria-pieces');
             const qtyInput = row.querySelector('.ria-qty');
             const rateInput = row.querySelector('.ria-rate');
             const amountInput = row.querySelector('.ria-amount');
-            
+
             if (!codeInput || !piecesInput || !qtyInput || !rateInput || !amountInput) return;
 
             const factor = parseFloat(codeInput.dataset.qtyPerPiece) || 0;
             const pieces = parseFloat(piecesInput.value) || 0;
             let qty = parseFloat(qtyInput.value) || 0;
-            
+
             if (pieces > 0 && factor > 0) {
                 qty = pieces * factor;
                 qtyInput.value = qty.toFixed(4);
             }
-            
+
             const rate = parseFloat(rateInput.value) || 0;
             const amount = qty * rate;
             amountInput.value = amount > 0 ? amount.toFixed(2) : '';
         },
 
-        clearRowData: function(row) {
+        clearRowData: function (row) {
             if (!row) return;
             const codeInput = row.querySelector('.ria-item-code');
             if (codeInput) {
@@ -290,11 +290,11 @@
             if (rate) rate.value = '';
             const amount = row.querySelector('.ria-amount');
             if (amount) amount.value = '';
-            
+
             this.calculateTotals();
         },
 
-        updateSuggestHighlight: function(items) {
+        updateSuggestHighlight: function (items) {
             items.forEach((item, i) => {
                 if (i === this.data.suggestIndex) item.classList.add('active');
                 else item.classList.remove('active');
@@ -304,7 +304,7 @@
             }
         },
 
-        handleGridNavigation: function(e) {
+        handleGridNavigation: function (e) {
             const input = e.target;
             const row = input.closest('tr');
             const rows = Array.from(document.querySelectorAll('#ria_grid tbody tr'));
@@ -384,11 +384,11 @@
             }
         },
 
-        getNextInput: function(row, colIndex) {
+        getNextInput: function (row, colIndex) {
             const inputs = Array.from(row.querySelectorAll('input'));
             const currentInput = row.cells[colIndex].querySelector('input');
             const currentIdx = inputs.indexOf(currentInput);
-            
+
             // Find next enabled input
             for (let i = currentIdx + 1; i < inputs.length; i++) {
                 if (!inputs[i].readOnly && inputs[i].tabIndex !== -1) {
@@ -398,11 +398,11 @@
             return null;
         },
 
-        getPrevInput: function(row, colIndex) {
+        getPrevInput: function (row, colIndex) {
             const inputs = Array.from(row.querySelectorAll('input'));
             const currentInput = row.cells[colIndex].querySelector('input');
             const currentIdx = inputs.indexOf(currentInput);
-            
+
             // Find previous enabled input
             for (let i = currentIdx - 1; i >= 0; i--) {
                 if (!inputs[i].readOnly && inputs[i].tabIndex !== -1) {
@@ -412,17 +412,17 @@
             return null;
         },
 
-        resetForm: async function(full = false) {
+        resetForm: async function (full = false) {
             this.data.currentId = null;
-            
+
             document.getElementById('ria_date').value = new Date().toISOString().substring(0, 10);
-            
+
             const mainStore = this.data.locations.find(l => l.name === 'Main Store');
             document.getElementById('ria_location_id').value = mainStore ? mainStore.id : '';
             document.getElementById('ria_job_id').value = '';
             document.getElementById('ria_employee_id').value = '';
             document.getElementById('ria_remarks').value = '';
-            
+
             document.getElementById('ria_is_cancelled').checked = false;
             this.updateCancellationUI();
 
@@ -453,7 +453,7 @@
             }
         },
 
-        addRow: function(sn) {
+        addRow: function (sn) {
             const tbody = document.querySelector('#ria_grid tbody');
             if (!tbody) return;
 
@@ -508,7 +508,7 @@
             tbody.appendChild(tr);
         },
 
-        calculateTotals: function() {
+        calculateTotals: function () {
             let tPieces = 0, tQty = 0, tAmt = 0;
             document.querySelectorAll('#ria_grid tbody tr').forEach(tr => {
                 this.calculateRow(tr);
@@ -527,7 +527,7 @@
             }
         },
 
-        saveRIA: async function(silent = false) {
+        saveRIA: async function (silent = false) {
             const data = {
                 id: this.data.currentId,
                 serial_no: document.getElementById('ria_sn').value,
@@ -585,7 +585,7 @@
             } catch (err) { console.error(err); alert("Failed to save Note."); return false; }
         },
 
-        updatePostedUI: function() {
+        updatePostedUI: function () {
             const btn = document.getElementById('ria_btn_post');
             const stamp = document.getElementById('ria_posted_stamp');
             if (this.data.is_posted) {
@@ -605,7 +605,7 @@
             }
         },
 
-        postRIA: async function() {
+        postRIA: async function () {
             if (!this.data.currentId) { alert("Please save the document first."); return; }
             if (document.getElementById('ria_is_cancelled').checked) { alert("Cannot post a cancelled document."); return; }
             if (!confirm(`Are you sure you want to ${this.data.is_posted ? 'Unpost' : 'Post'} this note?`)) return;
@@ -627,7 +627,7 @@
             } catch (err) { console.error(err); alert("Request failed."); }
         },
 
-        navigateBySN: async function(sn, dir = '') {
+        navigateBySN: async function (sn, dir = '') {
             try {
                 let url = `api/reduce_inventory_adjustments.php?action=fetch&sn=${sn}`;
                 if (dir && (dir === 'next' || dir === 'prev')) {
@@ -650,7 +650,7 @@
             } catch (err) { console.error(err); }
         },
 
-        fillForm: function(data) {
+        fillForm: function (data) {
             this.data.currentId = data.id;
             document.getElementById('ria_sn').value = data.serial_no;
             document.getElementById('ria_date').value = data.date;
@@ -671,11 +671,11 @@
                 data.items.forEach((item, i) => {
                     this.addRow(i + 1);
                     const row = tbody.lastElementChild;
-                    
+
                     const codeInput = row.querySelector('.ria-item-code');
                     codeInput.value = item.item_code;
                     codeInput.dataset.id = item.item_id;
-                    
+
                     const invItem = this.data.inventoryItems.find(x => String(x.id) === String(item.item_id));
                     codeInput.dataset.qtyPerPiece = invItem ? (invItem.qty_per_piece || 0) : (item.qty_per_piece || 0);
 
@@ -696,7 +696,7 @@
             this.calculateTotals();
         },
 
-        deleteRIA: async function() {
+        deleteRIA: async function () {
             if (!this.data.currentId) { alert("No document loaded to delete."); return; }
             if (!confirm("Are you absolutely sure you want to delete this Reduce Inventory Adjustment?")) return;
 
@@ -714,11 +714,11 @@
             } catch (err) { console.error(err); }
         },
 
-        navigate: async function(dir) {
+        navigate: async function (dir) {
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             const companyId = session.company_id || 1;
             let sn = parseInt(document.getElementById('ria_sn').value) || 0;
-            
+
             if (dir === 'prev' && sn === 0) dir = 'last';
 
             if (dir === 'last') {
@@ -727,15 +727,17 @@
                     const data = await res.json();
                     sn = (data.next_no || data.next_sn || 2) - 1;
                     dir = undefined;
-                } catch(e) { return; }
-            } else if (sn === 0 || dir === 'this') {
+                } catch (e) { return; }
+            } else if (dir === 'this') {
+                dir = undefined;
+            } else if (sn === 0) {
                 if (dir === 'next') {
                     try {
                         const res = await fetch(`api/reduce_inventory_adjustments.php?action=get_next_serial_no&company_id=${companyId}`);
                         const data = await res.json();
                         sn = (data.next_no || data.next_sn || 2) - 1;
                         dir = undefined;
-                    } catch(e) { return; }
+                    } catch (e) { return; }
                 } else if (dir !== 'next' && dir !== 'prev') {
                     sn = 1;
                     dir = undefined;
@@ -748,7 +750,7 @@
             if (sn > 0 || dir) this.navigateBySN(sn, dir);
         },
 
-        updateCancellationUI: function() {
+        updateCancellationUI: function () {
             const isCancelled = document.getElementById('ria_is_cancelled').checked;
             const stamp = document.getElementById('ria_cancelled_stamp');
             if (stamp) {
@@ -756,33 +758,33 @@
             }
         },
 
-        findRIA: function() {
+        findRIA: function () {
             this.openFindModal();
         },
 
-        openFindModal: async function() {
+        openFindModal: async function () {
             const modal = document.getElementById('ria_find_modal');
             if (modal) modal.style.display = 'flex';
-            
+
             const searchInput = document.getElementById('ria_find_search');
             if (searchInput) searchInput.focus();
-            
+
             await this.renderFindTable();
         },
 
-        closeFindModal: function() {
+        closeFindModal: function () {
             const modal = document.getElementById('ria_find_modal');
             if (modal) modal.style.display = 'none';
         },
 
-        renderFindTable: async function() {
+        renderFindTable: async function () {
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             const companyId = session.company_id || 1;
             const tbody = document.getElementById('ria_find_table_body');
             if (!tbody) return;
-            
+
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:10px;">Loading...</td></tr>';
-            
+
             try {
                 const res = await fetch(`api/reduce_inventory_adjustments.php?action=search_adjustments&company_id=${companyId}`);
                 this.findData = await res.json();
@@ -794,10 +796,10 @@
             }
         },
 
-        filterFindTable: function() {
+        filterFindTable: function () {
             const q = (document.getElementById('ria_find_search')?.value || '').toLowerCase();
             const field = document.getElementById('ria_find_field')?.value || 'serial_no';
-            
+
             let filtered = this.findData;
             if (q) {
                 filtered = this.findData.filter(it => {
@@ -808,19 +810,19 @@
             this.sortFindGrid(this.findSortField, filtered);
         },
 
-        sortFindGrid: function(field, dataToRender = null) {
+        sortFindGrid: function (field, dataToRender = null) {
             if (field && this.findSortField === field && dataToRender === null) {
                 this.findSortDesc = !this.findSortDesc;
             } else if (field) {
                 this.findSortField = field;
                 if (dataToRender === null) {
-                    this.findSortDesc = (field === 'serial_no') ? false : true; 
+                    this.findSortDesc = (field === 'serial_no') ? false : true;
                 }
             }
-            
+
             let data = dataToRender || this.findData.filter(it => {
                 const q = (document.getElementById('ria_find_search')?.value || '').toLowerCase();
-                if(!q) return true;
+                if (!q) return true;
                 const filterField = document.getElementById('ria_find_field')?.value || 'serial_no';
                 return (it[filterField]?.toString() || '').toLowerCase().includes(q);
             });
@@ -828,7 +830,7 @@
             data.sort((a, b) => {
                 let valA = a[this.findSortField];
                 let valB = b[this.findSortField];
-                
+
                 if (this.findSortField === 'serial_no') {
                     valA = parseInt(valA) || 0;
                     valB = parseInt(valB) || 0;
@@ -836,7 +838,7 @@
                     valA = (valA || '').toString().toLowerCase();
                     valB = (valB || '').toString().toLowerCase();
                 }
-                
+
                 if (valA < valB) return this.findSortDesc ? 1 : -1;
                 if (valA > valB) return this.findSortDesc ? -1 : 1;
                 return 0;
@@ -845,11 +847,11 @@
             this.renderFindGrid(data);
         },
 
-        renderFindGrid: function(data) {
+        renderFindGrid: function (data) {
             const tbody = document.getElementById('ria_find_table_body');
             if (!tbody) return;
             tbody.innerHTML = '';
-            
+
             if (!data || data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:10px;">No adjustments found.</td></tr>';
                 return;
@@ -859,10 +861,10 @@
                 const tr = document.createElement('tr');
                 tr.dataset.index = index;
                 tr.dataset.selected = 'false';
-                
+
                 const isPosted = (it.is_posted == 1);
                 const isCancelled = (it.is_cancelled == 1);
-                
+
                 tr.innerHTML = `
                     <td class="row-selector" style="padding: 2px; border: 1px solid #cbd5e0; text-align: center;"><span class="row-indicator"></span></td>
                     <td style="padding: 2px 4px; border: 1px solid #cbd5e0; font-weight: bold;">${it.serial_no}</td>
@@ -870,32 +872,32 @@
                     <td style="padding: 2px 4px; border: 1px solid #cbd5e0; text-align: center; color: ${isPosted ? 'green' : '#888'};">${isPosted ? 'Yes' : 'No'}</td>
                     <td style="padding: 2px 4px; border: 1px solid #cbd5e0; font-weight: bold; color: ${isCancelled ? 'red' : 'inherit'};">${isCancelled ? 'CANCELLED' : ''}</td>
                 `;
-                
+
                 tr.onclick = () => this.selectFindRow(tr, it);
                 tr.ondblclick = () => {
                     this.closeFindModal();
                     document.getElementById('ria_sn').value = it.serial_no;
-                    this.navigate('this');
+                    this.navigateBySN(it.serial_no);
                 };
-                
+
                 tbody.appendChild(tr);
             });
         },
 
-        selectFindRow: function(tr, it) {
+        selectFindRow: function (tr, it) {
             const tbody = document.getElementById('ria_find_table_body');
             if (!tbody) return;
-            
+
             Array.from(tbody.children).forEach(row => {
                 row.classList.remove('selected');
                 const ind = row.querySelector('.row-indicator');
                 if (ind) ind.innerHTML = '';
             });
-            
+
             tr.classList.add('selected');
             const ind = tr.querySelector('.row-indicator');
             if (ind) ind.innerHTML = '►';
-            
+
             if (it && it.created_at) {
                 const d = new Date(it.created_at);
                 const dStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('en-US');
@@ -905,7 +907,7 @@
             }
         },
 
-        printRIA: async function() {
+        printRIA: async function () {
             if (document.querySelectorAll('#ria_grid tbody tr').length > 0 && document.querySelector('.ria-item-code').value) {
                 const saved = await this.saveRIA(true);
                 if (!saved) return;
@@ -933,7 +935,7 @@
 
             let itemsHtml = '';
             let tPieces = 0, tQty = 0, tAmt = 0;
-            
+
             document.querySelectorAll('#ria_grid tbody tr').forEach((tr, i) => {
                 const code = tr.querySelector('.ria-item-code')?.value || '';
                 if (code) {

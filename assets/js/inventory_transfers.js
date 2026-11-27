@@ -140,7 +140,7 @@
                 tr.ondblclick = () => {
                     this.closeFindModal();
                     document.getElementById('it_sn').value = it.serial_no;
-                    this.navigate('this');
+                    this.navigateBySN(it.serial_no);
                 };
                 
                 tbody.appendChild(tr);
@@ -869,7 +869,9 @@
                     sn = (data.next_no || data.next_sn || 2) - 1;
                     dir = undefined;
                 } catch(e) { return; }
-            } else if (sn === 0 || dir === 'this') {
+            } else if (dir === 'this') {
+                dir = undefined;
+            } else if (sn === 0) {
                 if (dir === 'next') {
                     try {
                         const res = await fetch(`api/inventory_transfers.php?action=get_next_serial_no&company_id=${companyId}`);
