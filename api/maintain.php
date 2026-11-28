@@ -656,6 +656,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN cnic VARCHAR(50) DEFAULT NULL AFTER ntn_cnic"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN buyer_type_id INT DEFAULT NULL AFTER cust_tax_type_id"); } catch(PDOException $e) {}
         
+        // Server-Side Pre-Import Backup Snapshot if replace mode
+        if ($mode === 'replace') {
+            try {
+                $backupDir = __DIR__ . '/../storage/backups';
+                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
+                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
+                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
+                $snapStmt->execute([$company_id]);
+                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($snapData)) {
+                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+                }
+            } catch (Exception $e) {}
+        }
+
         $pdo->beginTransaction();
         try {
             if ($coaId) {
@@ -879,6 +894,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $insSub = $pdo->prepare("INSERT INTO sub_regions (region_id, name) VALUES (?, ?)");
         $insList = $pdo->prepare("INSERT INTO list_regions (sub_region_id, name) VALUES (?, ?)");
 
+        // Server-Side Pre-Import Backup Snapshot if replace mode
+        if ($mode === 'replace') {
+            try {
+                $backupDir = __DIR__ . '/../storage/backups';
+                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
+                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
+                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
+                $snapStmt->execute([$company_id]);
+                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($snapData)) {
+                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+                }
+            } catch (Exception $e) {}
+        }
+
         $pdo->beginTransaction();
         try {
             $currentMainName = '';
@@ -1003,7 +1033,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'clear_all_regions') {
         try {
-            $pdo->beginTransaction();
+            // Server-Side Pre-Import Backup Snapshot if replace mode
+        if ($mode === 'replace') {
+            try {
+                $backupDir = __DIR__ . '/../storage/backups';
+                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
+                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
+                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
+                $snapStmt->execute([$company_id]);
+                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($snapData)) {
+                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+                }
+            } catch (Exception $e) {}
+        }
+
+        $pdo->beginTransaction();
 
             // 1. Delete list_regions under company's regions
             $pdo->prepare("
@@ -1118,6 +1163,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_vendor') {
         $coaId = $data['id'] ?? null;
         $before_data = $coaId ? fetchRecordData('coa_list', 'vendors', 'coa_list_id', $coaId) : null;
+        // Server-Side Pre-Import Backup Snapshot if replace mode
+        if ($mode === 'replace') {
+            try {
+                $backupDir = __DIR__ . '/../storage/backups';
+                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
+                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
+                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
+                $snapStmt->execute([$company_id]);
+                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($snapData)) {
+                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+                }
+            } catch (Exception $e) {}
+        }
+
         $pdo->beginTransaction();
         try {
             if ($coaId) {
@@ -1171,6 +1231,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_bank') {
         $coaId = $data['id'] ?? null;
         $before_data = $coaId ? fetchRecordData('coa_list', 'bank_accounts', 'coa_list_id', $coaId) : null;
+        // Server-Side Pre-Import Backup Snapshot if replace mode
+        if ($mode === 'replace') {
+            try {
+                $backupDir = __DIR__ . '/../storage/backups';
+                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
+                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
+                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
+                $snapStmt->execute([$company_id]);
+                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($snapData)) {
+                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+                }
+            } catch (Exception $e) {}
+        }
+
         $pdo->beginTransaction();
         try {
             if ($coaId) {
@@ -1271,6 +1346,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN cnic VARCHAR(50) DEFAULT NULL AFTER ntn_cnic"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN buyer_type_id INT DEFAULT NULL AFTER cust_tax_type_id"); } catch(PDOException $e) {}
 
+        // Server-Side Pre-Import Backup Snapshot if replace mode
+        if ($mode === 'replace') {
+            try {
+                $backupDir = __DIR__ . '/../storage/backups';
+                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
+                $snapFile = $backupDir . '/pre_replace_vendors_' . date('Y_m_d_His') . '.json';
+                $snapStmt = $pdo->prepare("SELECT v.*, cl.code, cl.name FROM vendors v LEFT JOIN coa_list cl ON v.coa_list_id = cl.id WHERE v.company_id = ?");
+                $snapStmt->execute([$company_id]);
+                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($snapData)) {
+                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+                }
+            } catch (Exception $e) {}
+        }
+
         $normClean = function($str) {
             return strtolower(preg_replace('/[^a-zA-Z0-9]/', '', (string)$str));
         };
@@ -1290,6 +1380,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             return '';
         };
+
+        // Server-Side Pre-Import Backup Snapshot if replace mode
+        if ($mode === 'replace') {
+            try {
+                $backupDir = __DIR__ . '/../storage/backups';
+                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
+                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
+                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
+                $snapStmt->execute([$company_id]);
+                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($snapData)) {
+                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+                }
+            } catch (Exception $e) {}
+        }
 
         $pdo->beginTransaction();
         try {
@@ -1719,17 +1824,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
 
+            $summary = [
+                'total_rows' => count($rows),
+                'customers_created' => $customersCreatedCount,
+                'customers_updated' => $customersUpdatedCount,
+                'customers_deleted' => $customersDeletedCount,
+                'preserved_invoice_customers' => $preservedCount,
+                'types_created' => $typesCreatedCount,
+                'mode' => $mode
+            ];
+
+            // Activity Log Audit Trail
+            $_SESSION['user_id'] = $reqUserId;
+            $_SESSION['username'] = $reqUsername;
+            $_SESSION['company_id'] = $company_id;
+            logActivity('Customers', 'IMPORT', 0, "Excel Import ({$mode}): {$customersCreatedCount} created, {$customersUpdatedCount} updated" . ($customersDeletedCount ? ", {$customersDeletedCount} replaced" : ""), null, $summary);
+
             sendResponse([
                 'status' => 'success',
-                'summary' => [
-                    'total_rows' => count($rows),
-                    'customers_created' => $customersCreatedCount,
-                    'customers_updated' => $customersUpdatedCount,
-                    'customers_deleted' => $customersDeletedCount,
-                    'preserved_invoice_customers' => $preservedCount,
-                    'types_created' => $typesCreatedCount,
-                    'mode' => $mode
-                ]
+                'summary' => $summary
             ]);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) {
@@ -1781,6 +1894,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             sendResponse(['status' => 'error', 'message' => 'Invalid data format or empty rows.'], 400);
         }
 
+        // Server-Side Pre-Import Backup Snapshot if replace mode
+        if ($mode === 'replace') {
+            try {
+                $backupDir = __DIR__ . '/../storage/backups';
+                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
+                $snapFile = $backupDir . '/pre_replace_vendors_' . date('Y_m_d_His') . '.json';
+                $snapStmt = $pdo->prepare("SELECT v.*, cl.code, cl.name FROM vendors v LEFT JOIN coa_list cl ON v.coa_list_id = cl.id WHERE v.company_id = ?");
+                $snapStmt->execute([$company_id]);
+                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($snapData)) {
+                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+                }
+            } catch (Exception $e) {}
+        }
+
         $normClean = function($str) {
             return strtolower(preg_replace('/[^a-zA-Z0-9]/', '', (string)$str));
         };
@@ -1800,6 +1928,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             return '';
         };
+
+        // Server-Side Pre-Import Backup Snapshot if replace mode
+        if ($mode === 'replace') {
+            try {
+                $backupDir = __DIR__ . '/../storage/backups';
+                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
+                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
+                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
+                $snapStmt->execute([$company_id]);
+                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($snapData)) {
+                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+                }
+            } catch (Exception $e) {}
+        }
 
         $pdo->beginTransaction();
         try {
@@ -2054,17 +2197,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $pdo->commit();
+
+            $summary = [
+                'total_processed' => count($rows),
+                'vendors_created' => $vendorsCreatedCount,
+                'vendors_updated' => $vendorsUpdatedCount,
+                'vendors_deleted' => $vendorsDeletedCount,
+                'preserved_invoice_vendors' => $preservedCount,
+                'types_created' => $typesCreatedCount,
+                'mode' => $mode
+            ];
+
+            // Activity Log Audit Trail
+            $_SESSION['user_id'] = $reqUserId;
+            $_SESSION['username'] = $reqUsername;
+            $_SESSION['company_id'] = $company_id;
+            logActivity('Vendors', 'IMPORT', 0, "Excel Import ({$mode}): {$vendorsCreatedCount} created, {$vendorsUpdatedCount} updated" . ($vendorsDeletedCount ? ", {$vendorsDeletedCount} replaced" : ""), null, $summary);
+
             sendResponse([
                 'status' => 'success',
-                'summary' => [
-                    'total_processed' => count($rows),
-                    'vendors_created' => $vendorsCreatedCount,
-                    'vendors_updated' => $vendorsUpdatedCount,
-                    'vendors_deleted' => $vendorsDeletedCount,
-                    'preserved_invoice_vendors' => $preservedCount,
-                    'types_created' => $typesCreatedCount,
-                    'mode' => $mode
-                ]
+                'summary' => $summary
             ]);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) {

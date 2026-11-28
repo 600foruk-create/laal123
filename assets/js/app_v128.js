@@ -13960,7 +13960,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         };
 
-        window.exportInvExcel = function() {
+        window.exportInvExcel = function(customFileName) {
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             const coId = session.company_id || (window.companyData ? window.companyData.id : 1);
 
@@ -14298,7 +14298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         window.styleExcelHeaderRow(wsGeneral);
                         XLSX.utils.book_append_sheet(wb, wsGeneral, 'General & Others');
 
-                        XLSX.writeFile(wb, 'Chart_of_Inventory.xlsx');
+                        XLSX.writeFile(wb, (typeof customFileName === 'string' && customFileName) ? customFileName : 'Chart_of_Inventory.xlsx');
                     });
                 })
                 .catch(err => {
@@ -14505,10 +14505,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                                             </div>
                                         </div>
 
-                                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#334155;display:flex;justify-content:space-between;align-items:center;">
+                                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#334155;display:flex;justify-content:space-between;align-items:center;">
                                             <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;"><strong>File:</strong> ${fileName}</span>
                                             <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:12px;font-weight:600;font-size:12px;white-space:nowrap;">${rowCount} Rows</span>
                                         </div>
+
+                                        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#1e3a8a;background:#eff6ff;padding:8px 12px;border-radius:6px;margin-bottom:14px;cursor:pointer;user-select:none;border:1px solid #bfdbfe;">
+                                            <input type="checkbox" id="chkAutoBackupInv" checked style="width:16px;height:16px;accent-color:#1F4E79;cursor:pointer;">
+                                            <span><i class="fas fa-shield-alt" style="margin-right:4px;color:#2563eb;"></i> <b>Pre-Import Backup Snapshot</b> download karein (Recommended)</span>
+                                        </label>
 
                                         <div style="display:flex;flex-direction:column;gap:10px;">
                                             <button type="button" id="btnOptReplace" style="width:100%;padding:13px 16px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:0.2s;text-align:left;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
@@ -14535,16 +14540,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 `;
                                 document.body.appendChild(modalDiv);
 
-                                document.getElementById('btnOptReplace').onclick = () => { modalDiv.remove(); resolve('replace'); };
-                                document.getElementById('btnOptMerge').onclick = () => { modalDiv.remove(); resolve('merge'); };
-                                document.getElementById('btnOptCancel').onclick = () => { modalDiv.remove(); resolve(null); };
+                                document.getElementById('btnOptReplace').onclick = () => {
+                                    const doBackup = document.getElementById('chkAutoBackupInv') ? document.getElementById('chkAutoBackupInv').checked : true;
+                                    modalDiv.remove();
+                                    resolve({ mode: 'replace', backup: doBackup });
+                                };
+                                document.getElementById('btnOptMerge').onclick = () => {
+                                    modalDiv.remove();
+                                    resolve({ mode: 'merge', backup: false });
+                                };
+                                document.getElementById('btnOptCancel').onclick = () => {
+                                    modalDiv.remove();
+                                    resolve(null);
+                                };
                             });
                         };
 
-                        const selectedMode = await promptImportMode(file.name, combinedRows.length);
-                        if (!selectedMode) {
+                        const selectedResult = await promptImportMode(file.name, combinedRows.length);
+                        if (!selectedResult || !selectedResult.mode) {
                             event.target.value = '';
                             return;
+                        }
+                        const selectedMode = selectedResult.mode;
+
+                        // Trigger Pre-Import Backup Snapshot if requested
+                        if (selectedResult.backup) {
+                            try {
+                                const now = new Date();
+                                const dStr = now.toISOString().slice(0, 10) + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+                                window.exportInvExcel(`Backup_Inventory_Before_Replace_${dStr}.xlsx`);
+                            } catch(bErr) {
+                                console.warn('Pre-import backup snapshot warning:', bErr);
+                            }
                         }
                         
                         const loadingDiv = document.createElement('div');
@@ -14848,7 +14875,7 @@ window.importCoaExcel = async function(event) {
     });
 };
 
-window.exportCustomerExcel = function() {
+window.exportCustomerExcel = function(customFileName) {
     const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
     const coId = session.company_id || (window.companyData ? window.companyData.id : 1);
 
@@ -15045,7 +15072,7 @@ window.exportCustomerExcel = function() {
                     }
                 });
 
-                XLSX.writeFile(wb, 'Customers_List.xlsx');
+                XLSX.writeFile(wb, (typeof customFileName === 'string' && customFileName) ? customFileName : 'Customers_List.xlsx');
             });
         })
         .catch(err => {
@@ -15221,9 +15248,13 @@ window.importCustomerExcel = async function(event) {
                                         <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">File: <b>${fileName}</b> (${rowCount} record(s) found)</p>
                                     </div>
                                 </div>
-                                <p style="font-size:13px;color:#334155;line-height:1.5;margin-bottom:18px;">
+                                <p style="font-size:13px;color:#334155;line-height:1.5;margin-bottom:14px;">
                                     Aap naye aur purane customers ko kis tarah import karna chahte hain? Neeche diye gaye options mein se muntakhib karein:
                                 </p>
+                                <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#1e3a8a;background:#eff6ff;padding:8px 12px;border-radius:6px;margin-bottom:14px;cursor:pointer;user-select:none;border:1px solid #bfdbfe;">
+                                    <input type="checkbox" id="chkAutoBackupCust" checked style="width:16px;height:16px;accent-color:#1F4E79;cursor:pointer;">
+                                    <span><i class="fas fa-shield-alt" style="margin-right:4px;color:#2563eb;"></i> <b>Pre-Import Backup Snapshot</b> download karein (Recommended)</span>
+                                </label>
                                 <div style="display:flex;flex-direction:column;gap:10px;">
                                     <button type="button" id="btnCustOptReplace" style="width:100%;padding:13px 16px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:0.2s;text-align:left;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
                                         <div>
@@ -15249,16 +15280,38 @@ window.importCustomerExcel = async function(event) {
                         `;
                         document.body.appendChild(modalDiv);
 
-                        document.getElementById('btnCustOptReplace').onclick = () => { modalDiv.remove(); resolve('replace'); };
-                        document.getElementById('btnCustOptMerge').onclick = () => { modalDiv.remove(); resolve('merge'); };
-                        document.getElementById('btnCustOptCancel').onclick = () => { modalDiv.remove(); resolve(null); };
+                        document.getElementById('btnCustOptReplace').onclick = () => {
+                            const doBackup = document.getElementById('chkAutoBackupCust') ? document.getElementById('chkAutoBackupCust').checked : true;
+                            modalDiv.remove();
+                            resolve({ mode: 'replace', backup: doBackup });
+                        };
+                        document.getElementById('btnCustOptMerge').onclick = () => {
+                            modalDiv.remove();
+                            resolve({ mode: 'merge', backup: false });
+                        };
+                        document.getElementById('btnCustOptCancel').onclick = () => {
+                            modalDiv.remove();
+                            resolve(null);
+                        };
                     });
                 };
 
-                const selectedMode = await promptCustImportMode(file.name, combinedRows.length);
-                if (!selectedMode) {
+                const selectedResult = await promptCustImportMode(file.name, combinedRows.length);
+                if (!selectedResult || !selectedResult.mode) {
                     event.target.value = '';
                     return;
+                }
+                const selectedMode = selectedResult.mode;
+
+                // Trigger Pre-Import Backup Snapshot if requested
+                if (selectedResult.backup) {
+                    try {
+                        const now = new Date();
+                        const dStr = now.toISOString().slice(0, 10) + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+                        window.exportCustomerExcel(`Backup_Customers_Before_Replace_${dStr}.xlsx`);
+                    } catch(bErr) {
+                        console.warn('Pre-import customer backup warning:', bErr);
+                    }
                 }
 
                 const loadingDiv = document.createElement('div');
@@ -15352,7 +15405,7 @@ window.importCustomerExcel = async function(event) {
 };
 
 // --- VENDORS EXCEL IMPORT/EXPORT ---
-window.exportVendorExcel = function() {
+window.exportVendorExcel = function(customFileName) {
     const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
     const coId = session.company_id || (window.companyData ? window.companyData.id : 1);
 
@@ -15473,7 +15526,7 @@ window.exportVendorExcel = function() {
                     }
                 });
 
-                XLSX.writeFile(wb, 'Vendors_List.xlsx');
+                XLSX.writeFile(wb, (typeof customFileName === 'string' && customFileName) ? customFileName : 'Vendors_List.xlsx');
             });
         })
         .catch(err => {
@@ -15686,10 +15739,15 @@ window.importVendorExcel = async function(event) {
                                     </div>
                                 </div>
 
-                                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#334155;display:flex;justify-content:space-between;align-items:center;">
+                                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#334155;display:flex;justify-content:space-between;align-items:center;">
                                     <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;"><strong>File:</strong> ${fileName}</span>
                                     <span style="background:#fef3c7;color:#b45309;padding:2px 8px;border-radius:12px;font-weight:600;font-size:12px;white-space:nowrap;">${rowCount} Rows</span>
                                 </div>
+
+                                <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#1e3a8a;background:#eff6ff;padding:8px 12px;border-radius:6px;margin-bottom:14px;cursor:pointer;user-select:none;border:1px solid #bfdbfe;">
+                                    <input type="checkbox" id="chkAutoBackupVend" checked style="width:16px;height:16px;accent-color:#1F4E79;cursor:pointer;">
+                                    <span><i class="fas fa-shield-alt" style="margin-right:4px;color:#2563eb;"></i> <b>Pre-Import Backup Snapshot</b> download karein (Recommended)</span>
+                                </label>
 
                                 <div style="display:flex;flex-direction:column;gap:10px;">
                                     <button type="button" id="btnVendOptReplace" style="width:100%;padding:13px 16px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:0.2s;text-align:left;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
@@ -15716,16 +15774,38 @@ window.importVendorExcel = async function(event) {
                         `;
                         document.body.appendChild(modalDiv);
 
-                        document.getElementById('btnVendOptReplace').onclick = () => { modalDiv.remove(); resolve('replace'); };
-                        document.getElementById('btnVendOptMerge').onclick = () => { modalDiv.remove(); resolve('merge'); };
-                        document.getElementById('btnVendOptCancel').onclick = () => { modalDiv.remove(); resolve(null); };
+                        document.getElementById('btnVendOptReplace').onclick = () => {
+                            const doBackup = document.getElementById('chkAutoBackupVend') ? document.getElementById('chkAutoBackupVend').checked : true;
+                            modalDiv.remove();
+                            resolve({ mode: 'replace', backup: doBackup });
+                        };
+                        document.getElementById('btnVendOptMerge').onclick = () => {
+                            modalDiv.remove();
+                            resolve({ mode: 'merge', backup: false });
+                        };
+                        document.getElementById('btnVendOptCancel').onclick = () => {
+                            modalDiv.remove();
+                            resolve(null);
+                        };
                     });
                 };
 
-                const selectedMode = await promptVendImportMode(file.name, combinedRows.length);
-                if (!selectedMode) {
+                const selectedResult = await promptVendImportMode(file.name, combinedRows.length);
+                if (!selectedResult || !selectedResult.mode) {
                     event.target.value = '';
                     return;
+                }
+                const selectedMode = selectedResult.mode;
+
+                // Trigger Pre-Import Backup Snapshot if requested
+                if (selectedResult.backup) {
+                    try {
+                        const now = new Date();
+                        const dStr = now.toISOString().slice(0, 10) + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+                        window.exportVendorExcel(`Backup_Vendors_Before_Replace_${dStr}.xlsx`);
+                    } catch(bErr) {
+                        console.warn('Pre-import vendor backup warning:', bErr);
+                    }
                 }
 
                 const loadingDiv = document.createElement('div');
