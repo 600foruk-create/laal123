@@ -18,7 +18,34 @@
             <!-- Right: Fields & Buttons -->
             <div style="flex: 1.2; display: flex; flex-direction: column; gap: 8px;">
                 <div style="display: flex; padding-left: 108px; gap: 4px;">
-                    <button class="coa-btn coa-chart" style="margin-right: auto;" onclick="printVendors('sub')">Chart</button>
+                    <button class="coa-btn coa-chart" onclick="printVendors('sub')">Chart</button>
+                    <div style="position: relative; margin-right: auto; display: inline-block;"
+                        id="vendExcelDropdownContainer">
+                        <button type="button" class="coa-btn coa-chart"
+                            onclick="const dd = document.getElementById('vendExcelDropdown'); dd.style.display = dd.style.display === 'none' ? 'block' : 'none'; event.stopPropagation();"
+                            style="background: #eab308; color: white; transition: background-color 0.2s;"
+                            onmouseover="this.style.backgroundColor='#ca8a04'"
+                            onmouseout="this.style.backgroundColor='#eab308'">Excel</button>
+                        <div id="vendExcelDropdown"
+                            style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); z-index: 100; min-width: 140px; margin-top: 5px; overflow: hidden; padding: 4px 0;">
+                            <button type="button"
+                                style="display: block; width: 100%; padding: 6px 12px; text-align: left; background: none; border: none; cursor: pointer; color: #374151; font-size: 14px; transition: background 0.2s; font-weight: 500;"
+                                onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"
+                                onclick="exportVendorExcel(); this.parentElement.style.display='none';"><i
+                                    class="fas fa-file-export"
+                                    style="margin-right: 8px; color: #6b7280; width: 16px; text-align: center;"></i>
+                                Export</button>
+                            <button type="button"
+                                style="display: block; width: 100%; padding: 6px 12px; text-align: left; background: none; border: none; cursor: pointer; color: #374151; font-size: 14px; transition: background 0.2s; font-weight: 500;"
+                                onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"
+                                onclick="document.getElementById('vendExcelImportFile').click(); this.parentElement.style.display='none';"><i
+                                    class="fas fa-file-import"
+                                    style="margin-right: 8px; color: #6b7280; width: 16px; text-align: center;"></i>
+                                Import</button>
+                        </div>
+                    </div>
+                    <input type="file" id="vendExcelImportFile" style="display: none;" accept=".xlsx, .xls"
+                        onchange="importVendorExcel(event)">
                     <button class="coa-btn coa-add" onclick="resetVendorTypeForm(true)">Add</button>
                     <button class="coa-btn coa-save" onclick="saveVendorType()">Save</button>
                     <button class="coa-btn coa-cancel" onclick="resetVendorTypeForm()">Cancel</button>
@@ -54,7 +81,32 @@
             <div style="flex: 1.2; display: flex; flex-direction: column; gap: 8px;">
                 <div style="display: flex; padding-left: 108px; gap: 4px;">
                     <button class="coa-btn coa-chart" onclick="printVendors('list')">Chart</button>
-                    <button class="coa-btn coa-find" style="margin-right: auto;" onclick="openFindVendorModal()">Find</button>
+                    <button class="coa-btn coa-find" onclick="openFindVendorModal()">Find</button>
+                    <div style="position: relative; margin-right: auto; display: inline-block;"
+                        id="vendExcelDropdownContainer2">
+                        <button type="button" class="coa-btn coa-chart"
+                            onclick="const dd = document.getElementById('vendExcelDropdown2'); dd.style.display = dd.style.display === 'none' ? 'block' : 'none'; event.stopPropagation();"
+                            style="background: #eab308; color: white; transition: background-color 0.2s;"
+                            onmouseover="this.style.backgroundColor='#ca8a04'"
+                            onmouseout="this.style.backgroundColor='#eab308'">Excel</button>
+                        <div id="vendExcelDropdown2"
+                            style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); z-index: 100; min-width: 140px; margin-top: 5px; overflow: hidden; padding: 4px 0;">
+                            <button type="button"
+                                style="display: block; width: 100%; padding: 6px 12px; text-align: left; background: none; border: none; cursor: pointer; color: #374151; font-size: 14px; transition: background 0.2s; font-weight: 500;"
+                                onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"
+                                onclick="exportVendorExcel(); this.parentElement.style.display='none';"><i
+                                    class="fas fa-file-export"
+                                    style="margin-right: 8px; color: #6b7280; width: 16px; text-align: center;"></i>
+                                Export</button>
+                            <button type="button"
+                                style="display: block; width: 100%; padding: 6px 12px; text-align: left; background: none; border: none; cursor: pointer; color: #374151; font-size: 14px; transition: background 0.2s; font-weight: 500;"
+                                onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"
+                                onclick="document.getElementById('vendExcelImportFile').click(); this.parentElement.style.display='none';"><i
+                                    class="fas fa-file-import"
+                                    style="margin-right: 8px; color: #6b7280; width: 16px; text-align: center;"></i>
+                                Import</button>
+                        </div>
+                    </div>
                     <button class="coa-btn coa-add" onclick="resetVendorForm(true)">Add</button>
                     <button class="coa-btn coa-save" onclick="saveVendor()">Save</button>
                     <button class="coa-btn coa-cancel" onclick="resetVendorForm()">Cancel</button>

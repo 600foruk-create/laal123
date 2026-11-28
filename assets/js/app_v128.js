@@ -13728,78 +13728,420 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
 
-        // --- INVENTORY EXCEL IMPORT/EXPORT ---
+        // --- INVENTORY & CUSTOMERS EXCEL IMPORT/EXPORT ---
         function loadSheetJS(callback) {
-            if (typeof XLSX !== 'undefined') {
+            if (typeof XLSX !== 'undefined' && XLSX.style_version) {
                 callback();
                 return;
             }
             const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-            script.onload = callback;
+            script.src = 'assets/js/xlsx.bundle.js?v=2';
+            script.onload = () => {
+                if (typeof XLSX !== 'undefined') XLSX.__hasStyle = true;
+                callback();
+            };
+            script.onerror = () => {
+                const cdnScript = document.createElement('script');
+                cdnScript.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+                cdnScript.onload = () => {
+                    if (typeof XLSX !== 'undefined') XLSX.__hasStyle = true;
+                    callback();
+                };
+                document.head.appendChild(cdnScript);
+            };
             document.head.appendChild(script);
         }
 
+        window.styleExcelHeaderRow = function(ws) {
+            if (!ws || !ws['!ref']) return;
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            const autoCols = [];
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellRef = XLSX.utils.encode_cell({ r: 0, c: C });
+                if (ws[cellRef]) {
+                    ws[cellRef].s = {
+                        fill: {
+                            patternType: "solid",
+                            fgColor: { rgb: "1F4E79" } // SoftifyX Deep Navy Blue
+                        },
+                        font: {
+                            name: "Calibri",
+                            sz: 11,
+                            bold: true,
+                            color: { rgb: "FFFFFF" } // White bold text
+                        },
+                        alignment: {
+                            vertical: "center",
+                            horizontal: "center",
+                            wrapText: false
+                        },
+                        border: {
+                            top: { style: "thin", color: { rgb: "94A3B8" } },
+                            bottom: { style: "medium", color: { rgb: "0F172A" } },
+                            left: { style: "thin", color: { rgb: "334E68" } },
+                            right: { style: "thin", color: { rgb: "334E68" } }
+                        }
+                    };
+                }
+                let maxLen = 14;
+                for (let R = range.s.r; R <= range.e.r; ++R) {
+                    const cRef = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (ws[cRef] && ws[cRef].v !== undefined && ws[cRef].v !== null) {
+                        const len = String(ws[cRef].v).length;
+                        if (len > maxLen) maxLen = len;
+                    }
+                }
+                autoCols.push({ wch: Math.min(maxLen + 3, 40) });
+            }
+            ws['!rows'] = ws['!rows'] || [];
+            ws['!rows'][0] = { hpt: 26, hpx: 26 };
+            ws['!cols'] = autoCols;
+        };
+
         window.exportInvExcel = function() {
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
-            const coId = session.company_id || 1;
+            const coId = session.company_id || (window.companyData ? window.companyData.id : 1);
 
             if (typeof invMains === 'undefined' || !invMains || invMains.length === 0) {
                 alert('No inventory data to export.');
                 return;
             }
 
-            // First fetch ALL items, then build excel
-            fetch('api/inventory.php?action=get_all_items&company_id=' + coId)
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'invExportLoader';
+            loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(15,23,42,0.9);color:white;padding:20px 40px;z-index:999999;border-radius:10px;font-size:16px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,0.5);display:flex;align-items:center;gap:14px;';
+            loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin fa-lg" style="color:#38bdf8;"></i> Exporting Chart of Inventory to Excel, please wait...';
+            document.body.appendChild(loadingDiv);
+
+            // Fetch ALL items including inactive ones for complete export
+            fetch('api/inventory.php?action=get_all_items&include_all=1&company_id=' + coId)
                 .then(res => res.json())
                 .then(allItemsData => {
+                    if (document.getElementById('invExportLoader')) document.getElementById('invExportLoader').remove();
                     loadSheetJS(() => {
-                        const data = [];
+                        const allData = [];
+                        const pipesData = [];
+                        const fittingData = [];
+                        const rawData = [];
+                        const generalData = [];
+                        const processedItemIds = new Set();
+
+                        const itemsList = (allItemsData && Array.isArray(allItemsData)) ? allItemsData : [];
 
                         invMains.forEach(main => {
-                            const subs = invSubs.filter(s => s.main_id == main.id);
+                            const subs = (typeof invSubs !== 'undefined' && invSubs) ? invSubs.filter(s => s.main_id == main.id) : [];
+                            const mainType = (main.category_type || '').trim();
+
                             if (subs.length === 0) {
-                                data.push({
-                                    'Main Code': main.code, 'Main Name': main.name,
-                                    'Sub Code': '', 'Sub Name': '',
-                                    'Item Code': '', 'HS Code': '', 'Item Name': '', 'Description': '', 'Brand ID': '', 'Rack No': '',
-                                    'Purchase Price': '', 'Selling Price': '', 'Measurement Unit': '', 'Qty/Piece': '', 'Sales Tax Rate': '',
-                                    'Tax Type': '', 'Valuation Method': '', 'Valuation Cost': '', 'Order Quantity': '', 'Inactive': '',
-                                    'Category Type': '', 'Size': '', 'Length': '', 'Unit Weight': '', 'Class': '', 'Fitting Type': '', 'Carton': '', 'Material': '', 'Grade/Spec': ''
+                                // Empty main category template row
+                                allData.push({
+                                    'Main Code': main.code, 'Main Name': main.name, 'Category Type': mainType,
+                                    'Sub Code': '', 'Sub Name': '', 'Brand Name': '',
+                                    'Item Code': '', 'Item Name': '', 'Description': '', 'HS Code': '', 'Rack No': '',
+                                    'Unit': '', 'Qty/Piece': '', 'Purchase Rate': '', 'Sale Rate': '',
+                                    'Size': '', 'Length': '', 'Length Unit': '', 'Pipe Type': '', 'Class': '',
+                                    'Sign': '', 'Unit Weight (KG)': '', 'Fitting Type': '', 'Sign (Carton)': '',
+                                    'Material': '', 'Grade/Spec': '', 'Status': ''
                                 });
                             }
+
                             subs.forEach(sub => {
-                                const items = allItemsData.filter(i => i.sub_id == sub.id);
-                                if (items.length === 0) {
-                                    data.push({
-                                        'Main Code': main.code, 'Main Name': main.name,
-                                        'Sub Code': sub.code, 'Sub Name': sub.name,
-                                        'Item Code': '', 'HS Code': '', 'Item Name': '', 'Description': '', 'Brand ID': '', 'Rack No': '',
-                                        'Purchase Price': '', 'Selling Price': '', 'Measurement Unit': '', 'Qty/Piece': '', 'Sales Tax Rate': '',
-                                        'Tax Type': '', 'Valuation Method': '', 'Valuation Cost': '', 'Order Quantity': '', 'Inactive': '',
-                                        'Category Type': '', 'Size': '', 'Length': '', 'Unit Weight': '', 'Class': '', 'Fitting Type': '', 'Carton': '', 'Material': '', 'Grade/Spec': ''
+                                const matchedItems = itemsList.filter(i => String(i.sub_id) === String(sub.id));
+
+                                if (matchedItems.length === 0) {
+                                    // Sub category without items yet: export as template row across sheets
+                                    allData.push({
+                                        'Main Code': main.code, 'Main Name': main.name, 'Category Type': mainType,
+                                        'Sub Code': sub.code, 'Sub Name': sub.name, 'Brand Name': '',
+                                        'Item Code': '', 'Item Name': '', 'Description': '', 'HS Code': '', 'Rack No': '',
+                                        'Unit': '', 'Qty/Piece': '', 'Purchase Rate': '', 'Sale Rate': '',
+                                        'Size': '', 'Length': '', 'Length Unit': '', 'Pipe Type': '', 'Class': '',
+                                        'Sign': '', 'Unit Weight (KG)': '', 'Fitting Type': '', 'Sign (Carton)': '',
+                                        'Material': '', 'Grade/Spec': '', 'Status': ''
                                     });
+
+                                    // Also add to category-specific sheets so user sees their actual subcategories!
+                                    const isPipeCat = mainType.toLowerCase() === 'pipes' || (main.name && main.name.toLowerCase().includes('pipe'));
+                                    const isFitCat = mainType.toLowerCase() === 'fitting' || (main.name && main.name.toLowerCase().includes('fitting'));
+                                    const isRawCat = mainType.toLowerCase() === 'raw material' || (main.name && main.name.toLowerCase().includes('raw'));
+
+                                    if (isPipeCat) {
+                                        pipesData.push({
+                                            'Main Code': main.code, 'Main Name': main.name, 'Category Type': 'Pipes',
+                                            'Sub Code': sub.code, 'Sub Name': sub.name, 'Brand Name': '',
+                                            'Item Code': '', 'Item Name': '', 'Pipe Size': '', 'Pipe Length': '',
+                                            'Length Unit': 'Feet', 'Pipe Type': 'uPVC', 'Pipe Class': '',
+                                            'Sign': '', 'Unit Weight (KG)': '', 'Unit': 'Pcs',
+                                            'Purchase Rate': '', 'Sale Rate': '', 'Rack No': '', 'Status': 'Active'
+                                        });
+                                    } else if (isFitCat) {
+                                        fittingData.push({
+                                            'Main Code': main.code, 'Main Name': main.name, 'Category Type': 'Fitting',
+                                            'Sub Code': sub.code, 'Sub Name': sub.name, 'Brand Name': '',
+                                            'Item Code': '', 'Item Name': '', 'Fitting Type': '', 'Fitting Size': '',
+                                            'Fitting Class': '', 'Sign (Carton)': '', 'Pcs/Carton': 1,
+                                            'Weight/Piece (KG)': '', 'Carton Wt': '', 'Unit': 'Pcs',
+                                            'Purchase Rate': '', 'Sale Rate': '', 'Rack No': '', 'Status': 'Active'
+                                        });
+                                    } else if (isRawCat) {
+                                        rawData.push({
+                                            'Main Code': main.code, 'Main Name': main.name, 'Category Type': 'Raw Material',
+                                            'Sub Code': sub.code, 'Sub Name': sub.name, 'Item Code': '', 'Item Name': '',
+                                            'Material': '', 'Grade/Spec': '', 'Unit': 'KG',
+                                            'Purchase Rate': '', 'Sale Rate': '', 'Rack No': '', 'Status': 'Active'
+                                        });
+                                    } else {
+                                        generalData.push({
+                                            'Main Code': main.code, 'Main Name': main.name, 'Category Type': 'None',
+                                            'Sub Code': sub.code, 'Sub Name': sub.name, 'Brand Name': '',
+                                            'Item Code': '', 'Item Name': '', 'Description': '', 'Unit': 'Pcs',
+                                            'Qty/Piece': 1, 'Purchase Rate': '', 'Sale Rate': '',
+                                            'HS Code': '', 'Rack No': '', 'Status': 'Active'
+                                        });
+                                    }
                                 }
-                                items.forEach(item => {
-                                    data.push({
-                                        'Main Code': main.code, 'Main Name': main.name,
-                                        'Sub Code': sub.code, 'Sub Name': sub.name,
-                                        'Item Code': item.code, 'HS Code': item.hs_code || '', 'Item Name': item.name, 'Description': item.description || '', 'Brand ID': item.brand_id || '', 'Rack No': item.rack_no || '',
-                                        'Purchase Price': item.purchase_price || 0, 'Selling Price': item.selling_price || 0, 'Measurement Unit': item.unit || '', 'Qty/Piece': item.qty_per_piece || 1, 'Sales Tax Rate': item.tax_rate || 0,
-                                        'Tax Type': item.tax_type || 'Percent', 'Valuation Method': item.valuation_method || 'Weighted Average', 'Valuation Cost': item.valuation_cost || 0, 'Order Quantity': item.order_qty || 0, 'Inactive': item.is_inactive == 1 ? 'Yes' : 'No',
-                                        'Category Type': item.category_type || '', 'Size': item.size || '', 'Length': item.length || '', 'Unit Weight': item.unit_weight || '', 'Class': item.class || '', 'Fitting Type': item.fitting_type || '', 'Carton': item.carton || '', 'Material': item.material || '', 'Grade/Spec': item.grade_specification || ''
+
+                                matchedItems.forEach(item => {
+                                    processedItemIds.add(item.id);
+                                    const catType = (item.category_type || mainType || '').trim();
+                                    const bName = item.brand_name || '';
+                                    const isInactiveStr = (item.is_inactive == 1) ? 'Inactive' : 'Active';
+
+                                    // Master Row (Sheet 1)
+                                    allData.push({
+                                        'Main Code': main.code,
+                                        'Main Name': main.name,
+                                        'Category Type': catType,
+                                        'Sub Code': sub.code,
+                                        'Sub Name': sub.name,
+                                        'Brand Name': bName,
+                                        'Item Code': item.code || '',
+                                        'Item Name': item.name || '',
+                                        'Description': item.description || '',
+                                        'HS Code': item.hs_code || '',
+                                        'Rack No': item.rack_no || '',
+                                        'Unit': item.unit || '',
+                                        'Qty/Piece': item.qty_per_piece || 1,
+                                        'Purchase Rate': parseFloat(item.purchase_price || 0),
+                                        'Sale Rate': parseFloat(item.selling_price || 0),
+                                        'Size': item.size || '',
+                                        'Length': item.length || item.pipe_length || '',
+                                        'Length Unit': item.length_unit || 'Feet',
+                                        'Pipe Type': item.pipe_sub_type || '',
+                                        'Class': item.class || '',
+                                        'Sign': item.unit_weight || item.carton || '',
+                                        'Unit Weight (KG)': item.unit_weight || '',
+                                        'Fitting Type': item.fitting_type || '',
+                                        'Sign (Carton)': item.carton || '',
+                                        'Material': item.material || '',
+                                        'Grade/Spec': item.grade_specification || '',
+                                        'Status': isInactiveStr
                                     });
+
+                                    // Category specific sheets
+                                    const isPipe = catType.toLowerCase() === 'pipes' || (main.name && main.name.toLowerCase().includes('pipe'));
+                                    const isFit = catType.toLowerCase() === 'fitting' || (main.name && main.name.toLowerCase().includes('fitting'));
+                                    const isRaw = catType.toLowerCase() === 'raw material' || (main.name && main.name.toLowerCase().includes('raw'));
+
+                                    if (isPipe) {
+                                        pipesData.push({
+                                            'Main Code': main.code,
+                                            'Main Name': main.name,
+                                            'Category Type': 'Pipes',
+                                            'Sub Code': sub.code,
+                                            'Sub Name': sub.name,
+                                            'Brand Name': bName,
+                                            'Item Code': item.code || '',
+                                            'Item Name': item.name || '',
+                                            'Pipe Size': item.size || '',
+                                            'Pipe Length': item.length || item.pipe_length || '',
+                                            'Length Unit': item.length_unit || 'Feet',
+                                            'Pipe Type': item.pipe_sub_type || 'uPVC',
+                                            'Pipe Class': item.class || '',
+                                            'Sign': item.unit_weight || '',
+                                            'Unit Weight (KG)': item.unit_weight || '',
+                                            'Unit': item.unit || 'Pcs',
+                                            'Purchase Rate': parseFloat(item.purchase_price || 0),
+                                            'Sale Rate': parseFloat(item.selling_price || 0),
+                                            'Rack No': item.rack_no || '',
+                                            'Status': isInactiveStr
+                                        });
+                                    } else if (isFit) {
+                                        const cartonWt = (item.unit_weight && item.qty_per_piece) ? (parseFloat(item.unit_weight) * parseFloat(item.qty_per_piece)).toFixed(3) : '';
+                                        fittingData.push({
+                                            'Main Code': main.code,
+                                            'Main Name': main.name,
+                                            'Category Type': 'Fitting',
+                                            'Sub Code': sub.code,
+                                            'Sub Name': sub.name,
+                                            'Brand Name': bName,
+                                            'Item Code': item.code || '',
+                                            'Item Name': item.name || '',
+                                            'Fitting Type': item.fitting_type || '',
+                                            'Fitting Size': item.size || '',
+                                            'Fitting Class': item.class || '',
+                                            'Sign (Carton)': item.carton || '',
+                                            'Pcs/Carton': item.qty_per_piece || 1,
+                                            'Weight/Piece (KG)': item.unit_weight || '',
+                                            'Carton Wt': cartonWt,
+                                            'Unit': item.unit || 'Pcs',
+                                            'Purchase Rate': parseFloat(item.purchase_price || 0),
+                                            'Sale Rate': parseFloat(item.selling_price || 0),
+                                            'Rack No': item.rack_no || '',
+                                            'Status': isInactiveStr
+                                        });
+                                    } else if (isRaw) {
+                                        rawData.push({
+                                            'Main Code': main.code,
+                                            'Main Name': main.name,
+                                            'Category Type': 'Raw Material',
+                                            'Sub Code': sub.code,
+                                            'Sub Name': sub.name,
+                                            'Item Code': item.code || '',
+                                            'Item Name': item.name || '',
+                                            'Material': item.material || '',
+                                            'Grade/Spec': item.grade_specification || '',
+                                            'Unit': item.unit || 'KG',
+                                            'Purchase Rate': parseFloat(item.purchase_price || 0),
+                                            'Sale Rate': parseFloat(item.selling_price || 0),
+                                            'Rack No': item.rack_no || '',
+                                            'Status': isInactiveStr
+                                        });
+                                    } else {
+                                        generalData.push({
+                                            'Main Code': main.code,
+                                            'Main Name': main.name,
+                                            'Category Type': 'None',
+                                            'Sub Code': sub.code,
+                                            'Sub Name': sub.name,
+                                            'Brand Name': bName,
+                                            'Item Code': item.code || '',
+                                            'Item Name': item.name || '',
+                                            'Description': item.description || '',
+                                            'Unit': item.unit || 'Pcs',
+                                            'Qty/Piece': item.qty_per_piece || 1,
+                                            'Purchase Rate': parseFloat(item.purchase_price || 0),
+                                            'Sale Rate': parseFloat(item.selling_price || 0),
+                                            'HS Code': item.hs_code || '',
+                                            'Rack No': item.rack_no || '',
+                                            'Status': isInactiveStr
+                                        });
+                                    }
                                 });
                             });
                         });
 
-                        const ws = XLSX.utils.json_to_sheet(data);
+                        // Fallback: If any items in allItemsData were not mapped to invSubs, add them now
+                        itemsList.forEach(item => {
+                            if (!processedItemIds.has(item.id)) {
+                                const mCode = item.main_code || '';
+                                const mName = item.main_name || '';
+                                const sCode = item.sub_code || '';
+                                const sName = item.sub_name || '';
+                                const catType = (item.category_type || '').trim();
+                                const bName = item.brand_name || '';
+                                const isInactiveStr = (item.is_inactive == 1) ? 'Inactive' : 'Active';
+
+                                allData.push({
+                                    'Main Code': mCode,
+                                    'Main Name': mName,
+                                    'Category Type': catType,
+                                    'Sub Code': sCode,
+                                    'Sub Name': sName,
+                                    'Brand Name': bName,
+                                    'Item Code': item.code || '',
+                                    'Item Name': item.name || '',
+                                    'Description': item.description || '',
+                                    'HS Code': item.hs_code || '',
+                                    'Rack No': item.rack_no || '',
+                                    'Unit': item.unit || '',
+                                    'Qty/Piece': item.qty_per_piece || 1,
+                                    'Purchase Rate': parseFloat(item.purchase_price || 0),
+                                    'Sale Rate': parseFloat(item.selling_price || 0),
+                                    'Size': item.size || '',
+                                    'Length': item.length || item.pipe_length || '',
+                                    'Length Unit': item.length_unit || 'Feet',
+                                    'Pipe Type': item.pipe_sub_type || '',
+                                    'Class': item.class || '',
+                                    'Sign': item.unit_weight || item.carton || '',
+                                    'Unit Weight (KG)': item.unit_weight || '',
+                                    'Fitting Type': item.fitting_type || '',
+                                    'Sign (Carton)': item.carton || '',
+                                    'Material': item.material || '',
+                                    'Grade/Spec': item.grade_specification || '',
+                                    'Status': isInactiveStr
+                                });
+                            }
+                        });
+
                         const wb = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+
+                        // 1. Master Sheet
+                        const wsAll = XLSX.utils.json_to_sheet(allData.length > 0 ? allData : [{
+                            'Main Code': 'FG-2', 'Main Name': 'U-PVC PIPES', 'Category Type': 'Pipes',
+                            'Sub Code': 'FG-201', 'Sub Name': '2"X10\' U-PVC PIPE -', 'Brand Name': 'Master',
+                            'Item Code': 'PIPE-001', 'Item Name': '1/2" PVC P 1/2"',
+                            'Description': '', 'HS Code': '', 'Rack No': '',
+                            'Unit': 'Pcs', 'Qty/Piece': 1, 'Purchase Rate': 300, 'Sale Rate': 400,
+                            'Size': '1/2"', 'Length': '13', 'Length Unit': 'Feet', 'Pipe Type': 'uPVC', 'Class': 'Class B',
+                            'Sign': '', 'Unit Weight (KG)': 1.200, 'Fitting Type': '', 'Sign (Carton)': '',
+                            'Material': '', 'Grade/Spec': '', 'Status': 'Active'
+                        }]);
+                        window.styleExcelHeaderRow(wsAll);
+                        XLSX.utils.book_append_sheet(wb, wsAll, 'All Inventory');
+
+                        // 2. Pipes Sheet
+                        const wsPipes = XLSX.utils.json_to_sheet(pipesData.length > 0 ? pipesData : [{
+                            'Main Code': 'FG-2', 'Main Name': 'U-PVC PIPES', 'Category Type': 'Pipes',
+                            'Sub Code': 'FG-201', 'Sub Name': '2"X10\' U-PVC PIPE -', 'Brand Name': 'Master',
+                            'Item Code': '', 'Item Name': '',
+                            'Pipe Size': '2"', 'Pipe Length': '10', 'Length Unit': 'Feet',
+                            'Pipe Type': 'uPVC', 'Pipe Class': 'Class B', 'Sign': '', 'Unit Weight (KG)': '',
+                            'Unit': 'Pcs', 'Purchase Rate': '', 'Sale Rate': '', 'Rack No': '', 'Status': 'Active'
+                        }]);
+                        window.styleExcelHeaderRow(wsPipes);
+                        XLSX.utils.book_append_sheet(wb, wsPipes, 'Pipes');
+
+                        // 3. Fitting Sheet
+                        const wsFitting = XLSX.utils.json_to_sheet(fittingData.length > 0 ? fittingData : [{
+                            'Main Code': 'SF-1', 'Main Name': 'SEASTONE FITTING', 'Category Type': 'Fitting',
+                            'Sub Code': 'SF-101', 'Sub Name': 'U-PVC ELBOW 45°', 'Brand Name': 'Master',
+                            'Item Code': '', 'Item Name': '',
+                            'Fitting Type': 'Elbow 45°', 'Fitting Size': '', 'Fitting Class': 'Class B',
+                            'Sign (Carton)': '', 'Pcs/Carton': 1, 'Weight/Piece (KG)': '', 'Carton Wt': '',
+                            'Unit': 'Pcs', 'Purchase Rate': '', 'Sale Rate': '', 'Rack No': '', 'Status': 'Active'
+                        }]);
+                        window.styleExcelHeaderRow(wsFitting);
+                        XLSX.utils.book_append_sheet(wb, wsFitting, 'Fitting');
+
+                        // 4. Raw Material Sheet
+                        const wsRaw = XLSX.utils.json_to_sheet(rawData.length > 0 ? rawData : [{
+                            'Main Code': 'RM-1', 'Main Name': 'RAW MATERIAL', 'Category Type': 'Raw Material',
+                            'Sub Code': 'RM-101', 'Sub Name': 'RAW MATERIAL',
+                            'Item Code': '', 'Item Name': '',
+                            'Material': '', 'Grade/Spec': '',
+                            'Unit': 'KG', 'Purchase Rate': '', 'Sale Rate': '', 'Rack No': '', 'Status': 'Active'
+                        }]);
+                        window.styleExcelHeaderRow(wsRaw);
+                        XLSX.utils.book_append_sheet(wb, wsRaw, 'Raw Material');
+
+                        // 5. General & Others Sheet
+                        const wsGeneral = XLSX.utils.json_to_sheet(generalData.length > 0 ? generalData : [{
+                            'Main Code': 'FG-1', 'Main Name': 'FINISH GOODS', 'Category Type': 'None',
+                            'Sub Code': 'FG-101', 'Sub Name': 'GENERAL GOODS', 'Brand Name': '',
+                            'Item Code': '', 'Item Name': '',
+                            'Description': '', 'Unit': 'Pcs', 'Qty/Piece': 1,
+                            'Purchase Rate': '', 'Sale Rate': '', 'HS Code': '', 'Rack No': '', 'Status': 'Active'
+                        }]);
+                        window.styleExcelHeaderRow(wsGeneral);
+                        XLSX.utils.book_append_sheet(wb, wsGeneral, 'General & Others');
+
                         XLSX.writeFile(wb, 'Chart_of_Inventory.xlsx');
                     });
                 })
-                .catch(() => {
+                .catch(err => {
+                    if (document.getElementById('invExportLoader')) document.getElementById('invExportLoader').remove();
+                    console.error('Export error:', err);
                     alert('Failed to fetch items for export.');
                 });
         };
@@ -13814,18 +14156,233 @@ document.addEventListener('DOMContentLoaded', async () => {
                     try {
                         const data = new Uint8Array(e.target.result);
                         const workbook = XLSX.read(data, {type: 'array'});
-                        const firstSheet = workbook.SheetNames[0];
-                        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
                         
-                        if(jsonData.length === 0) {
-                            alert('No data found in the excel file.');
+                        let combinedRows = [];
+                        const itemMap = new Map();
+                        const catTemplateMap = new Map();
+
+                        // Flexible cell lookup helper
+                        const getVal = (row, ...keys) => {
+                            for (const k of keys) {
+                                if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+                                    return String(row[k]).trim();
+                                }
+                            }
+                            const cleanKeys = keys.map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                            for (const rk of Object.keys(row)) {
+                                const cleanRk = rk.toLowerCase().replace(/[^a-z0-9]/g, '');
+                                if (cleanKeys.includes(cleanRk)) {
+                                    const v = String(row[rk]).trim();
+                                    if (v !== '') return v;
+                                }
+                            }
+                            return '';
+                        };
+
+                        const normClean = (s) => (s || '').toString().toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+
+                        // Loop through all sheets in workbook
+                        let rowIndexGlobal = 0;
+                        workbook.SheetNames.forEach(sheetName => {
+                            const sheet = workbook.Sheets[sheetName];
+                            const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                            if (!rows || rows.length === 0) return;
+
+                            const sLower = sheetName.toLowerCase().trim();
+                            let inferredCatType = '';
+                            if (sLower.includes('pipe')) inferredCatType = 'Pipes';
+                            else if (sLower.includes('fitting')) inferredCatType = 'Fitting';
+                            else if (sLower.includes('raw')) inferredCatType = 'Raw Material';
+
+                            rows.forEach((r, rIdx) => {
+                                rowIndexGlobal++;
+                                const mCode = getVal(r, 'Main Code', 'Main Category Code', 'MainCode', 'main_code');
+                                const mName = getVal(r, 'Main Name', 'Main Category Name', 'MainName', 'main_name');
+                                const sCode = getVal(r, 'Sub Code', 'Sub Category Code', 'SubCode', 'sub_code');
+                                const sName = getVal(r, 'Sub Name', 'Sub Category Name', 'SubName', 'sub_name');
+                                const iCode = getVal(r, 'Item Code', 'Code', 'ItemCode', 'item_code');
+                                const iName = getVal(r, 'Item Name', 'Name', 'ItemName', 'item_name');
+                                const rate = getVal(r, 'Purchase Rate', 'Purchase Price', 'Cost Price', 'Sale Rate', 'Sale Price', 'Selling Price');
+                                const size = getVal(r, 'Pipe Size', 'Fitting Size', 'Size', 'size');
+                                const pLen = getVal(r, 'Pipe Length', 'Length', 'length');
+                                const pCls = getVal(r, 'Pipe Class', 'Fitting Class', 'Class', 'class');
+                                const sign = getVal(r, 'Sign', 'Sign (Carton)', 'Carton Sign', 'Unit Weight (KG)', 'Weight/Piece (KG)');
+                                const fType = getVal(r, 'Fitting Type', 'fitting_type');
+                                const mat = getVal(r, 'Material', 'Raw Material', 'material');
+                                const spec = getVal(r, 'Grade/Spec', 'Grade Specification', 'grade_specification');
+
+                                // Skip pure empty rows
+                                if (!mCode && !mName && !sCode && !sName && !iCode && !iName && !size && !rate) return;
+
+                                // Inject inferred category type if not present
+                                if (inferredCatType && !r['Category Type'] && !r['Main Category Type']) {
+                                    r['Category Type'] = inferredCatType;
+                                }
+
+                                const hasItemDetails = iCode || iName || rate || size || pLen || pCls || sign || fType || mat || spec;
+
+                                if (hasItemDetails) {
+                                    // Cross-sheet deduplication (ONLY merge if the exact same item was exported across different sheets, e.g. All Inventory vs Pipes)
+                                    let matchedKey = null;
+
+                                    // Match by exact Item Code across DIFFERENT sheets
+                                    if (iCode && normClean(iCode)) {
+                                        const searchCode = normClean(iCode);
+                                        for (const [k, existing] of itemMap.entries()) {
+                                            if (existing._sheet !== sheetName) {
+                                                const existCode = normClean(getVal(existing, 'Item Code', 'Code', 'ItemCode', 'item_code'));
+                                                if (existCode && existCode === searchCode) {
+                                                    matchedKey = k;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Match by exact Subcategory + Item Name across DIFFERENT sheets
+                                    if (!matchedKey && iName && normClean(iName)) {
+                                        const searchSub = normClean(sCode || sName);
+                                        const searchName = normClean(iName);
+                                        for (const [k, existing] of itemMap.entries()) {
+                                            if (existing._sheet !== sheetName) {
+                                                const existSub = normClean(getVal(existing, 'Sub Code', 'Sub Category Code', 'SubCode', 'sub_code', 'Sub Name', 'Sub Category Name', 'SubName', 'sub_name'));
+                                                const existName = normClean(getVal(existing, 'Item Name', 'Name', 'ItemName', 'item_name'));
+                                                if (existName === searchName && (!searchSub || !existSub || existSub === searchSub)) {
+                                                    matchedKey = k;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (matchedKey && itemMap.has(matchedKey)) {
+                                        // Merge into existing item: prefer non-empty fields and category-specific sheet details
+                                        const existing = itemMap.get(matchedKey);
+                                        Object.keys(r).forEach(k => {
+                                            if (k === '_sheet') return;
+                                            const val = r[k];
+                                            if (val !== undefined && val !== null && String(val).trim() !== '') {
+                                                if (existing[k] === undefined || existing[k] === null || String(existing[k]).trim() === '') {
+                                                    existing[k] = val;
+                                                } else if (sLower !== 'all inventory') {
+                                                    existing[k] = val;
+                                                }
+                                            }
+                                        });
+                                    } else {
+                                        // Keep each row in the sheet distinct so no user rows are squashed or lost
+                                        r._sheet = sheetName;
+                                        const itemKey = `${sheetName}_${rIdx}_${rowIndexGlobal}`;
+                                        itemMap.set(itemKey, r);
+                                    }
+                                } else if (mCode || mName || sCode || sName) {
+                                    // Category skeleton template row without item details
+                                    const catKey = (normClean(mCode || mName) + '_' + normClean(sCode || sName));
+                                    if (!catTemplateMap.has(catKey)) {
+                                        catTemplateMap.set(catKey, r);
+                                    }
+                                }
+                            });
+                        });
+
+                        // Deduplicate categories: if a subcategory has items in itemMap, drop its dummy skeleton row
+                        const populatedSubKeys = new Set();
+                        itemMap.forEach(itemRow => {
+                            const m = getVal(itemRow, 'Main Code', 'Main Category Code', 'MainCode', 'main_code', 'Main Name', 'Main Category Name', 'MainName', 'main_name');
+                            const s = getVal(itemRow, 'Sub Code', 'Sub Category Code', 'SubCode', 'sub_code', 'Sub Name', 'Sub Category Name', 'SubName', 'sub_name');
+                            if (s) {
+                                populatedSubKeys.add(normClean(s));
+                                if (m) populatedSubKeys.add(normClean(m) + '_' + normClean(s));
+                            }
+                        });
+
+                        // Add category templates ONLY for subcategories that have NO items at all
+                        catTemplateMap.forEach((catRow, catKey) => {
+                            const s = getVal(catRow, 'Sub Code', 'Sub Category Code', 'SubCode', 'sub_code', 'Sub Name', 'Sub Category Name', 'SubName', 'sub_name');
+                            const cleanSub = normClean(s);
+                            if (!populatedSubKeys.has(catKey) && !populatedSubKeys.has(cleanSub)) {
+                                combinedRows.push(catRow);
+                            }
+                        });
+
+                        // Add all unique deduplicated items
+                        itemMap.forEach(itemRow => combinedRows.push(itemRow));
+
+                        if(combinedRows.length === 0) {
+                            alert('No data rows found in the Excel file.');
+                            event.target.value = '';
+                            return;
+                        }
+
+                        // Helper function to prompt user for Import Mode (Replace vs Merge)
+                        const promptImportMode = (fileName, rowCount) => {
+                            return new Promise((resolve) => {
+                                const modalId = 'invImportConfirmModal';
+                                const existing = document.getElementById(modalId);
+                                if (existing) existing.remove();
+
+                                const modalDiv = document.createElement('div');
+                                modalDiv.id = modalId;
+                                modalDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.65);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:9999999;font-family:\'Segoe UI\',sans-serif;';
+
+                                modalDiv.innerHTML = `
+                                    <div style="background:#ffffff;border-radius:12px;width:480px;max-width:92%;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.3);border:1px solid #cbd5e1;text-align:left;">
+                                        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+                                            <div style="width:44px;height:44px;border-radius:10px;background:#eff6ff;color:#1F4E79;display:flex;align-items:center;justify-content:center;font-size:22px;">
+                                                <i class="fas fa-file-excel"></i>
+                                            </div>
+                                            <div>
+                                                <h3 style="margin:0;font-size:18px;font-weight:700;color:#0f172a;">Inventory Import Options</h3>
+                                                <p style="margin:2px 0 0;font-size:13px;color:#64748b;">Aap is file ko kis tarah import karna chahte hain?</p>
+                                            </div>
+                                        </div>
+
+                                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#334155;display:flex;justify-content:space-between;align-items:center;">
+                                            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;"><strong>File:</strong> ${fileName}</span>
+                                            <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:12px;font-weight:600;font-size:12px;white-space:nowrap;">${rowCount} Rows</span>
+                                        </div>
+
+                                        <div style="display:flex;flex-direction:column;gap:10px;">
+                                            <button type="button" id="btnOptReplace" style="width:100%;padding:13px 16px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:0.2s;text-align:left;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                                <div>
+                                                    <div style="font-size:14px;font-weight:700;"><i class="fas fa-sync-alt" style="margin-right:6px;"></i> 1. Replace All (Purani Inventory Hatayein)</div>
+                                                    <div style="font-size:11px;opacity:0.9;margin-top:2px;font-weight:normal;">Purani inventory ko replace karega (Sirf is Excel file ka data show hoga).</div>
+                                                </div>
+                                                <i class="fas fa-chevron-right" style="opacity:0.8;"></i>
+                                            </button>
+
+                                            <button type="button" id="btnOptMerge" style="width:100%;padding:13px 16px;background:#1F4E79;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:0.2s;text-align:left;" onmouseover="this.style.background='#163857'" onmouseout="this.style.background='#1F4E79'">
+                                                <div>
+                                                    <div style="font-size:14px;font-weight:700;"><i class="fas fa-plus-circle" style="margin-right:6px;"></i> 2. Merge / Update Only (Purana bhi rakhein)</div>
+                                                    <div style="font-size:11px;opacity:0.9;margin-top:2px;font-weight:normal;">Purani inventory barkarar rahegi, matching items update honge aur naye add honge.</div>
+                                                </div>
+                                                <i class="fas fa-chevron-right" style="opacity:0.8;"></i>
+                                            </button>
+
+                                            <button type="button" id="btnOptCancel" style="width:100%;padding:9px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-top:4px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                                                Cancel (Khatam Karein)
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                                document.body.appendChild(modalDiv);
+
+                                document.getElementById('btnOptReplace').onclick = () => { modalDiv.remove(); resolve('replace'); };
+                                document.getElementById('btnOptMerge').onclick = () => { modalDiv.remove(); resolve('merge'); };
+                                document.getElementById('btnOptCancel').onclick = () => { modalDiv.remove(); resolve(null); };
+                            });
+                        };
+
+                        const selectedMode = await promptImportMode(file.name, combinedRows.length);
+                        if (!selectedMode) {
                             event.target.value = '';
                             return;
                         }
                         
                         const loadingDiv = document.createElement('div');
-                        loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px 40px;z-index:999999;border-radius:8px;font-size:18px;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,0.5);';
-                        loadingDiv.innerHTML = '<i class=\"fas fa-spinner fa-spin\" style=\"margin-right:10px;\"></i> Importing data, please wait...';
+                        loadingDiv.id = 'invImportLoader';
+                        loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1e293b;color:#f8fafc;padding:24px 36px;z-index:999999;border-radius:12px;font-size:16px;font-weight:600;box-shadow:0 15px 30px rgba(0,0,0,0.4);border:1px solid #334155;text-align:center;display:flex;align-items:center;gap:15px;';
+                        loadingDiv.innerHTML = '<i class=\"fas fa-spinner fa-spin\" style=\"font-size:24px;color:#38bdf8;\"></i><span>' + (selectedMode === 'replace' ? 'Replacing inventory with new file, please wait...' : 'Importing and syncing inventory data, please wait...') + '</span>';
                         document.body.appendChild(loadingDiv);
                         
                         const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
@@ -13834,9 +14391,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const formData = new FormData();
                         formData.append('action', 'import_inventory_excel');
                         formData.append('company_id', company_id);
-                        formData.append('data', JSON.stringify(jsonData));
+                        formData.append('replace_mode', selectedMode === 'replace' ? '1' : '0');
+                        formData.append('data', JSON.stringify(combinedRows));
                         
-                        const res = await fetch('api/inventory.php', {
+                        const res = await fetch(`api/inventory.php?action=import_inventory_excel&company_id=${company_id}`, {
                             method: 'POST',
                             body: formData
                         });
@@ -13847,26 +14405,61 @@ document.addEventListener('DOMContentLoaded', async () => {
                             resData = JSON.parse(textData);
                         } catch(err) {
                             console.error('Raw response:', textData);
-                            throw new Error('Invalid server response');
+                            throw new Error('Invalid server response: ' + textData.slice(0, 100));
                         }
                         
-                        loadingDiv.remove();
+                        const curLoader = document.getElementById('invImportLoader');
+                        if (curLoader) curLoader.remove();
                         event.target.value = ''; // Reset input
                         
                         if (resData.status === 'success') {
-                            alert('Import successful! Imported/Updated records.');
+                            const sum = resData.summary || {};
+                            let msg = `✅ Inventory Import Successful!\n` +
+                                      `----------------------------------------\n`;
+                            if (sum.replace_mode) {
+                                msg += `• Mode                 : REPLACED ALL (Old Inventory Removed)\n` +
+                                       `• Total Rows Processed : ${sum.total_rows || combinedRows.length}\n` +
+                                       `• New Items Created    : ${sum.items_created || 0}\n` +
+                                       `• Items Updated        : ${sum.items_updated || 0}\n` +
+                                       (sum.items_deleted ? `• Old Items Deleted    : ${sum.items_deleted}\n` : '') +
+                                       (sum.items_archived ? `• Old Items Archived   : ${sum.items_archived}\n` : '') +
+                                       `• Main Categories Added: ${sum.mains_created || 0}\n` +
+                                       `• Sub Categories Added : ${sum.subs_created || 0}\n` +
+                                       `• Brands Added         : ${sum.brands_created || 0}\n`;
+                            } else {
+                                msg += `• Mode                 : Merge / Update Only\n` +
+                                       `• Total Rows Processed : ${sum.total_rows || combinedRows.length}\n` +
+                                       `• New Items Created    : ${sum.items_created || 0}\n` +
+                                       `• Items Updated        : ${sum.items_updated || 0}\n` +
+                                       `• Main Categories Added: ${sum.mains_created || 0}\n` +
+                                       `• Sub Categories Added : ${sum.subs_created || 0}\n` +
+                                       `• Brands Added         : ${sum.brands_created || 0}\n`;
+                            }
+                            if (resData.row_errors && resData.row_errors.length > 0) {
+                                msg += `\n⚠️ Errors on ${resData.row_errors.length} item(s):\n` +
+                                       resData.row_errors.slice(0, 5).join('\n') + '\n';
+                            }
+                            msg += `----------------------------------------\nChart of Inventory has been reloaded.`;
+                            alert(msg);
+
+                            // Refresh brands dropdown and tree view
+                            if (typeof window.loadInvBrands === 'function') {
+                                window.loadInvBrands();
+                            }
+                            // Reset active selection so freshly imported inventory opens cleanly from the top
+                            selectedInvMainId = null;
+                            selectedInvSubId = null;
+                            selectedInvItemId = null;
                             if (typeof window.initChartOfInventoryView === 'function') {
-                                window.initChartOfInventoryView(); // Reload all data
+                                window.initChartOfInventoryView();
                             }
                         } else {
-                            alert('Error: ' + (resData.error || resData.message || 'Unknown error'));
+                            alert('Import Error: ' + (resData.error || resData.message || 'Unknown error'));
                         }
                     } catch (error) {
                         event.target.value = '';
-                        const loaders = document.querySelectorAll('div');
-                        loaders.forEach(el => {
-                            if(el.innerHTML.includes('Importing data')) el.remove();
-                        });
+                        const curLoader = document.getElementById('invImportLoader');
+                        if (curLoader) curLoader.remove();
                         alert('An error occurred during import: ' + error.message);
                     }
                 };
@@ -13888,6 +14481,30 @@ document.addEventListener('click', function(event) {
     const coaContainer = document.getElementById('coaExcelDropdownContainer');
     if (coaDd && coaContainer && coaDd.style.display === 'block' && !coaContainer.contains(event.target)) {
         coaDd.style.display = 'none';
+    }
+
+    const custDd = document.getElementById('custExcelDropdown');
+    const custContainer = document.getElementById('custExcelDropdownContainer');
+    if (custDd && custContainer && custDd.style.display === 'block' && !custContainer.contains(event.target)) {
+        custDd.style.display = 'none';
+    }
+
+    const custDd2 = document.getElementById('custExcelDropdown2');
+    const custContainer2 = document.getElementById('custExcelDropdownContainer2');
+    if (custDd2 && custContainer2 && custDd2.style.display === 'block' && !custContainer2.contains(event.target)) {
+        custDd2.style.display = 'none';
+    }
+
+    const vendDd = document.getElementById('vendExcelDropdown');
+    const vendContainer = document.getElementById('vendExcelDropdownContainer');
+    if (vendDd && vendContainer && vendDd.style.display === 'block' && !vendContainer.contains(event.target)) {
+        vendDd.style.display = 'none';
+    }
+
+    const vendDd2 = document.getElementById('vendExcelDropdown2');
+    const vendContainer2 = document.getElementById('vendExcelDropdownContainer2');
+    if (vendDd2 && vendContainer2 && vendDd2.style.display === 'block' && !vendContainer2.contains(event.target)) {
+        vendDd2.style.display = 'none';
     }
 });
 
@@ -13935,6 +14552,7 @@ window.exportCoaExcel = function() {
                 });
 
                 const ws = XLSX.utils.json_to_sheet(data);
+                window.styleExcelHeaderRow(ws);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, 'Accounts');
                 XLSX.writeFile(wb, 'Chart_of_Accounts.xlsx');
@@ -14012,6 +14630,838 @@ window.importCoaExcel = function(event) {
                     if(el.innerHTML.includes('Importing data')) el.remove();
                 });
                 alert('An error occurred during import: ' + error.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+};
+
+window.exportCustomerExcel = function() {
+    const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+    const coId = session.company_id || (window.companyData ? window.companyData.id : 1);
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.85);color:white;padding:20px 40px;z-index:999999;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,0.5);display:flex;align-items:center;gap:12px;';
+    loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin fa-lg"></i> Exporting Customers to Excel, please wait...';
+    document.body.appendChild(loadingDiv);
+
+    fetch(`api/maintain.php?action=get_all_customers_export&company_id=${coId}`)
+        .then(res => res.json())
+        .then(result => {
+            loadingDiv.remove();
+            if (!result || result.status !== 'success') {
+                alert('Failed to fetch customers data for export.');
+                return;
+            }
+
+            loadSheetJS(() => {
+                const types = result.types || [];
+                const customers = result.customers || [];
+
+                const allData = [];
+                const typeDataMap = {};
+
+                types.forEach(t => {
+                    const cleanSheetName = (t.name || 'Type').replace(/[\\/?*\[\]:]/g, '_').substring(0, 31);
+                    typeDataMap[t.id] = { name: cleanSheetName, rows: [] };
+                });
+
+                customers.forEach(c => {
+                    const row = {
+                        'Customer Type Code': c.sub_code || '',
+                        'Customer Type': c.sub_name || '',
+                        'Account Code': c.code || '',
+                        'Account Name': c.name || '',
+                        'Contact Person': c.contact_person || '',
+                        'Address': c.address || '',
+                        'Main Region': c.region_name || '',
+                        'Sub Region': c.sub_region_name || '',
+                        'List Region': c.list_region_name || '',
+                        'Telephone': c.telephone || '',
+                        'Fax': c.fax || '',
+                        'Website': c.website || '',
+                        'E-Mail': c.email || '',
+                        'S. T. Reg. No.': c.st_reg_no || '',
+                        'N.T.N.': c.ntn_cnic || '',
+                        'C.N.I.C.': c.cnic || '',
+                        'Buyer Type': c.buyer_type_name || '',
+                        'Tax Type': c.tax_type_name || '',
+                        'W.H Income Tax (%)': parseFloat(c.wh_tax_rate || 0),
+                        'Sale Tax (%)': parseFloat(c.sales_tax_rate || 0),
+                        'Further Tax (%)': parseFloat(c.further_tax_rate || 0),
+                        'Acc. Manager': c.acc_manager_name || '',
+                        'Credit Terms': c.credit_terms || 'CASH',
+                        'Credit Limit': parseFloat(c.credit_limit || 0),
+                        'Remarks': c.remarks || ''
+                    };
+                    allData.push(row);
+
+                    if (typeDataMap[c.sub_id]) {
+                        typeDataMap[c.sub_id].rows.push(row);
+                    }
+                });
+
+                // If any customer type has no customers yet, add a clean template row
+                types.forEach(t => {
+                    if (typeDataMap[t.id] && typeDataMap[t.id].rows.length === 0) {
+                        const templateRow = {
+                            'Customer Type Code': t.code || '',
+                            'Customer Type': t.name || '',
+                            'Account Code': '',
+                            'Account Name': '',
+                            'Contact Person': '',
+                            'Address': '',
+                            'Main Region': '',
+                            'Sub Region': '',
+                            'List Region': '',
+                            'Telephone': '',
+                            'Fax': '',
+                            'Website': '',
+                            'E-Mail': '',
+                            'S. T. Reg. No.': '',
+                            'N.T.N.': '',
+                            'C.N.I.C.': '',
+                            'Buyer Type': '',
+                            'Tax Type': '',
+                            'W.H Income Tax (%)': 0,
+                            'Sale Tax (%)': 0,
+                            'Further Tax (%)': 0,
+                            'Acc. Manager': '',
+                            'Credit Terms': 'CASH',
+                            'Credit Limit': 0,
+                            'Remarks': ''
+                        };
+                        allData.push(templateRow);
+                        typeDataMap[t.id].rows.push(templateRow);
+                    }
+                });
+
+                // Helper to style header row and set auto column widths
+                function styleExcelHeaderRow(ws) {
+                    if (!ws || !ws['!ref']) return;
+                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    const autoCols = [];
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cellRef = XLSX.utils.encode_cell({ r: 0, c: C });
+                        if (ws[cellRef]) {
+                            ws[cellRef].s = {
+                                fill: {
+                                    patternType: "solid",
+                                    fgColor: { rgb: "1F4E79" } // SoftifyX Deep Navy Blue
+                                },
+                                font: {
+                                    name: "Calibri",
+                                    sz: 11,
+                                    bold: true,
+                                    color: { rgb: "FFFFFF" } // Distinct white text
+                                },
+                                alignment: {
+                                    vertical: "center",
+                                    horizontal: "center",
+                                    wrapText: false
+                                },
+                                border: {
+                                    top: { style: "thin", color: { rgb: "94A3B8" } },
+                                    bottom: { style: "medium", color: { rgb: "0F172A" } },
+                                    left: { style: "thin", color: { rgb: "334E68" } },
+                                    right: { style: "thin", color: { rgb: "334E68" } }
+                                }
+                            };
+                        }
+                        let maxLen = 14;
+                        for (let R = range.s.r; R <= range.e.r; ++R) {
+                            const cRef = XLSX.utils.encode_cell({ r: R, c: C });
+                            if (ws[cRef] && ws[cRef].v !== undefined && ws[cRef].v !== null) {
+                                const len = String(ws[cRef].v).length;
+                                if (len > maxLen) maxLen = len;
+                            }
+                        }
+                        autoCols.push({ wch: Math.min(maxLen + 3, 40) });
+                    }
+                    ws['!rows'] = ws['!rows'] || [];
+                    ws['!rows'][0] = { hpt: 26, hpx: 26 };
+                    ws['!cols'] = autoCols;
+                }
+
+                const wb = XLSX.utils.book_new();
+
+                // 1. All Customers Master Sheet
+                const wsAll = XLSX.utils.json_to_sheet(allData.length > 0 ? allData : [{
+                    'Customer Type Code': '12001',
+                    'Customer Type': 'CASH CUSTOMERS',
+                    'Account Code': '12001001',
+                    'Account Name': 'Walk-in (Cash) Customer',
+                    'Contact Person': '',
+                    'Address': '',
+                    'Main Region': '',
+                    'Sub Region': '',
+                    'List Region': '',
+                    'Telephone': '',
+                    'Fax': '',
+                    'Website': '',
+                    'E-Mail': '',
+                    'S. T. Reg. No.': '',
+                    'N.T.N.': '',
+                    'C.N.I.C.': '',
+                    'Buyer Type': 'Registered',
+                    'Tax Type': '',
+                    'W.H Income Tax (%)': 0,
+                    'Sale Tax (%)': 18.00,
+                    'Further Tax (%)': 0,
+                    'Acc. Manager': '',
+                    'Credit Terms': 'CASH',
+                    'Credit Limit': 0,
+                    'Remarks': ''
+                }]);
+                styleExcelHeaderRow(wsAll);
+                XLSX.utils.book_append_sheet(wb, wsAll, 'All Customers');
+
+                // 2. Individual Type Sheets
+                const usedSheetNames = new Set(['all customers']);
+                Object.values(typeDataMap).forEach(td => {
+                    let sName = td.name;
+                    let counter = 1;
+                    while (usedSheetNames.has(sName.toLowerCase())) {
+                        sName = td.name.substring(0, 27) + ` (${counter++})`;
+                    }
+                    usedSheetNames.add(sName.toLowerCase());
+
+                    if (td.rows.length > 0) {
+                        const ws = XLSX.utils.json_to_sheet(td.rows);
+                        styleExcelHeaderRow(ws);
+                        XLSX.utils.book_append_sheet(wb, ws, sName);
+                    }
+                });
+
+                XLSX.writeFile(wb, 'Customers_List.xlsx');
+            });
+        })
+        .catch(err => {
+            if (loadingDiv) loadingDiv.remove();
+            console.error('Customer export error:', err);
+            alert('Failed to export customers: ' + err.message);
+        });
+};
+
+window.importCustomerExcel = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    loadSheetJS(() => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                const normClean = (str) => {
+                    if (str === null || str === undefined) return '';
+                    return String(str).toLowerCase().replace(/[^a-z0-9]/g, '');
+                };
+
+                const getVal = (row, ...keys) => {
+                    for (const k of keys) {
+                        if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+                            return String(row[k]).trim();
+                        }
+                    }
+                    const cleanKeys = keys.map(k => normClean(k));
+                    for (const rk of Object.keys(row)) {
+                        const cleanRk = normClean(rk);
+                        if (cleanKeys.includes(cleanRk) && row[rk] !== undefined && row[rk] !== null && String(row[rk]).trim() !== '') {
+                            return String(row[rk]).trim();
+                        }
+                    }
+                    return '';
+                };
+
+                let combinedRows = [];
+                const sheetNames = workbook.SheetNames || [];
+                const hasAllSheet = sheetNames.some(s => normClean(s) === 'allcustomers' || normClean(s) === 'allcustomer' || normClean(s) === 'customers');
+
+                if (hasAllSheet) {
+                    const targetSheetName = sheetNames.find(s => normClean(s) === 'allcustomers' || normClean(s) === 'allcustomer' || normClean(s) === 'customers');
+                    combinedRows = XLSX.utils.sheet_to_json(workbook.Sheets[targetSheetName], { defval: '' });
+                } else {
+                    const custMap = new Map();
+                    sheetNames.forEach(sheetName => {
+                        const sRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
+                        sRows.forEach(r => {
+                            const cCode = getVal(r, 'Account Code', 'Customer Code', 'Code', 'Cust Code');
+                            const cName = getVal(r, 'Account Name', 'Customer Name', 'Name', 'Party Name');
+                            if (!cCode && !cName) return;
+
+                            const key = (cCode ? 'code_' + normClean(cCode) : '') || ('name_' + normClean(cName));
+                            if (!custMap.has(key)) {
+                                custMap.set(key, r);
+                            }
+                        });
+                    });
+                    combinedRows = Array.from(custMap.values());
+                }
+
+                combinedRows = combinedRows.filter(r => {
+                    const cCode = getVal(r, 'Account Code', 'Customer Code', 'Code', 'Cust Code');
+                    const cName = getVal(r, 'Account Name', 'Customer Name', 'Name', 'Party Name');
+                    const tName = getVal(r, 'Customer Type', 'Customer Type Name', 'Sub Name', 'Type Name');
+                    return (cCode || cName || tName);
+                });
+
+                if (combinedRows.length === 0) {
+                    alert('Excel file mein koi customer data nahi mila.');
+                    event.target.value = '';
+                    return;
+                }
+
+                const promptCustImportMode = (fileName, rowCount) => {
+                    return new Promise((resolve) => {
+                        const modalId = 'custImportConfirmModal';
+                        const existing = document.getElementById(modalId);
+                        if (existing) existing.remove();
+
+                        const modalDiv = document.createElement('div');
+                        modalDiv.id = modalId;
+                        modalDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.65);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:9999999;font-family:\'Segoe UI\',sans-serif;';
+
+                        modalDiv.innerHTML = `
+                            <div style="background:white;border-radius:12px;padding:24px 28px;max-width:520px;width:92%;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #e2e8f0;">
+                                <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                                    <div style="width:40px;height:40px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:20px;">
+                                        <i class="fas fa-file-excel"></i>
+                                    </div>
+                                    <div>
+                                        <h3 style="margin:0;font-size:17px;font-weight:700;color:#0f172a;">Customers Import Options</h3>
+                                        <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">File: <b>${fileName}</b> (${rowCount} record(s) found)</p>
+                                    </div>
+                                </div>
+                                <p style="font-size:13px;color:#334155;line-height:1.5;margin-bottom:18px;">
+                                    Aap naye aur purane customers ko kis tarah import karna chahte hain? Neeche diye gaye options mein se muntakhib karein:
+                                </p>
+                                <div style="display:flex;flex-direction:column;gap:10px;">
+                                    <button type="button" id="btnCustOptReplace" style="width:100%;padding:13px 16px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:0.2s;text-align:left;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                        <div>
+                                            <div style="font-size:14px;font-weight:700;"><i class="fas fa-sync-alt" style="margin-right:6px;"></i> 1. Replace All (Excel k Mutabiq Sync Karein)</div>
+                                            <div style="font-size:11px;opacity:0.95;margin-top:2px;font-weight:normal;">Excel file k customers add/update honge. (Jin customers k invoices/transactions ban chuke hain wo mehfooz rahenge).</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right" style="opacity:0.8;"></i>
+                                    </button>
+
+                                    <button type="button" id="btnCustOptMerge" style="width:100%;padding:13px 16px;background:#1F4E79;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:0.2s;text-align:left;" onmouseover="this.style.background='#163857'" onmouseout="this.style.background='#1F4E79'">
+                                        <div>
+                                            <div style="font-size:14px;font-weight:700;"><i class="fas fa-plus-circle" style="margin-right:6px;"></i> 2. Merge / Update Only (Purana bhi rakhein)</div>
+                                            <div style="font-size:11px;opacity:0.95;margin-top:2px;font-weight:normal;">Purane sab customers barkarar rahenge, matching update honge aur naye add honge.</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right" style="opacity:0.8;"></i>
+                                    </button>
+
+                                    <button type="button" id="btnCustOptCancel" style="width:100%;padding:9px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-top:4px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                                        Cancel (Khatam Karein)
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(modalDiv);
+
+                        document.getElementById('btnCustOptReplace').onclick = () => { modalDiv.remove(); resolve('replace'); };
+                        document.getElementById('btnCustOptMerge').onclick = () => { modalDiv.remove(); resolve('merge'); };
+                        document.getElementById('btnCustOptCancel').onclick = () => { modalDiv.remove(); resolve(null); };
+                    });
+                };
+
+                const selectedMode = await promptCustImportMode(file.name, combinedRows.length);
+                if (!selectedMode) {
+                    event.target.value = '';
+                    return;
+                }
+
+                const loadingDiv = document.createElement('div');
+                loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.85);color:white;padding:22px 42px;z-index:999999;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,0.5);display:flex;align-items:center;gap:12px;';
+                loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin fa-lg"></i> Importing customers, please wait...';
+                document.body.appendChild(loadingDiv);
+
+                const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                const coId = session.company_id || (window.companyData ? window.companyData.id : 1);
+
+                const formData = new FormData();
+                formData.append('action', 'import_customers_excel');
+                formData.append('company_id', coId);
+                formData.append('mode', selectedMode);
+                formData.append('data', JSON.stringify(combinedRows));
+
+                const res = await fetch(`api/maintain.php?action=import_customers_excel&company_id=${coId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const textData = await res.text();
+                loadingDiv.remove();
+                event.target.value = '';
+
+                let resData;
+                try {
+                    resData = JSON.parse(textData);
+                } catch(err) {
+                    console.error('Customer Import raw response:', textData);
+                    alert('Server error: ' + (textData.substring(0, 300) || 'Empty response from server.'));
+                    return;
+                }
+
+                if (resData.status === 'success') {
+                    const sum = resData.summary || {};
+                    let msg = `🎉 Customer Import Kamyab Raha!\n\n`;
+                    if (selectedMode === 'replace') {
+                        msg += `• Mode                          : Replace All (Sync)\n` +
+                               `• Total Rows Processed          : ${sum.total_rows || combinedRows.length}\n` +
+                               `• Customers Created             : ${sum.customers_created || 0}\n` +
+                               `• Customers Updated             : ${sum.customers_updated || 0}\n` +
+                               `• Invoice Customers Preserved   : ${sum.preserved_invoice_customers || 0}\n` +
+                               `• Unused Customers Deleted      : ${sum.customers_deleted || 0}\n` +
+                               `• Customer Types Created        : ${sum.types_created || 0}\n`;
+                    } else {
+                        msg += `• Mode                          : Merge / Update Only\n` +
+                               `• Total Rows Processed          : ${sum.total_rows || combinedRows.length}\n` +
+                               `• Customers Created             : ${sum.customers_created || 0}\n` +
+                               `• Customers Updated             : ${sum.customers_updated || 0}\n` +
+                               `• Customer Types Created        : ${sum.types_created || 0}\n`;
+                    }
+                    alert(msg);
+
+                    try {
+                        const [subRes, listRes] = await Promise.all([
+                            fetch(`api/maintain.php?action=get_coa_sub&main_id=ALL&company_id=${coId}`),
+                            fetch(`api/maintain.php?action=get_coa_list&sub_id=ALL&company_id=${coId}`)
+                        ]);
+                        if (subRes.ok) coaSub = await subRes.json();
+                        if (listRes.ok) coaList = await listRes.json();
+                    } catch(reErr) {
+                        console.warn('Re-fetching coa data error:', reErr);
+                    }
+
+                    if (typeof initCustomersView === 'function') {
+                        initCustomersView();
+                    }
+                    if (typeof refreshActiveModulesDependencies === 'function') {
+                        refreshActiveModulesDependencies();
+                    }
+                } else {
+                    alert('Import Error: ' + (resData.message || resData.error || 'Unknown error occurred.'));
+                }
+            } catch (err) {
+                event.target.value = '';
+                const loaders = document.querySelectorAll('div');
+                loaders.forEach(el => {
+                    if (el.innerHTML && el.innerHTML.includes('Importing customers')) el.remove();
+                });
+                console.error('Customer Import failed:', err);
+                alert('Import process failed: ' + err.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+};
+
+// --- VENDORS EXCEL IMPORT/EXPORT ---
+window.exportVendorExcel = function() {
+    const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+    const coId = session.company_id || (window.companyData ? window.companyData.id : 1);
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'vendExportLoader';
+    loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.85);color:white;padding:20px 40px;z-index:999999;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,0.5);display:flex;align-items:center;gap:12px;';
+    loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin fa-lg"></i> Exporting Vendors to Excel, please wait...';
+    document.body.appendChild(loadingDiv);
+
+    fetch(`api/maintain.php?action=get_all_vendors_export&company_id=${coId}`)
+        .then(res => res.json())
+        .then(result => {
+            if (document.getElementById('vendExportLoader')) document.getElementById('vendExportLoader').remove();
+            if (!result || result.status !== 'success') {
+                alert('Failed to fetch vendors data for export.');
+                return;
+            }
+
+            loadSheetJS(() => {
+                const types = result.types || [];
+                const vendors = result.vendors || [];
+
+                const allData = [];
+                const typeDataMap = {};
+
+                types.forEach(t => {
+                    const cleanSheetName = (t.name || 'Type').replace(/[\\/?*\[\]:]/g, '_').substring(0, 31);
+                    typeDataMap[t.id] = { name: cleanSheetName, rows: [] };
+                });
+
+                vendors.forEach(v => {
+                    const row = {
+                        'Vendor Type Code': v.sub_code || '',
+                        'Vendor Type': v.sub_name || '',
+                        'Account Code': v.code || '',
+                        'Account Name': v.name || '',
+                        'Contact Person': v.contact_person || '',
+                        'Address': v.address || '',
+                        'Telephone': v.telephone || '',
+                        'Mobile': v.mobile || '',
+                        'Fax': v.fax || '',
+                        'E-Mail': v.email || '',
+                        'Website': v.website || '',
+                        'S. T. Reg. No.': v.st_reg_no || '',
+                        'N.T.N / C.N.I.C.': v.ntn_cnic || '',
+                        'Credit Terms': v.credit_terms || 'CASH',
+                        'Remarks': v.remarks || ''
+                    };
+                    allData.push(row);
+
+                    if (typeDataMap[v.sub_id]) {
+                        typeDataMap[v.sub_id].rows.push(row);
+                    }
+                });
+
+                // If any vendor type has no vendors yet, add a clean template row
+                types.forEach(t => {
+                    if (typeDataMap[t.id] && typeDataMap[t.id].rows.length === 0) {
+                        const templateRow = {
+                            'Vendor Type Code': t.code || '',
+                            'Vendor Type': t.name || '',
+                            'Account Code': '',
+                            'Account Name': '',
+                            'Contact Person': '',
+                            'Address': '',
+                            'Telephone': '',
+                            'Mobile': '',
+                            'Fax': '',
+                            'E-Mail': '',
+                            'Website': '',
+                            'S. T. Reg. No.': '',
+                            'N.T.N / C.N.I.C.': '',
+                            'Credit Terms': 'CASH',
+                            'Remarks': ''
+                        };
+                        allData.push(templateRow);
+                        typeDataMap[t.id].rows.push(templateRow);
+                    }
+                });
+
+                const wb = XLSX.utils.book_new();
+
+                // 1. All Vendors Master Sheet
+                const wsAll = XLSX.utils.json_to_sheet(allData.length > 0 ? allData : [{
+                    'Vendor Type Code': '21001',
+                    'Vendor Type': 'Cash Purchase Vendors',
+                    'Account Code': '21001001',
+                    'Account Name': 'Retail (Cash) Purchase',
+                    'Contact Person': '',
+                    'Address': '',
+                    'Telephone': '',
+                    'Mobile': '',
+                    'Fax': '',
+                    'E-Mail': '',
+                    'Website': '',
+                    'S. T. Reg. No.': '',
+                    'N.T.N / C.N.I.C.': '',
+                    'Credit Terms': 'CASH',
+                    'Remarks': ''
+                }]);
+                window.styleExcelHeaderRow(wsAll);
+                XLSX.utils.book_append_sheet(wb, wsAll, 'All Vendors');
+
+                // 2. Individual Type Sheets
+                const usedSheetNames = new Set(['all vendors']);
+                Object.values(typeDataMap).forEach(td => {
+                    let sName = td.name;
+                    let counter = 1;
+                    while (usedSheetNames.has(sName.toLowerCase())) {
+                        sName = td.name.substring(0, 27) + ` (${counter++})`;
+                    }
+                    usedSheetNames.add(sName.toLowerCase());
+
+                    if (td.rows.length > 0) {
+                        const ws = XLSX.utils.json_to_sheet(td.rows);
+                        window.styleExcelHeaderRow(ws);
+                        XLSX.utils.book_append_sheet(wb, ws, sName);
+                    }
+                });
+
+                XLSX.writeFile(wb, 'Vendors_List.xlsx');
+            });
+        })
+        .catch(err => {
+            if (document.getElementById('vendExportLoader')) document.getElementById('vendExportLoader').remove();
+            console.error('Vendor export error:', err);
+            alert('Failed to export vendors: ' + err.message);
+        });
+};
+
+window.importVendorExcel = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    loadSheetJS(() => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                const normClean = (str) => {
+                    if (str === null || str === undefined) return '';
+                    return String(str).toLowerCase().replace(/[^a-z0-9]/g, '');
+                };
+
+                const getVal = (row, ...keys) => {
+                    for (const k of keys) {
+                        if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+                            return String(row[k]).trim();
+                        }
+                    }
+                    const cleanKeys = keys.map(k => normClean(k));
+                    for (const rk of Object.keys(row)) {
+                        const cleanRk = normClean(rk);
+                        if (cleanKeys.includes(cleanRk) && row[rk] !== undefined && row[rk] !== null && String(row[rk]).trim() !== '') {
+                            return String(row[rk]).trim();
+                        }
+                    }
+                    return '';
+                };
+
+                const combinedRows = [];
+                const vendorMap = new Map();
+                const typeTemplateMap = new Map();
+                let rowIndexGlobal = 0;
+
+                workbook.SheetNames.forEach(sheetName => {
+                    const sheet = workbook.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                    if (!rows || rows.length === 0) return;
+
+                    rows.forEach((r, rIdx) => {
+                        rowIndexGlobal++;
+                        const tCode = getVal(r, 'Vendor Type Code', 'Supplier Type Code', 'Sub Type Code', 'Type Code');
+                        const tName = getVal(r, 'Vendor Type', 'Supplier Type', 'Type Name');
+                        const vCode = getVal(r, 'Account Code', 'Vendor Code', 'Supplier Code', 'Code');
+                        const vName = getVal(r, 'Account Name', 'Vendor Name', 'Supplier Name', 'Name');
+
+                        if (!tCode && !tName && !vCode && !vName) return;
+
+                        if (vCode || vName) {
+                            let matchedKey = null;
+                            if (vCode && normClean(vCode)) {
+                                const sc = normClean(vCode);
+                                for (const [k, existing] of vendorMap.entries()) {
+                                    if (existing._sheet !== sheetName) {
+                                        const ec = normClean(getVal(existing, 'Account Code', 'Vendor Code', 'Supplier Code', 'Code'));
+                                        if (ec && ec === sc) {
+                                            matchedKey = k;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (!matchedKey && vName && normClean(vName)) {
+                                const sn = normClean(vName);
+                                const st = normClean(tCode || tName);
+                                for (const [k, existing] of vendorMap.entries()) {
+                                    if (existing._sheet !== sheetName) {
+                                        const en = normClean(getVal(existing, 'Account Name', 'Vendor Name', 'Supplier Name', 'Name'));
+                                        const et = normClean(getVal(existing, 'Vendor Type Code', 'Vendor Type'));
+                                        if (en === sn && (!st || !et || st === et)) {
+                                            matchedKey = k;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (matchedKey && vendorMap.has(matchedKey)) {
+                                const existing = vendorMap.get(matchedKey);
+                                Object.keys(r).forEach(k => {
+                                    if (k === '_sheet') return;
+                                    if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') {
+                                        if (existing[k] === undefined || existing[k] === null || String(existing[k]).trim() === '') {
+                                            existing[k] = r[k];
+                                        }
+                                    }
+                                });
+                            } else {
+                                r._sheet = sheetName;
+                                const itemKey = `${sheetName}_${rIdx}_${rowIndexGlobal}`;
+                                vendorMap.set(itemKey, r);
+                            }
+                        } else if (tCode || tName) {
+                            const typeKey = normClean(tCode || tName);
+                            if (!typeTemplateMap.has(typeKey)) {
+                                typeTemplateMap.set(typeKey, r);
+                            }
+                        }
+                    });
+                });
+
+                // Add type templates only if no vendors exist for that type
+                const populatedTypes = new Set();
+                vendorMap.forEach(vRow => {
+                    const t = getVal(vRow, 'Vendor Type Code', 'Vendor Type');
+                    if (t) populatedTypes.add(normClean(t));
+                });
+                typeTemplateMap.forEach((tRow, tKey) => {
+                    if (!populatedTypes.has(tKey)) {
+                        combinedRows.push(tRow);
+                    }
+                });
+
+                vendorMap.forEach(vRow => combinedRows.push(vRow));
+
+                if (combinedRows.length === 0) {
+                    alert('Excel file mein koi vendors ka data nahi mila.');
+                    event.target.value = '';
+                    return;
+                }
+
+                // Modal for Replace vs Merge
+                const promptVendImportMode = (fileName, rowCount) => {
+                    return new Promise((resolve) => {
+                        const modalId = 'vendImportConfirmModal';
+                        const existing = document.getElementById(modalId);
+                        if (existing) existing.remove();
+
+                        const modalDiv = document.createElement('div');
+                        modalDiv.id = modalId;
+                        modalDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.65);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:9999999;font-family:\'Segoe UI\',sans-serif;';
+
+                        modalDiv.innerHTML = `
+                            <div style="background:#ffffff;border-radius:12px;width:490px;max-width:92%;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.3);border:1px solid #cbd5e1;text-align:left;">
+                                <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+                                    <div style="width:44px;height:44px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:22px;">
+                                        <i class="fas fa-truck"></i>
+                                    </div>
+                                    <div>
+                                        <h3 style="margin:0;font-size:18px;font-weight:700;color:#0f172a;">Vendors / Suppliers Import</h3>
+                                        <p style="margin:2px 0 0;font-size:13px;color:#64748b;">Aap is file ko kis tarah import karna chahte hain?</p>
+                                    </div>
+                                </div>
+
+                                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#334155;display:flex;justify-content:space-between;align-items:center;">
+                                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;"><strong>File:</strong> ${fileName}</span>
+                                    <span style="background:#fef3c7;color:#b45309;padding:2px 8px;border-radius:12px;font-weight:600;font-size:12px;white-space:nowrap;">${rowCount} Rows</span>
+                                </div>
+
+                                <div style="display:flex;flex-direction:column;gap:10px;">
+                                    <button type="button" id="btnVendOptReplace" style="width:100%;padding:13px 16px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:0.2s;text-align:left;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                        <div>
+                                            <div style="font-size:14px;font-weight:700;"><i class="fas fa-sync-alt" style="margin-right:6px;"></i> 1. Replace All (Excel k Mutabiq Sync Karein)</div>
+                                            <div style="font-size:11px;opacity:0.95;margin-top:2px;font-weight:normal;">Excel file k vendors add/update honge. (Jin vendors k purchase invoices/transactions ban chuke hain wo mehfooz rahenge).</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right" style="opacity:0.8;"></i>
+                                    </button>
+
+                                    <button type="button" id="btnVendOptMerge" style="width:100%;padding:13px 16px;background:#1F4E79;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:0.2s;text-align:left;" onmouseover="this.style.background='#163857'" onmouseout="this.style.background='#1F4E79'">
+                                        <div>
+                                            <div style="font-size:14px;font-weight:700;"><i class="fas fa-plus-circle" style="margin-right:6px;"></i> 2. Merge / Update Only (Purana bhi rakhein)</div>
+                                            <div style="font-size:11px;opacity:0.95;margin-top:2px;font-weight:normal;">Purane sab vendors barkarar rahenge, matching update honge aur naye add honge.</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right" style="opacity:0.8;"></i>
+                                    </button>
+
+                                    <button type="button" id="btnVendOptCancel" style="width:100%;padding:9px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-top:4px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                                        Cancel (Khatam Karein)
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(modalDiv);
+
+                        document.getElementById('btnVendOptReplace').onclick = () => { modalDiv.remove(); resolve('replace'); };
+                        document.getElementById('btnVendOptMerge').onclick = () => { modalDiv.remove(); resolve('merge'); };
+                        document.getElementById('btnVendOptCancel').onclick = () => { modalDiv.remove(); resolve(null); };
+                    });
+                };
+
+                const selectedMode = await promptVendImportMode(file.name, combinedRows.length);
+                if (!selectedMode) {
+                    event.target.value = '';
+                    return;
+                }
+
+                const loadingDiv = document.createElement('div');
+                loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.85);color:white;padding:22px 42px;z-index:999999;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,0.5);display:flex;align-items:center;gap:12px;';
+                loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin fa-lg"></i> Importing vendors, please wait...';
+                document.body.appendChild(loadingDiv);
+
+                const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                const coId = session.company_id || (window.companyData ? window.companyData.id : 1);
+
+                const formData = new FormData();
+                formData.append('action', 'import_vendors_excel');
+                formData.append('company_id', coId);
+                formData.append('mode', selectedMode);
+                formData.append('data', JSON.stringify(combinedRows));
+
+                const res = await fetch(`api/maintain.php?action=import_vendors_excel&company_id=${coId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const textData = await res.text();
+                loadingDiv.remove();
+                event.target.value = '';
+
+                let resData;
+                try {
+                    resData = JSON.parse(textData);
+                } catch(err) {
+                    console.error('Vendor Import raw response:', textData);
+                    alert('Server error: ' + (textData.substring(0, 300) || 'Empty response from server.'));
+                    return;
+                }
+
+                if (resData.status === 'success') {
+                    const sum = resData.summary || {};
+                    let msg = `🎉 Vendor Import Kamyab Raha!\n\n`;
+                    if (selectedMode === 'replace') {
+                        msg += `• Mode                          : Replace All (Sync)\n` +
+                               `• Total Rows Processed          : ${sum.total_rows || combinedRows.length}\n` +
+                               `• Vendors Created               : ${sum.vendors_created || 0}\n` +
+                               `• Vendors Updated               : ${sum.vendors_updated || 0}\n` +
+                               `• Invoice Vendors Preserved     : ${sum.preserved_invoice_vendors || 0}\n` +
+                               `• Unused Vendors Deleted        : ${sum.vendors_deleted || 0}\n` +
+                               `• Vendor Types Created          : ${sum.types_created || 0}\n`;
+                    } else {
+                        msg += `• Mode                          : Merge / Update Only\n` +
+                               `• Total Rows Processed          : ${sum.total_rows || combinedRows.length}\n` +
+                               `• Vendors Created               : ${sum.vendors_created || 0}\n` +
+                               `• Vendors Updated               : ${sum.vendors_updated || 0}\n` +
+                               `• Vendor Types Created          : ${sum.types_created || 0}\n`;
+                    }
+                    alert(msg);
+
+                    try {
+                        const [subRes, listRes] = await Promise.all([
+                            fetch(`api/maintain.php?action=get_coa_sub&main_id=ALL&company_id=${coId}`),
+                            fetch(`api/maintain.php?action=get_coa_list&sub_id=ALL&company_id=${coId}`)
+                        ]);
+                        if (subRes.ok) coaSub = await subRes.json();
+                        if (listRes.ok) coaList = await listRes.json();
+                    } catch(reErr) {
+                        console.warn('Re-fetching coa data error:', reErr);
+                    }
+
+                    if (typeof initVendorsView === 'function') {
+                        initVendorsView();
+                    }
+                    if (typeof refreshActiveModulesDependencies === 'function') {
+                        refreshActiveModulesDependencies();
+                    }
+                } else {
+                    alert('Import Error: ' + (resData.message || resData.error || 'Unknown error occurred.'));
+                }
+            } catch (err) {
+                event.target.value = '';
+                const loaders = document.querySelectorAll('div');
+                loaders.forEach(el => {
+                    if (el.innerHTML && el.innerHTML.includes('Importing vendors')) el.remove();
+                });
+                console.error('Import Vendors Error:', err);
+                alert('Import Failed: ' + err.message);
             }
         };
         reader.readAsArrayBuffer(file);
