@@ -1868,20 +1868,32 @@ if ($action === 'submit_to_fbr') {
             ], 400);
         }
 
-        // Maker-Checker Gate: If invoice is currently Pending Review on Approval Desk, non-admin cannot submit directly to FBR
-        $apprChk = $pdo->prepare("SELECT approval_status FROM transaction_approvals WHERE company_id = ? AND module_name = 'Digital Invoice' AND record_id = ? LIMIT 1");
-        $apprChk->execute([$company_id, $invoiceId]);
-        $apprStatus = $apprChk->fetchColumn();
-        if ($apprStatus === 'pending') {
-            $uRole = strtoupper($_SESSION['role'] ?? '');
-            $uName = $_SESSION['username'] ?? '';
-            $uId = intval($_SESSION['user_id'] ?? 0);
-            $isAdmin = ($uRole === 'ADMIN' || $uRole === 'ADMINISTRATOR' || $uName === 'Administrator' || $uId === 1);
-            if (!$isAdmin) {
-                sendJson([
-                    'status' => 'error',
-                    'message' => 'Maker-Checker Approval Required: Digital Invoice #' . ($inv['invoice_no'] ?? $invoiceId) . ' is currently "Pending Review" on the Approval Desk. It must be approved by an Administrator/Manager before official submission to FBR.'
-                ], 403);
+        // Maker-Checker Gate: Check if approval is required before FBR submission
+        $fbrReqAppr = 1;
+        try {
+            $fbrSetStmt = $pdo->prepare("SELECT require_approval_before_fbr FROM digital_invoice_settings WHERE company_id = ? LIMIT 1");
+            $fbrSetStmt->execute([$company_id]);
+            $colVal = $fbrSetStmt->fetchColumn();
+            if ($colVal !== false && $colVal !== null) {
+                $fbrReqAppr = intval($colVal);
+            }
+        } catch (Exception $eSet) {}
+
+        if ($fbrReqAppr === 1) {
+            $apprChk = $pdo->prepare("SELECT approval_status FROM transaction_approvals WHERE company_id = ? AND module_name = 'Digital Invoice' AND record_id = ? LIMIT 1");
+            $apprChk->execute([$company_id, $invoiceId]);
+            $apprStatus = $apprChk->fetchColumn();
+            if ($apprStatus === 'pending') {
+                $uRole = strtoupper($_SESSION['role'] ?? '');
+                $uName = $_SESSION['username'] ?? '';
+                $uId = intval($_SESSION['user_id'] ?? 0);
+                $isAdmin = ($uRole === 'ADMIN' || $uRole === 'ADMINISTRATOR' || $uName === 'Administrator' || $uId === 1);
+                if (!$isAdmin) {
+                    sendJson([
+                        'status' => 'error',
+                        'message' => 'Maker-Checker Approval Required: Digital Invoice #' . ($inv['invoice_no'] ?? $invoiceId) . ' is currently "Pending Review" on the Approval Desk. It must be approved by an Administrator/Manager before official submission to FBR.'
+                    ], 403);
+                }
             }
         }
 

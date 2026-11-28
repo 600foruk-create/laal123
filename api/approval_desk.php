@@ -46,16 +46,16 @@ if ($action === 'get_pending') {
     if (!$isAdmin) {
         sendResponse(['error' => 'Admin access required'], 403);
     }
-    
+
     try {
         $stmt = $pdo->prepare("
-            SELECT * FROM transaction_approvals 
-            WHERE company_id = ? AND approval_status = 'pending' 
+            SELECT * FROM transaction_approvals
+            WHERE company_id = ? AND approval_status = 'pending'
             ORDER BY txn_date DESC, id DESC
         ");
         $stmt->execute([$company_id]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         sendResponse([
             'status' => 'success',
             'count' => count($items),
@@ -71,67 +71,190 @@ if ($action === 'get_all') {
     if (!$isAdmin) {
         sendResponse(['error' => 'Admin access required'], 403);
     }
-    
+
     $statusFilter = $_GET['status'] ?? 'all';
     $moduleFilter = $_GET['module'] ?? 'all';
     $userFilter = $_GET['user_id'] ?? '';
     $startDate = $_GET['start_date'] ?? '';
     $endDate = $_GET['end_date'] ?? '';
-    
+
     $query = "SELECT * FROM transaction_approvals WHERE company_id = ?";
     $params = [$company_id];
-    
+
     if ($statusFilter !== 'all' && in_array($statusFilter, ['pending', 'approved', 'rejected'])) {
         $query .= " AND approval_status = ?";
         $params[] = $statusFilter;
     }
-    
+
     if ($moduleFilter !== 'all' && !empty($moduleFilter)) {
         $query .= " AND module_name = ?";
         $params[] = $moduleFilter;
     }
-    
+
     if ($userFilter !== '' && is_numeric($userFilter)) {
         $query .= " AND created_by_user_id = ?";
         $params[] = intval($userFilter);
     }
-    
+
     if (!empty($startDate) && !empty($endDate)) {
         $query .= " AND txn_date BETWEEN ? AND ?";
         $params[] = $startDate;
         $params[] = $endDate;
     }
-    
+
     $query .= " ORDER BY id DESC LIMIT 500";
-    
+
     try {
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         // Count summary
         $cntStmt = $pdo->prepare("
-            SELECT 
+            SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN approval_status = 'pending' THEN 1 ELSE 0 END) as pending_cnt,
                 SUM(CASE WHEN approval_status = 'approved' THEN 1 ELSE 0 END) as approved_cnt,
                 SUM(CASE WHEN approval_status = 'rejected' THEN 1 ELSE 0 END) as rejected_cnt
-            FROM transaction_approvals 
+            FROM transaction_approvals
             WHERE company_id = ?
         ");
         $cntStmt->execute([$company_id]);
         $stats = $cntStmt->fetch(PDO::FETCH_ASSOC);
-        
+
         // Users for filter
         $uStmt = $pdo->prepare("SELECT id, username FROM users WHERE company_id = ? ORDER BY username ASC");
         $uStmt->execute([$company_id]);
         $users = $uStmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
+        // Fetch FBR approval requirement setting
+        $fbrReqApproval = 1;
+        try {
+            // Ensure column exists
+            try { $pdo->exec("ALTER TABLE digital_invoice_settings ADD COLUMN require_approval_before_fbr TINYINT(1) DEFAULT 1"); } catch (Exception $eCol) {}
+            $fbrSetStmt = $pdo->prepare("SELECT require_approval_before_fbr FROM digital_invoice_settings WHERE company_id = ? LIMIT 1");
+            $fbrSetStmt->execute([$company_id]);
+            $colVal = $fbrSetStmt->fetchColumn();
+            if ($colVal !== false && $colVal !== null) {
+                $fbrReqApproval = intval($colVal);
+            }
+        } catch (Exception $eSet) {}
+
         sendResponse([
             'status' => 'success',
             'stats' => $stats,
             'items' => $items,
-            'users' => $users
+            'users' => $users,
+            'require_approval_before_fbr' => $fbrReqApproval
+        ]);
+    } catch (Exception $e) {
+        sendResponse(['error' => $e->getMessage()], 500);
+    }
+}
+
+// 2b. TOGGLE FBR APPROVAL REQUIREMENT SETTING
+if ($action === 'toggle_fbr_approval') {
+    if (!$isAdmin) {
+        sendResponse(['error' => 'Admin access required'], 403);
+    }
+    $enabled = !empty($input['enabled']) ? 1 : 0;
+    try {
+        try { $pdo->exec("ALTER TABLE digital_invoice_settings ADD COLUMN require_approval_before_fbr TINYINT(1) DEFAULT 1"); } catch (Exception $eCol) {}
+
+        $chk = $pdo->prepare("SELECT id FROM digital_invoice_settings WHERE company_id = ? LIMIT 1");
+        $chk->execute([$company_id]);
+        if ($chk->fetch()) {
+            $upd = $pdo->prepare("UPDATE digital_invoice_settings SET require_approval_before_fbr = ? WHERE company_id = ?");
+            $upd->execute([$enabled, $company_id]);
+        } else {
+            $ins = $pdo->prepare("INSERT INTO digital_invoice_settings (company_id, require_approval_before_fbr) VALUES (?, ?)");
+            $ins->execute([$company_id, $enabled]);
+        }
+        sendResponse(['status' => 'success', 'require_approval_before_fbr' => $enabled]);
+    } catch (Exception $e) {
+        sendResponse(['error' => $e->getMessage()], 500);
+    }
+}
+
+// 2c. GET FULL RECORD DETAILS FOR VIEW / INSPECTION MODAL
+if ($action === 'get_record_details') {
+    $id = intval($_GET['id'] ?? ($_POST['id'] ?? 0));
+    if (!$id) {
+        sendResponse(['error' => 'Approval ID required'], 400);
+    }
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM transaction_approvals WHERE id = ? AND company_id = ?");
+        $stmt->execute([$id, $company_id]);
+        $record = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$record) {
+            sendResponse(['error' => 'Record not found'], 404);
+        }
+
+        $module = $record['module_name'];
+        $recId = intval($record['record_id']);
+        $header = [];
+        $items = [];
+
+        if ($module === 'Digital Invoice') {
+            $hStmt = $pdo->prepare("SELECT * FROM fbr_digital_invoices WHERE id = ? AND company_id = ?");
+            $hStmt->execute([$recId, $company_id]);
+            $header = $hStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $iStmt = $pdo->prepare("SELECT * FROM fbr_digital_invoice_items WHERE invoice_id = ? ORDER BY sort_order ASC, id ASC");
+            $iStmt->execute([$recId]);
+            $items = $iStmt->fetchAll(PDO::FETCH_ASSOC);
+        } elseif ($module === 'Sale Invoice' || $module === 'POS Sale') {
+            $hStmt = $pdo->prepare("SELECT * FROM sale_invoices WHERE id = ? AND company_id = ?");
+            $hStmt->execute([$recId, $company_id]);
+            $header = $hStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $iStmt = $pdo->prepare("SELECT * FROM sale_invoice_items WHERE invoice_id = ? ORDER BY id ASC");
+            $iStmt->execute([$recId]);
+            $items = $iStmt->fetchAll(PDO::FETCH_ASSOC);
+        } elseif ($module === 'Purchase Invoice') {
+            $hStmt = $pdo->prepare("SELECT * FROM purchase_invoices WHERE id = ? AND company_id = ?");
+            $hStmt->execute([$recId, $company_id]);
+            $header = $hStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $iStmt = $pdo->prepare("SELECT * FROM purchase_invoice_items WHERE invoice_id = ? ORDER BY id ASC");
+            $iStmt->execute([$recId]);
+            $items = $iStmt->fetchAll(PDO::FETCH_ASSOC);
+        } elseif ($module === 'Cash Payments' || $module === 'Bank Payments') {
+            $tbl = $module === 'Cash Payments' ? 'cash_payments' : 'bank_payments';
+            $iTbl = $module === 'Cash Payments' ? 'cash_payment_items' : 'bank_payment_items';
+            $hStmt = $pdo->prepare("SELECT * FROM `$tbl` WHERE id = ? AND company_id = ?");
+            $hStmt->execute([$recId, $company_id]);
+            $header = $hStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $iStmt = $pdo->prepare("SELECT * FROM `$iTbl` WHERE payment_id = ? ORDER BY id ASC");
+            $iStmt->execute([$recId]);
+            $items = $iStmt->fetchAll(PDO::FETCH_ASSOC);
+        } elseif ($module === 'Cash Receipts' || $module === 'Bank Receipts') {
+            $tbl = $module === 'Cash Receipts' ? 'cash_receipts' : 'bank_receipts';
+            $iTbl = $module === 'Cash Receipts' ? 'cash_receipt_items' : 'bank_receipt_items';
+            $hStmt = $pdo->prepare("SELECT * FROM `$tbl` WHERE id = ? AND company_id = ?");
+            $hStmt->execute([$recId, $company_id]);
+            $header = $hStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $iStmt = $pdo->prepare("SELECT * FROM `$iTbl` WHERE receipt_id = ? ORDER BY id ASC");
+            $iStmt->execute([$recId]);
+            $items = $iStmt->fetchAll(PDO::FETCH_ASSOC);
+        } elseif ($module === 'General Journal Voucher') {
+            $hStmt = $pdo->prepare("SELECT * FROM general_journal_vouchers WHERE id = ? AND company_id = ?");
+            $hStmt->execute([$recId, $company_id]);
+            $header = $hStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $iStmt = $pdo->prepare("SELECT * FROM general_journal_voucher_items WHERE voucher_id = ? ORDER BY id ASC");
+            $iStmt->execute([$recId]);
+            $items = $iStmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        sendResponse([
+            'status' => 'success',
+            'approval_record' => $record,
+            'module_name' => $module,
+            'header' => $header,
+            'items' => $items
         ]);
     } catch (Exception $e) {
         sendResponse(['error' => $e->getMessage()], 500);
@@ -143,24 +266,24 @@ if ($action === 'approve') {
     if (!$isAdmin) {
         sendResponse(['error' => 'Admin access required'], 403);
     }
-    
+
     $id = intval($input['id'] ?? ($_GET['id'] ?? 0));
     if (!$id) {
         sendResponse(['error' => 'Invalid approval ID'], 400);
     }
-    
+
     try {
         $stmt = $pdo->prepare("SELECT * FROM transaction_approvals WHERE id = ? AND company_id = ?");
         $stmt->execute([$id, $company_id]);
         $record = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$record) {
             sendResponse(['error' => 'Record not found'], 404);
         }
-        
+
         // Update approval table
         $upStmt = $pdo->prepare("
-            UPDATE transaction_approvals SET 
+            UPDATE transaction_approvals SET
                 approval_status = 'approved',
                 reviewed_by_user_id = ?,
                 reviewed_by_username = ?,
@@ -169,10 +292,10 @@ if ($action === 'approve') {
             WHERE id = ?
         ");
         $upStmt->execute([$currentUserId, $currentUsername, $id]);
-        
+
         // Ensure source record has is_posted = 1
         safeSetTransactionPostStatus($record['module_name'], $record['record_id'], $company_id, 1);
-        
+
         // If Digital Invoice, update workflow_status to Approved
         if ($record['module_name'] === 'Digital Invoice') {
             try {
@@ -181,7 +304,7 @@ if ($action === 'approve') {
         }
 
         logActivity('Approval Desk', 'APPROVE', $id, "Admin approved {$record['module_name']} (#{$record['voucher_no']})");
-        
+
         sendResponse(['status' => 'success', 'message' => 'Transaction successfully approved!']);
     } catch (Exception $e) {
         sendResponse(['error' => $e->getMessage()], 500);
@@ -193,24 +316,24 @@ if ($action === 'reject') {
     if (!$isAdmin) {
         sendResponse(['error' => 'Admin access required'], 403);
     }
-    
+
     $id = intval($input['id'] ?? ($_GET['id'] ?? 0));
     $reason = trim($input['reason'] ?? '');
     $deleteSource = !empty($input['delete_source']);
-    
+
     if (!$id) {
         sendResponse(['error' => 'Invalid approval ID'], 400);
     }
-    
+
     if (empty($reason)) {
         sendResponse(['error' => 'Rejection reason is required.'], 400);
     }
-    
+
     try {
         $stmt = $pdo->prepare("SELECT * FROM transaction_approvals WHERE id = ? AND company_id = ?");
         $stmt->execute([$id, $company_id]);
         $record = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$record) {
             sendResponse(['error' => 'Record not found'], 404);
         }
@@ -235,10 +358,10 @@ if ($action === 'reject') {
                 ], 400);
             }
         }
-        
+
         // Update approval status to rejected with reason
         $upStmt = $pdo->prepare("
-            UPDATE transaction_approvals SET 
+            UPDATE transaction_approvals SET
                 approval_status = 'rejected',
                 rejection_reason = ?,
                 reviewed_by_user_id = ?,
@@ -249,7 +372,7 @@ if ($action === 'reject') {
             WHERE id = ?
         ");
         $upStmt->execute([$reason, $currentUserId, $currentUsername, $id]);
-        
+
         if ($deleteSource) {
             // Delete source transaction permanently if Admin opted
             safeDeleteTransactionRecord($record['module_name'], $record['record_id'], $company_id);
@@ -259,9 +382,9 @@ if ($action === 'reject') {
             safeSetTransactionPostStatus($record['module_name'], $record['record_id'], $company_id, 0);
             logActivity('Approval Desk', 'REJECT_UNPOST', $id, "Admin rejected & unposted {$record['module_name']} (#{$record['voucher_no']}). Reason: {$reason}");
         }
-        
+
         sendResponse([
-            'status' => 'success', 
+            'status' => 'success',
             'message' => 'Transaction has been rejected and the user has been notified.'
         ]);
     } catch (Exception $e) {
@@ -273,22 +396,22 @@ if ($action === 'reject') {
 if ($action === 'get_user_notifications') {
     try {
         $stmt = $pdo->prepare("
-            SELECT * FROM transaction_approvals 
-            WHERE company_id = ? 
-              AND created_by_user_id = ? 
+            SELECT * FROM transaction_approvals
+            WHERE company_id = ?
+              AND created_by_user_id = ?
               AND approval_status = 'rejected'
             ORDER BY id DESC LIMIT 50
         ");
         $stmt->execute([$company_id, $currentUserId]);
         $rejectedItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         $unseenCount = 0;
         foreach ($rejectedItems as $item) {
             if (intval($item['notification_seen']) === 0) {
                 $unseenCount++;
             }
         }
-        
+
         sendResponse([
             'status' => 'success',
             'unseen_count' => $unseenCount,
@@ -303,31 +426,31 @@ if ($action === 'get_user_notifications') {
 if ($action === 'submit_user_feedback') {
     $id = intval($input['id'] ?? ($_GET['id'] ?? 0));
     $feedback = trim($input['feedback'] ?? '');
-    
+
     if (!$id) {
         sendResponse(['error' => 'Invalid approval ID'], 400);
     }
-    
+
     if (empty($feedback)) {
         sendResponse(['error' => 'Please enter your feedback or clarification.'], 400);
     }
-    
+
     try {
         $stmt = $pdo->prepare("SELECT * FROM transaction_approvals WHERE id = ? AND company_id = ?");
         $stmt->execute([$id, $company_id]);
         $record = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$record) {
             sendResponse(['error' => 'Record not found'], 404);
         }
-        
+
         // Verify user owns this record or is Admin
         if (intval($record['created_by_user_id']) !== $currentUserId && !$isAdmin) {
             sendResponse(['error' => 'Unauthorized: You can only provide feedback on your own entries.'], 403);
         }
-        
+
         $upStmt = $pdo->prepare("
-            UPDATE transaction_approvals SET 
+            UPDATE transaction_approvals SET
                 user_feedback = ?,
                 user_feedback_at = NOW(),
                 notification_seen = 1,
@@ -335,9 +458,9 @@ if ($action === 'submit_user_feedback') {
             WHERE id = ?
         ");
         $upStmt->execute([$feedback, $id]);
-        
+
         logActivity('Approval Desk', 'USER_FEEDBACK', $id, "User {$currentUsername} gave feedback on rejected {$record['module_name']} (#{$record['voucher_no']}): {$feedback}");
-        
+
         sendResponse(['status' => 'success', 'message' => 'Your feedback has been submitted to the Administrator Approval Desk!']);
     } catch (Exception $e) {
         sendResponse(['error' => $e->getMessage()], 500);
@@ -381,10 +504,10 @@ function safeSetTransactionPostStatus($module, $recordId, $companyId, $status) {
         'Sale Return/Credit Notes' => 'sale_returns',
         'Delivery Challans' => 'delivery_challans'
     ];
-    
+
     $table = $map[$module] ?? null;
     if (!$table) return;
-    
+
     try {
         $stmt = $pdo->prepare("UPDATE `$table` SET is_posted = ? WHERE id = ? AND company_id = ?");
         $stmt->execute([$status, $recordId, $companyId]);
@@ -410,10 +533,10 @@ function safeDeleteTransactionRecord($module, $recordId, $companyId) {
         'Sale Return/Credit Notes' => ['tbl' => 'sale_returns', 'items' => 'sale_return_items', 'fk' => 'return_id'],
         'Delivery Challans' => ['tbl' => 'delivery_challans', 'items' => 'delivery_challan_items', 'fk' => 'challan_id']
     ];
-    
+
     $cfg = $map[$module] ?? null;
     if (!$cfg) return;
-    
+
     try {
         if (!empty($cfg['items']) && !empty($cfg['fk'])) {
             $stmtIt = $pdo->prepare("DELETE FROM `{$cfg['items']}` WHERE `{$cfg['fk']}` = ?");
