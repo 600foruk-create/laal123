@@ -1,6 +1,7 @@
 <?php
 header('Content-Type: application/json');
 require_once 'db_config.php';
+require_once 'security_pin_helpers.php';
 
 session_write_close(); // Prevent session locking hangs for long-running fetch requests
 
@@ -1286,6 +1287,36 @@ try {
             break;
 
         case 'import_inventory_excel':
+            // Security Check: Only Administrator or Master PIN authorized session can import Excel
+            $reqUserId = intval($_POST['current_user_id'] ?? ($_POST['user_id'] ?? ($_SESSION['user_id'] ?? 0)));
+            $reqRole = strtoupper($_SESSION['role'] ?? '');
+            $reqUsername = $_SESSION['username'] ?? '';
+
+            if ($reqUserId > 0 && (!$reqRole || !$reqUsername)) {
+                try {
+                    $uStmt = $pdo->prepare("SELECT id, username, role FROM users WHERE id = ?");
+                    $uStmt->execute([$reqUserId]);
+                    if ($uRow = $uStmt->fetch(PDO::FETCH_ASSOC)) {
+                        $reqRole = strtoupper($uRow['role'] ?? '');
+                        $reqUsername = $uRow['username'] ?? '';
+                    }
+                } catch (Exception $e) {}
+            }
+
+            $isAdmin = ($reqRole === 'ADMIN' || $reqRole === 'ADMINISTRATOR' || strcasecmp($reqUsername, 'Administrator') === 0 || $reqUserId === 1);
+            $pinToken = trim((string)($_POST['pin_token'] ?? ''));
+            $isPinAuthorized = false;
+
+            if (!$isAdmin && $pinToken !== '' && function_exists('validateSecurityActionPinToken')) {
+                $isPinAuthorized = validateSecurityActionPinToken($pdo, $pinToken, $reqUserId, 'excel_import');
+            }
+
+            if (!$isAdmin && !$isPinAuthorized) {
+                http_response_code(403);
+                echo json_encode(['status' => 'error', 'message' => 'Unauthorized: Excel import karne ki ijazat sirf Administrator ko hai.']);
+                exit;
+            }
+
             $dataStr = $_POST['data'] ?? '[]';
             $raw = is_string($dataStr) ? stripslashes($dataStr) : $dataStr;
             $rows = json_decode($raw, true) ?: json_decode($dataStr, true);

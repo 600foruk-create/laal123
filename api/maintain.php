@@ -1,5 +1,6 @@
 <?php
 require_once 'db_config.php';
+require_once 'security_pin_helpers.php';
 
 header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Pragma: no-cache");
@@ -1221,6 +1222,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'import_customers_excel') {
+        // Security Check: Only Administrator or Master PIN authorized session can import Excel
+        $reqUserId = intval($_POST['current_user_id'] ?? ($_POST['user_id'] ?? ($_SESSION['user_id'] ?? 0)));
+        $reqRole = strtoupper($_SESSION['role'] ?? '');
+        $reqUsername = $_SESSION['username'] ?? '';
+
+        if ($reqUserId > 0 && (!$reqRole || !$reqUsername)) {
+            try {
+                $uStmt = $pdo->prepare("SELECT id, username, role FROM users WHERE id = ?");
+                $uStmt->execute([$reqUserId]);
+                if ($uRow = $uStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $reqRole = strtoupper($uRow['role'] ?? '');
+                    $reqUsername = $uRow['username'] ?? '';
+                }
+            } catch (Exception $e) {}
+        }
+
+        $isAdmin = ($reqRole === 'ADMIN' || $reqRole === 'ADMINISTRATOR' || strcasecmp($reqUsername, 'Administrator') === 0 || $reqUserId === 1);
+        $pinToken = trim((string)($_POST['pin_token'] ?? ''));
+        $isPinAuthorized = false;
+
+        if (!$isAdmin && $pinToken !== '' && function_exists('validateSecurityActionPinToken')) {
+            $isPinAuthorized = validateSecurityActionPinToken($pdo, $pinToken, $reqUserId, 'excel_import');
+        }
+
+        if (!$isAdmin && !$isPinAuthorized) {
+            sendResponse(['status' => 'error', 'message' => 'Unauthorized: Excel import karne ki ijazat sirf Administrator ko hai.'], 403);
+        }
+
         $rows = null;
         $mode = $_POST['mode'] ?? ($data['mode'] ?? 'merge');
         if (isset($_POST['data'])) {
@@ -1711,6 +1740,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'import_vendors_excel') {
+        // Security Check: Only Administrator or Master PIN authorized session can import Excel
+        $reqUserId = intval($_POST['current_user_id'] ?? ($_POST['user_id'] ?? ($_SESSION['user_id'] ?? 0)));
+        $reqRole = strtoupper($_SESSION['role'] ?? '');
+        $reqUsername = $_SESSION['username'] ?? '';
+
+        if ($reqUserId > 0 && (!$reqRole || !$reqUsername)) {
+            try {
+                $uStmt = $pdo->prepare("SELECT id, username, role FROM users WHERE id = ?");
+                $uStmt->execute([$reqUserId]);
+                if ($uRow = $uStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $reqRole = strtoupper($uRow['role'] ?? '');
+                    $reqUsername = $uRow['username'] ?? '';
+                }
+            } catch (Exception $e) {}
+        }
+
+        $isAdmin = ($reqRole === 'ADMIN' || $reqRole === 'ADMINISTRATOR' || strcasecmp($reqUsername, 'Administrator') === 0 || $reqUserId === 1);
+        $pinToken = trim((string)($_POST['pin_token'] ?? ''));
+        $isPinAuthorized = false;
+
+        if (!$isAdmin && $pinToken !== '' && function_exists('validateSecurityActionPinToken')) {
+            $isPinAuthorized = validateSecurityActionPinToken($pdo, $pinToken, $reqUserId, 'excel_import');
+        }
+
+        if (!$isAdmin && !$isPinAuthorized) {
+            sendResponse(['status' => 'error', 'message' => 'Unauthorized: Excel import karne ki ijazat sirf Administrator ko hai.'], 403);
+        }
+
         $rows = null;
         $mode = $_POST['mode'] ?? ($data['mode'] ?? 'merge');
         if (isset($_POST['data'])) {

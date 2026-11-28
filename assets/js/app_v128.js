@@ -1311,6 +1311,7 @@ document.addEventListener('click', function(e) {
                             if (scope === 'balance_sheet') {
                                 window._bsActivePinToken = data.pin_token;
                             }
+                            window._lastActionPinToken = data.pin_token;
                             finish(true);
                             return;
                         }
@@ -9406,7 +9407,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             const debEl = document.getElementById('obTotalDebit');
-            const creEl = document.getElementById('obTotalCredit');
             const diffEl = document.getElementById('obDifferenceMsg');
 
             if (debEl) debEl.textContent = totalDebit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -13798,6 +13798,168 @@ document.addEventListener('DOMContentLoaded', async () => {
             ws['!cols'] = autoCols;
         };
 
+        window.checkAdminOrPromptSecurityPin = async function(actionLabel = 'Excel file import') {
+            const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+            const role = (session.role || '').toLowerCase();
+            const username = (session.username || '').toLowerCase();
+            const userId = parseInt(session.user_id || session.id || 0, 10);
+            const isAdmin = (role === 'admin' || role === 'administrator' || username === 'administrator' || userId === 1);
+
+            if (isAdmin) {
+                return { authorized: true, userId, pinToken: null };
+            }
+
+            if (typeof window.promptMasterSecurityPin === 'function') {
+                const pinOk = await window.promptMasterSecurityPin('excel_import', {
+                    title: 'Administrator Authorization Required',
+                    subtitle: `${actionLabel} sirf Administrator kar sakta hai. Ijazat k liye Master Security PIN darj karein:`
+                });
+                if (!pinOk) {
+                    return { authorized: false, userId, pinToken: null };
+                }
+                return { authorized: true, userId, pinToken: window._lastActionPinToken || null };
+            } else {
+                alert(`Access Denied: ${actionLabel} karne ki ijazat sirf Administrator ko hai.`);
+                return { authorized: false, userId, pinToken: null };
+            }
+        };
+
+        window.downloadInventorySampleTemplate = function() {
+            loadSheetJS(() => {
+                const masterRows = [
+                    {
+                        'Main Code': 'FG-2', 'Main Name': 'U-PVC PIPES', 'Category Type': 'Pipes',
+                        'Sub Code': 'FG-201', 'Sub Name': '2"X10\' U-PVC PIPE', 'Brand Name': 'Master',
+                        'Item Code': 'PIPE-201', 'Item Name': '2"X10\' U-PVC PIPE CLASS B',
+                        'Description': '2 inch diameter 10 feet length Class B pipe', 'HS Code': '3917.2390', 'Rack No': 'RACK-A1',
+                        'Unit': 'Pcs', 'Qty/Piece': 1, 'Purchase Rate': 850, 'Sale Rate': 1100,
+                        'Size': '2"', 'Length': '10', 'Length Unit': 'Feet', 'Pipe Type': 'uPVC', 'Class': 'Class B',
+                        'Sign': '2.400', 'Unit Weight (KG)': 2.400, 'Fitting Type': '', 'Sign (Carton)': '',
+                        'Material': '', 'Grade/Spec': '', 'Status': 'Active'
+                    },
+                    {
+                        'Main Code': 'SF-1', 'Main Name': 'SEASTONE FITTING', 'Category Type': 'Fitting',
+                        'Sub Code': 'SF-101', 'Sub Name': 'U-PVC ELBOW 90°', 'Brand Name': 'Master',
+                        'Item Code': 'FIT-101', 'Item Name': '2" ELBOW 90°',
+                        'Description': '2 inch 90 degree uPVC fitting elbow', 'HS Code': '3917.4000', 'Rack No': 'RACK-B2',
+                        'Unit': 'Pcs', 'Qty/Piece': 50, 'Purchase Rate': 95, 'Sale Rate': 130,
+                        'Size': '2"', 'Length': '', 'Length Unit': '', 'Pipe Type': '', 'Class': 'Class B',
+                        'Sign': 'C-50', 'Unit Weight (KG)': 0.280, 'Fitting Type': 'Elbow 90°', 'Sign (Carton)': 'C-50',
+                        'Material': '', 'Grade/Spec': '', 'Status': 'Active'
+                    },
+                    {
+                        'Main Code': 'RM-1', 'Main Name': 'RAW MATERIAL', 'Category Type': 'Raw Material',
+                        'Sub Code': 'RM-101', 'Sub Name': 'PVC RESIN & CHEMICALS', 'Brand Name': '',
+                        'Item Code': 'RESIN-01', 'Item Name': 'PVC RESIN K-67',
+                        'Description': 'PVC suspension resin K-value 67', 'HS Code': '3904.1090', 'Rack No': 'SILO-1',
+                        'Unit': 'KG', 'Qty/Piece': 1, 'Purchase Rate': 295, 'Sale Rate': 340,
+                        'Size': '', 'Length': '', 'Length Unit': '', 'Pipe Type': '', 'Class': '',
+                        'Sign': '', 'Unit Weight (KG)': '', 'Fitting Type': '', 'Sign (Carton)': '',
+                        'Material': 'Resin', 'Grade/Spec': 'Grade K-67', 'Status': 'Active'
+                    },
+                    {
+                        'Main Code': 'GEN-1', 'Main Name': 'GENERAL GOODS', 'Category Type': 'None',
+                        'Sub Code': 'GEN-101', 'Sub Name': 'SOLVENT CEMENT & GLUE', 'Brand Name': 'Cosmo',
+                        'Item Code': 'GLUE-100', 'Item Name': 'PVC SOLVENT CEMENT 250ML',
+                        'Description': 'Fast setting pipe joint cement tin', 'HS Code': '3506.9100', 'Rack No': 'RACK-C1',
+                        'Unit': 'Can', 'Qty/Piece': 1, 'Purchase Rate': 210, 'Sale Rate': 280,
+                        'Size': '', 'Length': '', 'Length Unit': '', 'Pipe Type': '', 'Class': '',
+                        'Sign': '', 'Unit Weight (KG)': '', 'Fitting Type': '', 'Sign (Carton)': '',
+                        'Material': '', 'Grade/Spec': '', 'Status': 'Active'
+                    }
+                ];
+
+                const pipesRows = [
+                    {
+                        'Main Code': 'FG-2', 'Main Name': 'U-PVC PIPES', 'Category Type': 'Pipes',
+                        'Sub Code': 'FG-201', 'Sub Name': '2"X10\' U-PVC PIPE', 'Brand Name': 'Master',
+                        'Item Code': 'PIPE-201', 'Item Name': '2"X10\' U-PVC PIPE CLASS B',
+                        'Pipe Size': '2"', 'Pipe Length': '10', 'Length Unit': 'Feet',
+                        'Pipe Type': 'uPVC', 'Pipe Class': 'Class B', 'Sign': '2.400', 'Unit Weight (KG)': 2.400,
+                        'Unit': 'Pcs', 'Purchase Rate': 850, 'Sale Rate': 1100, 'Rack No': 'RACK-A1', 'Status': 'Active'
+                    },
+                    {
+                        'Main Code': 'FG-2', 'Main Name': 'U-PVC PIPES', 'Category Type': 'Pipes',
+                        'Sub Code': 'FG-202', 'Sub Name': '3"X10\' U-PVC PIPE', 'Brand Name': 'Master',
+                        'Item Code': 'PIPE-301', 'Item Name': '3"X10\' U-PVC PIPE CLASS B',
+                        'Pipe Size': '3"', 'Pipe Length': '10', 'Length Unit': 'Feet',
+                        'Pipe Type': 'uPVC', 'Pipe Class': 'Class B', 'Sign': '4.100', 'Unit Weight (KG)': 4.100,
+                        'Unit': 'Pcs', 'Purchase Rate': 1450, 'Sale Rate': 1850, 'Rack No': 'RACK-A2', 'Status': 'Active'
+                    }
+                ];
+
+                const fittingRows = [
+                    {
+                        'Main Code': 'SF-1', 'Main Name': 'SEASTONE FITTING', 'Category Type': 'Fitting',
+                        'Sub Code': 'SF-101', 'Sub Name': 'U-PVC ELBOW 90°', 'Brand Name': 'Master',
+                        'Item Code': 'FIT-101', 'Item Name': '2" ELBOW 90°',
+                        'Fitting Type': 'Elbow 90°', 'Fitting Size': '2"', 'Fitting Class': 'Class B',
+                        'Sign (Carton)': 'C-50', 'Pcs/Carton': 50, 'Weight/Piece (KG)': 0.280, 'Carton Wt': 14.000,
+                        'Unit': 'Pcs', 'Purchase Rate': 95, 'Sale Rate': 130, 'Rack No': 'RACK-B2', 'Status': 'Active'
+                    },
+                    {
+                        'Main Code': 'SF-1', 'Main Name': 'SEASTONE FITTING', 'Category Type': 'Fitting',
+                        'Sub Code': 'SF-102', 'Sub Name': 'U-PVC TEE', 'Brand Name': 'Master',
+                        'Item Code': 'FIT-102', 'Item Name': '2" TEE EQUAL',
+                        'Fitting Type': 'Tee', 'Fitting Size': '2"', 'Fitting Class': 'Class B',
+                        'Sign (Carton)': 'C-40', 'Pcs/Carton': 40, 'Weight/Piece (KG)': 0.350, 'Carton Wt': 14.000,
+                        'Unit': 'Pcs', 'Purchase Rate': 120, 'Sale Rate': 165, 'Rack No': 'RACK-B3', 'Status': 'Active'
+                    }
+                ];
+
+                const rawRows = [
+                    {
+                        'Main Code': 'RM-1', 'Main Name': 'RAW MATERIAL', 'Category Type': 'Raw Material',
+                        'Sub Code': 'RM-101', 'Sub Name': 'PVC RESIN & CHEMICALS',
+                        'Item Code': 'RESIN-01', 'Item Name': 'PVC RESIN K-67',
+                        'Material': 'Resin', 'Grade/Spec': 'Grade K-67',
+                        'Unit': 'KG', 'Purchase Rate': 295, 'Sale Rate': 340, 'Rack No': 'SILO-1', 'Status': 'Active'
+                    },
+                    {
+                        'Main Code': 'RM-1', 'Main Name': 'RAW MATERIAL', 'Category Type': 'Raw Material',
+                        'Sub Code': 'RM-102', 'Sub Name': 'STABILIZERS & ADDITIVES',
+                        'Item Code': 'STAB-01', 'Item Name': 'LEAD STABILIZER ONE-PACK',
+                        'Material': 'Chemical', 'Grade/Spec': 'Industrial Spec',
+                        'Unit': 'KG', 'Purchase Rate': 420, 'Sale Rate': 480, 'Rack No': 'STORE-RM', 'Status': 'Active'
+                    }
+                ];
+
+                const generalRows = [
+                    {
+                        'Main Code': 'GEN-1', 'Main Name': 'GENERAL GOODS', 'Category Type': 'None',
+                        'Sub Code': 'GEN-101', 'Sub Name': 'SOLVENT CEMENT & GLUE', 'Brand Name': 'Cosmo',
+                        'Item Code': 'GLUE-100', 'Item Name': 'PVC SOLVENT CEMENT 250ML',
+                        'Description': 'Fast setting pipe joint cement tin', 'Unit': 'Can', 'Qty/Piece': 1,
+                        'Purchase Rate': 210, 'Sale Rate': 280, 'HS Code': '3506.9100', 'Rack No': 'RACK-C1', 'Status': 'Active'
+                    }
+                ];
+
+                const wb = XLSX.utils.book_new();
+
+                const wsAll = XLSX.utils.json_to_sheet(masterRows);
+                if (typeof window.styleExcelHeaderRow === 'function') window.styleExcelHeaderRow(wsAll);
+                XLSX.utils.book_append_sheet(wb, wsAll, 'All Inventory');
+
+                const wsPipes = XLSX.utils.json_to_sheet(pipesRows);
+                if (typeof window.styleExcelHeaderRow === 'function') window.styleExcelHeaderRow(wsPipes);
+                XLSX.utils.book_append_sheet(wb, wsPipes, 'Pipes');
+
+                const wsFitting = XLSX.utils.json_to_sheet(fittingRows);
+                if (typeof window.styleExcelHeaderRow === 'function') window.styleExcelHeaderRow(wsFitting);
+                XLSX.utils.book_append_sheet(wb, wsFitting, 'Fitting');
+
+                const wsRaw = XLSX.utils.json_to_sheet(rawRows);
+                if (typeof window.styleExcelHeaderRow === 'function') window.styleExcelHeaderRow(wsRaw);
+                XLSX.utils.book_append_sheet(wb, wsRaw, 'Raw Material');
+
+                const wsGeneral = XLSX.utils.json_to_sheet(generalRows);
+                if (typeof window.styleExcelHeaderRow === 'function') window.styleExcelHeaderRow(wsGeneral);
+                XLSX.utils.book_append_sheet(wb, wsGeneral, 'General & Others');
+
+                XLSX.writeFile(wb, 'Inventory_Import_Sample_Template.xlsx');
+            });
+        };
+
         window.exportInvExcel = function() {
             const session = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
             const coId = session.company_id || (window.companyData ? window.companyData.id : 1);
@@ -14146,9 +14308,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
         };
 
-        window.importInvExcel = function(event) {
+        window.importInvExcel = async function(event) {
             const file = event.target.files[0];
             if (!file) return;
+
+            const authCheck = await window.checkAdminOrPromptSecurityPin('Inventory Excel import');
+            if (!authCheck.authorized) {
+                event.target.value = '';
+                return;
+            }
             
             loadSheetJS(() => {
                 const reader = new FileReader();
@@ -14391,6 +14559,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const formData = new FormData();
                         formData.append('action', 'import_inventory_excel');
                         formData.append('company_id', company_id);
+                        formData.append('current_user_id', authCheck.userId);
+                        if (authCheck.pinToken) {
+                            formData.append('pin_token', authCheck.pinToken);
+                        }
                         formData.append('replace_mode', selectedMode === 'replace' ? '1' : '0');
                         formData.append('data', JSON.stringify(combinedRows));
                         
@@ -14563,9 +14735,45 @@ window.exportCoaExcel = function() {
         });
 };
 
-window.importCoaExcel = function(event) {
+window.downloadCoaSampleTemplate = function() {
+    loadSheetJS(() => {
+        const sampleRows = [
+            {
+                'Main Code': '10', 'Main Name': 'CURRENT ASSETS', 'Component': 'ASSETS',
+                'Sub Code': '1001', 'Sub Name': 'CASH AND BANK BALANCES',
+                'Account Code': '1001001', 'Account Name': 'Petty Cash Main Office'
+            },
+            {
+                'Main Code': '10', 'Main Name': 'CURRENT ASSETS', 'Component': 'ASSETS',
+                'Sub Code': '1001', 'Sub Name': 'CASH AND BANK BALANCES',
+                'Account Code': '1001002', 'Account Name': 'Meezan Bank Ltd Current A/C'
+            },
+            {
+                'Main Code': '20', 'Main Name': 'CURRENT LIABILITIES', 'Component': 'LIABILITIES',
+                'Sub Code': '2001', 'Sub Name': 'TRADE CREDITORS',
+                'Account Code': '2001001', 'Account Name': 'Trade Creditors - Local'
+            }
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(sampleRows);
+        if (typeof window.styleExcelHeaderRow === 'function') {
+            window.styleExcelHeaderRow(ws);
+        }
+        XLSX.utils.book_append_sheet(wb, ws, 'Accounts Template');
+        XLSX.writeFile(wb, 'Chart_of_Accounts_Sample_Template.xlsx');
+    });
+};
+
+window.importCoaExcel = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
+
+    const authCheck = await window.checkAdminOrPromptSecurityPin('Chart of Accounts Excel import');
+    if (!authCheck.authorized) {
+        event.target.value = '';
+        return;
+    }
     
     loadSheetJS(() => {
         const reader = new FileReader();
@@ -14593,6 +14801,10 @@ window.importCoaExcel = function(event) {
                 const formData = new FormData();
                 formData.append('action', 'import_coa_excel');
                 formData.append('company_id', company_id);
+                formData.append('current_user_id', authCheck.userId);
+                if (authCheck.pinToken) {
+                    formData.append('pin_token', authCheck.pinToken);
+                }
                 formData.append('data', JSON.stringify(jsonData));
                 
                 const res = await fetch('api/maintain.php', {
@@ -14843,9 +15055,84 @@ window.exportCustomerExcel = function() {
         });
 };
 
-window.importCustomerExcel = function(event) {
+window.downloadCustomerSampleTemplate = function() {
+    loadSheetJS(() => {
+        const sampleRows = [
+            {
+                'Customer Type Code': '12001',
+                'Customer Type': 'CASH CUSTOMERS',
+                'Account Code': '12001001',
+                'Account Name': 'Sample Walk-in Customer',
+                'Contact Person': 'Muhammad Ali',
+                'Address': 'Main Market, Gulberg, Lahore',
+                'Main Region': 'Punjab',
+                'Sub Region': 'Lahore',
+                'List Region': 'Gulberg',
+                'Telephone': '042-35710000',
+                'Fax': '',
+                'Website': 'www.example.com',
+                'E-Mail': 'customer@example.com',
+                'S. T. Reg. No.': '1234567-8',
+                'N.T.N.': '1234567-8',
+                'C.N.I.C.': '35202-1234567-1',
+                'Buyer Type': 'Registered',
+                'Tax Type': 'Standard',
+                'W.H Income Tax (%)': 0,
+                'Sale Tax (%)': 18.00,
+                'Further Tax (%)': 0,
+                'Acc. Manager': 'Zahid Khan',
+                'Credit Terms': 'CASH',
+                'Credit Limit': 0,
+                'Remarks': 'Sample cash customer (Modify or add rows below)'
+            },
+            {
+                'Customer Type Code': '12002',
+                'Customer Type': 'CREDIT CUSTOMERS',
+                'Account Code': '12002001',
+                'Account Name': 'Al-Rehman Sanitary & Hardware',
+                'Contact Person': 'Bilal Ahmed',
+                'Address': 'Industrial Area, Karachi',
+                'Main Region': 'Sindh',
+                'Sub Region': 'Karachi Central',
+                'List Region': 'North Nazimabad',
+                'Telephone': '021-36600000',
+                'Fax': '',
+                'Website': '',
+                'E-Mail': 'alrehman@example.com',
+                'S. T. Reg. No.': '7654321-0',
+                'N.T.N.': '7654321-0',
+                'C.N.I.C.': '42101-9876543-2',
+                'Buyer Type': 'Registered',
+                'Tax Type': 'Standard',
+                'W.H Income Tax (%)': 0,
+                'Sale Tax (%)': 18.00,
+                'Further Tax (%)': 0,
+                'Acc. Manager': 'Zahid Khan',
+                'Credit Terms': '30 DAYS',
+                'Credit Limit': 500000,
+                'Remarks': 'Sample credit customer with 30 days credit terms'
+            }
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(sampleRows);
+        if (typeof window.styleExcelHeaderRow === 'function') {
+            window.styleExcelHeaderRow(ws);
+        }
+        XLSX.utils.book_append_sheet(wb, ws, 'Customers Template');
+        XLSX.writeFile(wb, 'Customer_Import_Sample_Template.xlsx');
+    });
+};
+
+window.importCustomerExcel = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
+
+    const authCheck = await window.checkAdminOrPromptSecurityPin('Customer Excel import');
+    if (!authCheck.authorized) {
+        event.target.value = '';
+        return;
+    }
 
     loadSheetJS(() => {
         const reader = new FileReader();
@@ -14985,6 +15272,10 @@ window.importCustomerExcel = function(event) {
                 const formData = new FormData();
                 formData.append('action', 'import_customers_excel');
                 formData.append('company_id', coId);
+                formData.append('current_user_id', authCheck.userId);
+                if (authCheck.pinToken) {
+                    formData.append('pin_token', authCheck.pinToken);
+                }
                 formData.append('mode', selectedMode);
                 formData.append('data', JSON.stringify(combinedRows));
 
@@ -15192,9 +15483,64 @@ window.exportVendorExcel = function() {
         });
 };
 
-window.importVendorExcel = function(event) {
+window.downloadVendorSampleTemplate = function() {
+    loadSheetJS(() => {
+        const sampleRows = [
+            {
+                'Vendor Type Code': '21001',
+                'Vendor Type': 'Cash Purchase Vendors',
+                'Account Code': '21001001',
+                'Account Name': 'Sample Local Cash Supplier',
+                'Contact Person': 'Tariq Mehmood',
+                'Address': 'Brandreth Road, Lahore',
+                'Telephone': '042-37650000',
+                'Mobile': '0300-1112233',
+                'Fax': '',
+                'E-Mail': 'vendor@example.com',
+                'Website': 'www.example.com',
+                'S. T. Reg. No.': '1122334-5',
+                'N.T.N / C.N.I.C.': '1122334-5',
+                'Credit Terms': 'CASH',
+                'Remarks': 'Sample cash purchase supplier (Modify or add rows below)'
+            },
+            {
+                'Vendor Type Code': '21002',
+                'Vendor Type': 'Credit Purchase Vendors',
+                'Account Code': '21002001',
+                'Account Name': 'Pakistan Polymer Industries',
+                'Contact Person': 'Khalid Usman',
+                'Address': 'SITE Area, Kot Lakhpat, Lahore',
+                'Telephone': '042-35110000',
+                'Mobile': '0321-4445566',
+                'Fax': '',
+                'E-Mail': 'polymer@example.com',
+                'Website': '',
+                'S. T. Reg. No.': '5566778-9',
+                'N.T.N / C.N.I.C.': '5566778-9',
+                'Credit Terms': '60 DAYS',
+                'Remarks': 'Sample credit supplier with 60 days terms'
+            }
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(sampleRows);
+        if (typeof window.styleExcelHeaderRow === 'function') {
+            window.styleExcelHeaderRow(ws);
+        }
+        XLSX.utils.book_append_sheet(wb, ws, 'Vendors Template');
+        XLSX.writeFile(wb, 'Vendor_Import_Sample_Template.xlsx');
+    });
+};
+
+window.importVendorExcel = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
+
+    const authCheck = await window.checkAdminOrPromptSecurityPin('Vendor Excel import');
+    if (!authCheck.authorized) {
+        event.target.value = '';
+        return;
+    }
 
     loadSheetJS(() => {
         const reader = new FileReader();
@@ -15393,6 +15739,10 @@ window.importVendorExcel = function(event) {
                 const formData = new FormData();
                 formData.append('action', 'import_vendors_excel');
                 formData.append('company_id', coId);
+                formData.append('current_user_id', authCheck.userId);
+                if (authCheck.pinToken) {
+                    formData.append('pin_token', authCheck.pinToken);
+                }
                 formData.append('mode', selectedMode);
                 formData.append('data', JSON.stringify(combinedRows));
 

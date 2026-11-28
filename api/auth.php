@@ -138,11 +138,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'verify_action_pin') {
+        $scope = trim((string)($data['scope'] ?? 'balance_sheet'));
         $auth = resolveMainAdministratorUser($pdo, intval($data['current_user_id'] ?? 0));
-        if (!$auth['is_main_admin']) {
+        if (!$auth['is_main_admin'] && $scope !== 'excel_import') {
             sendResponse(['status' => 'error', 'error' => 'Forbidden: Only Main Administrator can authorize Security PIN.'], 403);
         }
-        $scope = trim((string)($data['scope'] ?? 'balance_sheet'));
         $pin = trim((string)($data['pin'] ?? ''));
         $pinCheck = verifyMasterSecurityPin($pdo, $pin, true);
         if (!$pinCheck['ok']) {
@@ -153,7 +153,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'error' => $pinCheck['error']
             ], intval($pinCheck['status_code'] ?? 401));
         }
-        $actionToken = issueSecurityActionPinToken($pdo, $auth['id'], $scope);
+        $targetUserId = ($auth['id'] > 0) ? $auth['id'] : intval($data['current_user_id'] ?? 1);
+        $actionToken = issueSecurityActionPinToken($pdo, $targetUserId, $scope);
         sendResponse([
             'status' => 'success',
             'pin_token' => $actionToken,
