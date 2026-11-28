@@ -1607,6 +1607,23 @@ if ($action === 'save_invoice') {
         $retStmt->execute([$invoiceId]);
         $savedInvoice = $retStmt->fetch(PDO::FETCH_ASSOC);
 
+        // Sync into Maker-Checker Approval Desk queue
+        try {
+            $actType = !empty($data['id']) ? 'UPDATE' : 'INSERT';
+            $afterData = [
+                'header' => [
+                    'date' => $savedInvoice['invoice_date'],
+                    'invoice_no' => $savedInvoice['invoice_no'],
+                    'net_total' => $savedInvoice['total_invoice_amount'] ?? $savedInvoice['net_payable'],
+                    'customer_name' => $savedInvoice['customer_name']
+                ],
+                'items' => $items
+            ];
+            logActivity('Digital Invoice', $actType, $invoiceId, "Digital Invoice #{$savedInvoice['invoice_no']}", null, $afterData);
+        } catch (Exception $eApprLog) {
+            error_log("Digital Invoice logActivity approval error: " . $eApprLog->getMessage());
+        }
+
         sendJson([
             'status' => 'success',
             'message' => 'Invoice saved successfully in ERP database.',
@@ -1849,6 +1866,23 @@ if ($action === 'submit_to_fbr') {
                 'status' => 'error',
                 'message' => 'This invoice was already successfully submitted to FBR! Official FBR Invoice No: ' . $inv['fbr_invoice_no'] . ' (Date: ' . $inv['submission_timestamp'] . '). Duplicate submission was prevented.'
             ], 400);
+        }
+
+        // Maker-Checker Gate: If invoice is currently Pending Review on Approval Desk, non-admin cannot submit directly to FBR
+        $apprChk = $pdo->prepare("SELECT approval_status FROM transaction_approvals WHERE company_id = ? AND module_name = 'Digital Invoice' AND record_id = ? LIMIT 1");
+        $apprChk->execute([$company_id, $invoiceId]);
+        $apprStatus = $apprChk->fetchColumn();
+        if ($apprStatus === 'pending') {
+            $uRole = strtoupper($_SESSION['role'] ?? '');
+            $uName = $_SESSION['username'] ?? '';
+            $uId = intval($_SESSION['user_id'] ?? 0);
+            $isAdmin = ($uRole === 'ADMIN' || $uRole === 'ADMINISTRATOR' || $uName === 'Administrator' || $uId === 1);
+            if (!$isAdmin) {
+                sendJson([
+                    'status' => 'error',
+                    'message' => 'Maker-Checker Approval Required: Digital Invoice #' . ($inv['invoice_no'] ?? $invoiceId) . ' is currently "Pending Review" on the Approval Desk. It must be approved by an Administrator/Manager before official submission to FBR.'
+                ], 403);
+            }
         }
 
         // Enforce Customer Master Buyer Type Match
@@ -2286,6 +2320,12 @@ if ($action === 'submit_to_fbr') {
             $submissionTime,
             $invoiceId
         ]);
+
+        if ($isSuccess) {
+            try {
+                $pdo->prepare("UPDATE transaction_approvals SET approval_status = 'approved', reviewed_by_username = COALESCE(reviewed_by_username, 'FBR Submission Gate'), reviewed_at = COALESCE(reviewed_at, NOW()) WHERE company_id = ? AND module_name = 'Digital Invoice' AND record_id = ?")->execute([$company_id, $invoiceId]);
+            } catch (Exception $eApprSync) {}
+        }
 
         // 7. Log to digital_invoice_logs and fbr_integration_logs
         try {

@@ -251,6 +251,13 @@ if (shouldRunMigration('transaction_approvals', 1)) {
     } catch (PDOException $e) {}
 }
 
+// Auto-cleanup migration: POS Sales are counter walk-in sales and must be exempted from Maker-Checker
+if (shouldRunMigration('transaction_approvals_pos_exclude', 1)) {
+    try {
+        $pdo->exec("UPDATE transaction_approvals SET approval_status = 'approved', reviewed_by_username = 'System (POS Auto-Exempt)', reviewed_at = NOW() WHERE module_name = 'POS Sale' AND approval_status = 'pending'");
+    } catch (Exception $e) {}
+}
+
 function recordApprovalQueueEntry($module, $action_type, $record_id, $record_title, $after_data = null) {
     global $pdo;
     
@@ -258,9 +265,14 @@ function recordApprovalQueueEntry($module, $action_type, $record_id, $record_tit
     if ($action_type !== 'INSERT' && $action_type !== 'UPDATE') {
         return;
     }
+
+    // POS Sales are counter walk-in sales linked to FBR and are exempted from Maker-Checker
+    if ($module === 'POS Sale') {
+        return;
+    }
     
     $eligibleModules = [
-        'Sale Invoice', 'POS Sale', 'Purchase Invoice', 'Purchase Orders', 
+        'Sale Invoice', 'Digital Invoice', 'Purchase Invoice', 'Purchase Orders',
         'Purchase Returns', 'Purchase Return / Debit Note', 'Cash Payments', 
         'Bank Payments', 'Cash Receipts', 'Bank Receipts', 'General Journal Voucher', 
         'Sale Return', 'Sale Return/Credit Notes', 'Delivery Challans'

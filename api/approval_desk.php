@@ -173,6 +173,13 @@ if ($action === 'approve') {
         // Ensure source record has is_posted = 1
         safeSetTransactionPostStatus($record['module_name'], $record['record_id'], $company_id, 1);
         
+        // If Digital Invoice, update workflow_status to Approved
+        if ($record['module_name'] === 'Digital Invoice') {
+            try {
+                $pdo->prepare("UPDATE fbr_digital_invoices SET workflow_status = 'Approved' WHERE id = ? AND company_id = ?")->execute([$record['record_id'], $company_id]);
+            } catch (Exception $eDi) {}
+        }
+
         logActivity('Approval Desk', 'APPROVE', $id, "Admin approved {$record['module_name']} (#{$record['voucher_no']})");
         
         sendResponse(['status' => 'success', 'message' => 'Transaction successfully approved!']);
@@ -206,6 +213,27 @@ if ($action === 'reject') {
         
         if (!$record) {
             sendResponse(['error' => 'Record not found'], 404);
+        }
+
+        // Strict FBR Safety Check: Invoices already submitted to FBR cannot be rejected or unposted
+        if ($record['module_name'] === 'Digital Invoice') {
+            $chkFbr = $pdo->prepare("SELECT fbr_status, fbr_invoice_no, workflow_status FROM fbr_digital_invoices WHERE id = ? AND company_id = ?");
+            $chkFbr->execute([$record['record_id'], $company_id]);
+            $invFbr = $chkFbr->fetch(PDO::FETCH_ASSOC);
+            if ($invFbr && ($invFbr['fbr_status'] === 'Submitted' || $invFbr['workflow_status'] === 'Submitted' || (!empty($invFbr['fbr_invoice_no']) && $invFbr['fbr_invoice_no'] !== '-'))) {
+                sendResponse([
+                    'error' => "FBR Compliance Block: Digital Invoice #{$record['voucher_no']} has already been officially submitted to FBR (FBR No: {$invFbr['fbr_invoice_no']}). FBR fiscal rules prohibit rejection or deletion of submitted invoices. To reverse, please issue a Digital Credit Note or use Invoice Cancellation."
+                ], 400);
+            }
+        } elseif ($record['module_name'] === 'Sale Invoice' || $record['module_name'] === 'POS Sale') {
+            $chkFbr = $pdo->prepare("SELECT fbr_status, fbr_invoice_number FROM sale_invoices WHERE id = ? AND company_id = ?");
+            $chkFbr->execute([$record['record_id'], $company_id]);
+            $invFbr = $chkFbr->fetch(PDO::FETCH_ASSOC);
+            if ($invFbr && ($invFbr['fbr_status'] === 'Submitted' || (!empty($invFbr['fbr_invoice_number']) && $invFbr['fbr_invoice_number'] !== '-'))) {
+                sendResponse([
+                    'error' => "FBR Compliance Block: Invoice #{$record['voucher_no']} has already been officially submitted to FBR (FBR No: {$invFbr['fbr_invoice_number']}). FBR fiscal rules prohibit rejection or deletion. To reverse, please issue a Sales Return / Credit Note or use Invoice Cancellation."
+                ], 400);
+            }
         }
         
         // Update approval status to rejected with reason
@@ -337,6 +365,7 @@ if ($action === 'mark_seen') {
 function safeSetTransactionPostStatus($module, $recordId, $companyId, $status) {
     global $pdo;
     $map = [
+        'Digital Invoice' => 'fbr_digital_invoices',
         'Sale Invoice' => 'sale_invoices',
         'POS Sale' => 'sale_invoices',
         'Purchase Invoice' => 'purchase_invoices',
@@ -366,6 +395,7 @@ function safeSetTransactionPostStatus($module, $recordId, $companyId, $status) {
 function safeDeleteTransactionRecord($module, $recordId, $companyId) {
     global $pdo;
     $map = [
+        'Digital Invoice' => ['tbl' => 'fbr_digital_invoices', 'items' => 'fbr_digital_invoice_items', 'fk' => 'invoice_id'],
         'Sale Invoice' => ['tbl' => 'sale_invoices', 'items' => 'sale_invoice_items', 'fk' => 'invoice_id'],
         'POS Sale' => ['tbl' => 'sale_invoices', 'items' => 'sale_invoice_items', 'fk' => 'invoice_id'],
         'Purchase Invoice' => ['tbl' => 'purchase_invoices', 'items' => 'purchase_invoice_items', 'fk' => 'invoice_id'],
