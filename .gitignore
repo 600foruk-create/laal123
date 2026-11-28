@@ -1,4 +1,6 @@
 # Storage lock files and runtime caches
 storage/*.lock
+storage/backups/*.json
+storage/backups/*.sql
 debug_*.log
 *.tmp

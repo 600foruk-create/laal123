@@ -27,6 +27,10 @@
                     <div style="font-size: 11px; text-transform: uppercase; color: #666; font-weight: 600;">Deleted</div>
                     <div id="activity-stats-delete" style="font-size: 18px; font-weight: bold; color: #dc3545; margin-top: 2px;">0</div>
                 </div>
+                <div id="activity-card-import" style="background: rgba(111, 66, 193, 0.08); border: 1px solid rgba(111, 66, 193, 0.15); border-radius: 8px; padding: 8px 16px; min-width: 110px; text-align: center; cursor: pointer; transition: all 0.2s;" onclick="window.ActivityLogModule.filterByAction('IMPORT')">
+                    <div style="font-size: 11px; text-transform: uppercase; color: #666; font-weight: 600;">Imported</div>
+                    <div id="activity-stats-import" style="font-size: 18px; font-weight: bold; color: #6f42c1; margin-top: 2px;">0</div>
+                </div>
             </div>
         </div>
     </div>
@@ -48,6 +52,10 @@
                     <span style="font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase;">Module:</span>
                     <select id="activity-log-module-select" style="border: 1px solid #ccc; border-radius: 6px; padding: 4px 6px; font-size: 11px; outline: none; width: 140px; background: white;" onchange="window.ActivityLogModule.handleModuleChange()">
                         <option value="">-- All Modules --</option>
+                        <option value="Customers">Customers</option>
+                        <option value="Vendors">Vendors</option>
+                        <option value="Inventory Items">Inventory Items</option>
+                        <option value="Chart of Accounts">Chart of Accounts</option>
                         <option value="Purchase Order">Purchase Order</option>
                         <option value="Purchase Invoice">Purchase Invoice</option>
                         <option value="Purchase Return / Debit Note">Purchase Return / Debit Note</option>

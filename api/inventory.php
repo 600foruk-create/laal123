@@ -173,7 +173,7 @@ try {
         FOREIGN KEY (location_id) REFERENCES inv_locations(id) ON DELETE CASCADE,
         UNIQUE KEY `inv_ob_unique` (company_id, item_id, fy_id, location_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-    
+
     // Ensure category_type exists in inv_main_categories if missing
     try {
         $pdo->exec("ALTER TABLE inv_main_categories ADD COLUMN category_type VARCHAR(50) DEFAULT NULL AFTER name");
@@ -191,24 +191,24 @@ try {
         // Create a sample category
         $pdo->exec("INSERT IGNORE INTO inv_main_categories (company_id, code, name) VALUES ($company_id, '01', 'Sample Category')");
         $mainId = $pdo->lastInsertId() ?: 1;
-        
+
         // Create a sample sub-category
         $pdo->exec("INSERT IGNORE INTO inv_sub_categories (company_id, main_id, code, name) VALUES ($company_id, $mainId, '0101', 'Sample Sub-Category')");
         $subId = $pdo->lastInsertId() ?: 1;
-        
+
         // Create a sample brand
         $pdo->exec("INSERT IGNORE INTO inv_brands (company_id, name) VALUES ($company_id, 'Sample Brand')");
         $brandId = $pdo->lastInsertId() ?: 1;
-        
+
         // Create sample items
-        $pdo->exec("INSERT IGNORE INTO inv_items (company_id, sub_id, code, name, brand_id, purchase_price, selling_price, unit) 
+        $pdo->exec("INSERT IGNORE INTO inv_items (company_id, sub_id, code, name, brand_id, purchase_price, selling_price, unit)
                     VALUES ($company_id, $subId, 'ITM-001', 'Sample Item 1', $brandId, 100, 150, 'Pcs')");
-        $pdo->exec("INSERT IGNORE INTO inv_items (company_id, sub_id, code, name, brand_id, purchase_price, selling_price, unit) 
+        $pdo->exec("INSERT IGNORE INTO inv_items (company_id, sub_id, code, name, brand_id, purchase_price, selling_price, unit)
                     VALUES ($company_id, $subId, 'ITM-002', 'Sample Item 2', $brandId, 200, 300, 'Pcs')");
     }
 
 } catch (Exception $e) {
-    // Silently continue if tables exist or other minor issues, 
+    // Silently continue if tables exist or other minor issues,
     // real errors will be caught in the action block or PDO setup.
 }
 
@@ -282,21 +282,21 @@ try {
             $active_only = isset($_GET['active_only']) && $_GET['active_only'] == 1;
             $include_all = (isset($_GET['include_all']) && $_GET['include_all'] == 1) || (isset($_GET['all']) && $_GET['all'] == 1);
             $for_pos = (isset($_GET['for_pos']) && $_GET['for_pos'] == '1');
-            
+
             $inactiveCond = $include_all ? "" : " AND (i.is_inactive = 0 OR i.is_inactive IS NULL)";
             $coCond = $include_all ? "(i.company_id = ? OR i.company_id = 0 OR i.company_id IS NULL)" : "i.company_id = ?";
-            
+
             // Fetch items with left joins so no items are ever dropped due to category discrepancy
             $sql = "
-                SELECT i.*, b.name as brand_name, 
+                SELECT i.*, b.name as brand_name,
                        COALESCE(IF(i.category_type IS NOT NULL AND i.category_type != '', i.category_type, m.category_type), '') as category_type,
                        s.code as sub_code, s.name as sub_name, s.main_id,
                        m.code as main_code, m.name as main_name,
-                       i.code as coa_list_id 
-                FROM inv_items i 
+                       i.code as coa_list_id
+                FROM inv_items i
                 LEFT JOIN inv_sub_categories s ON i.sub_id = s.id
                 LEFT JOIN inv_main_categories m ON s.main_id = m.id
-                LEFT JOIN inv_brands b ON i.brand_id = b.id 
+                LEFT JOIN inv_brands b ON i.brand_id = b.id
                 WHERE $coCond $inactiveCond
             ";
             $params = [$company_id];
@@ -324,9 +324,9 @@ try {
             // Fallback: If still empty, fetch directly by company_id
             if (empty($items)) {
                 $fallbackStmt = $pdo->prepare("
-                    SELECT i.*, b.name as brand_name, '' as category_type, i.code as coa_list_id 
-                    FROM inv_items i 
-                    LEFT JOIN inv_brands b ON i.brand_id = b.id 
+                    SELECT i.*, b.name as brand_name, '' as category_type, i.code as coa_list_id
+                    FROM inv_items i
+                    LEFT JOIN inv_brands b ON i.brand_id = b.id
                     WHERE $coCond $inactiveCond
                     ORDER BY i.code
                 ");
@@ -344,18 +344,18 @@ try {
         case 'get_items':
             $sub_id = $_GET['sub_id'] ?? 0;
             $active_only = isset($_GET['active_only']) && $_GET['active_only'] == 1;
-            
-            $query = "SELECT i.*, b.name as brand_name 
-                      FROM inv_items i 
+
+            $query = "SELECT i.*, b.name as brand_name
+                      FROM inv_items i
                       LEFT JOIN inv_brands b ON i.brand_id = b.id
                       WHERE i.sub_id = :sub_id AND i.company_id = :company_id";
-            
+
             if ($active_only) {
                 $query .= " AND (i.is_inactive = 0 OR i.is_inactive IS NULL) ";
             }
-            
+
             $query .= " ORDER BY i.code";
-            
+
             $stmt = $pdo->prepare($query);
             $stmt->execute(['sub_id' => $sub_id, 'company_id' => $company_id]);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -391,12 +391,12 @@ try {
                 $stmt = $pdo->prepare("UPDATE inv_sub_categories SET name = ?, code = ?, main_id = ? WHERE id = ? AND company_id = ?");
                 $stmt->execute([$data['name'], $data['code'], $data['main_id'], $id, $company_id]);
                 $after_data = fetchRecordData('inv_sub_categories', null, null, $id);
-                
+
                 // Auto-update child item names using the exact generation format
                 $itemsStmt = $pdo->prepare("
                     SELECT i.*, b.name as brand_name, m.category_type as main_category_type
-                    FROM inv_items i 
-                    LEFT JOIN inv_brands b ON i.brand_id = b.id 
+                    FROM inv_items i
+                    LEFT JOIN inv_brands b ON i.brand_id = b.id
                     LEFT JOIN inv_sub_categories s ON i.sub_id = s.id
                     LEFT JOIN inv_main_categories m ON s.main_id = m.id
                     WHERE i.sub_id = ? AND i.company_id = ?
@@ -434,19 +434,19 @@ try {
                         $fType = trim($item['fitting_type'] ?? '');
                         $fCls = trim($item['class'] ?? '');
                         $fSign = trim($item['carton'] ?? ''); // Carton maps to sign in fittings
-                        
+
                         $fitName = '';
                         if ($fSize) $fitName .= $fSize . ' ';
                         if ($subCatName) $fitName .= trim($subCatName) . ' ';
                         if ($fType) $fitName .= $fType . ' ';
                         if ($fSign) $fitName .= $fSign . ' ';
                         if ($fCls) $fitName .= $fCls . ' ';
-                        
+
                         $newName = trim($fitName);
                     } else if ($catType === 'Raw Material') {
                         $mat = trim($item['material'] ?? '');
                         $grade = trim($item['grade_specification'] ?? '');
-                        
+
                         $rawName = '';
                         if ($subCatName) $rawName .= trim($subCatName) . ' ';
                         if ($brandText) $rawName .= $brandText . ' ';
@@ -460,7 +460,7 @@ try {
                         $upd->execute([$newName, $item['id']]);
                     }
                 }
-                
+
                 logActivity('Inventory Sub Categories', 'UPDATE', $id, $data['name'] ?? '', $before_data, $after_data);
                 echo json_encode(['status' => 'success', 'id' => $id]);
             } else {
@@ -536,12 +536,12 @@ try {
                 'tax_type', 'valuation_method', 'valuation_cost', 'order_qty', 'is_inactive',
                 'category_type', 'size', 'length', 'unit_weight', 'class', 'fitting_type', 'carton', 'material', 'grade_specification', 'length_unit', 'billing_mode', 'pipe_sub_type', 'pipe_length'
             ];
-            
+
             // Clean data for brand_id nulls
             if (empty($data['brand_id'])) $data['brand_id'] = null;
             if (empty($data['unit_weight'])) $data['unit_weight'] = null;
             if (empty($data['carton'])) $data['carton'] = null;
-            
+
             $id = $data['id'] ?? null;
 
             // Duplicate Check logic based on code instead of attributes
@@ -551,12 +551,12 @@ try {
                     'company_id' => $company_id,
                     'code' => $data['code']
                 ];
-                
+
                 if ($id) {
                     $dupQuery .= " AND id != :id";
                     $dupParams['id'] = $id;
                 }
-                
+
                 $dupStmt = $pdo->prepare($dupQuery);
                 $dupStmt->execute($dupParams);
                 if ($dupStmt->fetch()) {
@@ -564,7 +564,7 @@ try {
                     break;
                 }
             }
-            
+
             $before_data = $id ? fetchRecordData('inv_items', null, null, $id) : null;
             if ($id) {
                 $setPart = implode(', ', array_map(fn($f) => "$f = :$f", array_slice($fields, 1)));
@@ -590,12 +590,12 @@ try {
         case 'get_cost_settings':
             $filter_type = $_GET['filter_type'] ?? 'all';
             $filter_id = $_GET['filter_id'] ?? 0;
-            
-            $sql = "SELECT i.id, i.code, i.name, i.valuation_method as cost_method, i.unit 
-                    FROM inv_items i 
+
+            $sql = "SELECT i.id, i.code, i.name, i.valuation_method as cost_method, i.unit
+                    FROM inv_items i
                     WHERE i.company_id = ?";
             $params = [$company_id];
-            
+
             if ($filter_type === 'category') {
                 $sql .= " AND i.sub_id IN (SELECT id FROM inv_sub_categories WHERE main_id = ?)";
                 $params[] = $filter_id;
@@ -603,25 +603,25 @@ try {
                 $sql .= " AND i.brand_id = ?";
                 $params[] = $filter_id;
             }
-            
+
             $sql .= " ORDER BY i.code";
-            
+
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             echo json_encode($items);
             break;
 
         case 'save_bulk_cost_methods':
             $data = json_decode(file_get_contents('php://input'), true);
             $methods = $data['methods'] ?? [];
-            
+
             if (empty($methods)) {
                 echo json_encode(['status' => 'error', 'message' => 'No data to save']);
                 break;
             }
-            
+
             try {
                 $pdo->beginTransaction();
                 $stmt = $pdo->prepare("UPDATE inv_items SET valuation_method = ? WHERE id = ? AND company_id = ?");
@@ -640,12 +640,12 @@ try {
         case 'get_reorder_settings':
             $filter_type = $_GET['filter_type'] ?? 'all';
             $filter_id = $_GET['filter_id'] ?? 0;
-            
-            $sql = "SELECT i.id, i.code, i.name, i.order_qty, i.unit 
-                    FROM inv_items i 
+
+            $sql = "SELECT i.id, i.code, i.name, i.order_qty, i.unit
+                    FROM inv_items i
                     WHERE i.company_id = ?";
             $params = [$company_id];
-            
+
             if ($filter_type === 'category') {
                 $sql .= " AND i.sub_id IN (SELECT id FROM inv_sub_categories WHERE main_id = ?)";
                 $params[] = $filter_id;
@@ -653,25 +653,25 @@ try {
                 $sql .= " AND i.brand_id = ?";
                 $params[] = $filter_id;
             }
-            
+
             $sql .= " ORDER BY i.code";
-            
+
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             echo json_encode($items);
             break;
 
         case 'save_bulk_reorders':
             $data = json_decode(file_get_contents('php://input'), true);
             $reorders = $data['reorders'] ?? [];
-            
+
             if (empty($reorders)) {
                 echo json_encode(['status' => 'error', 'message' => 'No data to save']);
                 break;
             }
-            
+
             try {
                 $pdo->beginTransaction();
                 $stmt = $pdo->prepare("UPDATE inv_items SET order_qty = ? WHERE id = ? AND company_id = ?");
@@ -690,12 +690,12 @@ try {
         case 'get_tax_settings':
             $filter_type = $_GET['filter_type'] ?? 'all';
             $filter_id = $_GET['filter_id'] ?? 0;
-            
-            $sql = "SELECT i.id, i.code, i.name, i.tax_rate, i.unit 
-                    FROM inv_items i 
+
+            $sql = "SELECT i.id, i.code, i.name, i.tax_rate, i.unit
+                    FROM inv_items i
                     WHERE i.company_id = ?";
             $params = [$company_id];
-            
+
             if ($filter_type === 'category') {
                 $sql .= " AND i.sub_id IN (SELECT id FROM inv_sub_categories WHERE main_id = ?)";
                 $params[] = $filter_id;
@@ -703,25 +703,25 @@ try {
                 $sql .= " AND i.brand_id = ?";
                 $params[] = $filter_id;
             }
-            
+
             $sql .= " ORDER BY i.code";
-            
+
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             echo json_encode($items);
             break;
 
         case 'save_bulk_taxes':
             $data = json_decode(file_get_contents('php://input'), true);
             $taxes = $data['taxes'] ?? [];
-            
+
             if (empty($taxes)) {
                 echo json_encode(['status' => 'error', 'message' => 'No data to save']);
                 break;
             }
-            
+
             try {
                 $pdo->beginTransaction();
                 $stmt = $pdo->prepare("UPDATE inv_items SET tax_rate = ? WHERE id = ? AND company_id = ?");
@@ -775,12 +775,12 @@ try {
 
         case 'delete_item':
             $id = $_GET['id'] ?? 0;
-            
+
             // Prevent deletion if used in transactions
             $is_used = false;
             $tables_item_coa = ['purchase_invoice_items', 'sale_invoice_items', 'purchase_order_items', 'sale_order_items', 'quotation_items', 'delivery_challan_items', 'purchase_return_items', 'sale_return_items'];
             $tables_item_id = ['material_issue_note_items', 'production_note_items', 'inventory_transfer_items', 'inward_gate_pass_items', 'outward_gate_pass_items'];
-            
+
             foreach ($tables_item_coa as $tbl) {
                 try {
                     $stmt = $pdo->prepare("SELECT 1 FROM $tbl WHERE item_coa_id = ? LIMIT 1");
@@ -797,7 +797,7 @@ try {
                     } catch(Exception $e) {}
                 }
             }
-            
+
             if ($is_used) {
                 http_response_code(403);
                 echo json_encode(['status' => 'error', 'message' => 'This item cannot be deleted because it is already used in invoices or other documents.']);
@@ -889,7 +889,7 @@ try {
         case 'delete_hs_code':
             $id = $_GET['id'] ?? 0;
             // Check if hs_code is used by any item
-            // Since hs_code in inv_items might be a string matching this code, we could check for code match, 
+            // Since hs_code in inv_items might be a string matching this code, we could check for code match,
             // but the user only asked to manage the list for now. Let's do a simple delete without heavy constraints unless it's a foreign key.
             $before_data = fetchRecordData('inv_hs_codes', null, null, $id);
             $record_title = $before_data['header']['code'] ?? '';
@@ -1051,10 +1051,10 @@ try {
                        COALESCE(i.billing_mode, '') as billing_mode,
                        COALESCE(i.unit_weight, 0) as unit_weight,
                        COALESCE(i.carton, 0) as carton
-                FROM inv_items i 
+                FROM inv_items i
                 INNER JOIN inv_sub_categories s ON i.sub_id = s.id AND s.company_id = i.company_id
                 INNER JOIN inv_main_categories m ON s.main_id = m.id AND m.company_id = i.company_id
-                WHERE i.company_id = ? AND (i.is_inactive = 0 OR i.is_inactive IS NULL) 
+                WHERE i.company_id = ? AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
                 ORDER BY i.code
             ");
             $stmt->execute([$company_id]);
@@ -1079,7 +1079,7 @@ try {
                 $pdo->prepare("INSERT INTO inv_locations (company_id, name, is_default) VALUES (?, 'Main Store', 1)")
                     ->execute([$company_id]);
             }
-            
+
             $stmt = $pdo->prepare("SELECT * FROM inv_locations WHERE company_id = ? ORDER BY is_default DESC, name ASC");
             $stmt->execute([$company_id]);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -1088,7 +1088,7 @@ try {
         case 'get_inv_opening_balances':
             $fy_id = $_GET['fy_id'] ?? 0;
             $location_id = $_GET['location_id'] ?? 0;
-            
+
             // Fetch all items and left join with balances for specific FY/Location
             $stmt = $pdo->prepare("
                 SELECT i.id as item_id, i.code, i.hs_code, COALESCE(NULLIF(i.description, ''), i.name) as name, i.unit,
@@ -1111,10 +1111,10 @@ try {
                 echo json_encode(['error' => 'Missing data']);
                 exit;
             }
-            
+
             $fy_id = $data['fy_id'];
             $location_id = $data['location_id'];
-            
+
             $pdo->beginTransaction();
             try {
                 // First delete all existing balances for this FY and Location to ensure synchronization
@@ -1130,7 +1130,7 @@ try {
                     INSERT INTO inv_opening_balances (company_id, item_id, fy_id, location_id, pieces, quantity, rate)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
-                
+
                 foreach ($data['balances'] as $row) {
                     $item_id = $row['item_id'] ?? 0;
                     $pieces = floatval($row['pieces'] ?? 0);
@@ -1148,7 +1148,7 @@ try {
                     // Only save if at least one value is non-zero
                     if ($pieces != 0 || $quantity != 0 || $rate != 0) {
                         $stmt->execute([
-                            $company_id, $item_id, $fy_id, $location_id, 
+                            $company_id, $item_id, $fy_id, $location_id,
                             $pieces, $quantity, $rate
                         ]);
                     }
@@ -1205,35 +1205,35 @@ try {
         case 'get_price_settings':
             $filter_type = $_GET['filter_type'] ?? 'all';
             $filter_id = $_GET['filter_id'] ?? 0;
-            
+
             // Simplified query to ensure items show up even if categories/brands are not linked
-            $query = "SELECT i.id, i.code, i.name, i.unit, i.purchase_price, i.selling_price 
-                      FROM inv_items i 
+            $query = "SELECT i.id, i.code, i.name, i.unit, i.purchase_price, i.selling_price
+                      FROM inv_items i
                       WHERE i.company_id = :company_id";
-            
+
             if ($filter_type === 'category' && $filter_id > 0) {
                 // If filtering by category, we need the join
-                $query = "SELECT i.id, i.code, i.name, i.unit, i.purchase_price, i.selling_price 
+                $query = "SELECT i.id, i.code, i.name, i.unit, i.purchase_price, i.selling_price
                           FROM inv_items i
                           JOIN inv_sub_categories sc ON i.sub_id = sc.id
                           WHERE i.company_id = :company_id AND sc.main_id = :filter_id";
             } elseif ($filter_type === 'brand' && $filter_id > 0) {
                 $query .= " AND i.brand_id = :filter_id";
             }
-            
+
             $query .= " ORDER BY i.code";
-            
+
             $stmt = $pdo->prepare($query);
             $params = ['company_id' => $company_id];
             if ($filter_id > 0 && $filter_type !== 'all') {
                 $params['filter_id'] = $filter_id;
             }
-            
+
             $stmt->execute($params);
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             error_log("Price Settings: company=" . $company_id . " filter=" . $filter_type . " count=" . count($items));
-            
+
             echo json_encode($items);
             break;
 
@@ -1243,7 +1243,7 @@ try {
                 echo json_encode(['error' => 'Invalid data']);
                 exit;
             }
-            
+
             $pdo->beginTransaction();
             try {
                 $stmt = $pdo->prepare("UPDATE inv_items SET selling_price = ?, purchase_price = ? WHERE id = ? AND company_id = ?");
@@ -1342,7 +1342,15 @@ try {
                 }
                 return '';
             };
-            
+
+            $replaceMode = (isset($_POST['replace_mode']) && ($_POST['replace_mode'] === '1' || $_POST['replace_mode'] === 'true'));
+
+            // Server-Side Pre-Import Backup Snapshot if replace mode or requested
+            $snapshotInfo = null;
+            if ($replaceMode || !empty($_POST['create_snapshot'])) {
+                $snapshotInfo = createImportBackupSnapshot($pdo, 'Inventory Items', $replaceMode ? 'replace' : 'merge', $company_id, $reqUserId, $reqUsername);
+            }
+
             $pdo->beginTransaction();
             try {
                 $normClean = function($str) {
@@ -1434,20 +1442,20 @@ try {
                 $itemByNameStmt = $pdo->prepare("SELECT id, code FROM inv_items WHERE sub_id = ? AND LOWER(TRIM(name)) = LOWER(?) AND (company_id = ? OR company_id = 0 OR company_id IS NULL) LIMIT 1");
 
                 $insertItem = $pdo->prepare("INSERT INTO inv_items (
-                    company_id, sub_id, code, hs_code, name, description, brand_id, rack_no, 
-                    purchase_price, selling_price, unit, qty_per_piece, tax_rate, tax_type, 
-                    valuation_method, valuation_cost, order_qty, is_inactive, category_type, 
-                    size, length, unit_weight, class, fitting_type, carton, material, 
+                    company_id, sub_id, code, hs_code, name, description, brand_id, rack_no,
+                    purchase_price, selling_price, unit, qty_per_piece, tax_rate, tax_type,
+                    valuation_method, valuation_cost, order_qty, is_inactive, category_type,
+                    size, length, unit_weight, class, fitting_type, carton, material,
                     grade_specification, length_unit, billing_mode, pipe_sub_type, pipe_length
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-                $updateItem = $pdo->prepare("UPDATE inv_items SET 
-                    company_id=?, sub_id=?, code=?, hs_code=?, name=?, description=?, brand_id=?, rack_no=?, 
-                    purchase_price=?, selling_price=?, unit=?, qty_per_piece=?, tax_rate=?, 
-                    tax_type=?, valuation_method=?, valuation_cost=?, order_qty=?, is_inactive=?, 
-                    category_type=?, size=?, length=?, unit_weight=?, class=?, fitting_type=?, 
-                    carton=?, material=?, grade_specification=?, length_unit=?, billing_mode=?, 
-                    pipe_sub_type=?, pipe_length=? 
+                $updateItem = $pdo->prepare("UPDATE inv_items SET
+                    company_id=?, sub_id=?, code=?, hs_code=?, name=?, description=?, brand_id=?, rack_no=?,
+                    purchase_price=?, selling_price=?, unit=?, qty_per_piece=?, tax_rate=?,
+                    tax_type=?, valuation_method=?, valuation_cost=?, order_qty=?, is_inactive=?,
+                    category_type=?, size=?, length=?, unit_weight=?, class=?, fitting_type=?,
+                    carton=?, material=?, grade_specification=?, length_unit=?, billing_mode=?,
+                    pipe_sub_type=?, pipe_length=?
                     WHERE id=?");
 
                 $itemsCreated = 0;
@@ -1747,23 +1755,23 @@ try {
                     try {
                         if ($itemId) {
                             $updateItem->execute([
-                                $company_id, $subId, $itemCode, $hsCode, $itemName, $description, $brandId, $rackNo, 
-                                $purchasePrice, $sellingPrice, $unit, $qtyPerPiece, $taxRate, 
-                                $taxType, $valMethod, $valCost, $orderQty, $isInactive, 
-                                $category_type, $size, $length, $unit_weight, $class, $fitting_type, 
-                                $carton, $material, $grade_specification, $length_unit, $billing_mode, 
-                                $pipe_sub_type, $pipe_length, 
+                                $company_id, $subId, $itemCode, $hsCode, $itemName, $description, $brandId, $rackNo,
+                                $purchasePrice, $sellingPrice, $unit, $qtyPerPiece, $taxRate,
+                                $taxType, $valMethod, $valCost, $orderQty, $isInactive,
+                                $category_type, $size, $length, $unit_weight, $class, $fitting_type,
+                                $carton, $material, $grade_specification, $length_unit, $billing_mode,
+                                $pipe_sub_type, $pipe_length,
                                 $itemId
                             ]);
                             $itemsUpdated++;
                             $importedItemIds[] = intval($itemId);
                         } else {
                             $insertItem->execute([
-                                $company_id, $subId, $itemCode, $hsCode, $itemName, $description, 
-                                $brandId, $rackNo, $purchasePrice, $sellingPrice, $unit, $qtyPerPiece, 
-                                $taxRate, $taxType, $valMethod, $valCost, $orderQty, $isInactive, 
-                                $category_type, $size, $length, $unit_weight, $class, $fitting_type, 
-                                $carton, $material, $grade_specification, $length_unit, $billing_mode, 
+                                $company_id, $subId, $itemCode, $hsCode, $itemName, $description,
+                                $brandId, $rackNo, $purchasePrice, $sellingPrice, $unit, $qtyPerPiece,
+                                $taxRate, $taxType, $valMethod, $valCost, $orderQty, $isInactive,
+                                $category_type, $size, $length, $unit_weight, $class, $fitting_type,
+                                $carton, $material, $grade_specification, $length_unit, $billing_mode,
                                 $pipe_sub_type, $pipe_length
                             ]);
                             $itemId = intval($pdo->lastInsertId());
@@ -1807,19 +1815,19 @@ try {
                 if ($replaceMode && !empty($importedItemIds)) {
                     $importedItemIds = array_values(array_unique(array_filter($importedItemIds)));
                     $inClause = implode(',', array_map('intval', $importedItemIds));
-                    
+
                     $stmtOld = $pdo->prepare("SELECT id, sub_id FROM inv_items WHERE (company_id = ? OR company_id = 0 OR company_id IS NULL) AND id NOT IN ($inClause)");
                     $stmtOld->execute([$company_id]);
                     $oldItems = $stmtOld->fetchAll(PDO::FETCH_ASSOC);
 
                     if (!empty($oldItems)) {
                         $tables_item_coa = [
-                            'purchase_invoice_items', 'sale_invoice_items', 'purchase_order_items', 
-                            'sale_order_items', 'quotation_items', 'delivery_challan_items', 
+                            'purchase_invoice_items', 'sale_invoice_items', 'purchase_order_items',
+                            'sale_order_items', 'quotation_items', 'delivery_challan_items',
                             'purchase_return_items', 'sale_return_items'
                         ];
                         $tables_item_id = [
-                            'material_issue_note_items', 'production_note_items', 
+                            'material_issue_note_items', 'production_note_items',
                             'inventory_transfer_items', 'inward_gate_pass_items', 'outward_gate_pass_items'
                         ];
 
@@ -1868,28 +1876,43 @@ try {
                     try {
                         $keepSubClause = !empty($importedSubIds) ? "AND id NOT IN (" . implode(',', array_map('intval', array_keys($importedSubIds))) . ")" : "";
                         $pdo->exec("DELETE FROM inv_sub_categories WHERE (company_id = $company_id OR company_id = 0 OR company_id IS NULL) $keepSubClause AND id NOT IN (SELECT DISTINCT sub_id FROM inv_items WHERE (company_id = $company_id OR company_id = 0 OR company_id IS NULL))");
-                        
+
                         $keepMainClause = !empty($importedMainIds) ? "AND id NOT IN (" . implode(',', array_map('intval', array_keys($importedMainIds))) . ")" : "";
                         $pdo->exec("DELETE FROM inv_main_categories WHERE (company_id = $company_id OR company_id = 0 OR company_id IS NULL) $keepMainClause AND id NOT IN (SELECT DISTINCT main_id FROM inv_sub_categories WHERE (company_id = $company_id OR company_id = 0 OR company_id IS NULL))");
                     } catch(Exception $e) {}
                 }
-                
+
                 $pdo->commit();
+
+                $summary = [
+                    'total_rows' => count($rows),
+                    'items_created' => $itemsCreated,
+                    'items_updated' => $itemsUpdated,
+                    'items_deleted' => $itemsDeleted,
+                    'items_archived' => $itemsArchived,
+                    'items_preserved' => $itemsPreserved,
+                    'mains_created' => $mainsCreated,
+                    'subs_created' => $subsCreated,
+                    'brands_created' => $brandsCreated,
+                    'replace_mode' => $replaceMode,
+                    'snapshot' => $snapshotInfo
+                ];
+
+                // Activity Log Audit Trail
+                logActivity(
+                    'Inventory Items',
+                    'IMPORT',
+                    $snapshotInfo ? strval($snapshotInfo['snapshot_id']) : '0',
+                    "Excel Import (" . ($replaceMode ? 'replace' : 'merge') . "): {$itemsCreated} created, {$itemsUpdated} updated" . ($itemsDeleted ? ", {$itemsDeleted} replaced" : "") . ($snapshotInfo ? " [Snapshot #{$snapshotInfo['snapshot_id']}]" : ""),
+                    $snapshotInfo ? ['snapshot_file' => $snapshotInfo['file_path'], 'records_before' => $snapshotInfo['records_count']] : null,
+                    $summary,
+                    ['company_id' => $company_id, 'user_id' => $reqUserId, 'username' => $reqUsername]
+                );
+
                 echo json_encode([
-                    'status' => 'success', 
+                    'status' => 'success',
                     'message' => 'Data imported and synced successfully.',
-                    'summary' => [
-                        'total_rows' => count($rows),
-                        'items_created' => $itemsCreated,
-                        'items_updated' => $itemsUpdated,
-                        'items_deleted' => $itemsDeleted,
-                        'items_archived' => $itemsArchived,
-                        'items_preserved' => $itemsPreserved,
-                        'mains_created' => $mainsCreated,
-                        'subs_created' => $subsCreated,
-                        'brands_created' => $brandsCreated,
-                        'replace_mode' => $replaceMode
-                    ],
+                    'summary' => $summary,
                     'row_errors' => $rowErrors
                 ]);
             } catch (Exception $e) {

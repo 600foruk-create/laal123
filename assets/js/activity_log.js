@@ -34,10 +34,10 @@
             start.setDate(today.getDate() - 7);
 
             const format = (d) => d.toISOString().split('T')[0];
-            
+
             const startInput = document.getElementById('activity-log-start-date');
             const endInput = document.getElementById('activity-log-end-date');
-            
+
             if (startInput) startInput.value = format(start);
             if (endInput) endInput.value = format(today);
 
@@ -71,7 +71,7 @@
                     if (scrollArea && scrollArea.offsetParent !== null) {
                         const activeTag = document.activeElement ? document.activeElement.tagName : '';
                         if (['INPUT', 'SELECT', 'TEXTAREA'].includes(activeTag)) return;
-                        
+
                         const mod = window.ActivityLogModule;
                         if (e.key === 'ArrowDown') {
                             if (mod.logs && mod.logs.length > 0) {
@@ -98,7 +98,7 @@
                 });
                 window._activityLogKeydownAttached = true;
             }
-            
+
             this.setQuickFilter('all');
         },
 
@@ -276,7 +276,8 @@
                 'ALL': { id: 'activity-card-total', color: 'rgba(31, 78, 121, 0.15)', activeColor: '#1F4E79', shadow: 'rgba(31, 78, 121, 0.2)' },
                 'INSERT': { id: 'activity-card-insert', color: 'rgba(40, 167, 69, 0.15)', activeColor: '#28a745', shadow: 'rgba(40, 167, 69, 0.2)' },
                 'UPDATE': { id: 'activity-card-update', color: 'rgba(245, 166, 35, 0.15)', activeColor: '#e0a800', shadow: 'rgba(245, 166, 35, 0.2)' },
-                'DELETE': { id: 'activity-card-delete', color: 'rgba(220, 53, 69, 0.15)', activeColor: '#dc3545', shadow: 'rgba(220, 53, 69, 0.2)' }
+                'DELETE': { id: 'activity-card-delete', color: 'rgba(220, 53, 69, 0.15)', activeColor: '#dc3545', shadow: 'rgba(220, 53, 69, 0.2)' },
+                'IMPORT': { id: 'activity-card-import', color: 'rgba(111, 66, 193, 0.15)', activeColor: '#6f42c1', shadow: 'rgba(111, 66, 193, 0.2)' }
             };
 
             // Toggle visual styling to show active selection
@@ -288,16 +289,18 @@
                         cardEl.style.border = `2px solid ${cards[key].activeColor}`;
                         cardEl.style.boxShadow = `0 4px 12px ${cards[key].shadow}`;
                         cardEl.style.transform = 'none';
-                        cardEl.style.background = key === 'ALL' ? 'rgba(31, 78, 121, 0.12)' : 
+                        cardEl.style.background = key === 'ALL' ? 'rgba(31, 78, 121, 0.12)' :
                                                  key === 'INSERT' ? 'rgba(40, 167, 69, 0.12)' :
-                                                 key === 'UPDATE' ? 'rgba(245, 166, 35, 0.12)' : 'rgba(220, 53, 69, 0.12)';
+                                                 key === 'UPDATE' ? 'rgba(245, 166, 35, 0.12)' :
+                                                 key === 'DELETE' ? 'rgba(220, 53, 69, 0.12)' : 'rgba(111, 66, 193, 0.12)';
                     } else {
                         cardEl.style.border = `1px solid ${cards[key].color}`;
                         cardEl.style.boxShadow = 'none';
                         cardEl.style.transform = 'none';
-                        cardEl.style.background = key === 'ALL' ? 'rgba(31, 78, 121, 0.08)' : 
+                        cardEl.style.background = key === 'ALL' ? 'rgba(31, 78, 121, 0.08)' :
                                                  key === 'INSERT' ? 'rgba(40, 167, 69, 0.08)' :
-                                                 key === 'UPDATE' ? 'rgba(245, 166, 35, 0.08)' : 'rgba(220, 53, 69, 0.08)';
+                                                 key === 'UPDATE' ? 'rgba(245, 166, 35, 0.08)' :
+                                                 key === 'DELETE' ? 'rgba(220, 53, 69, 0.08)' : 'rgba(111, 66, 193, 0.08)';
                     }
                 }
             });
@@ -340,22 +343,26 @@
             let inserts = 0;
             let updates = 0;
             let deletes = 0;
+            let imports = 0;
 
             logs.forEach(log => {
                 if (log.action_type === 'INSERT') inserts++;
                 else if (log.action_type === 'UPDATE') updates++;
                 else if (log.action_type === 'DELETE') deletes++;
+                else if (log.action_type === 'IMPORT') imports++;
             });
 
             const tEl = document.getElementById('activity-stats-total');
             const iEl = document.getElementById('activity-stats-insert');
             const uEl = document.getElementById('activity-stats-update');
             const dEl = document.getElementById('activity-stats-delete');
+            const impEl = document.getElementById('activity-stats-import');
 
             if (tEl) tEl.textContent = total;
             if (iEl) iEl.textContent = inserts;
             if (uEl) uEl.textContent = updates;
             if (dEl) dEl.textContent = deletes;
+            if (impEl) impEl.textContent = imports;
         },
 
         /**
@@ -394,6 +401,8 @@
                     actionBadge = `<span style="background: rgba(245,166,35,0.12); color: #b27a00; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; min-width: 75px; text-align: center; border: 1px solid rgba(245,166,35,0.25);">UPDATE</span>`;
                 } else if (log.action_type === 'DELETE') {
                     actionBadge = `<span style="background: rgba(220,53,69,0.12); color: #dc3545; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; min-width: 75px; text-align: center; border: 1px solid rgba(220,53,69,0.25);">DELETE</span>`;
+                } else if (log.action_type === 'IMPORT') {
+                    actionBadge = `<span style="background: rgba(111,66,193,0.12); color: #6f42c1; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; min-width: 75px; text-align: center; border: 1px solid rgba(111,66,193,0.25);"><i class="fas fa-file-excel" style="font-size:10px; margin-right:3px;"></i> IMPORT</span>`;
                 }
 
                 // Category styling based on module
@@ -540,7 +549,7 @@
 
             let before = null;
             let after = null;
-            
+
             try {
                 if (log.details_before) before = JSON.parse(log.details_before);
             } catch(e) { console.error('Failed to parse details_before JSON', e); }
@@ -582,7 +591,66 @@
                     </h4>
             `;
 
-            if (log.action_type === 'INSERT') {
+            if (log.action_type === 'IMPORT' || (after && (after.total_processed !== undefined || after.items_created !== undefined || after.customers_created !== undefined || after.vendors_created !== undefined || after.total_rows !== undefined))) {
+                // RENDER IMPORT AUDIT SUMMARY & SNAPSHOT BREAKDOWN
+                const summary = after || {};
+                const modeVal = summary.mode ? String(summary.mode).toUpperCase() : (summary.replace_mode ? 'REPLACE ALL' : 'MERGE');
+                const isReplace = modeVal.includes('REPLACE');
+                const snap = summary.snapshot || (before && before.snapshot_file ? before : null);
+
+                diffHtml += `
+                    <div style="background: #fbfcfe; border: 1px solid #dce4ec; border-radius: 8px; padding: 14px; margin-bottom: 15px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                            <span style="font-size:14px; font-weight:700; color:#1F4E79;">
+                                <i class="fas fa-file-excel" style="color:#28a745; margin-right:6px;"></i> Excel Bulk Import Summary
+                            </span>
+                            <span style="font-size:11px; padding:3px 10px; border-radius:12px; font-weight:bold; background:${isReplace ? 'rgba(220,53,69,0.12)' : 'rgba(40,167,69,0.12)'}; color:${isReplace ? '#dc3545' : '#28a745'}; border:1px solid ${isReplace ? 'rgba(220,53,69,0.3)' : 'rgba(40,167,69,0.3)'};">
+                                MODE: ${modeVal}
+                            </span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; text-align:center;">
+                            <div style="background:white; border:1px solid #e2e8f0; border-radius:6px; padding:8px;">
+                                <div style="font-size:10px; text-transform:uppercase; color:#64748b; font-weight:600;">Total Rows</div>
+                                <div style="font-size:16px; font-weight:bold; color:#1e293b;">${summary.total_rows || summary.total_processed || 0}</div>
+                            </div>
+                            <div style="background:white; border:1px solid #e2e8f0; border-radius:6px; padding:8px;">
+                                <div style="font-size:10px; text-transform:uppercase; color:#15803d; font-weight:600;">Created</div>
+                                <div style="font-size:16px; font-weight:bold; color:#16a34a;">${summary.items_created || summary.customers_created || summary.vendors_created || summary.accounts_created || 0}</div>
+                            </div>
+                            <div style="background:white; border:1px solid #e2e8f0; border-radius:6px; padding:8px;">
+                                <div style="font-size:10px; text-transform:uppercase; color:#b45309; font-weight:600;">Updated</div>
+                                <div style="font-size:16px; font-weight:bold; color:#d97706;">${summary.items_updated || summary.customers_updated || summary.vendors_updated || summary.accounts_updated || 0}</div>
+                            </div>
+                            ${summary.items_deleted || summary.customers_deleted || summary.vendors_deleted ? `
+                            <div style="background:white; border:1px solid #e2e8f0; border-radius:6px; padding:8px;">
+                                <div style="font-size:10px; text-transform:uppercase; color:#b91c1c; font-weight:600;">Replaced/Deleted</div>
+                                <div style="font-size:16px; font-weight:bold; color:#dc2626;">${summary.items_deleted || summary.customers_deleted || summary.vendors_deleted || 0}</div>
+                            </div>` : ''}
+                            ${summary.items_preserved || summary.preserved_invoice_customers || summary.preserved_invoice_vendors ? `
+                            <div style="background:white; border:1px solid #e2e8f0; border-radius:6px; padding:8px;">
+                                <div style="font-size:10px; text-transform:uppercase; color:#475569; font-weight:600;">Preserved Active</div>
+                                <div style="font-size:16px; font-weight:bold; color:#334155;">${summary.items_preserved || summary.preserved_invoice_customers || summary.preserved_invoice_vendors || 0}</div>
+                            </div>` : ''}
+                        </div>
+                        ${snap ? `
+                        <div style="margin-top:12px; background:rgba(31,78,121,0.05); border:1px dashed rgba(31,78,121,0.25); border-radius:6px; padding:8px 12px; font-size:11px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <i class="fas fa-shield-alt" style="color:#1F4E79; margin-right:4px;"></i>
+                                <strong>Safety Snapshot:</strong> <code style="background:white; padding:1px 5px; border-radius:3px;">${snap.file_name || snap.snapshot_file || snap.file_path || 'Server Backup Archive'}</code>
+                                ${snap.records_count !== undefined || snap.records_before !== undefined ? `<span>(${snap.records_count !== undefined ? snap.records_count : snap.records_before} records securely snapshotted)</span>` : ''}
+                            </div>
+                            ${snap.snapshot_id ? `
+                            <a href="api/activity_log.php?action=download_snapshot&snapshot_id=${snap.snapshot_id}&${this._getAuthParams()}" target="_blank" style="color:#1F4E79; text-decoration:none; font-weight:bold; display:inline-flex; align-items:center; gap:4px; background:white; padding:3px 8px; border-radius:4px; border:1px solid #ccc;">
+                                <i class="fas fa-download"></i> Download Backup
+                            </a>` : ''}
+                        </div>` : ''}
+                        ${log.ip_address ? `
+                        <div style="margin-top:8px; font-size:11px; color:#555; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-network-wired" style="color:#888;"></i> <span>Client IP: <strong>${log.ip_address}</strong></span>
+                        </div>` : ''}
+                    </div>
+                `;
+            } else if (log.action_type === 'INSERT') {
                 // Newly inserted header fields list
                 if (afterHeader) {
                     diffHtml += `<table style="width:100%; border-collapse:collapse; font-size:13px;">`;
@@ -619,16 +687,16 @@
                 if (beforeHeader && afterHeader) {
                     let changedFields = [];
                     const allKeys = new Set([...Object.keys(beforeHeader), ...Object.keys(afterHeader)]);
-                    
+
                     allKeys.forEach(key => {
                         if (this.ignoredKeys.includes(key)) return;
                         const bVal = beforeHeader[key] !== undefined ? beforeHeader[key] : '';
                         const aVal = afterHeader[key] !== undefined ? afterHeader[key] : '';
-                        
+
                         // Normalise nulls/empty comparisons
                         const bCompare = bVal === null ? '' : String(bVal).trim();
                         const aCompare = aVal === null ? '' : String(aVal).trim();
-                        
+
                         if (bCompare !== aCompare) {
                             changedFields.push({
                                 key: key,
@@ -648,7 +716,7 @@
                                 </tr>
                             </thead>
                             <tbody>`;
-                        
+
                         changedFields.forEach(field => {
                             diffHtml += `
                                 <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
@@ -658,7 +726,7 @@
                                 </tr>
                             `;
                         });
-                        
+
                         diffHtml += `</tbody></table>`;
                     } else {
                         diffHtml += `<div style="padding: 10px; text-align: center; color: #777; background: #fafafa; border-radius: 6px; font-size: 12px; font-style: italic;">No core header fields were modified. Changes are in grid items below.</div>`;
@@ -745,7 +813,7 @@
                             if (this.ignoredKeys.includes(itemKey)) return;
                             const bVal = beforeData[itemKey] !== undefined ? beforeData[itemKey] : '';
                             const aVal = afterData[itemKey] !== undefined ? afterData[itemKey] : '';
-                            
+
                             const bComp = bVal === null ? '' : String(bVal).trim();
                             const aComp = aVal === null ? '' : String(aVal).trim();
 
@@ -816,7 +884,7 @@
                         diffHtml += `<div style="border-left: 4px solid #F5A623; background: rgba(245,166,35,0.02); padding: 10px; border-radius: 0 6px 6px 0; font-size: 12px;">
                             <strong style="color: #b27a00; font-size:12px; display:block; margin-bottom:5px;"><i class="fas fa-edit"></i> Modified Row #${mInfo.rowNum}</strong>
                             <div style="margin-top:6px; display:flex; flex-direction:column; gap:5px;">`;
-                        
+
                         mInfo.changes.forEach(ch => {
                             diffHtml += `
                                 <div style="display:flex; gap:10px; font-family:monospace; border-bottom:1px dashed rgba(0,0,0,0.04); padding-bottom:3px;">
@@ -827,7 +895,7 @@
                                 </div>
                             `;
                         });
-                        
+
                         diffHtml += `</div></div>`;
                     });
                 }
@@ -860,7 +928,7 @@
             try {
                 const response = await fetch('api/activity_log.php?action=clear_history&' + this._getAuthParams(), { credentials: 'same-origin' });
                 const data = await response.json();
-                
+
                 if (data.status === 'success') {
                     alert(data.message || "History cleared successfully.");
                     this.loadLogs();

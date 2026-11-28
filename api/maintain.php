@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once 'db_config.php';
 require_once 'security_pin_helpers.php';
 
@@ -124,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt->execute([$company_id]);
         sendResponse($stmt->fetchAll());
     }
-    
+
     if ($action === 'get_coa_sub' && isset($_GET['main_id'])) {
         $mainId = $_GET['main_id'];
         if ($mainId === 'ALL') {
@@ -136,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
         sendResponse($stmt->fetchAll());
     }
-    
+
     if ($action === 'get_coa_list' && isset($_GET['sub_id'])) {
         $subId = $_GET['sub_id'];
         if ($subId === 'ALL') {
@@ -152,10 +152,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // --- Customers & Lookups ---
     if ($action === 'get_customer_types') {
         $stmt = $pdo->prepare("
-            SELECT * FROM coa_sub 
+            SELECT * FROM coa_sub
             WHERE main_id IN (
                 SELECT id FROM coa_main WHERE code = '120'
-            ) AND company_id = ? 
+            ) AND company_id = ?
             ORDER BY code ASC
         ");
         $stmt->execute([$company_id]);
@@ -164,10 +164,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if ($action === 'get_vendor_types') {
         $stmt = $pdo->prepare("
-            SELECT * FROM coa_sub 
+            SELECT * FROM coa_sub
             WHERE main_id IN (
                 SELECT id FROM coa_main WHERE code = '210'
-            ) AND company_id = ? 
+            ) AND company_id = ?
             ORDER BY code ASC
         ");
         $stmt->execute([$company_id]);
@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if ($action === 'get_customers' && isset($_GET['sub_id'])) {
         $subId = $_GET['sub_id'];
-        
+
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN list_region_id INT NULL AFTER sub_region_id"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN cust_tax_type_id INT NULL"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN sales_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
@@ -184,12 +184,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN wh_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN cnic VARCHAR(50) DEFAULT NULL AFTER ntn_cnic"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN buyer_type_id INT DEFAULT NULL AFTER cust_tax_type_id"); } catch(PDOException $e) {}
-        
+
         $stmt = $pdo->prepare("
             SELECT cl.*, c.contact_person, c.address, c.region_id, c.sub_region_id, c.list_region_id,
-                   c.telephone, c.mobile, c.fax, c.email, c.website, 
-                   c.st_reg_no, c.ntn_cnic, COALESCE(c.cnic, '') AS cnic, 
-                   c.business_sector_id, c.acc_manager_id, 
+                   c.telephone, c.mobile, c.fax, c.email, c.website,
+                   c.st_reg_no, c.ntn_cnic, COALESCE(c.cnic, '') AS cnic,
+                   c.business_sector_id, c.acc_manager_id,
                    c.credit_limit, c.credit_terms, c.remarks, c.cust_tax_type_id,
                    c.buyer_type_id,
                    COALESCE(bt.name, '') AS buyer_type_name,
@@ -277,15 +277,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'get_customer_types_tax') {
         try {
             $pdo->exec("CREATE TABLE IF NOT EXISTS customer_types_tax (
-                id INT AUTO_INCREMENT PRIMARY KEY, 
-                company_id INT, 
-                name VARCHAR(100), 
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                company_id INT,
+                name VARCHAR(100),
                 tax_rate DECIMAL(10,2) DEFAULT 0.00,
                 wht_type VARCHAR(50) DEFAULT NULL
             )");
             $pdo->exec("ALTER TABLE customer_types_tax ADD COLUMN wht_type VARCHAR(50) DEFAULT NULL");
         } catch(PDOException $e) {}
-        
+
         $stmt = $pdo->prepare("SELECT * FROM customer_types_tax WHERE company_id = ? ORDER BY name ASC");
         $stmt->execute([$company_id]);
         sendResponse($stmt->fetchAll());
@@ -364,7 +364,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'get_vendors') {
         $subId = $_GET['sub_id'] ?? null;
         $sql = "
-            SELECT cl.*, v.contact_person, v.address, v.telephone, v.mobile, v.fax, v.email, v.website, 
+            SELECT cl.*, v.contact_person, v.address, v.telephone, v.mobile, v.fax, v.email, v.website,
                    v.st_reg_no, v.ntn_cnic, v.credit_terms, v.remarks
             FROM coa_list cl
             LEFT JOIN vendors v ON cl.id = v.coa_list_id
@@ -382,7 +382,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             )";
         }
         $sql .= " ORDER BY cl.code ASC";
-        
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         sendResponse($stmt->fetchAll());
@@ -420,7 +420,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             )";
         }
         $sql .= " ORDER BY cl.code ASC";
-        
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         sendResponse($stmt->fetchAll());
@@ -437,7 +437,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         // Fetch customer types (coa_sub) under Customer main account
         $typeStmt = $pdo->prepare("
-            SELECT cs.id, cs.code, cs.name 
+            SELECT cs.id, cs.code, cs.name
             FROM coa_sub cs
             WHERE cs.main_id IN (
                 SELECT id FROM coa_main WHERE code = '120' OR LOWER(name) LIKE '%customer%' OR LOWER(name) LIKE '%debtor%'
@@ -451,7 +451,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $sql = "
             SELECT cs.code AS sub_code, cs.name AS sub_name, cs.id AS sub_id,
                    cl.id AS coa_id, cl.code, cl.name,
-                   c.contact_person, c.address, 
+                   c.contact_person, c.address,
                    COALESCE(r.name, '') AS region_name,
                    COALESCE(sr.name, '') AS sub_region_name,
                    COALESCE(lr.name, '') AS list_region_name,
@@ -488,7 +488,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'get_all_vendors_export') {
         // Fetch vendor types (coa_sub) under Vendor / Payable main account
         $typeStmt = $pdo->prepare("
-            SELECT cs.id, cs.code, cs.name 
+            SELECT cs.id, cs.code, cs.name
             FROM coa_sub cs
             WHERE cs.main_id IN (
                 SELECT id FROM coa_main WHERE code LIKE '21%' OR LOWER(name) LIKE '%vendor%' OR LOWER(name) LIKE '%supplier%' OR LOWER(name) LIKE '%creditor%' OR LOWER(name) LIKE '%payable%'
@@ -502,7 +502,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $sql = "
             SELECT cs.code AS sub_code, cs.name AS sub_name, cs.id AS sub_id,
                    cl.id AS coa_id, cl.code, cl.name,
-                   v.contact_person, v.address, 
+                   v.contact_person, v.address,
                    v.telephone, v.mobile, v.fax, v.email, v.website,
                    v.st_reg_no, v.ntn_cnic,
                    v.credit_terms, v.remarks
@@ -524,8 +524,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'get_banks' && isset($_GET['sub_id'])) {
         $subId = $_GET['sub_id'];
         $stmt = $pdo->prepare("
-            SELECT cl.*, b.bank_name, b.branch, b.account_title, b.account_no, 
-                   b.contact_person, b.address, b.telephone, b.mobile, b.fax, 
+            SELECT cl.*, b.bank_name, b.branch, b.account_title, b.account_no,
+                   b.contact_person, b.address, b.telephone, b.mobile, b.fax,
                    b.email, b.website, b.remarks
             FROM coa_list cl
             LEFT JOIN bank_accounts b ON cl.id = b.coa_list_id
@@ -540,7 +540,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $fyId = $_GET['fy_id'];
         $stmt = $pdo->prepare("
             SELECT cl.id, cl.code, cl.name, cl.sub_id, cs.main_id,
-                   COALESCE(ob.debit, 0) as debit, 
+                   COALESCE(ob.debit, 0) as debit,
                    COALESCE(ob.credit, 0) as credit
             FROM coa_list cl
             LEFT JOIN coa_sub cs ON cl.sub_id = cs.id
@@ -554,20 +554,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if ($action === 'get_coa_balance' && isset($_GET['coa_id'])) {
         $coaId = $_GET['coa_id'];
-        
+
         require_once 'account_ledger.php';
-        
+
         try {
             $transactions = fetchLedgerTransactions($pdo, $company_id, $coaId, '', '');
-            
+
             $totalDebit = 0;
             $totalCredit = 0;
-            
+
             foreach ($transactions as $tx) {
                 $totalDebit += (float)$tx['debit'];
                 $totalCredit += (float)$tx['credit'];
             }
-            
+
             $balance = $totalDebit - $totalCredit;
             file_put_contents('debug_bal.txt', "COA: $coaId, Bal: $balance\n", FILE_APPEND);
             sendResponse(['balance' => $balance]);
@@ -586,7 +586,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
-    
+
     if ($action === 'save_coa_main') {
         $status = 'success';
         $newId = null;
@@ -647,7 +647,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_customer') {
         $coaId = $data['id'] ?? null;
         $before_data = $coaId ? fetchRecordData('coa_list', 'customers', 'coa_list_id', $coaId) : null;
-        
+
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN list_region_id INT NULL AFTER sub_region_id"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN cust_tax_type_id INT NULL"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN sales_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
@@ -655,21 +655,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN wh_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN cnic VARCHAR(50) DEFAULT NULL AFTER ntn_cnic"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN buyer_type_id INT DEFAULT NULL AFTER cust_tax_type_id"); } catch(PDOException $e) {}
-        
-        // Server-Side Pre-Import Backup Snapshot if replace mode
-        if ($mode === 'replace') {
-            try {
-                $backupDir = __DIR__ . '/../storage/backups';
-                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
-                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
-                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
-                $snapStmt->execute([$company_id]);
-                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
-                if (!empty($snapData)) {
-                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
-                }
-            } catch (Exception $e) {}
-        }
 
         $pdo->beginTransaction();
         try {
@@ -694,10 +679,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $buyerTypeId = !empty($data['buyer_type_id']) ? intval($data['buyer_type_id']) : null;
 
             if ($custExists) {
-                $sql = "UPDATE customers SET 
-                        contact_person = ?, address = ?, region_id = ?, sub_region_id = ?, list_region_id = ?, 
-                        telephone = ?, mobile = ?, fax = ?, email = ?, website = ?, 
-                        st_reg_no = ?, ntn_cnic = ?, cnic = ?, business_sector_id = ?, acc_manager_id = ?, 
+                $sql = "UPDATE customers SET
+                        contact_person = ?, address = ?, region_id = ?, sub_region_id = ?, list_region_id = ?,
+                        telephone = ?, mobile = ?, fax = ?, email = ?, website = ?,
+                        st_reg_no = ?, ntn_cnic = ?, cnic = ?, business_sector_id = ?, acc_manager_id = ?,
                         credit_limit = ?, credit_terms = ?, remarks = ?, cust_tax_type_id = ?, buyer_type_id = ?,
                         sales_tax_rate = ?, further_tax_rate = ?, wh_tax_rate = ?
                         WHERE coa_list_id = ?";
@@ -712,8 +697,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $sql = "INSERT INTO customers (
                         company_id, coa_list_id, contact_person, address, region_id, sub_region_id, list_region_id,
-                        telephone, mobile, fax, email, website, 
-                        st_reg_no, ntn_cnic, cnic, business_sector_id, acc_manager_id, 
+                        telephone, mobile, fax, email, website,
+                        st_reg_no, ntn_cnic, cnic, business_sector_id, acc_manager_id,
                         credit_limit, credit_terms, remarks, cust_tax_type_id, buyer_type_id,
                         sales_tax_rate, further_tax_rate, wh_tax_rate
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -744,11 +729,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $further_tax_rate = isset($data['further_tax_rate']) && $data['further_tax_rate'] !== '' ? floatval($data['further_tax_rate']) : 0.00;
         $extra_tax_rate = isset($data['extra_tax_rate']) && $data['extra_tax_rate'] !== '' ? floatval($data['extra_tax_rate']) : 0.00;
         $description = $data['description'] ?? null;
-        
+
         if (empty($name)) {
             sendResponse(['status' => 'error', 'message' => 'Buyer Type Name is required'], 400);
         }
-        
+
         if ($id) {
             $stmt = $pdo->prepare("UPDATE buyer_types SET name = ?, buyer_code = ?, sales_tax_rate = ?, further_tax_rate = ?, extra_tax_rate = ?, description = ? WHERE id = ?");
             $stmt->execute([$name, $buyer_code, $sales_tax_rate, $further_tax_rate, $extra_tax_rate, $description, $id]);
@@ -777,19 +762,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // --- Lookup Saves ---
-    
+
     if ($action === 'save_customer_type_tax') {
         try {
             $pdo->exec("CREATE TABLE IF NOT EXISTS customer_types_tax (
-                id INT AUTO_INCREMENT PRIMARY KEY, 
-                company_id INT, 
-                name VARCHAR(100), 
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                company_id INT,
+                name VARCHAR(100),
                 tax_rate DECIMAL(10,2) DEFAULT 0.00,
                 wht_type VARCHAR(50) DEFAULT NULL
             )");
             $pdo->exec("ALTER TABLE customer_types_tax ADD COLUMN wht_type VARCHAR(50) DEFAULT NULL");
         } catch(PDOException $e) {}
-        
+
         $id = $data['id'] ?? null;
         $wht_type = $data['wht_type'] ?? null;
         if ($id) {
@@ -807,7 +792,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM customers WHERE cust_tax_type_id = ?");
         $stmt->execute([$id]);
         if ($stmt->fetchColumn() > 0) sendResponse(['status' => 'error', 'message' => 'Type is in use by customers.'], 400);
-        
+
         $stmt = $pdo->prepare("DELETE FROM customer_types_tax WHERE id = ?");
         $stmt->execute([$id]);
         sendResponse(['status' => 'success']);
@@ -894,21 +879,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $insSub = $pdo->prepare("INSERT INTO sub_regions (region_id, name) VALUES (?, ?)");
         $insList = $pdo->prepare("INSERT INTO list_regions (sub_region_id, name) VALUES (?, ?)");
 
-        // Server-Side Pre-Import Backup Snapshot if replace mode
-        if ($mode === 'replace') {
-            try {
-                $backupDir = __DIR__ . '/../storage/backups';
-                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
-                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
-                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
-                $snapStmt->execute([$company_id]);
-                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
-                if (!empty($snapData)) {
-                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
-                }
-            } catch (Exception $e) {}
-        }
-
         $pdo->beginTransaction();
         try {
             $currentMainName = '';
@@ -989,7 +959,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             // Find main regions that have 0 sub-regions
             $stmt = $pdo->prepare("
-                SELECT r.id, r.name 
+                SELECT r.id, r.name
                 FROM regions r
                 LEFT JOIN sub_regions sr ON sr.region_id = r.id
                 WHERE (r.company_id = ? OR r.company_id IS NULL OR r.company_id = 0)
@@ -1021,7 +991,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             logActivity('Customer Regions', 'CLEANUP', 0, "Cleaned up rogue main regions: " . implode(', ', $deletedNames), null, ['cleaned' => $deletedNames]);
             sendResponse([
                 'status' => 'success',
-                'message' => count($deletedNames) > 0 
+                'message' => count($deletedNames) > 0
                     ? "Cleaned up " . count($deletedNames) . " rogue region(s): " . implode(', ', $deletedNames)
                     : "No rogue main regions found to clean.",
                 'cleaned' => $deletedNames
@@ -1033,22 +1003,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'clear_all_regions') {
         try {
-            // Server-Side Pre-Import Backup Snapshot if replace mode
-        if ($mode === 'replace') {
-            try {
-                $backupDir = __DIR__ . '/../storage/backups';
-                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
-                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
-                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
-                $snapStmt->execute([$company_id]);
-                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
-                if (!empty($snapData)) {
-                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
-                }
-            } catch (Exception $e) {}
-        }
-
-        $pdo->beginTransaction();
+            $pdo->beginTransaction();
 
             // 1. Delete list_regions under company's regions
             $pdo->prepare("
@@ -1067,7 +1022,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // 3. Delete regions
             $pdo->prepare("
-                DELETE FROM regions 
+                DELETE FROM regions
                 WHERE (company_id = ? OR company_id IS NULL OR company_id = 0)
             ")->execute([$company_id]);
 
@@ -1100,7 +1055,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $status = 'success';
             $newId = null;
             $id = $data['id'] ?? null;
-            
+
             // Safe coalesce for strings
             $name = $data['name'] ?? '';
             $father_name = $data['father_name'] ?? '';
@@ -1111,20 +1066,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $designation = $data['designation'] ?? '';
             $remarks = $data['remarks'] ?? '';
             $reference = $data['reference'] ?? '';
-            
+
             // Dates to null
             $dob = empty($data['dob']) ? null : $data['dob'];
             $joining_date = empty($data['joining_date']) ? null : $data['joining_date'];
             $leaving_date = empty($data['leaving_date']) ? null : $data['leaving_date'];
-            
+
             // Integers/Decimals
             $department_id = empty($data['department_id']) ? 0 : (int)$data['department_id'];
             $salary = empty($data['salary']) ? 0 : (float)$data['salary'];
             $job_left = isset($data['job_left']) ? (int)$data['job_left'] : 0;
-            
+
             $before_data = $id ? fetchRecordData('employees', null, null, $id) : null;
             if ($id) {
-                $sql = "UPDATE employees SET 
+                $sql = "UPDATE employees SET
                         name = ?, father_name = ?, address = ?, telephone = ?, email = ?, nic_no = ?,
                         dob = ?, joining_date = ?, salary = ?, designation = ?, department_id = ?,
                         remarks = ?, reference = ?, job_left = ?, leaving_date = ?
@@ -1139,8 +1094,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $newId = $id;
             } else {
                 $sql = "INSERT INTO employees (
-                        company_id, name, father_name, address, telephone, email, nic_no, 
-                        dob, joining_date, salary, designation, department_id, 
+                        company_id, name, father_name, address, telephone, email, nic_no,
+                        dob, joining_date, salary, designation, department_id,
                         remarks, reference, job_left, leaving_date
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $pdo->prepare($sql);
@@ -1163,20 +1118,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_vendor') {
         $coaId = $data['id'] ?? null;
         $before_data = $coaId ? fetchRecordData('coa_list', 'vendors', 'coa_list_id', $coaId) : null;
-        // Server-Side Pre-Import Backup Snapshot if replace mode
-        if ($mode === 'replace') {
-            try {
-                $backupDir = __DIR__ . '/../storage/backups';
-                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
-                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
-                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
-                $snapStmt->execute([$company_id]);
-                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
-                if (!empty($snapData)) {
-                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
-                }
-            } catch (Exception $e) {}
-        }
 
         $pdo->beginTransaction();
         try {
@@ -1195,9 +1136,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vendExists = $stmt->fetch();
 
             if ($vendExists) {
-                $sql = "UPDATE vendors SET 
-                        contact_person = ?, address = ?, telephone = ?, mobile = ?, fax = ?, 
-                        email = ?, website = ?, st_reg_no = ?, ntn_cnic = ?, 
+                $sql = "UPDATE vendors SET
+                        contact_person = ?, address = ?, telephone = ?, mobile = ?, fax = ?,
+                        email = ?, website = ?, st_reg_no = ?, ntn_cnic = ?,
                         credit_terms = ?, remarks = ?
                         WHERE coa_list_id = ?";
                 $stmt = $pdo->prepare($sql);
@@ -1208,7 +1149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             } else {
                 $sql = "INSERT INTO vendors (
-                        company_id, coa_list_id, contact_person, address, telephone, mobile, 
+                        company_id, coa_list_id, contact_person, address, telephone, mobile,
                         fax, email, website, st_reg_no, ntn_cnic, credit_terms, remarks
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $pdo->prepare($sql);
@@ -1231,19 +1172,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_bank') {
         $coaId = $data['id'] ?? null;
         $before_data = $coaId ? fetchRecordData('coa_list', 'bank_accounts', 'coa_list_id', $coaId) : null;
-        // Server-Side Pre-Import Backup Snapshot if replace mode
-        if ($mode === 'replace') {
-            try {
-                $backupDir = __DIR__ . '/../storage/backups';
-                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
-                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
-                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
-                $snapStmt->execute([$company_id]);
-                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
-                if (!empty($snapData)) {
-                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
-                }
-            } catch (Exception $e) {}
+        // Server-Side Pre-Import Backup Snapshot if replace mode or requested
+        $snapshotInfo = null;
+        if ($mode === 'replace' || !empty($_POST['create_snapshot'])) {
+            $snapshotInfo = createImportBackupSnapshot($pdo, 'Vendors', $mode, $company_id, $reqUserId, $reqUsername);
         }
 
         $pdo->beginTransaction();
@@ -1263,9 +1195,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $bankExists = $stmt->fetch();
 
             if ($bankExists) {
-                $sql = "UPDATE bank_accounts SET 
-                        bank_name = ?, branch = ?, account_title = ?, account_no = ?, 
-                        contact_person = ?, address = ?, telephone = ?, mobile = ?, fax = ?, 
+                $sql = "UPDATE bank_accounts SET
+                        bank_name = ?, branch = ?, account_title = ?, account_no = ?,
+                        contact_person = ?, address = ?, telephone = ?, mobile = ?, fax = ?,
                         email = ?, website = ?, remarks = ?
                         WHERE coa_list_id = ?";
                 $stmt = $pdo->prepare($sql);
@@ -1276,7 +1208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             } else {
                 $sql = "INSERT INTO bank_accounts (
-                        company_id, coa_list_id, bank_name, branch, account_title, account_no, 
+                        company_id, coa_list_id, bank_name, branch, account_title, account_no,
                         contact_person, address, telephone, mobile, fax, email, website, remarks
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $pdo->prepare($sql);
@@ -1346,19 +1278,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN cnic VARCHAR(50) DEFAULT NULL AFTER ntn_cnic"); } catch(PDOException $e) {}
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN buyer_type_id INT DEFAULT NULL AFTER cust_tax_type_id"); } catch(PDOException $e) {}
 
-        // Server-Side Pre-Import Backup Snapshot if replace mode
-        if ($mode === 'replace') {
-            try {
-                $backupDir = __DIR__ . '/../storage/backups';
-                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
-                $snapFile = $backupDir . '/pre_replace_vendors_' . date('Y_m_d_His') . '.json';
-                $snapStmt = $pdo->prepare("SELECT v.*, cl.code, cl.name FROM vendors v LEFT JOIN coa_list cl ON v.coa_list_id = cl.id WHERE v.company_id = ?");
-                $snapStmt->execute([$company_id]);
-                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
-                if (!empty($snapData)) {
-                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
-                }
-            } catch (Exception $e) {}
+        // Server-Side Pre-Import Backup Snapshot if replace mode or requested
+        $snapshotInfo = null;
+        if ($mode === 'replace' || !empty($_POST['create_snapshot'])) {
+            $snapshotInfo = createImportBackupSnapshot($pdo, 'Customers', $mode, $company_id, $reqUserId, $reqUsername);
         }
 
         $normClean = function($str) {
@@ -1380,21 +1303,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             return '';
         };
-
-        // Server-Side Pre-Import Backup Snapshot if replace mode
-        if ($mode === 'replace') {
-            try {
-                $backupDir = __DIR__ . '/../storage/backups';
-                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
-                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
-                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
-                $snapStmt->execute([$company_id]);
-                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
-                if (!empty($snapData)) {
-                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
-                }
-            } catch (Exception $e) {}
-        }
 
         $pdo->beginTransaction();
         try {
@@ -1493,9 +1401,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $maxCustCodePerSub = [];
 
             $cStmt = $pdo->prepare("
-                SELECT cl.id, cl.sub_id, cl.code, cl.name 
-                FROM coa_list cl 
-                JOIN coa_sub cs ON cl.sub_id = cs.id 
+                SELECT cl.id, cl.sub_id, cl.code, cl.name
+                FROM coa_list cl
+                JOIN coa_sub cs ON cl.sub_id = cs.id
                 WHERE cs.main_id = ? AND (cl.company_id = ? OR cl.company_id = 0 OR cl.company_id IS NULL)
             ");
             $cStmt->execute([$mainId, $company_id]);
@@ -1552,11 +1460,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $insertTypeStmt = $pdo->prepare("INSERT INTO coa_sub (company_id, main_id, code, name) VALUES (?, ?, ?, ?)");
             $insertCustCoaStmt = $pdo->prepare("INSERT INTO coa_list (company_id, sub_id, code, name) VALUES (?, ?, ?, ?)");
             $updateCustCoaStmt = $pdo->prepare("UPDATE coa_list SET name = ?, sub_id = ? WHERE id = ?");
-            
+
             $checkCustDetailsStmt = $pdo->prepare("SELECT id FROM customers WHERE coa_list_id = ? LIMIT 1");
 
             $updateCustDetailsStmt = $pdo->prepare("
-                UPDATE customers SET 
+                UPDATE customers SET
                     contact_person = ?, address = ?, region_id = ?, sub_region_id = ?, list_region_id = ?,
                     telephone = ?, mobile = ?, fax = ?, email = ?, website = ?,
                     st_reg_no = ?, ntn_cnic = ?, cnic = ?, buyer_type_id = ?, cust_tax_type_id = ?,
@@ -1810,7 +1718,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach (array_keys($existingCustomerIds) as $oldId) {
                     if (!isset($processedCoaIds[$oldId])) {
                         if (isset($usedCustomerIds[$oldId])) {
-                            // Invoices/transactions exist — PRESERVE!
+                            // Invoices/transactions exist â€” PRESERVE!
                             $preservedCount++;
                         } else {
                             // Safe to delete
@@ -1831,14 +1739,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'customers_deleted' => $customersDeletedCount,
                 'preserved_invoice_customers' => $preservedCount,
                 'types_created' => $typesCreatedCount,
-                'mode' => $mode
+                'mode' => $mode,
+                'snapshot' => $snapshotInfo
             ];
 
             // Activity Log Audit Trail
-            $_SESSION['user_id'] = $reqUserId;
-            $_SESSION['username'] = $reqUsername;
-            $_SESSION['company_id'] = $company_id;
-            logActivity('Customers', 'IMPORT', 0, "Excel Import ({$mode}): {$customersCreatedCount} created, {$customersUpdatedCount} updated" . ($customersDeletedCount ? ", {$customersDeletedCount} replaced" : ""), null, $summary);
+            logActivity(
+                'Customers',
+                'IMPORT',
+                $snapshotInfo ? strval($snapshotInfo['snapshot_id']) : '0',
+                "Excel Import ({$mode}): {$customersCreatedCount} created, {$customersUpdatedCount} updated" . ($customersDeletedCount ? ", {$customersDeletedCount} replaced" : "") . ($snapshotInfo ? " [Snapshot #{$snapshotInfo['snapshot_id']}]" : ""),
+                $snapshotInfo ? ['snapshot_file' => $snapshotInfo['file_path'], 'records_before' => $snapshotInfo['records_count']] : null,
+                $summary,
+                ['company_id' => $company_id, 'user_id' => $reqUserId, 'username' => $reqUsername]
+            );
 
             sendResponse([
                 'status' => 'success',
@@ -1929,19 +1843,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return '';
         };
 
-        // Server-Side Pre-Import Backup Snapshot if replace mode
-        if ($mode === 'replace') {
-            try {
-                $backupDir = __DIR__ . '/../storage/backups';
-                if (!is_dir($backupDir)) { @mkdir($backupDir, 0755, true); }
-                $snapFile = $backupDir . '/pre_replace_customers_' . date('Y_m_d_His') . '.json';
-                $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
-                $snapStmt->execute([$company_id]);
-                $snapData = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
-                if (!empty($snapData)) {
-                    @file_put_contents($snapFile, json_encode($snapData, JSON_UNESCAPED_UNICODE));
-                }
-            } catch (Exception $e) {}
+        // Server-Side Pre-Import Backup Snapshot if replace mode or requested
+        $snapshotInfo = null;
+        if ($mode === 'replace' || !empty($_POST['create_snapshot'])) {
+            $snapshotInfo = createImportBackupSnapshot($pdo, 'Vendors', $mode, $company_id, $reqUserId, $reqUsername);
         }
 
         $pdo->beginTransaction();
@@ -1986,9 +1891,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $maxVendCodePerSub = [];
 
             $vStmt = $pdo->prepare("
-                SELECT cl.id, cl.sub_id, cl.code, cl.name 
-                FROM coa_list cl 
-                JOIN coa_sub cs ON cl.sub_id = cs.id 
+                SELECT cl.id, cl.sub_id, cl.code, cl.name
+                FROM coa_list cl
+                JOIN coa_sub cs ON cl.sub_id = cs.id
                 WHERE cs.main_id = ? AND (cl.company_id = ? OR cl.company_id = 0 OR cl.company_id IS NULL)
             ");
             $vStmt->execute([$mainId, $company_id]);
@@ -2048,7 +1953,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $checkVendDetailsStmt = $pdo->prepare("SELECT id FROM vendors WHERE coa_list_id = ? LIMIT 1");
 
             $updateVendDetailsStmt = $pdo->prepare("
-                UPDATE vendors SET 
+                UPDATE vendors SET
                     contact_person = ?, address = ?, telephone = ?, mobile = ?, fax = ?,
                     email = ?, website = ?, st_reg_no = ?, ntn_cnic = ?, credit_terms = ?, remarks = ?
                 WHERE coa_list_id = ?
@@ -2056,7 +1961,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $insertVendDetailsStmt = $pdo->prepare("
                 INSERT INTO vendors (
-                    company_id, coa_list_id, contact_person, address, telephone, mobile, 
+                    company_id, coa_list_id, contact_person, address, telephone, mobile,
                     fax, email, website, st_reg_no, ntn_cnic, credit_terms, remarks
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
@@ -2205,14 +2110,249 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'vendors_deleted' => $vendorsDeletedCount,
                 'preserved_invoice_vendors' => $preservedCount,
                 'types_created' => $typesCreatedCount,
-                'mode' => $mode
+                'mode' => $mode,
+                'snapshot' => $snapshotInfo
             ];
 
             // Activity Log Audit Trail
-            $_SESSION['user_id'] = $reqUserId;
-            $_SESSION['username'] = $reqUsername;
-            $_SESSION['company_id'] = $company_id;
-            logActivity('Vendors', 'IMPORT', 0, "Excel Import ({$mode}): {$vendorsCreatedCount} created, {$vendorsUpdatedCount} updated" . ($vendorsDeletedCount ? ", {$vendorsDeletedCount} replaced" : ""), null, $summary);
+            logActivity(
+                'Vendors',
+                'IMPORT',
+                $snapshotInfo ? strval($snapshotInfo['snapshot_id']) : '0',
+                "Excel Import ({$mode}): {$vendorsCreatedCount} created, {$vendorsUpdatedCount} updated" . ($vendorsDeletedCount ? ", {$vendorsDeletedCount} replaced" : "") . ($snapshotInfo ? " [Snapshot #{$snapshotInfo['snapshot_id']}]" : ""),
+                $snapshotInfo ? ['snapshot_file' => $snapshotInfo['file_path'], 'records_before' => $snapshotInfo['records_count']] : null,
+                $summary,
+                ['company_id' => $company_id, 'user_id' => $reqUserId, 'username' => $reqUsername]
+            );
+
+            sendResponse([
+                'status' => 'success',
+                'summary' => $summary
+            ]);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            sendResponse(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    if ($action === 'import_coa_excel') {
+        // Security Check: Only Administrator or Master PIN authorized session can import Excel
+        $reqUserId = intval($_POST['current_user_id'] ?? ($_POST['user_id'] ?? ($_SESSION['user_id'] ?? 0)));
+        $reqRole = strtoupper($_SESSION['role'] ?? '');
+        $reqUsername = $_SESSION['username'] ?? '';
+
+        if ($reqUserId > 0 && (!$reqRole || !$reqUsername)) {
+            try {
+                $uStmt = $pdo->prepare("SELECT id, username, role FROM users WHERE id = ?");
+                $uStmt->execute([$reqUserId]);
+                if ($uRow = $uStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $reqRole = strtoupper($uRow['role'] ?? '');
+                    $reqUsername = $uRow['username'] ?? '';
+                }
+            } catch (Exception $e) {}
+        }
+
+        $isAdmin = ($reqRole === 'ADMIN' || $reqRole === 'ADMINISTRATOR' || strcasecmp($reqUsername, 'Administrator') === 0 || $reqUserId === 1);
+        $pinToken = trim((string)($_POST['pin_token'] ?? ''));
+        $isPinAuthorized = false;
+
+        if (!$isAdmin && $pinToken !== '' && function_exists('validateSecurityActionPinToken')) {
+            $isPinAuthorized = validateSecurityActionPinToken($pdo, $pinToken, $reqUserId, 'excel_import');
+        }
+
+        if (!$isAdmin && !$isPinAuthorized) {
+            sendResponse(['status' => 'error', 'message' => 'Unauthorized: Excel import karne ki ijazat sirf Administrator ko hai.'], 403);
+        }
+
+        $rows = null;
+        $mode = $_POST['mode'] ?? ($data['mode'] ?? 'merge');
+        if (isset($_POST['data'])) {
+            $raw = is_string($_POST['data']) ? stripslashes($_POST['data']) : $_POST['data'];
+            $rows = json_decode($raw, true) ?: json_decode($_POST['data'], true);
+        } elseif (isset($data['data'])) {
+            $rows = is_array($data['data']) ? $data['data'] : json_decode($data['data'], true);
+        }
+
+        if (!$rows || !is_array($rows)) {
+            sendResponse(['status' => 'error', 'message' => 'Invalid data format or empty rows.'], 400);
+        }
+
+        // Server-Side Pre-Import Backup Snapshot if replace mode or requested
+        $snapshotInfo = null;
+        if ($mode === 'replace' || !empty($_POST['create_snapshot'])) {
+            $snapshotInfo = createImportBackupSnapshot($pdo, 'Chart of Accounts', $mode, $company_id, $reqUserId, $reqUsername);
+        }
+
+        $normClean = function($str) {
+            return strtolower(preg_replace('/[^a-zA-Z0-9]/', '', (string)$str));
+        };
+
+        $getVal = function($row, ...$keys) use ($normClean) {
+            foreach ($keys as $k) {
+                if (isset($row[$k]) && trim(strval($row[$k])) !== '') {
+                    return trim(strval($row[$k]));
+                }
+            }
+            $cleanKeys = array_map(function($k) use ($normClean) { return $normClean($k); }, $keys);
+            foreach ($row as $rk => $rv) {
+                $cleanRk = $normClean($rk);
+                if (in_array($cleanRk, $cleanKeys, true) && trim(strval($rv)) !== '') {
+                    return trim(strval($rv));
+                }
+            }
+            return '';
+        };
+
+        $pdo->beginTransaction();
+        try {
+            // Preload COA Main
+            $mainCache = [];
+            $mStmt = $pdo->prepare("SELECT id, code, name FROM coa_main WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+            $mStmt->execute([$company_id]);
+            while ($mRow = $mStmt->fetch(PDO::FETCH_ASSOC)) {
+                $mainCache[$normClean($mRow['code'])] = $mRow;
+                $mainCache['name_' . $normClean($mRow['name'])] = $mRow;
+            }
+
+            // Preload COA Sub
+            $subCache = [];
+            $sStmt = $pdo->prepare("SELECT id, main_id, code, name FROM coa_sub WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+            $sStmt->execute([$company_id]);
+            while ($sRow = $sStmt->fetch(PDO::FETCH_ASSOC)) {
+                $subCache[$normClean($sRow['code'])] = $sRow;
+                $subCache[$sRow['main_id'] . '_' . $normClean($sRow['name'])] = $sRow;
+            }
+
+            // Preload COA List
+            $listCache = [];
+            $lStmt = $pdo->prepare("SELECT id, sub_id, code, name FROM coa_list WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+            $lStmt->execute([$company_id]);
+            while ($lRow = $lStmt->fetch(PDO::FETCH_ASSOC)) {
+                $listCache[$normClean($lRow['code'])] = $lRow;
+                $listCache[$lRow['sub_id'] . '_' . $normClean($lRow['name'])] = $lRow;
+            }
+
+            $insertMainStmt = $pdo->prepare("INSERT INTO coa_main (company_id, code, name) VALUES (?, ?, ?)");
+            $insertSubStmt = $pdo->prepare("INSERT INTO coa_sub (company_id, main_id, code, name) VALUES (?, ?, ?, ?)");
+            $insertListStmt = $pdo->prepare("INSERT INTO coa_list (company_id, sub_id, code, name) VALUES (?, ?, ?, ?)");
+            $updateListStmt = $pdo->prepare("UPDATE coa_list SET name = ?, sub_id = ? WHERE id = ?");
+
+            $accountsCreated = 0;
+            $accountsUpdated = 0;
+            $mainsCreated = 0;
+            $subsCreated = 0;
+
+            foreach ($rows as $row) {
+                $mainCode = $getVal($row, 'Main Account Code', 'Main Code', 'main_code', 'main');
+                $mainName = $getVal($row, 'Main Account Name', 'Main Name', 'main_name');
+                $subCode = $getVal($row, 'Sub Account Code', 'Sub Code', 'sub_code', 'sub');
+                $subName = $getVal($row, 'Sub Account Name', 'Sub Name', 'sub_name');
+                $accCode = $getVal($row, 'Account Code', 'AccountCode', 'code');
+                $accName = $getVal($row, 'Account Name', 'AccountName', 'name');
+
+                if (empty($mainCode) && empty($mainName) && empty($subCode) && empty($accCode) && empty($accName)) {
+                    continue;
+                }
+
+                // Resolve Main Account
+                $mainId = null;
+                $cleanMCode = $normClean($mainCode);
+                $cleanMName = $normClean($mainName);
+                if ($cleanMCode && isset($mainCache[$cleanMCode])) {
+                    $mainId = intval($mainCache[$cleanMCode]['id']);
+                } elseif ($cleanMName && isset($mainCache['name_' . $cleanMName])) {
+                    $mainId = intval($mainCache['name_' . $cleanMName]['id']);
+                } elseif (!empty($mainCode) || !empty($mainName)) {
+                    $mCode = $mainCode ?: '900';
+                    $mName = $mainName ?: ('Account ' . $mCode);
+                    $insertMainStmt->execute([$company_id, $mCode, $mName]);
+                    $mainId = intval($pdo->lastInsertId());
+                    $newM = ['id' => $mainId, 'code' => $mCode, 'name' => $mName];
+                    $mainCache[$normClean($mCode)] = $newM;
+                    $mainCache['name_' . $normClean($mName)] = $newM;
+                    $mainsCreated++;
+                }
+
+                // Resolve Sub Account
+                $subId = null;
+                $cleanSCode = $normClean($subCode);
+                $cleanSName = $normClean($subName);
+                if ($cleanSCode && isset($subCache[$cleanSCode])) {
+                    $subId = intval($subCache[$cleanSCode]['id']);
+                } elseif ($mainId && $cleanSName && isset($subCache[$mainId . '_' . $cleanSName])) {
+                    $subId = intval($subCache[$mainId . '_' . $cleanSName]['id']);
+                } elseif ($mainId && (!empty($subCode) || !empty($subName))) {
+                    $sCode = $subCode ?: ($mainCode . '01');
+                    $sName = $subName ?: ('Sub Account ' . $sCode);
+                    $insertSubStmt->execute([$company_id, $mainId, $sCode, $sName]);
+                    $subId = intval($pdo->lastInsertId());
+                    $newS = ['id' => $subId, 'main_id' => $mainId, 'code' => $sCode, 'name' => $sName];
+                    $subCache[$normClean($sCode)] = $newS;
+                    $subCache[$mainId . '_' . $normClean($sName)] = $newS;
+                    $subsCreated++;
+                }
+
+                // Resolve Account (coa_list)
+                if (empty($accCode) && empty($accName)) {
+                    continue;
+                }
+
+                if (!$subId) {
+                    // Fallback to first existing sub
+                    $firstSub = reset($subCache);
+                    if ($firstSub) {
+                        $subId = intval($firstSub['id']);
+                    } else {
+                        continue;
+                    }
+                }
+
+                $cleanACode = $normClean($accCode);
+                $cleanAName = $normClean($accName);
+
+                if ($cleanACode && isset($listCache[$cleanACode])) {
+                    $existingAcc = $listCache[$cleanACode];
+                    $updateListStmt->execute([$accName ?: $existingAcc['name'], $subId, $existingAcc['id']]);
+                    $accountsUpdated++;
+                } elseif ($cleanAName && isset($listCache[$subId . '_' . $cleanAName])) {
+                    $existingAcc = $listCache[$subId . '_' . $cleanAName];
+                    $accountsUpdated++;
+                } else {
+                    $finalCode = $accCode ?: ($subCode . '001');
+                    $finalName = $accName ?: ('Account ' . $finalCode);
+                    $insertListStmt->execute([$company_id, $subId, $finalCode, $finalName]);
+                    $newAccId = intval($pdo->lastInsertId());
+                    $newAcc = ['id' => $newAccId, 'sub_id' => $subId, 'code' => $finalCode, 'name' => $finalName];
+                    $listCache[$normClean($finalCode)] = $newAcc;
+                    $listCache[$subId . '_' . $normClean($finalName)] = $newAcc;
+                    $accountsCreated++;
+                }
+            }
+
+            $pdo->commit();
+
+            $summary = [
+                'total_rows' => count($rows),
+                'accounts_created' => $accountsCreated,
+                'accounts_updated' => $accountsUpdated,
+                'mains_created' => $mainsCreated,
+                'subs_created' => $subsCreated,
+                'mode' => $mode,
+                'snapshot' => $snapshotInfo
+            ];
+
+            // Activity Log Audit Trail
+            logActivity(
+                'Chart of Accounts',
+                'IMPORT',
+                $snapshotInfo ? strval($snapshotInfo['snapshot_id']) : '0',
+                "Excel Import ({$mode}): {$accountsCreated} created, {$accountsUpdated} updated" . ($snapshotInfo ? " [Snapshot #{$snapshotInfo['snapshot_id']}]" : ""),
+                $snapshotInfo ? ['snapshot_file' => $snapshotInfo['file_path'], 'records_before' => $snapshotInfo['records_count']] : null,
+                $summary,
+                ['company_id' => $company_id, 'user_id' => $reqUserId, 'username' => $reqUsername]
+            );
 
             sendResponse([
                 'status' => 'success',
@@ -2282,7 +2422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
         if ($before_data && isset($before_data['header']['code']) && in_array(strval($before_data['header']['code']), $protected_coa_codes)) {
             sendResponse(['status' => 'error', 'message' => 'Default system account cannot be deleted.'], 403);
         }
-        
+
         // Check if it is customer, vendor, or bank account
         $isCust = $pdo->prepare("SELECT id FROM customers WHERE coa_list_id = ?");
         $isCust->execute([$id]);
@@ -2290,7 +2430,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
         $isVend->execute([$id]);
         $isBank = $pdo->prepare("SELECT id FROM bank_accounts WHERE coa_list_id = ?");
         $isBank->execute([$id]);
-        
+
         $module = 'Chart of Accounts List';
         if ($isCust->fetch()) {
             $module = 'Customers';
@@ -2303,7 +2443,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
             $before_data = fetchRecordData('coa_list', 'bank_accounts', 'coa_list_id', $id);
         }
         $record_title = $before_data['header']['name'] ?? '';
-        
+
         // Prevent deletion if used in transactions
         $is_used = false;
         $tables_to_check = [
@@ -2328,7 +2468,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
                 if ($stmt->fetchColumn()) { $is_used = true; break; }
             } catch(Exception $e) {}
         }
-        
+
         if ($is_used) {
             sendResponse(['status' => 'error', 'message' => 'Cannot delete this account/customer/vendor because it is already used in invoices or vouchers.'], 403);
         }
@@ -2395,11 +2535,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
         $pdo->prepare("DELETE FROM coa_opening_balances WHERE company_id = ? AND fy_id = ?")->execute([$company_id, $fyId]);
 
         $insStmt = $pdo->prepare("INSERT INTO coa_opening_balances (company_id, coa_id, fy_id, debit, credit) VALUES (?, ?, ?, ?, ?)");
-        
+
         foreach ($data['balances'] as $row) {
             $debit = isset($row['debit']) ? (float)$row['debit'] : 0;
             $credit = isset($row['credit']) ? (float)$row['credit'] : 0;
-            
+
             // Insert new entry if balance is greater than zero
             if ($debit > 0 || $credit > 0) {
                 $insStmt->execute([$company_id, $row['coa_id'], $fyId, $debit, $credit]);
@@ -2423,7 +2563,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
     if ($action === 'import_coa_opening_balances' && isset($data['fy_id'])) {
         $currentFyId = $data['fy_id'];
         $prevFyId = $data['from_fy_id'] ?? null;
-        
+
         if (!$prevFyId) {
             // Fallback to auto-detecting previous FY if not provided
             $stmt = $pdo->prepare("SELECT id FROM financial_years WHERE company_id = ? AND id < ? ORDER BY id DESC LIMIT 1");
@@ -2431,11 +2571,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
             $prevFy = $stmt->fetch();
             if ($prevFy) $prevFyId = $prevFy['id'];
         }
-        
+
         if (!$prevFyId) {
             sendResponse(['error' => 'No financial year found to import from.'], 404);
         }
-        
+
         // Import logic: Duplicate chosen year's opening balances
         $stmt = $pdo->prepare("
             INSERT INTO coa_opening_balances (company_id, coa_id, fy_id, debit, credit)
@@ -2451,7 +2591,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
 
     if ($action === 'delete_vendor' && isset($_GET['id'])) {
         $id = $_GET['id'];
-        
+
         // Prevent deletion if used in transactions
         $is_used = false;
         $tables_to_check = [
@@ -2468,7 +2608,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
                 if ($stmt->fetchColumn()) { $is_used = true; break; }
             } catch(Exception $e) {}
         }
-        
+
         if ($is_used) {
             sendResponse(['status' => 'error', 'message' => 'Cannot delete this vendor because it is already used in invoices or vouchers.'], 403);
         }
@@ -2481,7 +2621,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
     }
     if ($action === 'delete_bank' && isset($_GET['id'])) {
         $id = $_GET['id'];
-        
+
         // Prevent deletion if used in transactions
         $is_used = false;
         $tables_to_check = [
@@ -2496,7 +2636,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
                 if ($stmt->fetchColumn()) { $is_used = true; break; }
             } catch(Exception $e) {}
         }
-        
+
         if ($is_used) {
             sendResponse(['status' => 'error', 'message' => 'Cannot delete this bank account because it is already used in vouchers.'], 403);
         }

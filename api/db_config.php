@@ -75,7 +75,7 @@ function shouldRunMigration($moduleKey, $version = 1) {
 }
 
 // User Activity Logs Migration and Helpers
-if (shouldRunMigration('user_activity_logs', 1)) {
+if (shouldRunMigration('user_activity_logs', 2)) {
     try {
         $pdo->exec("CREATE TABLE IF NOT EXISTS user_activity_logs (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -88,9 +88,35 @@ if (shouldRunMigration('user_activity_logs', 1)) {
             record_title VARCHAR(255) DEFAULT NULL,
             details_before LONGTEXT DEFAULT NULL,
             details_after LONGTEXT DEFAULT NULL,
+            ip_address VARCHAR(45) DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             INDEX (company_id),
             INDEX (user_id),
+            INDEX (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    } catch (PDOException $e) {}
+
+    try {
+        $pdo->exec("ALTER TABLE user_activity_logs ADD COLUMN ip_address VARCHAR(45) DEFAULT NULL AFTER details_after");
+    } catch (PDOException $e) {}
+}
+
+// Data Import Snapshots Migration
+if (shouldRunMigration('data_import_snapshots', 1)) {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS data_import_snapshots (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_id INT NOT NULL,
+            module VARCHAR(50) NOT NULL,
+            mode VARCHAR(20) NOT NULL,
+            file_path VARCHAR(255) NOT NULL,
+            records_count INT DEFAULT 0,
+            created_by INT NOT NULL,
+            created_by_username VARCHAR(100) NOT NULL,
+            ip_address VARCHAR(45) DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX (company_id),
+            INDEX (module),
             INDEX (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     } catch (PDOException $e) {}
@@ -346,14 +372,19 @@ function recordApprovalQueueEntry($module, $action_type, $record_id, $record_tit
     }
 }
 
-function logActivity($module, $action_type, $record_id, $record_title, $before_data = null, $after_data = null) {
+function logActivity($module, $action_type, $record_id, $record_title, $before_data = null, $after_data = null, $user_override = null) {
     global $pdo;
-    $company_id = $_SESSION['company_id'] ?? 1;
-    $user_id = $_SESSION['user_id'] ?? 0;
-    $username = $_SESSION['username'] ?? 'System';
+    $company_id = $user_override['company_id'] ?? ($_SESSION['company_id'] ?? ($_POST['company_id'] ?? 1));
+    $user_id = $user_override['user_id'] ?? ($_SESSION['user_id'] ?? ($_POST['current_user_id'] ?? ($_POST['user_id'] ?? 0)));
+    $username = $user_override['username'] ?? ($_SESSION['username'] ?? 'System');
+
+    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+    if (strpos($ip, ',') !== false) {
+        $ip = trim(explode(',', $ip)[0]);
+    }
 
     try {
-        $stmt = $pdo->prepare("INSERT INTO user_activity_logs (company_id, user_id, username, action_type, module_name, record_id, record_title, details_before, details_after) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO user_activity_logs (company_id, user_id, username, action_type, module_name, record_id, record_title, details_before, details_after, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([
             $company_id,
             $user_id,
@@ -363,7 +394,8 @@ function logActivity($module, $action_type, $record_id, $record_title, $before_d
             $record_id,
             $record_title,
             $before_data ? json_encode($before_data, JSON_UNESCAPED_UNICODE) : null,
-            $after_data ? json_encode($after_data, JSON_UNESCAPED_UNICODE) : null
+            $after_data ? json_encode($after_data, JSON_UNESCAPED_UNICODE) : null,
+            $ip
         ]);
 
         // Sync eligible vouchers/invoices to the Maker-Checker Approval Desk
@@ -376,7 +408,146 @@ function logActivity($module, $action_type, $record_id, $record_title, $before_d
             } catch (Exception $hbErr) {}
         }
     } catch (Exception $e) {
-        error_log("SoftifyX Log Activity Error: " . $e->getMessage());
+        // Fallback without ip_address if column not present yet
+        try {
+            $stmt = $pdo->prepare("INSERT INTO user_activity_logs (company_id, user_id, username, action_type, module_name, record_id, record_title, details_before, details_after) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $company_id,
+                $user_id,
+                $username,
+                $action_type,
+                $module,
+                $record_id,
+                $record_title,
+                $before_data ? json_encode($before_data, JSON_UNESCAPED_UNICODE) : null,
+                $after_data ? json_encode($after_data, JSON_UNESCAPED_UNICODE) : null
+            ]);
+        } catch (Exception $fallbackEx) {
+            error_log("SoftifyX Log Activity Error: " . $fallbackEx->getMessage());
+        }
+    }
+}
+
+/**
+ * Creates pre-import backup snapshot on disk (JSON) and records entry in data_import_snapshots
+ */
+function createImportBackupSnapshot($pdo, $module, $mode, $company_id, $user_id, $username) {
+    $backupDir = __DIR__ . '/../storage/backups';
+    if (!is_dir($backupDir)) {
+        @mkdir($backupDir, 0755, true);
+    }
+
+    $cleanModule = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $module));
+    $timestamp = date('Y_m_d_His');
+    $fileName = "pre_import_{$cleanModule}_{$timestamp}.json";
+    $filePath = $backupDir . '/' . $fileName;
+    $relativeFilePath = 'storage/backups/' . $fileName;
+
+    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+    if (strpos($ip, ',') !== false) {
+        $ip = trim(explode(',', $ip)[0]);
+    }
+
+    $snapData = [];
+    $recordsCount = 0;
+
+    try {
+        if ($module === 'Customers') {
+            $snapStmt = $pdo->prepare("SELECT c.*, cl.code, cl.name, cl.sub_id FROM customers c LEFT JOIN coa_list cl ON c.coa_list_id = cl.id WHERE c.company_id = ?");
+            $snapStmt->execute([$company_id]);
+            $customers = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $subStmt = $pdo->prepare("SELECT * FROM coa_sub WHERE main_id IN (SELECT id FROM coa_main WHERE code = '120' OR LOWER(name) LIKE '%customer%' OR LOWER(name) LIKE '%debtor%') AND (company_id = ? OR company_id = 0 OR company_id IS NULL)");
+            $subStmt->execute([$company_id]);
+            $subTypes = $subStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $snapData = [
+                'module' => 'Customers',
+                'company_id' => $company_id,
+                'snapshot_time' => date('Y-m-d H:i:s'),
+                'customer_types' => $subTypes,
+                'customers' => $customers
+            ];
+            $recordsCount = count($customers);
+        } elseif ($module === 'Vendors') {
+            $snapStmt = $pdo->prepare("SELECT v.*, cl.code, cl.name, cl.sub_id FROM vendors v LEFT JOIN coa_list cl ON v.coa_list_id = cl.id WHERE v.company_id = ?");
+            $snapStmt->execute([$company_id]);
+            $vendors = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $subStmt = $pdo->prepare("SELECT * FROM coa_sub WHERE main_id IN (SELECT id FROM coa_main WHERE code LIKE '21%' OR LOWER(name) LIKE '%vendor%' OR LOWER(name) LIKE '%supplier%' OR LOWER(name) LIKE '%creditor%' OR LOWER(name) LIKE '%payable%') AND (company_id = ? OR company_id = 0 OR company_id IS NULL)");
+            $subStmt->execute([$company_id]);
+            $subTypes = $subStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $snapData = [
+                'module' => 'Vendors',
+                'company_id' => $company_id,
+                'snapshot_time' => date('Y-m-d H:i:s'),
+                'vendor_types' => $subTypes,
+                'vendors' => $vendors
+            ];
+            $recordsCount = count($vendors);
+        } elseif ($module === 'Inventory Items') {
+            $itemStmt = $pdo->prepare("SELECT * FROM inv_items WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+            $itemStmt->execute([$company_id]);
+            $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $subStmt = $pdo->prepare("SELECT * FROM inv_sub_categories WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+            $subStmt->execute([$company_id]);
+            $subs = $subStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $mainStmt = $pdo->prepare("SELECT * FROM inv_main_categories WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+            $mainStmt->execute([$company_id]);
+            $mains = $mainStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $snapData = [
+                'module' => 'Inventory Items',
+                'company_id' => $company_id,
+                'snapshot_time' => date('Y-m-d H:i:s'),
+                'main_categories' => $mains,
+                'sub_categories' => $subs,
+                'items' => $items
+            ];
+            $recordsCount = count($items);
+        } elseif ($module === 'Chart of Accounts') {
+            $listStmt = $pdo->prepare("SELECT * FROM coa_list WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+            $listStmt->execute([$company_id]);
+            $lists = $listStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $subStmt = $pdo->prepare("SELECT * FROM coa_sub WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+            $subStmt->execute([$company_id]);
+            $subs = $subStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $snapData = [
+                'module' => 'Chart of Accounts',
+                'company_id' => $company_id,
+                'snapshot_time' => date('Y-m-d H:i:s'),
+                'sub_accounts' => $subs,
+                'accounts' => $lists
+            ];
+            $recordsCount = count($lists);
+        }
+
+        // Write file
+        @file_put_contents($filePath, json_encode($snapData, JSON_UNESCAPED_UNICODE));
+
+        // Save snapshot record to database
+        $snapId = 0;
+        try {
+            $stmt = $pdo->prepare("INSERT INTO data_import_snapshots (company_id, module, mode, file_path, records_count, created_by, created_by_username, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$company_id, $module, $mode, $relativeFilePath, $recordsCount, $user_id, $username, $ip]);
+            $snapId = intval($pdo->lastInsertId());
+        } catch (Exception $dbErr) {}
+
+        return [
+            'snapshot_id' => $snapId,
+            'file_name' => $fileName,
+            'file_path' => $relativeFilePath,
+            'records_count' => $recordsCount,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+    } catch (Exception $ex) {
+        error_log("SoftifyX Snapshot Error: " . $ex->getMessage());
+        return null;
     }
 }
 
