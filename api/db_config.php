@@ -258,9 +258,16 @@ if (shouldRunMigration('transaction_approvals_pos_exclude', 1)) {
     } catch (Exception $e) {}
 }
 
+// Auto-cleanup migration: Clean voucher prefixes from transaction_approvals
+if (shouldRunMigration('transaction_approvals_clean_voucher_no', 1)) {
+    try {
+        $pdo->exec("UPDATE transaction_approvals SET voucher_no = TRIM(REPLACE(voucher_no, 'Digital Invoice #', '')) WHERE module_name = 'Digital Invoice' AND voucher_no LIKE 'Digital Invoice #%'");
+    } catch (Exception $e) {}
+}
+
 function recordApprovalQueueEntry($module, $action_type, $record_id, $record_title, $after_data = null) {
     global $pdo;
-    
+
     // Only track INSERT and UPDATE
     if ($action_type !== 'INSERT' && $action_type !== 'UPDATE') {
         return;
@@ -270,57 +277,63 @@ function recordApprovalQueueEntry($module, $action_type, $record_id, $record_tit
     if ($module === 'POS Sale') {
         return;
     }
-    
+
+    // Clean voucher prefix if present
+    $cleanVoucher = preg_replace('/^(Digital Invoice|Sale Invoice|Purchase Invoice)\s*#?/i', '', trim($record_title));
+    if (!empty($cleanVoucher)) {
+        $record_title = $cleanVoucher;
+    }
+
     $eligibleModules = [
         'Sale Invoice', 'Digital Invoice', 'Purchase Invoice', 'Purchase Orders',
-        'Purchase Returns', 'Purchase Return / Debit Note', 'Cash Payments', 
-        'Bank Payments', 'Cash Receipts', 'Bank Receipts', 'General Journal Voucher', 
+        'Purchase Returns', 'Purchase Return / Debit Note', 'Cash Payments',
+        'Bank Payments', 'Cash Receipts', 'Bank Receipts', 'General Journal Voucher',
         'Sale Return', 'Sale Return/Credit Notes', 'Delivery Challans'
     ];
-    
+
     if (!in_array($module, $eligibleModules)) {
         return;
     }
-    
+
     $company_id = $_SESSION['company_id'] ?? 1;
     $user_id = intval($_SESSION['user_id'] ?? 0);
     $username = $_SESSION['username'] ?? 'User';
     $role = strtoupper($_SESSION['role'] ?? '');
-    
+
     $isAdmin = ($username === 'Administrator' || $role === 'ADMIN' || $role === 'ADMINISTRATOR' || $user_id === 1);
     $initialStatus = $isAdmin ? 'approved' : 'pending';
-    
+
     $hdr = ($after_data && isset($after_data['header']) && is_array($after_data['header'])) ? $after_data['header'] : [];
-    
+
     $txn_date = $hdr['date'] ?? ($hdr['invoice_date'] ?? ($hdr['payment_date'] ?? ($hdr['voucher_date'] ?? ($hdr['return_date'] ?? ($hdr['order_date'] ?? ($hdr['challan_date'] ?? date('Y-m-d')))))));
-    
+
     $amount = 0.00;
     if (isset($hdr['net_total'])) $amount = floatval($hdr['net_total']);
     elseif (isset($hdr['total_amount'])) $amount = floatval($hdr['total_amount']);
     elseif (isset($hdr['amount'])) $amount = floatval($hdr['amount']);
-    
+
     $party_name = $hdr['customer_name'] ?? ($hdr['vendor_name'] ?? ($hdr['party_name'] ?? ($hdr['paid_to'] ?? ($hdr['received_from'] ?? ''))));
-    
+
     try {
         $chk = $pdo->prepare("SELECT id, approval_status FROM transaction_approvals WHERE company_id = ? AND module_name = ? AND record_id = ?");
         $chk->execute([$company_id, $module, $record_id]);
         $existing = $chk->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($existing) {
             $newStatus = ($existing['approval_status'] === 'rejected') ? 'pending' : $existing['approval_status'];
-            $up = $pdo->prepare("UPDATE transaction_approvals SET 
-                txn_type = ?, 
-                voucher_no = ?, 
-                party_name = ?, 
-                amount = ?, 
-                txn_date = ?, 
-                approval_status = ?, 
-                updated_at = NOW() 
+            $up = $pdo->prepare("UPDATE transaction_approvals SET
+                txn_type = ?,
+                voucher_no = ?,
+                party_name = ?,
+                amount = ?,
+                txn_date = ?,
+                approval_status = ?,
+                updated_at = NOW()
                 WHERE id = ?");
             $up->execute([$action_type, $record_title, $party_name, $amount, $txn_date, $newStatus, $existing['id']]);
         } else {
             $ins = $pdo->prepare("INSERT INTO transaction_approvals (
-                company_id, module_name, txn_type, record_id, voucher_no, party_name, amount, txn_date, 
+                company_id, module_name, txn_type, record_id, voucher_no, party_name, amount, txn_date,
                 created_by_user_id, created_by_username, approval_status
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $ins->execute([
@@ -338,7 +351,7 @@ function logActivity($module, $action_type, $record_id, $record_title, $before_d
     $company_id = $_SESSION['company_id'] ?? 1;
     $user_id = $_SESSION['user_id'] ?? 0;
     $username = $_SESSION['username'] ?? 'System';
-    
+
     try {
         $stmt = $pdo->prepare("INSERT INTO user_activity_logs (company_id, user_id, username, action_type, module_name, record_id, record_title, details_before, details_after) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([
@@ -376,7 +389,7 @@ function fetchRecordData($tableName, $itemsTableName, $foreignKeyName, $recordId
         $stmt->execute([$recordId]);
         $header = $stmt->fetch();
         if (!$header) return null;
-        
+
         // Fetch items if items table is provided
         $items = [];
         if ($itemsTableName && $foreignKeyName) {
@@ -384,7 +397,7 @@ function fetchRecordData($tableName, $itemsTableName, $foreignKeyName, $recordId
             $stmt->execute([$recordId]);
             $items = $stmt->fetchAll();
         }
-        
+
         return [
             'header' => $header,
             'items' => $items
@@ -436,7 +449,7 @@ function verifyAndUpgradePassword($inputPassword, $storedPassword, $userId, $pdo
     if (empty($storedPassword) || empty($inputPassword)) {
         return false;
     }
-    
+
     // 1. Check if stored password is a valid hash (starts with $2y$ or similar)
     if (password_verify($inputPassword, $storedPassword)) {
         if (password_needs_rehash($storedPassword, PASSWORD_DEFAULT)) {
@@ -446,7 +459,7 @@ function verifyAndUpgradePassword($inputPassword, $storedPassword, $userId, $pdo
         }
         return true;
     }
-    
+
     // 2. Legacy check: Plaintext password match
     if ($storedPassword === $inputPassword || trim($storedPassword) === trim($inputPassword)) {
         // Upgrade password to secure Bcrypt hash automatically!
@@ -455,7 +468,7 @@ function verifyAndUpgradePassword($inputPassword, $storedPassword, $userId, $pdo
         $up->execute([$newHash, $userId]);
         return true;
     }
-    
+
     return false;
 }
 

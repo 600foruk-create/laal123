@@ -213,6 +213,11 @@ window.DigitalInvoiceModule = (function () {
                 window.pendingFbrConversion = null;
                 window.hasConvertedFbr = true;
                 await convertFromSaleInvoice(payload);
+            } else if (window.pendingFbrInvoiceIdToLoad) {
+                const invIdToLoad = window.pendingFbrInvoiceIdToLoad;
+                window.pendingFbrInvoiceIdToLoad = null;
+                window.hasConvertedFbr = false;
+                await selectSearchInvoice(invIdToLoad);
             } else {
                 window.hasConvertedFbr = false;
                 await newInvoice();
@@ -1624,8 +1629,8 @@ window.DigitalInvoiceModule = (function () {
             });
 
             inputEl.addEventListener('blur', function () {
-                setTimeout(() => { 
-                    listEl.style.display = 'none'; 
+                setTimeout(() => {
+                    listEl.style.display = 'none';
                     suggestIndex = -1;
                 }, 250);
             });
@@ -1692,8 +1697,8 @@ window.DigitalInvoiceModule = (function () {
                 } else if (e.key === 'Enter') {
                     const val = (inputEl.value || '').trim().toLowerCase();
                     if (val) {
-                        const found = customersList.find(c => 
-                            (c.customer_code || c.code || '').toLowerCase() === val || 
+                        const found = customersList.find(c =>
+                            (c.customer_code || c.code || '').toLowerCase() === val ||
                             (c.customer_name || c.name || '').toLowerCase() === val
                         );
                         if (found) {
@@ -1746,7 +1751,7 @@ window.DigitalInvoiceModule = (function () {
         const digitsCnic = valCnic.replace(/[^0-9]/g, '');
         const rawCnic = digitsCnic;
         const rawNtn = digitsNtn;
-        
+
         if (document.getElementById('di_cust_cnic')) {
             document.getElementById('di_cust_cnic').value = valCnic || (digitsNtn.length === 13 ? valNtn : '');
         }
@@ -2166,7 +2171,7 @@ window.DigitalInvoiceModule = (function () {
         if (digitsCnic.length === 13) {
             query = digitsCnic;
             queryType = 'CNIC';
-        } 
+        }
         // Case B: 13 digits entered in NTN box
         else if (digitsNtn.length === 13) {
             query = digitsNtn;
@@ -2914,8 +2919,8 @@ window.DigitalInvoiceModule = (function () {
                 if (cardInvNo) cardInvNo.textContent = cleanRef;
                 if (cardStatus) cardStatus.textContent = 'Submitted (Accepted)';
 
-                const timeStr = (currentInvoice && currentInvoice.submission_timestamp) 
-                    || document.getElementById('di_fbr_sub_date')?.textContent?.trim() 
+                const timeStr = (currentInvoice && currentInvoice.submission_timestamp)
+                    || document.getElementById('di_fbr_sub_date')?.textContent?.trim()
                     || new Date().toISOString().replace('T', ' ').substring(0, 19);
                 if (cardTime) cardTime.textContent = timeStr;
 
@@ -4090,10 +4095,10 @@ window.DigitalInvoiceModule = (function () {
         const compGst = comp.gst;
 
         const erpInvNo = payload.invoice_no || `DI-2026-${String(payload.serial_no || '0000').padStart(4, '0')}`;
-        const rawFbrCandidate = payload.fbr_invoice_no || 
-            (document.getElementById('di_fbr_inv_no')?.value) || 
-            (currentInvoice && currentInvoice.fbr_invoice_no) || 
-            (document.getElementById('di_card_fbr_inv_no')?.textContent) || 
+        const rawFbrCandidate = payload.fbr_invoice_no ||
+            (document.getElementById('di_fbr_inv_no')?.value) ||
+            (currentInvoice && currentInvoice.fbr_invoice_no) ||
+            (document.getElementById('di_card_fbr_inv_no')?.textContent) ||
             (document.getElementById('di_resp_ref')?.textContent) || '';
         const cleanFbrInv = extractCleanFbrInvoiceNumber(rawFbrCandidate);
         const fbrInvNo = cleanFbrInv || 'Pending Transmission';
@@ -4109,7 +4114,7 @@ window.DigitalInvoiceModule = (function () {
         // Resolve Customer Address - never insert a dummy address if not provided
         let custAddress = (payload.customer_address && payload.customer_address.trim() !== '-') ? payload.customer_address.trim() : '';
         if (!custAddress && window.customersList && Array.isArray(window.customersList)) {
-            const foundCust = window.customersList.find(c => 
+            const foundCust = window.customersList.find(c =>
                 (payload.customer_coa_id && (c.coa_id == payload.customer_coa_id || c.customer_id == payload.customer_coa_id)) ||
                 (payload.customer_name && c.customer_name && c.customer_name.toLowerCase() === payload.customer_name.toLowerCase())
             );
@@ -4240,7 +4245,7 @@ window.DigitalInvoiceModule = (function () {
             loggedInUserName = (window.currentUser.name || window.currentUser.username || '').trim();
         }
 
-        const salesPerson = loggedInUserName || 
+        const salesPerson = loggedInUserName ||
             ((payload.sales_person && payload.sales_person.trim() !== 'Ali Raza') ? payload.sales_person.trim() : '') ||
             ((payload.created_by_name && payload.created_by_name.trim() !== 'Ali Raza') ? payload.created_by_name.trim() : '') ||
             'Admin';
@@ -4673,7 +4678,8 @@ window.DigitalInvoiceModule = (function () {
     }
 
     function closeFindModal() {
-        document.getElementById('di_find_modal').style.display = 'none';
+        const m = document.getElementById('di_find_modal');
+        if (m) m.style.display = 'none';
     }
 
     async function performSearch() {
@@ -4683,6 +4689,7 @@ window.DigitalInvoiceModule = (function () {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 12px; color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Searching invoices...</td></tr>`;
 
         try {
+            if (!companyId) companyId = getCompanyId();
             const res = await fetch(`api/digital_invoice.php?action=search_invoices&company_id=${companyId}&q=${encodeURIComponent(q)}`);
             const data = await res.json();
 
@@ -4715,6 +4722,7 @@ window.DigitalInvoiceModule = (function () {
 
     async function selectSearchInvoice(id) {
         try {
+            if (!companyId) companyId = getCompanyId();
             const res = await fetch(`api/digital_invoice.php?action=get_invoice&company_id=${companyId}&id=${id}`);
             const data = await res.json();
             if (data.status === 'success' && data.invoice) {
@@ -4724,6 +4732,11 @@ window.DigitalInvoiceModule = (function () {
         } catch (e) {
             showAlert('Error loading invoice: ' + e.message, 'error');
         }
+    }
+
+    async function loadInvoiceById(id) {
+        if (!companyId) companyId = getCompanyId();
+        await selectSearchInvoice(id);
     }
 
     function showAlert(msg, type = 'info') {
@@ -5017,6 +5030,7 @@ window.DigitalInvoiceModule = (function () {
         closeFindModal,
         performSearch,
         selectSearchInvoice,
+        loadInvoiceById,
         printPreview,
         navigateSerial,
         onSerialNoInput,

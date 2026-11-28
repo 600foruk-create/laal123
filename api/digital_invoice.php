@@ -526,7 +526,7 @@ if ($action === 'get_meta') {
         try { $pdo->exec("ALTER TABLE customers ADD COLUMN fbr_business_name VARCHAR(255) DEFAULT NULL"); } catch(PDOException $e) {}
 
         $custStmt = $pdo->prepare("
-            SELECT 
+            SELECT
                 cl.id as coa_id,
                 cl.code as customer_code,
                 cl.name as customer_name,
@@ -558,11 +558,11 @@ if ($action === 'get_meta') {
             LEFT JOIN coa_main cm ON cs.main_id = cm.id
             WHERE (cl.company_id = ? OR cl.company_id = 1 OR cl.company_id IS NULL)
               AND (
-                  c.id IS NOT NULL 
-                  OR cm.code = '120' 
-                  OR cm.name LIKE '%RECEIVABLE%' 
-                  OR cm.name LIKE '%DEBTOR%' 
-                  OR cs.name LIKE '%RECEIVABLE%' 
+                  c.id IS NOT NULL
+                  OR cm.code = '120'
+                  OR cm.name LIKE '%RECEIVABLE%'
+                  OR cm.name LIKE '%DEBTOR%'
+                  OR cs.name LIKE '%RECEIVABLE%'
                   OR cs.name LIKE '%CUSTOMER%'
               )
             ORDER BY cl.name ASC
@@ -573,7 +573,7 @@ if ($action === 'get_meta') {
         // Fallback 1: If no customers found above, load all entries from customers table joined with coa_list
         if (empty($customers)) {
             $custStmt = $pdo->query("
-                SELECT 
+                SELECT
                     cl.id as coa_id,
                     cl.code as customer_code,
                     cl.name as customer_name,
@@ -609,7 +609,7 @@ if ($action === 'get_meta') {
         // Fallback 2: Direct from coa_list under 120 or name like Customer
         if (empty($customers)) {
             $custStmt = $pdo->query("
-                SELECT 
+                SELECT
                     cl.id as coa_id,
                     cl.code as customer_code,
                     cl.name as customer_name,
@@ -638,7 +638,7 @@ if ($action === 'get_meta') {
         $items = [];
         try {
             $itemStmt = $pdo->prepare("
-                SELECT 
+                SELECT
                     i.id,
                     i.code,
                     i.name,
@@ -671,7 +671,7 @@ if ($action === 'get_meta') {
         if (empty($items)) {
             try {
                 $itemStmt = $pdo->prepare("
-                    SELECT 
+                    SELECT
                         id,
                         code,
                         name,
@@ -819,7 +819,7 @@ if ($action === 'search_invoices') {
     try {
         $query = $_GET['q'] ?? '';
         $sql = "
-            SELECT 
+            SELECT
                 id, serial_no, invoice_no, invoice_date, invoice_type, supply_type,
                 customer_name, customer_type, net_payable, workflow_status, fbr_status,
                 fbr_invoice_no, submission_timestamp, created_at
@@ -1081,9 +1081,9 @@ if ($action === 'cancel_invoice') {
         }
 
         $upd = $pdo->prepare("
-            UPDATE fbr_digital_invoices 
-            SET is_cancelled = 1, 
-                cancellation_reason = ?, 
+            UPDATE fbr_digital_invoices
+            SET is_cancelled = 1,
+                cancellation_reason = ?,
                 cancellation_date = NOW(),
                 workflow_status = 'Cancelled'
             WHERE id = ? AND company_id = ?
@@ -1180,7 +1180,7 @@ if ($action === 'get_register_invoices') {
 
         // Summary totals across matching dataset
         $sumStmt = $pdo->prepare("
-            SELECT 
+            SELECT
                 COUNT(*) as total_count,
                 COALESCE(SUM(taxable_amount), 0) as total_taxable,
                 COALESCE(SUM(total_sales_tax), 0) as total_sales_tax,
@@ -1197,7 +1197,7 @@ if ($action === 'get_register_invoices') {
 
         // Fetch paginated rows
         $listStmt = $pdo->prepare("
-            SELECT 
+            SELECT
                 id, company_id, serial_no, invoice_no, invoice_date, invoice_type, supply_type,
                 customer_type, customer_coa_id, customer_code, customer_name, business_name,
                 customer_ntn, customer_cnic, customer_strn, customer_phone, customer_reg_status,
@@ -1619,7 +1619,7 @@ if ($action === 'save_invoice') {
                 ],
                 'items' => $items
             ];
-            logActivity('Digital Invoice', $actType, $invoiceId, "Digital Invoice #{$savedInvoice['invoice_no']}", null, $afterData);
+            logActivity('Digital Invoice', $actType, $invoiceId, $savedInvoice['invoice_no'], null, $afterData);
         } catch (Exception $eApprLog) {
             error_log("Digital Invoice logActivity approval error: " . $eApprLog->getMessage());
         }
@@ -1728,9 +1728,9 @@ if ($action === 'validate_invoice') {
     // Customer Master Buyer Type Mismatch Check
     $customerCoaId = intval($data['customer_coa_id'] ?? 0);
     if ($customerCoaId > 0) {
-        $cmStmt = $pdo->prepare("SELECT c.buyer_type_id, bt.name as buyer_type_name, bt.buyer_code 
-                                 FROM customers c 
-                                 LEFT JOIN buyer_types bt ON c.buyer_type_id = bt.id 
+        $cmStmt = $pdo->prepare("SELECT c.buyer_type_id, bt.name as buyer_type_name, bt.buyer_code
+                                 FROM customers c
+                                 LEFT JOIN buyer_types bt ON c.buyer_type_id = bt.id
                                  WHERE c.coa_list_id = ? LIMIT 1");
         $cmStmt->execute([$customerCoaId]);
         $cmRow = $cmStmt->fetch(PDO::FETCH_ASSOC);
@@ -1832,8 +1832,8 @@ if ($action === 'validate_invoice') {
         'workflow_status' => $isValid ? 'Ready to Submit' : 'Pending Validation',
         'errors' => $errors,
         'warnings' => $warnings,
-        'message' => $isValid 
-            ? 'Invoice passed all FBR validation checks and is Ready to Submit.' 
+        'message' => $isValid
+            ? 'Invoice passed all FBR validation checks and is Ready to Submit.'
             : 'Validation identified ' . count($errors) . ' mandatory error(s) that must be resolved.'
     ]);
 }
@@ -1899,9 +1899,9 @@ if ($action === 'submit_to_fbr') {
 
         // Enforce Customer Master Buyer Type Match
         if (!empty($inv['customer_coa_id'])) {
-            $cmStmt = $pdo->prepare("SELECT c.buyer_type_id, bt.name as buyer_type_name, bt.buyer_code 
-                                     FROM customers c 
-                                     LEFT JOIN buyer_types bt ON c.buyer_type_id = bt.id 
+            $cmStmt = $pdo->prepare("SELECT c.buyer_type_id, bt.name as buyer_type_name, bt.buyer_code
+                                     FROM customers c
+                                     LEFT JOIN buyer_types bt ON c.buyer_type_id = bt.id
                                      WHERE c.coa_list_id = ? LIMIT 1");
             $cmStmt->execute([$inv['customer_coa_id']]);
             $cmRow = $cmStmt->fetch(PDO::FETCH_ASSOC);
@@ -2503,7 +2503,7 @@ if ($action === 'link_manual_iris_invoice') {
             }
 
             $updateStmt = $pdo->prepare("
-                UPDATE fbr_digital_invoices 
+                UPDATE fbr_digital_invoices
                 SET fbr_invoice_no = ?,
                     fbr_status = 'Submitted',
                     workflow_status = 'Submitted',
@@ -2531,7 +2531,7 @@ if ($action === 'link_manual_iris_invoice') {
         } else {
             // Case 2 & 3: Leave Blank to Reset Attempt
             $updateStmt = $pdo->prepare("
-                UPDATE fbr_digital_invoices 
+                UPDATE fbr_digital_invoices
                 SET fbr_invoice_no = NULL,
                     fbr_status = 'Draft',
                     workflow_status = 'Draft',
@@ -2547,8 +2547,8 @@ if ($action === 'link_manual_iris_invoice') {
             // Also reset in sale_invoices if applicable
             try {
                 $pdo->prepare("
-                    UPDATE sale_invoices 
-                    SET fbr_invoice_no = NULL, fbr_status = 'Draft' 
+                    UPDATE sale_invoices
+                    SET fbr_invoice_no = NULL, fbr_status = 'Draft'
                     WHERE id = ? OR invoice_no = ?
                 ")->execute([$inv['ref_doc_no'] ?? $targetId, $invNo]);
             } catch (Exception $ign) {}
@@ -2900,7 +2900,7 @@ if ($action === 'verify_customer_fbr') {
     try {
         if ($isCnic) {
             $cStmt = $pdo->prepare("
-                SELECT 
+                SELECT
                     c.id as customer_id,
                     c.coa_list_id as coa_id,
                     cl.code as customer_code,
@@ -2920,7 +2920,7 @@ if ($action === 'verify_customer_fbr') {
                     c.buyer_type_id
                 FROM customers c
                 JOIN coa_list cl ON c.coa_list_id = cl.id
-                WHERE REPLACE(c.cnic, '-', '') = ? 
+                WHERE REPLACE(c.cnic, '-', '') = ?
                    OR REPLACE(c.ntn_cnic, '-', '') = ?
                    OR c.cnic = ?
                    OR c.ntn_cnic = ?
@@ -2931,7 +2931,7 @@ if ($action === 'verify_customer_fbr') {
         } else {
             $baseSearch = (strpos($cleanAlphanumeric, '-') !== false) ? explode('-', $cleanAlphanumeric)[0] : $cleanAlphanumeric;
             $cStmt = $pdo->prepare("
-                SELECT 
+                SELECT
                     c.id as customer_id,
                     c.coa_list_id as coa_id,
                     cl.code as customer_code,
@@ -2951,8 +2951,8 @@ if ($action === 'verify_customer_fbr') {
                     c.buyer_type_id
                 FROM customers c
                 JOIN coa_list cl ON c.coa_list_id = cl.id
-                WHERE c.ntn_cnic = ? 
-                   OR REPLACE(c.ntn_cnic, '-', '') = ? 
+                WHERE c.ntn_cnic = ?
+                   OR REPLACE(c.ntn_cnic, '-', '') = ?
                    OR (LENGTH(?) >= 7 AND LEFT(REPLACE(c.ntn_cnic, '-', ''), 7) = LEFT(?, 7))
                 LIMIT 1
             ");
@@ -3017,7 +3017,7 @@ if ($action === 'verify_customer_fbr') {
             $existingRegId = $regCheck->fetchColumn();
             if ($existingRegId) {
                 $pdo->prepare("
-                    UPDATE fbr_taxpayers_registry 
+                    UPDATE fbr_taxpayers_registry
                     SET taxpayer_name = ?, business_name = ?, ntn = ?, cnic = ?, strn = ?, address = ?, phone = ?, province = ?,
                         category = ?, registration_status = 'Registered', atl_status = ?, sales_tax_status = ?, sales_tax_registered = ?,
                         source = 'FBR IRIS Live Taxpayer Profile Inquiry', verified_at = NOW()
@@ -3036,10 +3036,10 @@ if ($action === 'verify_customer_fbr') {
         if ($existingCustomer) {
             try {
                 $pdo->prepare("
-                    UPDATE customers 
+                    UPDATE customers
                     SET ntn_cnic = ?, cnic = ?, fbr_business_name = ?, st_reg_no = ?, fbr_atl_status = ?, fbr_reg_status = 'Registered',
                         fbr_sales_tax_status = ?, fbr_sales_tax_reg = ?,
-                        fbr_verification_source = 'FBR IRIS Live Taxpayer Profile Inquiry', fbr_verified_at = NOW() 
+                        fbr_verification_source = 'FBR IRIS Live Taxpayer Profile Inquiry', fbr_verified_at = NOW()
                     WHERE id = ?
                 ")->execute([$liveNtn, $liveFormattedCnic, $businessName, $strnVal, $atlStatus, $stStatusVal, $stRegVal, $existingCustomer['customer_id']]);
                 if (!empty($existingCustomer['coa_id'])) {
@@ -3085,7 +3085,7 @@ if ($action === 'verify_customer_fbr') {
         if ($isCnic) {
             $rStmt = $pdo->prepare("
                 SELECT * FROM fbr_taxpayers_registry
-                WHERE REPLACE(cnic, '-', '') = ? 
+                WHERE REPLACE(cnic, '-', '') = ?
                    OR cnic = ?
                 ORDER BY id DESC
                 LIMIT 1
@@ -3096,7 +3096,7 @@ if ($action === 'verify_customer_fbr') {
             $baseNtnSearch = (strpos($cleanAlphanumeric, '-') !== false) ? explode('-', $cleanAlphanumeric)[0] : $cleanAlphanumeric;
             $rStmt = $pdo->prepare("
                 SELECT * FROM fbr_taxpayers_registry
-                WHERE REPLACE(ntn, '-', '') = ? 
+                WHERE REPLACE(ntn, '-', '') = ?
                    OR ntn = ?
                    OR (LENGTH(?) >= 7 AND LEFT(REPLACE(ntn, '-', ''), 7) = LEFT(?, 7))
                 ORDER BY id DESC
@@ -3201,8 +3201,8 @@ if ($action === 'verify_customer_fbr') {
                 'verification_source' => $existingCustomer['fbr_verification_source'] ?: 'ERP Customer Master (Saved)',
                 'verification_result' => ($regStatus === 'Registered' && $hasNtn) ? 'Verified (Registered Taxpayer)' : 'Unregistered Buyer',
                 'existing_customer' => $existingCustomer,
-                'notice' => ($regStatus === 'Registered' && $hasNtn) 
-                    ? 'Registered customer profile verified from ERP Master.' 
+                'notice' => ($regStatus === 'Registered' && $hasNtn)
+                    ? 'Registered customer profile verified from ERP Master.'
                     : 'Customer record found in ERP Master (Unregistered Buyer).'
             ]
         ]);
@@ -3284,8 +3284,8 @@ if ($action === 'save_verified_customer' || $action === 'save_verified_taxpayer_
         // 1. Sync into fbr_taxpayers_registry FIRST
         try {
             $regCheck = $pdo->prepare("
-                SELECT id FROM fbr_taxpayers_registry 
-                WHERE (cnic = ? AND cnic != '') 
+                SELECT id FROM fbr_taxpayers_registry
+                WHERE (cnic = ? AND cnic != '')
                    OR (ntn = ? AND ntn != '')
                    OR (LENGTH(?) = 13 AND REPLACE(cnic, '-', '') = ?)
                    OR (LENGTH(?) >= 7 AND LEFT(REPLACE(ntn, '-', ''), 7) = LEFT(?, 7))
@@ -3295,7 +3295,7 @@ if ($action === 'save_verified_customer' || $action === 'save_verified_taxpayer_
             $existingRegId = $regCheck->fetchColumn();
             if ($existingRegId) {
                 $updReg = $pdo->prepare("
-                    UPDATE fbr_taxpayers_registry 
+                    UPDATE fbr_taxpayers_registry
                     SET taxpayer_name = ?, business_name = ?, ntn = COALESCE(NULLIF(?, ''), ntn),
                         cnic = COALESCE(NULLIF(?, ''), cnic), strn = COALESCE(NULLIF(?, ''), strn),
                         address = COALESCE(NULLIF(?, ''), address), phone = COALESCE(NULLIF(?, ''), phone),
@@ -3341,8 +3341,8 @@ if ($action === 'save_verified_customer' || $action === 'save_verified_taxpayer_
         if ($existing) {
             // Update existing customer record
             $upd = $pdo->prepare("
-                UPDATE customers 
-                SET 
+                UPDATE customers
+                SET
                     ntn_cnic = COALESCE(NULLIF(?, ''), ntn_cnic),
                     cnic = COALESCE(NULLIF(?, ''), cnic),
                     st_reg_no = COALESCE(NULLIF(?, ''), st_reg_no),
@@ -3382,8 +3382,8 @@ if ($action === 'save_verified_customer' || $action === 'save_verified_taxpayer_
             // Fetch updated record
             $sel = $pdo->prepare("
                 SELECT c.*, cl.code as customer_code, cl.name as coa_name
-                FROM customers c 
-                LEFT JOIN coa_list cl ON c.coa_list_id = cl.id 
+                FROM customers c
+                LEFT JOIN coa_list cl ON c.coa_list_id = cl.id
                 WHERE c.id = ?
             ");
             $sel->execute([$existing['id']]);
