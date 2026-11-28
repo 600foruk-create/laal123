@@ -282,6 +282,11 @@ try {
             $delMain->execute(array_merge([$company_id], $chunk));
             $deletedCoaStats['main'] += $delMain->rowCount();
         }
+
+        // Re-ensure complete standard protected chart of accounts hierarchy is intact
+        if (function_exists('ensureDefaultCOA')) {
+            ensureDefaultCOA($pdo, $company_id);
+        }
     }
 
     // Reset dashboard summary counters

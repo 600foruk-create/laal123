@@ -403,6 +403,9 @@ document.addEventListener('click', function(e) {
                         if (coaMainRes.ok) coaMain = await coaMainRes.json();
                         if (coaSubRes.ok) coaSub = await coaSubRes.json();
                         if (coaListRes.ok) coaList = await coaListRes.json();
+                        if (document.getElementById('mainAccountList') && typeof renderCOAMainList === 'function') {
+                            renderCOAMainList();
+                        }
 
                         if (currRes.ok) {
                             const cData = await currRes.json();
@@ -5086,14 +5089,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         function initChartOfAccountsView() {
             let retries = 0;
-            const maxRetries = 20; 
-            const checkAndRender = setInterval(() => {
+            const maxRetries = 25;
+            const checkAndRender = setInterval(async () => {
                 const list = document.getElementById('mainAccountList');
                 if (list) {
                     clearInterval(checkAndRender);
                     prevMainCode = null;
                     prevSubCode = null;
                     prevListCode = null;
+
+                    const sessionData = JSON.parse(localStorage.getItem('softifyx_session') || '{}');
+                    const companyId = sessionData.company_id || (window.companyData ? window.companyData.id : 1);
+
+                    if (!coaMain || coaMain.length === 0) {
+                        try {
+                            const [mRes, sRes, lRes] = await Promise.all([
+                                fetch(`api/maintain.php?action=get_coa_main&company_id=${companyId}`),
+                                fetch(`api/maintain.php?action=get_coa_sub&company_id=${companyId}&main_id=ALL`),
+                                fetch(`api/maintain.php?action=get_coa_list&company_id=${companyId}&sub_id=ALL`)
+                            ]);
+                            if (mRes.ok) coaMain = await mRes.json();
+                            if (sRes.ok) coaSub = await sRes.json();
+                            if (lRes.ok) coaList = await lRes.json();
+                        } catch(e) {
+                            console.error("COA auto-sync error:", e);
+                        }
+                    }
                     renderCOAMainList();
                 } else if (++retries >= maxRetries) {
                     clearInterval(checkAndRender);

@@ -578,6 +578,410 @@ function fetchRecordData($tableName, $itemsTableName, $foreignKeyName, $recordId
     }
 }
 
+/**
+ * Ensures standard system/hardcoded Chart of Accounts exist for the given company.
+ * Idempotent: Only inserts missing nodes; never modifies or deletes existing accounts.
+ */
+function ensureDefaultCOA($pdo, $company_id = 1) {
+    $cid = intval($company_id);
+    if ($cid <= 0) $cid = 1;
+
+    try {
+        $defaultTree = [
+            [
+                'code' => 100,
+                'name' => 'Current Assets',
+                'component' => 'current assets',
+                'subs' => [
+                    [
+                        'code' => '10001',
+                        'name' => 'Cash & Bank Balances',
+                        'accounts' => [
+                            ['code' => '10001001', 'name' => 'Cash in Hand']
+                        ]
+                    ]
+                ]
+            ],
+            [
+                'code' => 110,
+                'name' => 'Bank Accounts',
+                'component' => 'current assets',
+                'subs' => [
+                    [
+                        'code' => '11001',
+                        'name' => 'Bank Balances',
+                        'accounts' => [
+                            ['code' => '11001001', 'name' => 'Standard Bank Account']
+                        ]
+                    ]
+                ]
+            ],
+            [
+                'code' => 120,
+                'name' => 'Customers / Debtors',
+                'component' => 'current assets',
+                'subs' => [
+                    [
+                        'code' => '12001',
+                        'name' => 'General Customers',
+                        'accounts' => [
+                            ['code' => '12001001', 'name' => 'Walk-in Cash Customer']
+                        ]
+                    ],
+                    [
+                        'code' => '12002',
+                        'name' => 'Corporate Customers',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 130,
+                'name' => 'Advances, Deposits & Prepayments',
+                'component' => 'current assets',
+                'subs' => [
+                    [
+                        'code' => '13001',
+                        'name' => 'Advances to Suppliers',
+                        'accounts' => [
+                            ['code' => '13001001', 'name' => 'Advance to Suppliers']
+                        ]
+                    ]
+                ]
+            ],
+            [
+                'code' => 140,
+                'name' => 'Stock in Hand / Inventory',
+                'component' => 'current assets',
+                'subs' => [
+                    [
+                        'code' => '14001',
+                        'name' => 'Raw Materials',
+                        'accounts' => [
+                            ['code' => '14001001', 'name' => 'Raw Materials Stock']
+                        ]
+                    ],
+                    [
+                        'code' => '14002',
+                        'name' => 'Work in Process',
+                        'accounts' => []
+                    ],
+                    [
+                        'code' => '14003',
+                        'name' => 'Finished Goods',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 150,
+                'name' => 'Other Current Assets',
+                'component' => 'current assets',
+                'subs' => [
+                    [
+                        'code' => '15001',
+                        'name' => 'Other Receivables',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 170,
+                'name' => 'Fixed Assets (Tangible)',
+                'component' => 'non-current assets',
+                'subs' => [
+                    [
+                        'code' => '17001',
+                        'name' => 'Plant & Machinery',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 180,
+                'name' => 'Accumulated Depreciation',
+                'component' => 'non-current assets',
+                'subs' => [
+                    [
+                        'code' => '18001',
+                        'name' => 'Accumulated Depreciation',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 210,
+                'name' => 'Accounts Payable / Creditors',
+                'component' => 'Current Liabilities',
+                'subs' => [
+                    [
+                        'code' => '21001',
+                        'name' => 'Local Suppliers',
+                        'accounts' => [
+                            ['code' => '21001001', 'name' => 'Walk-in Vendor / General Supplier']
+                        ]
+                    ],
+                    [
+                        'code' => '21002',
+                        'name' => 'Foreign Suppliers',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 220,
+                'name' => 'Accrued & Other Liabilities',
+                'component' => 'Current Liabilities',
+                'subs' => [
+                    [
+                        'code' => '22001',
+                        'name' => 'Accrued Expenses',
+                        'accounts' => [
+                            ['code' => '22001001', 'name' => 'Salaries Payable'],
+                            ['code' => '22001002', 'name' => 'Rent Payable'],
+                            ['code' => '22001003', 'name' => 'Electricity Payable'],
+                            ['code' => '22001004', 'name' => 'Audit Fee Payable']
+                        ]
+                    ],
+                    [
+                        'code' => '22002',
+                        'name' => 'Sales Tax Payable',
+                        'accounts' => []
+                    ],
+                    [
+                        'code' => '22003',
+                        'name' => 'Income Tax Payable (WHT)',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 230,
+                'name' => 'Short Term Borrowings',
+                'component' => 'Current Liabilities',
+                'subs' => [
+                    [
+                        'code' => '23001',
+                        'name' => 'Bank Overdraft',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 240,
+                'name' => 'Long Term Liabilities',
+                'component' => 'Non-Current Liabilities',
+                'subs' => [
+                    [
+                        'code' => '24001',
+                        'name' => 'Directors Loan',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 300,
+                'name' => 'Capital & Reserves',
+                'component' => 'Capital & Reserves',
+                'subs' => [
+                    [
+                        'code' => '30001',
+                        'name' => 'Paid up Capital',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 310,
+                'name' => 'Reserves',
+                'component' => 'Capital & Reserves',
+                'subs' => [
+                    [
+                        'code' => '31001',
+                        'name' => 'General Reserves',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 320,
+                'name' => 'Retained Earnings',
+                'component' => 'Capital & Reserves',
+                'subs' => [
+                    [
+                        'code' => '32001',
+                        'name' => 'Retained Earnings',
+                        'accounts' => [
+                            ['code' => '32001001', 'name' => 'Unappropriated Profit / (Loss)']
+                        ]
+                    ]
+                ]
+            ],
+            [
+                'code' => 400,
+                'name' => 'Revenue / Sales',
+                'component' => 'Income',
+                'subs' => [
+                    [
+                        'code' => '40001',
+                        'name' => 'Sales Revenue',
+                        'accounts' => [
+                            ['code' => '40001001', 'name' => 'Local Sales'],
+                            ['code' => '40001002', 'name' => 'Export Sales'],
+                            ['code' => '40001003', 'name' => 'Scrap Sales']
+                        ]
+                    ]
+                ]
+            ],
+            [
+                'code' => 500,
+                'name' => 'Cost of Sales / Purchases',
+                'component' => 'Cost Of Sale',
+                'subs' => [
+                    [
+                        'code' => '50001',
+                        'name' => 'Direct Materials / Purchases',
+                        'accounts' => [
+                            ['code' => '50001001', 'name' => 'Raw Material Purchases'],
+                            ['code' => '50001002', 'name' => 'Freight Inward'],
+                            ['code' => '50001003', 'name' => 'Custom Duty'],
+                            ['code' => '50001004', 'name' => 'Clearing Charges'],
+                            ['code' => '50001005', 'name' => 'Packing Material'],
+                            ['code' => '50001006', 'name' => 'Direct Wages / Labor'],
+                            ['code' => '50001007', 'name' => 'Factory Fuel & Power'],
+                            ['code' => '50001008', 'name' => 'Other Direct Production Costs']
+                        ]
+                    ],
+                    [
+                        'code' => '50002',
+                        'name' => 'Work in Process Adjustments',
+                        'accounts' => [
+                            ['code' => '50002001', 'name' => 'Work in Process Adjustment']
+                        ]
+                    ],
+                    [
+                        'code' => '50003',
+                        'name' => 'Finished Goods Adjustments',
+                        'accounts' => [
+                            ['code' => '50003001', 'name' => 'Finished Goods Adjustment']
+                        ]
+                    ]
+                ]
+            ],
+            [
+                'code' => 600,
+                'name' => 'Operating / Administrative Expenses',
+                'component' => 'Operating Expenses',
+                'subs' => [
+                    [
+                        'code' => '60001',
+                        'name' => 'Administrative Expenses',
+                        'accounts' => [
+                            ['code' => '60001001', 'name' => 'Salaries & Allowances'],
+                            ['code' => '60001002', 'name' => 'Office Rent']
+                        ]
+                    ]
+                ]
+            ],
+            [
+                'code' => 650,
+                'name' => 'Selling & Distribution Expenses',
+                'component' => 'Operating Expenses',
+                'subs' => [
+                    [
+                        'code' => '65001',
+                        'name' => 'Selling & Distribution',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 670,
+                'name' => 'Financial Expenses',
+                'component' => 'Financial Expenses',
+                'subs' => [
+                    [
+                        'code' => '67001',
+                        'name' => 'Financial Charges',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 680,
+                'name' => 'Other Expenses',
+                'component' => 'Other Expenses',
+                'subs' => [
+                    [
+                        'code' => '68001',
+                        'name' => 'Other Expenses',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 700,
+                'name' => 'Other Income',
+                'component' => 'Other Income',
+                'subs' => [
+                    [
+                        'code' => '70001',
+                        'name' => 'Other Income',
+                        'accounts' => []
+                    ]
+                ]
+            ],
+            [
+                'code' => 800,
+                'name' => 'Taxation',
+                'component' => 'Taxation',
+                'subs' => [
+                    [
+                        'code' => '80001',
+                        'name' => 'Taxation',
+                        'accounts' => []
+                    ]
+                ]
+            ]
+        ];
+
+        $selMain = $pdo->prepare("SELECT id FROM coa_main WHERE (company_id = ? OR company_id = 0 OR company_id IS NULL) AND code = ? ORDER BY (company_id = ?) DESC LIMIT 1");
+        $insMain = $pdo->prepare("INSERT INTO coa_main (company_id, code, name, component) VALUES (?, ?, ?, ?)");
+        $selSub  = $pdo->prepare("SELECT id FROM coa_sub WHERE (company_id = ? OR company_id = 0 OR company_id IS NULL) AND code = ? ORDER BY (company_id = ?) DESC LIMIT 1");
+        $insSub  = $pdo->prepare("INSERT INTO coa_sub (company_id, main_id, code, name) VALUES (?, ?, ?, ?)");
+        $selList = $pdo->prepare("SELECT id FROM coa_list WHERE (company_id = ? OR company_id = 0 OR company_id IS NULL) AND code = ? ORDER BY (company_id = ?) DESC LIMIT 1");
+        $insList = $pdo->prepare("INSERT INTO coa_list (company_id, sub_id, code, name) VALUES (?, ?, ?, ?)");
+
+        foreach ($defaultTree as $m) {
+            $selMain->execute([$cid, $m['code'], $cid]);
+            $mainId = $selMain->fetchColumn();
+            if (!$mainId) {
+                $insMain->execute([$cid, $m['code'], $m['name'], $m['component']]);
+                $mainId = intval($pdo->lastInsertId());
+            }
+
+            foreach ($m['subs'] as $s) {
+                $selSub->execute([$cid, $s['code'], $cid]);
+                $subId = $selSub->fetchColumn();
+                if (!$subId) {
+                    $insSub->execute([$cid, $mainId, $s['code'], $s['name']]);
+                    $subId = intval($pdo->lastInsertId());
+                }
+
+                foreach ($s['accounts'] as $a) {
+                    $selList->execute([$cid, $a['code'], $cid]);
+                    $accId = $selList->fetchColumn();
+                    if (!$accId) {
+                        $insList->execute([$cid, $subId, $a['code'], $a['name']]);
+                    }
+                }
+            }
+        }
+    } catch (Exception $ex) {
+        error_log("SoftifyX ensureDefaultCOA Error: " . $ex->getMessage());
+    }
+}
+
 // Check if user is logged in (Simple session check)
 if (!defined('NO_SESSION')) {
     session_start();

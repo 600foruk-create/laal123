@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once 'db_config.php';
 require_once 'security_pin_helpers.php';
 
@@ -120,7 +120,10 @@ try {
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'get_coa_main') {
-        $stmt = $pdo->prepare("SELECT * FROM coa_main WHERE company_id = ? ORDER BY code ASC");
+        if (function_exists('ensureDefaultCOA')) {
+            ensureDefaultCOA($pdo, $company_id);
+        }
+        $stmt = $pdo->prepare("SELECT * FROM coa_main WHERE (company_id = ? OR company_id = 0 OR company_id IS NULL) ORDER BY code ASC");
         $stmt->execute([$company_id]);
         sendResponse($stmt->fetchAll());
     }
@@ -128,10 +131,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'get_coa_sub' && isset($_GET['main_id'])) {
         $mainId = $_GET['main_id'];
         if ($mainId === 'ALL') {
-            $stmt = $pdo->prepare("SELECT * FROM coa_sub WHERE company_id = ? ORDER BY code ASC");
+            $stmt = $pdo->prepare("SELECT * FROM coa_sub WHERE (company_id = ? OR company_id = 0 OR company_id IS NULL) ORDER BY code ASC");
             $stmt->execute([$company_id]);
         } else {
-            $stmt = $pdo->prepare("SELECT * FROM coa_sub WHERE main_id = ? AND company_id = ? ORDER BY code ASC");
+            $stmt = $pdo->prepare("SELECT * FROM coa_sub WHERE main_id = ? AND (company_id = ? OR company_id = 0 OR company_id IS NULL) ORDER BY code ASC");
             $stmt->execute([$mainId, $company_id]);
         }
         sendResponse($stmt->fetchAll());
@@ -140,10 +143,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'get_coa_list' && isset($_GET['sub_id'])) {
         $subId = $_GET['sub_id'];
         if ($subId === 'ALL') {
-            $stmt = $pdo->prepare("SELECT * FROM coa_list WHERE company_id = ? ORDER BY code ASC");
+            $stmt = $pdo->prepare("SELECT * FROM coa_list WHERE (company_id = ? OR company_id = 0 OR company_id IS NULL) ORDER BY code ASC");
             $stmt->execute([$company_id]);
         } else {
-            $stmt = $pdo->prepare("SELECT * FROM coa_list WHERE sub_id = ? AND company_id = ? ORDER BY code ASC");
+            $stmt = $pdo->prepare("SELECT * FROM coa_list WHERE sub_id = ? AND (company_id = ? OR company_id = 0 OR company_id IS NULL) ORDER BY code ASC");
             $stmt->execute([$subId, $company_id]);
         }
         sendResponse($stmt->fetchAll());
@@ -154,11 +157,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt = $pdo->prepare("
             SELECT * FROM coa_sub
             WHERE main_id IN (
-                SELECT id FROM coa_main WHERE code = '120'
-            ) AND company_id = ?
+                SELECT id FROM coa_main WHERE (code = '120' OR LOWER(name) LIKE '%customer%' OR LOWER(name) LIKE '%debtor%') AND (company_id = ? OR company_id = 0 OR company_id IS NULL)
+            ) AND (company_id = ? OR company_id = 0 OR company_id IS NULL)
             ORDER BY code ASC
         ");
-        $stmt->execute([$company_id]);
+        $stmt->execute([$company_id, $company_id]);
         sendResponse($stmt->fetchAll());
     }
 
@@ -166,11 +169,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt = $pdo->prepare("
             SELECT * FROM coa_sub
             WHERE main_id IN (
-                SELECT id FROM coa_main WHERE code = '210'
-            ) AND company_id = ?
+                SELECT id FROM coa_main WHERE (code LIKE '21%' OR LOWER(name) LIKE '%vendor%' OR LOWER(name) LIKE '%supplier%' OR LOWER(name) LIKE '%creditor%' OR LOWER(name) LIKE '%payable%') AND (company_id = ? OR company_id = 0 OR company_id IS NULL)
+            ) AND (company_id = ? OR company_id = 0 OR company_id IS NULL)
             ORDER BY code ASC
         ");
-        $stmt->execute([$company_id]);
+        $stmt->execute([$company_id, $company_id]);
         sendResponse($stmt->fetchAll());
     }
 
