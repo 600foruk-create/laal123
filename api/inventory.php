@@ -120,28 +120,35 @@ try {
         is_default TINYINT(1) DEFAULT 0
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-    // Migration for existing tables: add description if not exists
-    try {
-        $pdo->exec("ALTER TABLE inv_items ADD COLUMN is_inactive TINYINT(1) DEFAULT 0 AFTER order_qty");
-    } catch(Exception $e) {}
-    try {
-        $pdo->exec("ALTER TABLE inv_items MODIFY COLUMN unit_weight VARCHAR(50)");
-    } catch(Exception $e) {}
-    try {
-        $pdo->exec("ALTER TABLE inv_items ADD COLUMN length_unit VARCHAR(20) DEFAULT 'Feet'");
-    } catch(Exception $e) {}
-    try {
-        $pdo->exec("ALTER TABLE inv_items ADD COLUMN billing_mode VARCHAR(50) DEFAULT 'By Weight'");
-    } catch(Exception $e) {}
-    try {
-        $pdo->exec("ALTER TABLE inv_items ADD COLUMN pipe_sub_type VARCHAR(50) DEFAULT 'uPVC'");
-    } catch(Exception $e) {}
-    try {
-        $pdo->exec("ALTER TABLE inv_items ADD COLUMN pipe_length VARCHAR(50) DEFAULT NULL");
-    } catch(Exception $e) {}
-    try {
-        $pdo->exec("ALTER TABLE inv_locations ADD COLUMN description TEXT AFTER name");
-    } catch(Exception $e) {}
+    // Migration for existing tables: ensure all required columns exist in inv_items
+    $invColumns = [
+        'category_type' => "VARCHAR(50) DEFAULT NULL",
+        'size' => "VARCHAR(100) DEFAULT NULL",
+        'length' => "VARCHAR(100) DEFAULT NULL",
+        'unit_weight' => "VARCHAR(50) DEFAULT NULL",
+        'class' => "VARCHAR(100) DEFAULT NULL",
+        'fitting_type' => "VARCHAR(100) DEFAULT NULL",
+        'carton' => "VARCHAR(50) DEFAULT NULL",
+        'material' => "VARCHAR(100) DEFAULT NULL",
+        'grade_specification' => "VARCHAR(100) DEFAULT NULL",
+        'length_unit' => "VARCHAR(20) DEFAULT 'Feet'",
+        'billing_mode' => "VARCHAR(50) DEFAULT 'By Weight'",
+        'pipe_sub_type' => "VARCHAR(50) DEFAULT 'uPVC'",
+        'pipe_length' => "VARCHAR(50) DEFAULT NULL",
+        'is_inactive' => "TINYINT(1) DEFAULT 0",
+        'hs_code' => "VARCHAR(100) DEFAULT NULL"
+    ];
+    foreach ($invColumns as $colName => $colDef) {
+        try {
+            $pdo->exec("ALTER TABLE inv_items ADD COLUMN $colName $colDef");
+        } catch (Exception $e) {}
+    }
+    try { $pdo->exec("ALTER TABLE inv_items MODIFY COLUMN carton VARCHAR(100) DEFAULT NULL"); } catch(Exception $e) {}
+    try { $pdo->exec("ALTER TABLE inv_items MODIFY COLUMN unit_weight VARCHAR(100) DEFAULT NULL"); } catch(Exception $e) {}
+    try { $pdo->exec("ALTER TABLE inv_items MODIFY COLUMN code VARCHAR(100) NOT NULL"); } catch(Exception $e) {}
+    try { $pdo->exec("ALTER TABLE inv_main_categories MODIFY COLUMN code VARCHAR(100) NOT NULL"); } catch(Exception $e) {}
+    try { $pdo->exec("ALTER TABLE inv_sub_categories MODIFY COLUMN code VARCHAR(100) NOT NULL"); } catch(Exception $e) {}
+    try { $pdo->exec("ALTER TABLE inv_locations ADD COLUMN description TEXT AFTER name"); } catch(Exception $e) {}
 
     // Seed default location if empty for company
     $checkLoc = $pdo->prepare("SELECT id FROM inv_locations LIMIT 1");
@@ -272,16 +279,24 @@ try {
 
         case 'get_all_items':
             $active_only = isset($_GET['active_only']) && $_GET['active_only'] == 1;
+            $include_all = (isset($_GET['include_all']) && $_GET['include_all'] == 1) || (isset($_GET['all']) && $_GET['all'] == 1);
             $for_pos = (isset($_GET['for_pos']) && $_GET['for_pos'] == '1');
             
-            // Only fetch items that exist in Chart of Inventory (linked to active Sub and Main Categories)
+            $inactiveCond = $include_all ? "" : " AND (i.is_inactive = 0 OR i.is_inactive IS NULL)";
+            $coCond = $include_all ? "(i.company_id = ? OR i.company_id = 0 OR i.company_id IS NULL)" : "i.company_id = ?";
+            
+            // Fetch items with left joins so no items are ever dropped due to category discrepancy
             $sql = "
-                SELECT i.*, b.name as brand_name, m.category_type, i.code as coa_list_id 
+                SELECT i.*, b.name as brand_name, 
+                       COALESCE(IF(i.category_type IS NOT NULL AND i.category_type != '', i.category_type, m.category_type), '') as category_type,
+                       s.code as sub_code, s.name as sub_name, s.main_id,
+                       m.code as main_code, m.name as main_name,
+                       i.code as coa_list_id 
                 FROM inv_items i 
-                INNER JOIN inv_sub_categories s ON i.sub_id = s.id AND s.company_id = i.company_id
-                INNER JOIN inv_main_categories m ON s.main_id = m.id AND m.company_id = i.company_id
+                LEFT JOIN inv_sub_categories s ON i.sub_id = s.id
+                LEFT JOIN inv_main_categories m ON s.main_id = m.id
                 LEFT JOIN inv_brands b ON i.brand_id = b.id 
-                WHERE i.company_id = ? AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
+                WHERE $coCond $inactiveCond
             ";
             $params = [$company_id];
 
@@ -305,13 +320,13 @@ try {
             $stmt->execute($params);
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Fallback: If no categorized items found, fetch directly by company_id
+            // Fallback: If still empty, fetch directly by company_id
             if (empty($items)) {
                 $fallbackStmt = $pdo->prepare("
                     SELECT i.*, b.name as brand_name, '' as category_type, i.code as coa_list_id 
                     FROM inv_items i 
                     LEFT JOIN inv_brands b ON i.brand_id = b.id 
-                    WHERE i.company_id = ? AND (i.is_inactive = 0 OR i.is_inactive IS NULL)
+                    WHERE $coCond $inactiveCond
                     ORDER BY i.code
                 ");
                 $fallbackStmt->execute([$company_id]);
@@ -1272,91 +1287,580 @@ try {
 
         case 'import_inventory_excel':
             $dataStr = $_POST['data'] ?? '[]';
-            $rows = json_decode($dataStr, true);
+            $raw = is_string($dataStr) ? stripslashes($dataStr) : $dataStr;
+            $rows = json_decode($raw, true) ?: json_decode($dataStr, true);
             if (!$rows || !is_array($rows)) {
-                echo json_encode(['status' => 'error', 'message' => 'Invalid data format.']);
+                echo json_encode(['status' => 'error', 'message' => 'Invalid data format or empty rows.']);
                 exit;
             }
+
+            // Universal flexible value extractor for any column header variations
+            $getVal = function($row, ...$keys) {
+                foreach ($keys as $k) {
+                    if (isset($row[$k]) && trim(strval($row[$k])) !== '') {
+                        return trim(strval($row[$k]));
+                    }
+                }
+                // Case-insensitive & alphanumeric normalized matching
+                $cleanKeys = array_map(function($k) { return strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $k)); }, $keys);
+                foreach ($row as $rk => $rv) {
+                    $cleanRk = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', (string)$rk));
+                    if (in_array($cleanRk, $cleanKeys, true) && trim(strval($rv)) !== '') {
+                        return trim(strval($rv));
+                    }
+                }
+                return '';
+            };
             
             $pdo->beginTransaction();
             try {
-                $mainStmt = $pdo->prepare("SELECT id FROM inv_main_categories WHERE code = ? AND company_id = ?");
-                $insertMain = $pdo->prepare("INSERT INTO inv_main_categories (company_id, code, name) VALUES (?, ?, ?)");
-                
-                $subStmt = $pdo->prepare("SELECT id FROM inv_sub_categories WHERE code = ? AND main_id = ? AND company_id = ?");
-                $insertSub = $pdo->prepare("INSERT INTO inv_sub_categories (company_id, main_id, code, name) VALUES (?, ?, ?, ?)");
-                
-                $itemStmt = $pdo->prepare("SELECT id FROM inv_items WHERE code = ? AND company_id = ?");
-                $insertItem = $pdo->prepare("INSERT INTO inv_items (company_id, sub_id, code, hs_code, name, description, brand_id, rack_no, purchase_price, selling_price, unit, qty_per_piece, tax_rate, tax_type, valuation_method, valuation_cost, order_qty, is_inactive, category_type, size, length, unit_weight, class, fitting_type, carton, material, grade_specification) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $updateItem = $pdo->prepare("UPDATE inv_items SET sub_id=?, hs_code=?, name=?, description=?, brand_id=?, rack_no=?, purchase_price=?, selling_price=?, unit=?, qty_per_piece=?, tax_rate=?, tax_type=?, valuation_method=?, valuation_cost=?, order_qty=?, is_inactive=?, category_type=?, size=?, length=?, unit_weight=?, class=?, fitting_type=?, carton=?, material=?, grade_specification=? WHERE id=? AND company_id=?");
+                $normClean = function($str) {
+                    return strtolower(preg_replace('/[^a-zA-Z0-9]/', '', (string)$str));
+                };
 
-                foreach ($rows as $row) {
-                    $mainCode = $row['Main Code'] ?? '';
-                    $mainName = $row['Main Name'] ?? '';
-                    if (empty($mainCode)) continue;
-                    
-                    // 1. Process Main
-                    $mainStmt->execute([$mainCode, $company_id]);
-                    $mainId = $mainStmt->fetchColumn();
-                    if (!$mainId) {
-                        $insertMain->execute([$company_id, $mainCode, $mainName]);
-                        $mainId = $pdo->lastInsertId();
+                // Pre-cache brands for quick lookup & creation
+                $brandCache = [];
+                $bStmt = $pdo->prepare("SELECT id, name FROM inv_brands WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+                $bStmt->execute([$company_id]);
+                while ($bRow = $bStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $brandCache[strtolower(trim($bRow['name']))] = intval($bRow['id']);
+                }
+                $insertBrandStmt = $pdo->prepare("INSERT INTO inv_brands (company_id, name) VALUES (?, ?)");
+
+                // Main Categories cache & statements
+                $mainCache = [];
+                $mainCacheByName = [];
+                $mainCacheByCleanName = [];
+                $mainCacheByType = [];
+                $mStmt = $pdo->prepare("SELECT id, code, name, category_type FROM inv_main_categories WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+                $mStmt->execute([$company_id]);
+                while ($mRow = $mStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $cCode = $normClean($mRow['code']);
+                    $cName = $normClean($mRow['name']);
+                    $cType = strtolower(trim($mRow['category_type'] ?? ''));
+                    if ($cCode) $mainCache[$cCode] = $mRow;
+                    if ($cName) {
+                        $mainCacheByName[strtolower(trim($mRow['name']))] = $mRow;
+                        $mainCacheByCleanName[$cName] = $mRow;
                     }
-                    
-                    // 2. Process Sub
-                    $subCode = $row['Sub Code'] ?? '';
-                    $subName = $row['Sub Name'] ?? '';
-                    if (empty($subCode)) continue;
-                    
-                    $subStmt->execute([$subCode, $mainId, $company_id]);
-                    $subId = $subStmt->fetchColumn();
-                    if (!$subId) {
-                        $insertSub->execute([$company_id, $mainId, $subCode, $subName]);
-                        $subId = $pdo->lastInsertId();
+                    if ($cType && !isset($mainCacheByType[$cType])) {
+                        $mainCacheByType[$cType] = $mRow;
                     }
-                    
-                    // 3. Process Item
-                    $itemCode = $row['Item Code'] ?? '';
-                    if (empty($itemCode)) continue;
-                    
-                    $hsCode = $row['HS Code'] ?? '';
-                    $itemName = $row['Item Name'] ?? '';
-                    $description = $row['Description'] ?? '';
-                    $brandId = !empty($row['Brand ID']) ? intval($row['Brand ID']) : null;
-                    $rackNo = $row['Rack No'] ?? '';
-                    $purchasePrice = floatval($row['Purchase Price'] ?? 0);
-                    $sellingPrice = floatval($row['Selling Price'] ?? 0);
-                    $unit = $row['Measurement Unit'] ?? '';
-                    $qtyPerPiece = floatval($row['Qty/Piece'] ?? 1);
-                    $taxRate = floatval($row['Sales Tax Rate'] ?? 0);
-                    $taxType = $row['Tax Type'] ?? 'Percent';
-                    $valMethod = $row['Valuation Method'] ?? 'Weighted Average';
-                    $valCost = floatval($row['Valuation Cost'] ?? 0);
-                    $orderQty = floatval($row['Order Quantity'] ?? 0);
-                    $isInactive = (strtolower($row['Inactive'] ?? '') === 'yes' || strtolower($row['Inactive'] ?? '') === 'true' || intval($row['Inactive'] ?? 0) === 1) ? 1 : 0;
-                    
-                    $category_type = $row['Category Type'] ?? '';
-                    $size = empty($row['Size']) ? null : $row['Size'];
-                    $length = empty($row['Length']) ? null : $row['Length'];
-                    $unit_weight = empty($row['Unit Weight']) ? null : $row['Unit Weight'];
-                    $class = empty($row['Class']) ? null : $row['Class'];
-                    $fitting_type = empty($row['Fitting Type']) ? null : $row['Fitting Type'];
-                    $carton = empty($row['Carton']) ? null : $row['Carton'];
-                    $material = empty($row['Material']) ? null : $row['Material'];
-                    $grade_specification = empty($row['Grade/Spec']) ? null : $row['Grade/Spec'];
+                }
+                $insertMain = $pdo->prepare("INSERT INTO inv_main_categories (company_id, code, name, category_type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), category_type = COALESCE(VALUES(category_type), category_type)");
+                $updateMain = $pdo->prepare("UPDATE inv_main_categories SET name = ?, category_type = ? WHERE id = ?");
 
-                    $itemStmt->execute([$itemCode, $company_id]);
-                    $itemId = $itemStmt->fetchColumn();
+                // Sub Categories cache & statements
+                $subCache = [];
+                $subCacheByCode = [];
+                $subCacheByName = [];
+                $subCacheByCleanName = [];
+                $sStmt = $pdo->prepare("SELECT id, main_id, code, name FROM inv_sub_categories WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+                $sStmt->execute([$company_id]);
+                while ($sRow = $sStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $cCode = $normClean($sRow['code']);
+                    $cName = $normClean($sRow['name']);
+                    if ($cCode) {
+                        $subCache[$sRow['main_id'] . '_' . $cCode] = $sRow;
+                        $subCacheByCode[$cCode] = $sRow;
+                    }
+                    $subCacheByName[$sRow['main_id'] . '_' . strtolower(trim($sRow['name']))] = $sRow;
+                    if ($cName) {
+                        $subCacheByCleanName[$sRow['main_id'] . '_' . $cName] = $sRow;
+                        if (!isset($subCacheByCleanName['any_' . $cName])) {
+                            $subCacheByCleanName['any_' . $cName] = $sRow;
+                        }
+                    }
+                }
+                $insertSub = $pdo->prepare("INSERT INTO inv_sub_categories (company_id, main_id, code, name) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), main_id = VALUES(main_id)");
+                $updateSub = $pdo->prepare("UPDATE inv_sub_categories SET name = ? WHERE id = ?");
 
-                    if ($itemId) {
-                        $updateItem->execute([$subId, $hsCode, $itemName, $description, $brandId, $rackNo, $purchasePrice, $sellingPrice, $unit, $qtyPerPiece, $taxRate, $taxType, $valMethod, $valCost, $orderQty, $isInactive, $category_type, $size, $length, $unit_weight, $class, $fitting_type, $carton, $material, $grade_specification, $itemId, $company_id]);
+                // Pre-cache existing items to prevent duplicate inserts
+                $itemsCacheByCode = [];
+                $itemsCacheByName = [];
+                $itemsCacheBySubAndName = [];
+                $itemsCacheBySpecs = [];
+                $itemPreloadStmt = $pdo->prepare("SELECT id, sub_id, code, name, category_type, size, length, unit_weight, class, carton, fitting_type, material, grade_specification FROM inv_items WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+                $itemPreloadStmt->execute([$company_id]);
+                while ($iRow = $itemPreloadStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $cCode = $normClean($iRow['code']);
+                    $cName = $normClean($iRow['name']);
+                    if ($cCode) $itemsCacheByCode[$cCode] = $iRow;
+                    if ($cName) {
+                        $itemsCacheByName[$cName] = $iRow;
+                        $itemsCacheBySubAndName[$iRow['sub_id'] . '_' . $cName] = $iRow;
+                    }
+                    $cSize = $normClean($iRow['size']);
+                    $cCls = $normClean($iRow['class']);
+                    $cSign = $normClean($iRow['unit_weight'] ?: $iRow['carton']);
+                    if ($cSize) {
+                        $itemsCacheBySpecs[$iRow['sub_id'] . '_' . $cSize . '_' . $cCls . '_' . $cSign] = $iRow;
+                    }
+                }
+
+                // Items statements
+                $itemStmt = $pdo->prepare("SELECT id FROM inv_items WHERE code = ? AND (company_id = ? OR company_id = 0 OR company_id IS NULL) LIMIT 1");
+                $itemByNameStmt = $pdo->prepare("SELECT id, code FROM inv_items WHERE sub_id = ? AND LOWER(TRIM(name)) = LOWER(?) AND (company_id = ? OR company_id = 0 OR company_id IS NULL) LIMIT 1");
+
+                $insertItem = $pdo->prepare("INSERT INTO inv_items (
+                    company_id, sub_id, code, hs_code, name, description, brand_id, rack_no, 
+                    purchase_price, selling_price, unit, qty_per_piece, tax_rate, tax_type, 
+                    valuation_method, valuation_cost, order_qty, is_inactive, category_type, 
+                    size, length, unit_weight, class, fitting_type, carton, material, 
+                    grade_specification, length_unit, billing_mode, pipe_sub_type, pipe_length
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+                $updateItem = $pdo->prepare("UPDATE inv_items SET 
+                    company_id=?, sub_id=?, code=?, hs_code=?, name=?, description=?, brand_id=?, rack_no=?, 
+                    purchase_price=?, selling_price=?, unit=?, qty_per_piece=?, tax_rate=?, 
+                    tax_type=?, valuation_method=?, valuation_cost=?, order_qty=?, is_inactive=?, 
+                    category_type=?, size=?, length=?, unit_weight=?, class=?, fitting_type=?, 
+                    carton=?, material=?, grade_specification=?, length_unit=?, billing_mode=?, 
+                    pipe_sub_type=?, pipe_length=? 
+                    WHERE id=?");
+
+                $itemsCreated = 0;
+                $itemsUpdated = 0;
+                $mainsCreated = 0;
+                $subsCreated = 0;
+                $brandsCreated = 0;
+                $importedItemIds = [];
+                $importedMainIds = [];
+                $importedSubIds = [];
+                $rowErrors = [];
+
+                foreach ($rows as $rIndex => $row) {
+                    $mainCode = $getVal($row, 'Main Code', 'Main Category Code', 'MainCode', 'main_code');
+                    $mainName = $getVal($row, 'Main Name', 'Main Category Name', 'MainName', 'main_name');
+                    if (empty($mainCode) && empty($mainName)) continue;
+                    if (empty($mainCode)) $mainCode = $mainName;
+                    if (empty($mainName)) $mainName = $mainCode;
+
+                    $category_type = $getVal($row, 'Category Type', 'Main Category Type', 'Type', 'category_type');
+
+                    // 1. Process Main Category with intelligent matching
+                    $cleanMainCode = $normClean($mainCode);
+                    $cleanMainName = $normClean($mainName);
+                    $cleanCatType = strtolower(trim($category_type));
+                    $mainId = null;
+
+                    if ($cleanMainCode && isset($mainCache[$cleanMainCode])) {
+                        $mainId = intval($mainCache[$cleanMainCode]['id']);
+                    } elseif ($cleanMainName && isset($mainCacheByCleanName[$cleanMainName])) {
+                        $mainId = intval($mainCacheByCleanName[$cleanMainName]['id']);
+                    } elseif (isset($mainCacheByName[strtolower($mainName)])) {
+                        $mainId = intval($mainCacheByName[strtolower($mainName)]['id']);
+                    } elseif ($cleanCatType && isset($mainCacheByType[$cleanCatType])) {
+                        // Merge into the existing category of same type (e.g. PIPES -> U-PVC PIPES of type Pipes)
+                        $mainId = intval($mainCacheByType[$cleanCatType]['id']);
                     } else {
-                        $insertItem->execute([$company_id, $subId, $itemCode, $hsCode, $itemName, $description, $brandId, $rackNo, $purchasePrice, $sellingPrice, $unit, $qtyPerPiece, $taxRate, $taxType, $valMethod, $valCost, $orderQty, $isInactive, $category_type, $size, $length, $unit_weight, $class, $fitting_type, $carton, $material, $grade_specification]);
+                        // Fuzzy substring match (e.g. PIPES in U-PVC PIPES)
+                        foreach ($mainCacheByCleanName as $cnKey => $mRow) {
+                            if ($cleanMainName && strlen($cleanMainName) >= 4 && (strpos($cnKey, $cleanMainName) !== false || strpos($cleanMainName, $cnKey) !== false)) {
+                                $mainId = intval($mRow['id']);
+                                break;
+                            }
+                        }
                     }
+
+                    if ($mainId) {
+                        $curRow = $mainCache[$cleanMainCode] ?? $mainCacheByCleanName[$cleanMainName] ?? null;
+                        $curType = $curRow['category_type'] ?? '';
+                        if (!empty($category_type) && empty($curType)) {
+                            $updateMain->execute([$curRow['name'] ?? $mainName, $category_type, $mainId]);
+                        }
+                    } else {
+                        $insertMain->execute([$company_id, $mainCode, $mainName, $category_type ?: null]);
+                        $mainId = intval($pdo->lastInsertId());
+                        if (!$mainId) {
+                            $chk = $pdo->prepare("SELECT id FROM inv_main_categories WHERE code = ? AND (company_id = ? OR company_id = 0 OR company_id IS NULL) LIMIT 1");
+                            $chk->execute([$mainCode, $company_id]);
+                            $mainId = intval($chk->fetchColumn());
+                        }
+                        $newMRow = ['id' => $mainId, 'code' => $mainCode, 'name' => $mainName, 'category_type' => $category_type];
+                        if ($cleanMainCode) $mainCache[$cleanMainCode] = $newMRow;
+                        if ($cleanMainName) {
+                            $mainCacheByCleanName[$cleanMainName] = $newMRow;
+                            $mainCacheByName[strtolower($mainName)] = $newMRow;
+                        }
+                        if ($cleanCatType && !isset($mainCacheByType[$cleanCatType])) {
+                            $mainCacheByType[$cleanCatType] = $newMRow;
+                        }
+                        $mainsCreated++;
+                    }
+                    $importedMainIds[$mainId] = true;
+
+                    // Inherit category_type from main category if not explicitly in row
+                    if (empty($category_type) && !empty($mainCache[$cleanMainCode]['category_type'])) {
+                        $category_type = $mainCache[$cleanMainCode]['category_type'];
+                    }
+
+                    // 2. Process Sub Category with intelligent matching
+                    $subCode = $getVal($row, 'Sub Code', 'Sub Category Code', 'SubCode', 'sub_code');
+                    $subName = $getVal($row, 'Sub Name', 'Sub Category Name', 'SubName', 'sub_name');
+                    if (empty($subCode) && empty($subName)) continue;
+                    if (empty($subCode)) $subCode = $subName;
+                    if (empty($subName)) $subName = $subCode;
+
+                    $cleanSubCode = $normClean($subCode);
+                    $cleanSubName = $normClean($subName);
+                    $subId = null;
+
+                    if ($cleanSubCode && isset($subCache[$mainId . '_' . $cleanSubCode])) {
+                        $subId = intval($subCache[$mainId . '_' . $cleanSubCode]['id']);
+                    } elseif ($cleanSubName && isset($subCacheByCleanName[$mainId . '_' . $cleanSubName])) {
+                        $subId = intval($subCacheByCleanName[$mainId . '_' . $cleanSubName]['id']);
+                    } elseif ($cleanSubCode && isset($subCacheByCode[$cleanSubCode])) {
+                        $subId = intval($subCacheByCode[$cleanSubCode]['id']);
+                    } elseif ($cleanSubName && isset($subCacheByCleanName['any_' . $cleanSubName])) {
+                        $subId = intval($subCacheByCleanName['any_' . $cleanSubName]['id']);
+                    } else {
+                        // Substring or fuzzy check for trailing dashes/punctuation
+                        foreach ($subCacheByCleanName as $snKey => $sRow) {
+                            if ($cleanSubName && strlen($cleanSubName) >= 4 && (strpos($snKey, $cleanSubName) !== false || strpos($cleanSubName, $snKey) !== false)) {
+                                $subId = intval($sRow['id']);
+                                break;
+                            }
+                        }
+                    }
+
+                    if ($subId) {
+                        // Sub category exists
+                    } else {
+                        $insertSub->execute([$company_id, $mainId, $subCode, $subName]);
+                        $subId = intval($pdo->lastInsertId());
+                        if (!$subId) {
+                            $chk = $pdo->prepare("SELECT id FROM inv_sub_categories WHERE code = ? AND (company_id = ? OR company_id = 0 OR company_id IS NULL) LIMIT 1");
+                            $chk->execute([$subCode, $company_id]);
+                            $subId = intval($chk->fetchColumn());
+                        }
+                        $newSRow = ['id' => $subId, 'main_id' => $mainId, 'code' => $subCode, 'name' => $subName];
+                        if ($cleanSubCode) {
+                            $subCache[$mainId . '_' . $cleanSubCode] = $newSRow;
+                            $subCacheByCode[$cleanSubCode] = $newSRow;
+                        }
+                        if ($cleanSubName) {
+                            $subCacheByCleanName[$mainId . '_' . $cleanSubName] = $newSRow;
+                            $subCacheByCleanName['any_' . $cleanSubName] = $newSRow;
+                            $subCacheByName[$mainId . '_' . strtolower($subName)] = $newSRow;
+                        }
+                        $subsCreated++;
+                    }
+                    $importedSubIds[$subId] = true;
+
+                    // 3. Process Brand (Name or ID)
+                    $brandName = $getVal($row, 'Brand Name', 'Brand', 'brand_name');
+                    $brandId = null;
+                    if (!empty($brandName)) {
+                        $brandKey = strtolower($brandName);
+                        if (isset($brandCache[$brandKey])) {
+                            $brandId = $brandCache[$brandKey];
+                        } else {
+                            $insertBrandStmt->execute([$company_id, $brandName]);
+                            $brandId = intval($pdo->lastInsertId());
+                            $brandCache[$brandKey] = $brandId;
+                            $brandsCreated++;
+                        }
+                    } elseif (!empty($row['Brand ID'])) {
+                        $brandId = intval($row['Brand ID']);
+                    }
+
+                    // 4. Process Item
+                    $itemCode = $getVal($row, 'Item Code', 'Code', 'ItemCode', 'item_code');
+                    $itemName = $getVal($row, 'Item Name', 'Name', 'ItemName', 'item_name');
+
+                    // If Item Code is empty, check if other item fields exist to auto-generate code
+                    if (empty($itemCode)) {
+                        $hasDetails = (!empty($itemName) || $getVal($row, 'Purchase Rate', 'Purchase Price', 'Cost Price') !== '' || $getVal($row, 'Sale Rate', 'Sale Price', 'Selling Price') !== '' || $getVal($row, 'Size', 'Pipe Size') !== '');
+                        if (!$hasDetails) {
+                            // Pure category row without item details
+                            continue;
+                        }
+                    }
+
+                    $hsCode = $getVal($row, 'HS Code', 'HSCode', 'hs_code');
+                    $description = $getVal($row, 'Description', 'description');
+                    $rackNo = $getVal($row, 'Rack No', 'Rack', 'RackNo', 'rack_no');
+                    $purchasePrice = floatval($getVal($row, 'Purchase Rate', 'Purchase Price', 'Cost Price', 'Cost', 'purchase_price') ?: 0);
+                    $sellingPrice = floatval($getVal($row, 'Sale Rate', 'Sale Price', 'Selling Price', 'selling_price') ?: 0);
+                    $unit = $getVal($row, 'Measurement Unit', 'Unit', 'UOM', 'unit');
+                    if (empty($unit)) {
+                        $unit = ($category_type === 'Raw Material') ? 'KG' : 'Pcs';
+                    }
+                    $qtyPerPiece = floatval($getVal($row, 'Qty/Piece', 'Quantity/Piece', 'Pcs/Carton', 'qty_per_piece') ?: 1);
+                    if ($qtyPerPiece <= 0) $qtyPerPiece = 1;
+
+                    $taxRate = floatval($getVal($row, 'Sales Tax Rate', 'Tax Rate', 'tax_rate') ?: 0);
+                    $taxType = $getVal($row, 'Tax Type', 'tax_type') ?: 'Percent';
+                    $valMethod = $getVal($row, 'Valuation Method', 'valuation_method') ?: 'Weighted Average';
+                    $valCost = floatval($getVal($row, 'Valuation Cost', 'valuation_cost') ?: 0);
+                    $orderQty = floatval($getVal($row, 'Order Quantity', 'Order Qty', 'order_qty') ?: 0);
+
+                    $inactiveRaw = strtolower($getVal($row, 'Inactive', 'Status', 'is_inactive'));
+                    $isInactive = ($inactiveRaw === 'yes' || $inactiveRaw === 'true' || $inactiveRaw === 'inactive' || $inactiveRaw === '1') ? 1 : 0;
+
+                    // Technical attributes
+                    $size = $getVal($row, 'Pipe Size', 'Fitting Size', 'Size', 'size') ?: null;
+                    $length = $getVal($row, 'Pipe Length', 'Length', 'length') ?: null;
+                    $pipe_length = $getVal($row, 'Pipe Length', 'Length', 'pipe_length') ?: null;
+                    $length_unit = $getVal($row, 'Length Unit', 'length_unit') ?: 'Feet';
+                    $pipe_sub_type = $getVal($row, 'Pipe Type', 'Pipe Sub Type', 'pipe_sub_type') ?: 'uPVC';
+                    $billing_mode = $getVal($row, 'Billing Mode', 'billing_mode') ?: 'By Weight';
+                    $fitting_type = $getVal($row, 'Fitting Type', 'fitting_type') ?: null;
+                    $class = $getVal($row, 'Pipe Class', 'Fitting Class', 'Class', 'class') ?: null;
+
+                    $carton = $getVal($row, 'Sign (Carton)', 'Carton Sign', 'Carton', 'carton') ?: null;
+                    $unit_weight = $getVal($row, 'Unit Weight (KG)', 'Weight/Piece (KG)', 'Unit Weight', 'unit_weight') ?: null;
+                    $sign = $getVal($row, 'Sign', 'sign') ?: null;
+
+                    if ($category_type === 'Pipes') {
+                        if (empty($unit_weight) && !empty($sign)) {
+                            $unit_weight = $sign;
+                        }
+                    } elseif ($category_type === 'Fitting') {
+                        if (empty($carton) && !empty($sign)) {
+                            $carton = $sign;
+                        }
+                        if (empty($unit_weight) && !empty($getVal($row, 'Weight/Piece (KG)'))) {
+                            $unit_weight = $getVal($row, 'Weight/Piece (KG)');
+                        }
+                    }
+
+                    $material = $getVal($row, 'Material', 'Raw Material', 'material') ?: null;
+                    $grade_specification = $getVal($row, 'Grade/Spec', 'Grade Specification', 'Grade', 'grade_specification') ?: null;
+
+                    // Item Name auto-generation if blank
+                    if (empty($itemName)) {
+                        if ($category_type === 'Pipes') {
+                            $parts = array_filter([$size, $pipe_sub_type ? $pipe_sub_type . ' Pipe' : 'Pipe', $class, $brandName]);
+                            $itemName = implode(' ', $parts);
+                        } elseif ($category_type === 'Fitting') {
+                            $parts = array_filter([$size, $fitting_type ?: 'Fitting', $class, $brandName]);
+                            $itemName = implode(' ', $parts);
+                        } elseif ($category_type === 'Raw Material') {
+                            $parts = array_filter([$material, $grade_specification]);
+                            $itemName = implode(' ', $parts);
+                        }
+                        if (empty($itemName)) {
+                            $itemName = $itemCode ?: ($subName . ' Item');
+                        }
+                    }
+
+                    // Multi-tiered smart item matching to guarantee NO duplicate items
+                    $itemId = null;
+                    $cleanItemCode = $normClean($itemCode);
+                    $cleanItemName = $normClean($itemName);
+                    $cleanSize = $normClean($size);
+                    $cleanCls = $normClean($class);
+                    $cleanSign = $normClean($unit_weight ?: $carton);
+                    $specKey = $subId . '_' . $cleanSize . '_' . $cleanCls . '_' . $cleanSign;
+
+                    // 1. Match by Item Code
+                    if ($cleanItemCode && isset($itemsCacheByCode[$cleanItemCode])) {
+                        $matched = $itemsCacheByCode[$cleanItemCode];
+                        $itemId = intval($matched['id']);
+                        $itemCode = $matched['code']; // preserve canonical code
+                    }
+
+                    // 2. Match by Sub Category ID + Clean Item Name
+                    if (!$itemId && $cleanItemName && isset($itemsCacheBySubAndName[$subId . '_' . $cleanItemName])) {
+                        $matched = $itemsCacheBySubAndName[$subId . '_' . $cleanItemName];
+                        $itemId = intval($matched['id']);
+                        if (empty($itemCode)) $itemCode = $matched['code'];
+                    }
+
+                    // 3. Match by Clean Item Name globally across company
+                    if (!$itemId && $cleanItemName && isset($itemsCacheByName[$cleanItemName])) {
+                        $matched = $itemsCacheByName[$cleanItemName];
+                        $itemId = intval($matched['id']);
+                        if (empty($itemCode)) $itemCode = $matched['code'];
+                    }
+
+                    // 4. Match by Sub Category + Technical Specs (Size, Class, Sign/Weight)
+                    if (!$itemId && $cleanSize && isset($itemsCacheBySpecs[$specKey])) {
+                        $matched = $itemsCacheBySpecs[$specKey];
+                        $itemId = intval($matched['id']);
+                        if (empty($itemCode)) $itemCode = $matched['code'];
+                    }
+
+                    // 5. Fallback DB check if cache didn't hit
+                    if (!$itemId && !empty($itemCode)) {
+                        $itemStmt->execute([$itemCode, $company_id]);
+                        $dbItemId = $itemStmt->fetchColumn();
+                        if ($dbItemId) $itemId = intval($dbItemId);
+                    }
+                    if (!$itemId && !empty($itemName)) {
+                        $itemByNameStmt->execute([$subId, $itemName, $company_id]);
+                        $matched = $itemByNameStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($matched) {
+                            $itemId = intval($matched['id']);
+                            if (empty($itemCode)) $itemCode = $matched['code'];
+                        }
+                    }
+
+                    // If still empty code, auto-generate sequential code
+                    if (empty($itemCode)) {
+                        $cntStmt = $pdo->prepare("SELECT COUNT(*) FROM inv_items WHERE sub_id = ? AND (company_id = ? OR company_id = 0 OR company_id IS NULL)");
+                        $cntStmt->execute([$subId, $company_id]);
+                        $seq = intval($cntStmt->fetchColumn()) + 1;
+                        $itemCode = $subCode . '-' . str_pad($seq, 3, '0', STR_PAD_LEFT);
+                        $chkU = $pdo->prepare("SELECT 1 FROM inv_items WHERE code = ? AND (company_id = ? OR company_id = 0 OR company_id IS NULL)");
+                        $chkU->execute([$itemCode, $company_id]);
+                        while ($chkU->fetchColumn()) {
+                            $seq++;
+                            $itemCode = $subCode . '-' . str_pad($seq, 3, '0', STR_PAD_LEFT);
+                            $chkU->execute([$itemCode, $company_id]);
+                        }
+                    }
+
+                    try {
+                        if ($itemId) {
+                            $updateItem->execute([
+                                $company_id, $subId, $itemCode, $hsCode, $itemName, $description, $brandId, $rackNo, 
+                                $purchasePrice, $sellingPrice, $unit, $qtyPerPiece, $taxRate, 
+                                $taxType, $valMethod, $valCost, $orderQty, $isInactive, 
+                                $category_type, $size, $length, $unit_weight, $class, $fitting_type, 
+                                $carton, $material, $grade_specification, $length_unit, $billing_mode, 
+                                $pipe_sub_type, $pipe_length, 
+                                $itemId
+                            ]);
+                            $itemsUpdated++;
+                            $importedItemIds[] = intval($itemId);
+                        } else {
+                            $insertItem->execute([
+                                $company_id, $subId, $itemCode, $hsCode, $itemName, $description, 
+                                $brandId, $rackNo, $purchasePrice, $sellingPrice, $unit, $qtyPerPiece, 
+                                $taxRate, $taxType, $valMethod, $valCost, $orderQty, $isInactive, 
+                                $category_type, $size, $length, $unit_weight, $class, $fitting_type, 
+                                $carton, $material, $grade_specification, $length_unit, $billing_mode, 
+                                $pipe_sub_type, $pipe_length
+                            ]);
+                            $itemId = intval($pdo->lastInsertId());
+                            $itemsCreated++;
+                            $importedItemIds[] = $itemId;
+                        }
+
+                        // Update in-memory caches so subsequent rows will match this item
+                        $cachedRow = [
+                            'id' => $itemId,
+                            'sub_id' => $subId,
+                            'code' => $itemCode,
+                            'name' => $itemName,
+                            'category_type' => $category_type,
+                            'size' => $size,
+                            'length' => $length,
+                            'unit_weight' => $unit_weight,
+                            'class' => $class,
+                            'carton' => $carton,
+                            'fitting_type' => $fitting_type,
+                            'material' => $material,
+                            'grade_specification' => $grade_specification
+                        ];
+                        if ($normClean($itemCode)) $itemsCacheByCode[$normClean($itemCode)] = $cachedRow;
+                        if ($cleanItemName) {
+                            $itemsCacheByName[$cleanItemName] = $cachedRow;
+                            $itemsCacheBySubAndName[$subId . '_' . $cleanItemName] = $cachedRow;
+                        }
+                        if ($cleanSize) $itemsCacheBySpecs[$specKey] = $cachedRow;
+                    } catch (Exception $rowEx) {
+                        $rowErrors[] = "Row #" . ($rIndex + 1) . " ('$itemCode'): " . $rowEx->getMessage();
+                        error_log("SoftifyX Inv Import Row Error: " . $rowEx->getMessage() . " on item $itemCode");
+                    }
+                }
+
+                $replaceMode = (isset($_POST['replace_mode']) && ($_POST['replace_mode'] === '1' || $_POST['replace_mode'] === 'true'));
+                $itemsDeleted = 0;
+                $itemsArchived = 0;
+                $itemsPreserved = 0;
+
+                if ($replaceMode && !empty($importedItemIds)) {
+                    $importedItemIds = array_values(array_unique(array_filter($importedItemIds)));
+                    $inClause = implode(',', array_map('intval', $importedItemIds));
+                    
+                    $stmtOld = $pdo->prepare("SELECT id, sub_id FROM inv_items WHERE (company_id = ? OR company_id = 0 OR company_id IS NULL) AND id NOT IN ($inClause)");
+                    $stmtOld->execute([$company_id]);
+                    $oldItems = $stmtOld->fetchAll(PDO::FETCH_ASSOC);
+
+                    if (!empty($oldItems)) {
+                        $tables_item_coa = [
+                            'purchase_invoice_items', 'sale_invoice_items', 'purchase_order_items', 
+                            'sale_order_items', 'quotation_items', 'delivery_challan_items', 
+                            'purchase_return_items', 'sale_return_items'
+                        ];
+                        $tables_item_id = [
+                            'material_issue_note_items', 'production_note_items', 
+                            'inventory_transfer_items', 'inward_gate_pass_items', 'outward_gate_pass_items'
+                        ];
+
+                        $delObStmt = $pdo->prepare("DELETE FROM inv_opening_balances WHERE item_id = ?");
+                        $delItemStmt = $pdo->prepare("DELETE FROM inv_items WHERE id = ?");
+
+                        foreach ($oldItems as $oldRow) {
+                            $oldId = intval($oldRow['id']);
+                            $is_used = false;
+                            foreach ($tables_item_coa as $tbl) {
+                                try {
+                                    $chk = $pdo->prepare("SELECT 1 FROM $tbl WHERE item_coa_id = ? LIMIT 1");
+                                    $chk->execute([$oldId]);
+                                    if ($chk->fetchColumn()) { $is_used = true; break; }
+                                } catch(Exception $e) {}
+                            }
+                            if (!$is_used) {
+                                foreach ($tables_item_id as $tbl) {
+                                    try {
+                                        $chk = $pdo->prepare("SELECT 1 FROM $tbl WHERE item_id = ? LIMIT 1");
+                                        $chk->execute([$oldId]);
+                                        if ($chk->fetchColumn()) { $is_used = true; break; }
+                                    } catch(Exception $e) {}
+                                }
+                            }
+
+                            if ($is_used) {
+                                // USER RULE: Items with invoices MUST NOT be replaced or deleted - they stay in their place fully active!
+                                $pdo->prepare("UPDATE inv_items SET is_inactive = 0 WHERE id = ?")->execute([$oldId]);
+                                $itemsPreserved++;
+                                if (!empty($oldRow['sub_id'])) {
+                                    $importedSubIds[intval($oldRow['sub_id'])] = true;
+                                    $mId = $pdo->query("SELECT main_id FROM inv_sub_categories WHERE id = " . intval($oldRow['sub_id']))->fetchColumn();
+                                    if ($mId) $importedMainIds[intval($mId)] = true;
+                                }
+                            } else {
+                                // Completely remove unused old item
+                                $delObStmt->execute([$oldId]);
+                                $delItemStmt->execute([$oldId]);
+                                $itemsDeleted++;
+                            }
+                        }
+                    }
+
+                    // Clean up ONLY old sub-categories and main categories that were NOT imported and have zero items
+                    try {
+                        $keepSubClause = !empty($importedSubIds) ? "AND id NOT IN (" . implode(',', array_map('intval', array_keys($importedSubIds))) . ")" : "";
+                        $pdo->exec("DELETE FROM inv_sub_categories WHERE (company_id = $company_id OR company_id = 0 OR company_id IS NULL) $keepSubClause AND id NOT IN (SELECT DISTINCT sub_id FROM inv_items WHERE (company_id = $company_id OR company_id = 0 OR company_id IS NULL))");
+                        
+                        $keepMainClause = !empty($importedMainIds) ? "AND id NOT IN (" . implode(',', array_map('intval', array_keys($importedMainIds))) . ")" : "";
+                        $pdo->exec("DELETE FROM inv_main_categories WHERE (company_id = $company_id OR company_id = 0 OR company_id IS NULL) $keepMainClause AND id NOT IN (SELECT DISTINCT main_id FROM inv_sub_categories WHERE (company_id = $company_id OR company_id = 0 OR company_id IS NULL))");
+                    } catch(Exception $e) {}
                 }
                 
                 $pdo->commit();
-                echo json_encode(['status' => 'success', 'message' => 'Data imported and synced successfully.']);
+                echo json_encode([
+                    'status' => 'success', 
+                    'message' => 'Data imported and synced successfully.',
+                    'summary' => [
+                        'total_rows' => count($rows),
+                        'items_created' => $itemsCreated,
+                        'items_updated' => $itemsUpdated,
+                        'items_deleted' => $itemsDeleted,
+                        'items_archived' => $itemsArchived,
+                        'items_preserved' => $itemsPreserved,
+                        'mains_created' => $mainsCreated,
+                        'subs_created' => $subsCreated,
+                        'brands_created' => $brandsCreated,
+                        'replace_mode' => $replaceMode
+                    ],
+                    'row_errors' => $rowErrors
+                ]);
             } catch (Exception $e) {
                 $pdo->rollBack();
                 echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);

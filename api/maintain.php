@@ -425,6 +425,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         sendResponse($stmt->fetchAll());
     }
 
+    if ($action === 'get_all_customers_export') {
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN list_region_id INT NULL AFTER sub_region_id"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN cust_tax_type_id INT NULL"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN sales_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN further_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN wh_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN cnic VARCHAR(50) DEFAULT NULL AFTER ntn_cnic"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN buyer_type_id INT DEFAULT NULL AFTER cust_tax_type_id"); } catch(PDOException $e) {}
+
+        // Fetch customer types (coa_sub) under Customer main account
+        $typeStmt = $pdo->prepare("
+            SELECT cs.id, cs.code, cs.name 
+            FROM coa_sub cs
+            WHERE cs.main_id IN (
+                SELECT id FROM coa_main WHERE code = '120' OR LOWER(name) LIKE '%customer%' OR LOWER(name) LIKE '%debtor%'
+            ) AND (cs.company_id = ? OR cs.company_id = 0 OR cs.company_id IS NULL)
+            ORDER BY cs.code ASC
+        ");
+        $typeStmt->execute([$company_id]);
+        $types = $typeStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Fetch all customer records
+        $sql = "
+            SELECT cs.code AS sub_code, cs.name AS sub_name, cs.id AS sub_id,
+                   cl.id AS coa_id, cl.code, cl.name,
+                   c.contact_person, c.address, 
+                   COALESCE(r.name, '') AS region_name,
+                   COALESCE(sr.name, '') AS sub_region_name,
+                   COALESCE(lr.name, '') AS list_region_name,
+                   c.telephone, c.fax, c.email, c.website,
+                   c.st_reg_no, c.ntn_cnic, COALESCE(c.cnic, '') AS cnic,
+                   COALESCE(bt.name, '') AS buyer_type_name,
+                   COALESCE(ctt.name, '') AS tax_type_name,
+                   COALESCE(c.wh_tax_rate, ctt.tax_rate, 0.00) AS wh_tax_rate,
+                   COALESCE(c.sales_tax_rate, bt.sales_tax_rate, 0.00) AS sales_tax_rate,
+                   COALESCE(c.further_tax_rate, bt.further_tax_rate, 0.00) AS further_tax_rate,
+                   COALESCE(emp.name, '') AS acc_manager_name,
+                   c.credit_terms, c.credit_limit, c.remarks
+            FROM coa_list cl
+            JOIN coa_sub cs ON cl.sub_id = cs.id
+            LEFT JOIN customers c ON cl.id = c.coa_list_id
+            LEFT JOIN regions r ON c.region_id = r.id
+            LEFT JOIN sub_regions sr ON c.sub_region_id = sr.id
+            LEFT JOIN list_regions lr ON c.list_region_id = lr.id
+            LEFT JOIN buyer_types bt ON c.buyer_type_id = bt.id
+            LEFT JOIN customer_types_tax ctt ON c.cust_tax_type_id = ctt.id
+            LEFT JOIN employees emp ON c.acc_manager_id = emp.id
+            WHERE cs.main_id IN (
+                SELECT id FROM coa_main WHERE code = '120' OR LOWER(name) LIKE '%customer%' OR LOWER(name) LIKE '%debtor%'
+            ) AND (cl.company_id = ? OR cl.company_id = 0 OR cl.company_id IS NULL)
+            ORDER BY cs.code ASC, cl.code ASC
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$company_id]);
+        $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        sendResponse(['status' => 'success', 'types' => $types, 'customers' => $customers]);
+    }
+
+    if ($action === 'get_all_vendors_export') {
+        // Fetch vendor types (coa_sub) under Vendor / Payable main account
+        $typeStmt = $pdo->prepare("
+            SELECT cs.id, cs.code, cs.name 
+            FROM coa_sub cs
+            WHERE cs.main_id IN (
+                SELECT id FROM coa_main WHERE code LIKE '21%' OR LOWER(name) LIKE '%vendor%' OR LOWER(name) LIKE '%supplier%' OR LOWER(name) LIKE '%creditor%' OR LOWER(name) LIKE '%payable%'
+            ) AND (cs.company_id = ? OR cs.company_id = 0 OR cs.company_id IS NULL)
+            ORDER BY cs.code ASC
+        ");
+        $typeStmt->execute([$company_id]);
+        $types = $typeStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Fetch all vendor records
+        $sql = "
+            SELECT cs.code AS sub_code, cs.name AS sub_name, cs.id AS sub_id,
+                   cl.id AS coa_id, cl.code, cl.name,
+                   v.contact_person, v.address, 
+                   v.telephone, v.mobile, v.fax, v.email, v.website,
+                   v.st_reg_no, v.ntn_cnic,
+                   v.credit_terms, v.remarks
+            FROM coa_list cl
+            JOIN coa_sub cs ON cl.sub_id = cs.id
+            LEFT JOIN vendors v ON cl.id = v.coa_list_id
+            WHERE cs.main_id IN (
+                SELECT id FROM coa_main WHERE code LIKE '21%' OR LOWER(name) LIKE '%vendor%' OR LOWER(name) LIKE '%supplier%' OR LOWER(name) LIKE '%creditor%' OR LOWER(name) LIKE '%payable%'
+            ) AND (cl.company_id = ? OR cl.company_id = 0 OR cl.company_id IS NULL)
+            ORDER BY cs.code ASC, cl.code ASC
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$company_id]);
+        $vendors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        sendResponse(['status' => 'success', 'types' => $types, 'vendors' => $vendors]);
+    }
+
     if ($action === 'get_banks' && isset($_GET['sub_id'])) {
         $subId = $_GET['sub_id'];
         $stmt = $pdo->prepare("
@@ -1124,6 +1219,803 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             sendResponse(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
+
+    if ($action === 'import_customers_excel') {
+        $rows = null;
+        $mode = $_POST['mode'] ?? ($data['mode'] ?? 'merge');
+        if (isset($_POST['data'])) {
+            $raw = is_string($_POST['data']) ? stripslashes($_POST['data']) : $_POST['data'];
+            $rows = json_decode($raw, true) ?: json_decode($_POST['data'], true);
+        } elseif (isset($data['data'])) {
+            $rows = is_array($data['data']) ? $data['data'] : json_decode($data['data'], true);
+        }
+
+        if (!$rows || !is_array($rows)) {
+            sendResponse(['status' => 'error', 'message' => 'Invalid data format or empty rows.'], 400);
+        }
+
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN list_region_id INT NULL AFTER sub_region_id"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN cust_tax_type_id INT NULL"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN sales_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN further_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN wh_tax_rate DECIMAL(10,2) DEFAULT 0.00"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN cnic VARCHAR(50) DEFAULT NULL AFTER ntn_cnic"); } catch(PDOException $e) {}
+        try { $pdo->exec("ALTER TABLE customers ADD COLUMN buyer_type_id INT DEFAULT NULL AFTER cust_tax_type_id"); } catch(PDOException $e) {}
+
+        $normClean = function($str) {
+            return strtolower(preg_replace('/[^a-zA-Z0-9]/', '', (string)$str));
+        };
+
+        $getVal = function($row, ...$keys) use ($normClean) {
+            foreach ($keys as $k) {
+                if (isset($row[$k]) && trim(strval($row[$k])) !== '') {
+                    return trim(strval($row[$k]));
+                }
+            }
+            $cleanKeys = array_map(function($k) use ($normClean) { return $normClean($k); }, $keys);
+            foreach ($row as $rk => $rv) {
+                $cleanRk = $normClean($rk);
+                if (in_array($cleanRk, $cleanKeys, true) && trim(strval($rv)) !== '') {
+                    return trim(strval($rv));
+                }
+            }
+            return '';
+        };
+
+        $pdo->beginTransaction();
+        try {
+            // Find or get Customer Main Account
+            $mainStmt = $pdo->prepare("SELECT id, code, name FROM coa_main WHERE (code = '120' OR LOWER(name) LIKE '%customer%' OR LOWER(name) LIKE '%debtor%') AND (company_id = ? OR company_id = 0 OR company_id IS NULL) ORDER BY (code = '120') DESC, id ASC LIMIT 1");
+            $mainStmt->execute([$company_id]);
+            $mainCategory = $mainStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$mainCategory) {
+                $mainStmt2 = $pdo->prepare("SELECT id, code, name FROM coa_main WHERE code = '120' LIMIT 1");
+                $mainStmt2->execute();
+                $mainCategory = $mainStmt2->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$mainCategory) {
+                $pdo->prepare("INSERT INTO coa_main (company_id, code, name, component) VALUES (?, '120', 'CUSTOMERS / DEBTORS', 'Balance Sheet')")->execute([$company_id]);
+                $mainId = $pdo->lastInsertId();
+            } else {
+                $mainId = $mainCategory['id'];
+            }
+
+            // Pre-cache Customer Types (coa_sub)
+            $typeCacheByCode = [];
+            $typeCacheByName = [];
+            $allSubIds = [];
+            $maxSubCode = 12000;
+            $tStmt = $pdo->prepare("SELECT id, code, name FROM coa_sub WHERE main_id = ? AND (company_id = ? OR company_id = 0 OR company_id IS NULL)");
+            $tStmt->execute([$mainId, $company_id]);
+            while ($tRow = $tStmt->fetch(PDO::FETCH_ASSOC)) {
+                $cCode = $normClean($tRow['code']);
+                $cName = $normClean($tRow['name']);
+                if ($cCode) $typeCacheByCode[$cCode] = $tRow;
+                if ($cName) $typeCacheByName[$cName] = $tRow;
+                $allSubIds[] = intval($tRow['id']);
+                $numCode = intval(preg_replace('/[^0-9]/', '', $tRow['code']));
+                if ($numCode > $maxSubCode) $maxSubCode = $numCode;
+            }
+
+            // Pre-cache Regions
+            $regionsCache = [];
+            $rStmt = $pdo->prepare("SELECT id, name FROM regions WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+            $rStmt->execute([$company_id]);
+            while ($rRow = $rStmt->fetch(PDO::FETCH_ASSOC)) {
+                $regionsCache[$normClean($rRow['name'])] = intval($rRow['id']);
+            }
+
+            $subRegionsCache = [];
+            $srStmt = $pdo->prepare("SELECT id, region_id, name FROM sub_regions");
+            $srStmt->execute();
+            while ($srRow = $srStmt->fetch(PDO::FETCH_ASSOC)) {
+                $subRegionsCache[$srRow['region_id'] . '_' . $normClean($srRow['name'])] = intval($srRow['id']);
+            }
+
+            $listRegionsCache = [];
+            $lrStmt = $pdo->prepare("SELECT id, sub_region_id, name FROM list_regions");
+            $lrStmt->execute();
+            while ($lrRow = $lrStmt->fetch(PDO::FETCH_ASSOC)) {
+                $listRegionsCache[$lrRow['sub_region_id'] . '_' . $normClean($lrRow['name'])] = intval($lrRow['id']);
+            }
+
+            // Pre-cache Buyer Types
+            $buyerTypesCache = [];
+            try {
+                $btStmt = $pdo->prepare("SELECT id, name, buyer_code FROM buyer_types WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+                $btStmt->execute([$company_id]);
+                while ($btRow = $btStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $buyerTypesCache[$normClean($btRow['name'])] = intval($btRow['id']);
+                    if (!empty($btRow['buyer_code'])) {
+                        $buyerTypesCache[$normClean($btRow['buyer_code'])] = intval($btRow['id']);
+                    }
+                }
+            } catch (Exception $e) {}
+
+            // Pre-cache Customer Types Tax
+            $taxTypesCache = [];
+            try {
+                $ttStmt = $pdo->prepare("SELECT id, name, tax_rate FROM customer_types_tax WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+                $ttStmt->execute([$company_id]);
+                while ($ttRow = $ttStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $taxTypesCache[$normClean($ttRow['name'])] = intval($ttRow['id']);
+                }
+            } catch (Exception $e) {}
+
+            // Pre-cache Employees (Account Managers)
+            $empCache = [];
+            try {
+                $empStmt = $pdo->prepare("SELECT id, name FROM employees WHERE company_id = ? OR company_id = 0 OR company_id IS NULL");
+                $empStmt->execute([$company_id]);
+                while ($empRow = $empStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $empCache[$normClean($empRow['name'])] = intval($empRow['id']);
+                }
+            } catch (Exception $e) {}
+
+            // Pre-cache existing Customer accounts in coa_list
+            $custCacheByCode = [];
+            $custCacheByName = [];
+            $existingCustomerIds = [];
+            $maxCustCodePerSub = [];
+
+            $cStmt = $pdo->prepare("
+                SELECT cl.id, cl.sub_id, cl.code, cl.name 
+                FROM coa_list cl 
+                JOIN coa_sub cs ON cl.sub_id = cs.id 
+                WHERE cs.main_id = ? AND (cl.company_id = ? OR cl.company_id = 0 OR cl.company_id IS NULL)
+            ");
+            $cStmt->execute([$mainId, $company_id]);
+            while ($cRow = $cStmt->fetch(PDO::FETCH_ASSOC)) {
+                $cCode = $normClean($cRow['code']);
+                $cName = $normClean($cRow['name']);
+                $subId = intval($cRow['sub_id']);
+                if ($cCode) $custCacheByCode[$cCode] = $cRow;
+                if ($cName) {
+                    $custCacheByName[$subId . '_' . $cName] = $cRow;
+                    if (!isset($custCacheByName['any_' . $cName])) {
+                        $custCacheByName['any_' . $cName] = $cRow;
+                    }
+                }
+                $existingCustomerIds[intval($cRow['id'])] = true;
+                $numCode = intval(preg_replace('/[^0-9]/', '', $cRow['code']));
+                if (!isset($maxCustCodePerSub[$subId]) || $numCode > $maxCustCodePerSub[$subId]) {
+                    $maxCustCodePerSub[$subId] = $numCode;
+                }
+            }
+
+            // Identify all accounts that have transactions/invoices
+            $usedCustomerIds = [];
+            $tables_to_check = [
+                ['table' => 'sale_invoices', 'col' => 'customer_coa_id'],
+                ['table' => 'sale_orders', 'col' => 'customer_coa_id'],
+                ['table' => 'sale_returns', 'col' => 'customer_coa_id'],
+                ['table' => 'delivery_challans', 'col' => 'customer_coa_id'],
+                ['table' => 'quotations', 'col' => 'customer_coa_id'],
+                ['table' => 'general_journal_voucher_items', 'col' => 'coa_id'],
+                ['table' => 'cash_receipts', 'col' => 'received_from_coa_id'],
+                ['table' => 'cash_receipts', 'col' => 'cash_account_coa_id'],
+                ['table' => 'cash_payments', 'col' => 'paid_to_coa_id'],
+                ['table' => 'bank_receipts', 'col' => 'received_from_coa_id'],
+                ['table' => 'bank_payments', 'col' => 'paid_to_coa_id']
+            ];
+            foreach ($tables_to_check as $tc) {
+                try {
+                    $tStmt = $pdo->query("SELECT DISTINCT {$tc['col']} FROM {$tc['table']} WHERE {$tc['col']} IS NOT NULL");
+                    while ($val = $tStmt->fetchColumn()) {
+                        if ($val) $usedCustomerIds[intval($val)] = true;
+                    }
+                } catch (Exception $e) {}
+            }
+
+            $typesCreatedCount = 0;
+            $customersCreatedCount = 0;
+            $customersUpdatedCount = 0;
+            $customersDeletedCount = 0;
+            $preservedCount = 0;
+            $processedCoaIds = [];
+
+            // Statements for fast execution
+            $insertTypeStmt = $pdo->prepare("INSERT INTO coa_sub (company_id, main_id, code, name) VALUES (?, ?, ?, ?)");
+            $insertCustCoaStmt = $pdo->prepare("INSERT INTO coa_list (company_id, sub_id, code, name) VALUES (?, ?, ?, ?)");
+            $updateCustCoaStmt = $pdo->prepare("UPDATE coa_list SET name = ?, sub_id = ? WHERE id = ?");
+            
+            $checkCustDetailsStmt = $pdo->prepare("SELECT id FROM customers WHERE coa_list_id = ? LIMIT 1");
+
+            $updateCustDetailsStmt = $pdo->prepare("
+                UPDATE customers SET 
+                    contact_person = ?, address = ?, region_id = ?, sub_region_id = ?, list_region_id = ?,
+                    telephone = ?, mobile = ?, fax = ?, email = ?, website = ?,
+                    st_reg_no = ?, ntn_cnic = ?, cnic = ?, buyer_type_id = ?, cust_tax_type_id = ?,
+                    sales_tax_rate = ?, further_tax_rate = ?, wh_tax_rate = ?, acc_manager_id = ?,
+                    credit_limit = ?, credit_terms = ?, remarks = ?
+                WHERE coa_list_id = ?
+            ");
+
+            $insertCustDetailsStmt = $pdo->prepare("
+                INSERT INTO customers (
+                    company_id, coa_list_id, contact_person, address, region_id, sub_region_id, list_region_id,
+                    telephone, mobile, fax, email, website,
+                    st_reg_no, ntn_cnic, cnic, buyer_type_id, cust_tax_type_id,
+                    sales_tax_rate, further_tax_rate, wh_tax_rate, acc_manager_id,
+                    credit_limit, credit_terms, remarks
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?,
+                    ?, ?, ?
+                )
+            ");
+
+            foreach ($rows as $row) {
+                $subCode = $getVal($row, 'Customer Type Code', 'Sub Type Code', 'Type Code', 'Sub Code');
+                $subName = $getVal($row, 'Customer Type', 'Customer Type Name', 'Sub Name', 'Type Name');
+                $custCode = $getVal($row, 'Account Code', 'Customer Code', 'Code', 'Cust Code', 'Party Code');
+                $custName = $getVal($row, 'Account Name', 'Customer Name', 'Name', 'Party Name');
+
+                // If no customer details but customer type name exists, ensure customer type is created
+                if (!$custCode && !$custName && $subName) {
+                    $cleanSubName = $normClean($subName);
+                    if (!isset($typeCacheByName[$cleanSubName])) {
+                        $newSubCode = $subCode ?: strval(++$maxSubCode);
+                        $insertTypeStmt->execute([$company_id, $mainId, $newSubCode, $subName]);
+                        $newTypeId = $pdo->lastInsertId();
+                        $typeObj = ['id' => $newTypeId, 'code' => $newSubCode, 'name' => $subName];
+                        $typeCacheByName[$cleanSubName] = $typeObj;
+                        $typeCacheByCode[$normClean($newSubCode)] = $typeObj;
+                        $allSubIds[] = intval($newTypeId);
+                        $typesCreatedCount++;
+                    }
+                    continue;
+                }
+
+                if (!$custName && !$custCode) continue;
+
+                // 1. Resolve Customer Type (coa_sub)
+                $targetSubId = null;
+                $cleanSubCode = $normClean($subCode);
+                $cleanSubName = $normClean($subName);
+
+                if ($cleanSubCode && isset($typeCacheByCode[$cleanSubCode])) {
+                    $targetSubId = $typeCacheByCode[$cleanSubCode]['id'];
+                } elseif ($cleanSubName && isset($typeCacheByName[$cleanSubName])) {
+                    $targetSubId = $typeCacheByName[$cleanSubName]['id'];
+                } elseif (!empty($subName)) {
+                    // Create new customer type
+                    $newSubCode = $subCode ?: strval(++$maxSubCode);
+                    $insertTypeStmt->execute([$company_id, $mainId, $newSubCode, $subName]);
+                    $newTypeId = $pdo->lastInsertId();
+                    $typeObj = ['id' => $newTypeId, 'code' => $newSubCode, 'name' => $subName];
+                    $typeCacheByName[$cleanSubName] = $typeObj;
+                    $typeCacheByCode[$normClean($newSubCode)] = $typeObj;
+                    $allSubIds[] = intval($newTypeId);
+                    $typesCreatedCount++;
+                    $targetSubId = $newTypeId;
+                } else {
+                    // Fallback to first existing customer type
+                    if (!empty($allSubIds)) {
+                        $targetSubId = $allSubIds[0];
+                    } else {
+                        $newSubCode = '12001';
+                        $insertTypeStmt->execute([$company_id, $mainId, $newSubCode, 'CASH CUSTOMERS']);
+                        $newTypeId = $pdo->lastInsertId();
+                        $typeObj = ['id' => $newTypeId, 'code' => $newSubCode, 'name' => 'CASH CUSTOMERS'];
+                        $typeCacheByName[$normClean('CASH CUSTOMERS')] = $typeObj;
+                        $typeCacheByCode[$normClean($newSubCode)] = $typeObj;
+                        $allSubIds[] = intval($newTypeId);
+                        $typesCreatedCount++;
+                        $targetSubId = $newTypeId;
+                    }
+                }
+
+                // 2. Resolve Regions
+                $regionName = $getVal($row, 'Main Region', 'Region', 'Region Name');
+                $subRegionName = $getVal($row, 'Sub Region', 'Sub-Region', 'SubRegion');
+                $listRegionName = $getVal($row, 'List Region', 'List', 'ListRegion');
+
+                $regionId = null;
+                if ($regionName) {
+                    $cleanRName = $normClean($regionName);
+                    if (isset($regionsCache[$cleanRName])) {
+                        $regionId = $regionsCache[$cleanRName];
+                    } else {
+                        $pdo->prepare("INSERT INTO regions (company_id, name) VALUES (?, ?)")->execute([$company_id, $regionName]);
+                        $regionId = intval($pdo->lastInsertId());
+                        $regionsCache[$cleanRName] = $regionId;
+                    }
+                }
+
+                $subRegionId = null;
+                if ($regionId && $subRegionName) {
+                    $cleanSRName = $normClean($subRegionName);
+                    $srKey = $regionId . '_' . $cleanSRName;
+                    if (isset($subRegionsCache[$srKey])) {
+                        $subRegionId = $subRegionsCache[$srKey];
+                    } else {
+                        $pdo->prepare("INSERT INTO sub_regions (region_id, name) VALUES (?, ?)")->execute([$regionId, $subRegionName]);
+                        $subRegionId = intval($pdo->lastInsertId());
+                        $subRegionsCache[$srKey] = $subRegionId;
+                    }
+                }
+
+                $listRegionId = null;
+                if ($subRegionId && $listRegionName) {
+                    $cleanLRName = $normClean($listRegionName);
+                    $lrKey = $subRegionId . '_' . $cleanLRName;
+                    if (isset($listRegionsCache[$lrKey])) {
+                        $listRegionId = $listRegionsCache[$lrKey];
+                    } else {
+                        $pdo->prepare("INSERT INTO list_regions (sub_region_id, name) VALUES (?, ?)")->execute([$subRegionId, $listRegionName]);
+                        $listRegionId = intval($pdo->lastInsertId());
+                        $listRegionsCache[$lrKey] = $listRegionId;
+                    }
+                }
+
+                // 3. Resolve Lookups (Buyer Type, Tax Type, Manager)
+                $buyerTypeName = $getVal($row, 'Buyer Type', 'BuyerType', 'Registration Type');
+                $buyerTypeId = null;
+                if ($buyerTypeName) {
+                    $cleanBT = $normClean($buyerTypeName);
+                    if (isset($buyerTypesCache[$cleanBT])) {
+                        $buyerTypeId = $buyerTypesCache[$cleanBT];
+                    }
+                }
+
+                $taxTypeName = $getVal($row, 'Tax Type', 'Customer Type Tax', 'TaxType');
+                $taxTypeId = null;
+                if ($taxTypeName) {
+                    $cleanTT = $normClean($taxTypeName);
+                    if (isset($taxTypesCache[$cleanTT])) {
+                        $taxTypeId = $taxTypesCache[$cleanTT];
+                    }
+                }
+
+                $managerName = $getVal($row, 'Acc. Manager', 'Acc Manager', 'Account Manager', 'Manager');
+                $managerId = null;
+                if ($managerName) {
+                    $cleanEmp = $normClean($managerName);
+                    if (isset($empCache[$cleanEmp])) {
+                        $managerId = $empCache[$cleanEmp];
+                    }
+                }
+
+                // 4. Resolve Rates & Numeric Fields
+                $contactPerson = $getVal($row, 'Contact Person', 'Contact', 'ContactPerson');
+                $address = $getVal($row, 'Address', 'Customer Address');
+                $telephone = $getVal($row, 'Telephone', 'Phone', 'Tel', 'Mobile');
+                $fax = $getVal($row, 'Fax');
+                $website = $getVal($row, 'Website', 'Web');
+                $email = $getVal($row, 'E-Mail', 'Email', 'Mail');
+                $stRegNo = $getVal($row, 'S. T. Reg. No.', 'ST Reg No', 'Sales Tax Reg No', 'STRN');
+                $ntn = $getVal($row, 'N.T.N.', 'NTN', 'NTN_CNIC');
+                $cnic = $getVal($row, 'C.N.I.C.', 'CNIC');
+                $creditTerms = $getVal($row, 'Credit Terms', 'Credit Term', 'Payment Terms') ?: 'CASH';
+                $creditLimit = floatval($getVal($row, 'Credit Limit', 'CreditLimit') ?: 0);
+                $whTaxRate = floatval($getVal($row, 'W.H Income Tax (%)', 'W.H Tax Rate', 'WH Tax', 'Income Tax (%)', 'Tax Rate') ?: 0);
+                $salesTaxRate = floatval($getVal($row, 'Sale Tax (%)', 'Sales Tax (%)', 'Sale Tax Rate', 'Sales Tax Rate') ?: 0);
+                $furtherTaxRate = floatval($getVal($row, 'Further Tax (%)', 'Further Tax Rate') ?: 0);
+                $remarks = $getVal($row, 'Remarks', 'Note', 'Description');
+
+                // 5. Match Customer in coa_list
+                $matchedCust = null;
+                $cleanCustCode = $normClean($custCode);
+                $cleanCustName = $normClean($custName);
+
+                if ($cleanCustCode && isset($custCacheByCode[$cleanCustCode])) {
+                    $matchedCust = $custCacheByCode[$cleanCustCode];
+                } elseif ($cleanCustName && isset($custCacheByName[$targetSubId . '_' . $cleanCustName])) {
+                    $matchedCust = $custCacheByName[$targetSubId . '_' . $cleanCustName];
+                } elseif ($cleanCustName && isset($custCacheByName['any_' . $cleanCustName])) {
+                    $matchedCust = $custCacheByName['any_' . $cleanCustName];
+                }
+
+                if ($matchedCust) {
+                    // Update existing customer
+                    $coaId = intval($matchedCust['id']);
+                    $finalName = $custName ?: $matchedCust['name'];
+                    $updateCustCoaStmt->execute([$finalName, $targetSubId, $coaId]);
+
+                    $checkCustDetailsStmt->execute([$coaId]);
+                    if ($checkCustDetailsStmt->fetch()) {
+                        $updateCustDetailsStmt->execute([
+                            $contactPerson, $address, $regionId, $subRegionId, $listRegionId,
+                            $telephone, null, $fax, $email, $website,
+                            $stRegNo, $ntn, $cnic, $buyerTypeId, $taxTypeId,
+                            $salesTaxRate, $furtherTaxRate, $whTaxRate, $managerId,
+                            $creditLimit, $creditTerms, $remarks,
+                            $coaId
+                        ]);
+                    } else {
+                        $insertCustDetailsStmt->execute([
+                            $company_id, $coaId, $contactPerson, $address, $regionId, $subRegionId, $listRegionId,
+                            $telephone, null, $fax, $email, $website,
+                            $stRegNo, $ntn, $cnic, $buyerTypeId, $taxTypeId,
+                            $salesTaxRate, $furtherTaxRate, $whTaxRate, $managerId,
+                            $creditLimit, $creditTerms, $remarks
+                        ]);
+                    }
+
+                    $processedCoaIds[$coaId] = true;
+                    $customersUpdatedCount++;
+                } else {
+                    // Create new customer
+                    $finalCode = $custCode;
+                    if (!$finalCode || isset($custCacheByCode[$normClean($finalCode)])) {
+                        $subObj = $typeCacheByCode[$normClean($subCode ?? '')] ?? null;
+                        $baseSubCode = $subObj ? $subObj['code'] : '12001';
+                        if (!isset($maxCustCodePerSub[$targetSubId])) {
+                            $maxCustCodePerSub[$targetSubId] = intval($baseSubCode . '000');
+                        }
+                        $maxCustCodePerSub[$targetSubId]++;
+                        $finalCode = strval($maxCustCodePerSub[$targetSubId]);
+                    }
+
+                    $insertCustCoaStmt->execute([$company_id, $targetSubId, $finalCode, $custName]);
+                    $coaId = intval($pdo->lastInsertId());
+
+                    $insertCustDetailsStmt->execute([
+                        $company_id, $coaId, $contactPerson, $address, $regionId, $subRegionId, $listRegionId,
+                        $telephone, null, $fax, $email, $website,
+                        $stRegNo, $ntn, $cnic, $buyerTypeId, $taxTypeId,
+                        $salesTaxRate, $furtherTaxRate, $whTaxRate, $managerId,
+                        $creditLimit, $creditTerms, $remarks
+                    ]);
+
+                    $newCustObj = ['id' => $coaId, 'sub_id' => $targetSubId, 'code' => $finalCode, 'name' => $custName];
+                    $custCacheByCode[$normClean($finalCode)] = $newCustObj;
+                    if ($cleanCustName) {
+                        $custCacheByName[$targetSubId . '_' . $cleanCustName] = $newCustObj;
+                    }
+                    $processedCoaIds[$coaId] = true;
+                    $customersCreatedCount++;
+                }
+            }
+
+            // 6. Handle Replace Mode (preserve any customer used in transactions/invoices!)
+            if ($mode === 'replace') {
+                foreach (array_keys($existingCustomerIds) as $oldId) {
+                    if (!isset($processedCoaIds[$oldId])) {
+                        if (isset($usedCustomerIds[$oldId])) {
+                            // Invoices/transactions exist — PRESERVE!
+                            $preservedCount++;
+                        } else {
+                            // Safe to delete
+                            $pdo->prepare("DELETE FROM customers WHERE coa_list_id = ?")->execute([$oldId]);
+                            $pdo->prepare("DELETE FROM coa_list WHERE id = ?")->execute([$oldId]);
+                            $customersDeletedCount++;
+                        }
+                    }
+                }
+            }
+
+            $pdo->commit();
+
+            sendResponse([
+                'status' => 'success',
+                'summary' => [
+                    'total_rows' => count($rows),
+                    'customers_created' => $customersCreatedCount,
+                    'customers_updated' => $customersUpdatedCount,
+                    'customers_deleted' => $customersDeletedCount,
+                    'preserved_invoice_customers' => $preservedCount,
+                    'types_created' => $typesCreatedCount,
+                    'mode' => $mode
+                ]
+            ]);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            sendResponse(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    if ($action === 'import_vendors_excel') {
+        $rows = null;
+        $mode = $_POST['mode'] ?? ($data['mode'] ?? 'merge');
+        if (isset($_POST['data'])) {
+            $raw = is_string($_POST['data']) ? stripslashes($_POST['data']) : $_POST['data'];
+            $rows = json_decode($raw, true) ?: json_decode($_POST['data'], true);
+        } elseif (isset($data['data'])) {
+            $rows = is_array($data['data']) ? $data['data'] : json_decode($data['data'], true);
+        }
+
+        if (!$rows || !is_array($rows)) {
+            sendResponse(['status' => 'error', 'message' => 'Invalid data format or empty rows.'], 400);
+        }
+
+        $normClean = function($str) {
+            return strtolower(preg_replace('/[^a-zA-Z0-9]/', '', (string)$str));
+        };
+
+        $getVal = function($row, ...$keys) use ($normClean) {
+            foreach ($keys as $k) {
+                if (isset($row[$k]) && trim(strval($row[$k])) !== '') {
+                    return trim(strval($row[$k]));
+                }
+            }
+            $cleanKeys = array_map(function($k) use ($normClean) { return $normClean($k); }, $keys);
+            foreach ($row as $rk => $rv) {
+                $cleanRk = $normClean($rk);
+                if (in_array($cleanRk, $cleanKeys, true) && trim(strval($rv)) !== '') {
+                    return trim(strval($rv));
+                }
+            }
+            return '';
+        };
+
+        $pdo->beginTransaction();
+        try {
+            // Find or get Vendor / Payable Main Account
+            $mainStmt = $pdo->prepare("SELECT id, code, name FROM coa_main WHERE (code LIKE '21%' OR LOWER(name) LIKE '%vendor%' OR LOWER(name) LIKE '%supplier%' OR LOWER(name) LIKE '%creditor%' OR LOWER(name) LIKE '%payable%') AND (company_id = ? OR company_id = 0 OR company_id IS NULL) ORDER BY (code = '210') DESC, id ASC LIMIT 1");
+            $mainStmt->execute([$company_id]);
+            $mainCategory = $mainStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$mainCategory) {
+                $mainStmt2 = $pdo->prepare("SELECT id, code, name FROM coa_main WHERE code = '210' OR code LIKE '21%' LIMIT 1");
+                $mainStmt2->execute();
+                $mainCategory = $mainStmt2->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$mainCategory) {
+                $pdo->prepare("INSERT INTO coa_main (company_id, code, name, component) VALUES (?, '210', 'ACCOUNTS PAYABLES / CREDITORS', 'Balance Sheet')")->execute([$company_id]);
+                $mainId = $pdo->lastInsertId();
+            } else {
+                $mainId = $mainCategory['id'];
+            }
+
+            // Pre-cache Vendor Types (coa_sub)
+            $typeCacheByCode = [];
+            $typeCacheByName = [];
+            $allSubIds = [];
+            $maxSubCode = 21000;
+            $tStmt = $pdo->prepare("SELECT id, code, name FROM coa_sub WHERE main_id = ? AND (company_id = ? OR company_id = 0 OR company_id IS NULL)");
+            $tStmt->execute([$mainId, $company_id]);
+            while ($tRow = $tStmt->fetch(PDO::FETCH_ASSOC)) {
+                $cCode = $normClean($tRow['code']);
+                $cName = $normClean($tRow['name']);
+                if ($cCode) $typeCacheByCode[$cCode] = $tRow;
+                if ($cName) $typeCacheByName[$cName] = $tRow;
+                $allSubIds[] = intval($tRow['id']);
+                $numCode = intval(preg_replace('/[^0-9]/', '', $tRow['code']));
+                if ($numCode > $maxSubCode) $maxSubCode = $numCode;
+            }
+
+            // Pre-cache existing Vendor accounts in coa_list
+            $vendCacheByCode = [];
+            $vendCacheByName = [];
+            $existingVendorIds = [];
+            $maxVendCodePerSub = [];
+
+            $vStmt = $pdo->prepare("
+                SELECT cl.id, cl.sub_id, cl.code, cl.name 
+                FROM coa_list cl 
+                JOIN coa_sub cs ON cl.sub_id = cs.id 
+                WHERE cs.main_id = ? AND (cl.company_id = ? OR cl.company_id = 0 OR cl.company_id IS NULL)
+            ");
+            $vStmt->execute([$mainId, $company_id]);
+            while ($vRow = $vStmt->fetch(PDO::FETCH_ASSOC)) {
+                $cCode = $normClean($vRow['code']);
+                $cName = $normClean($vRow['name']);
+                $vId = intval($vRow['id']);
+                $subId = intval($vRow['sub_id']);
+                $existingVendorIds[$vId] = $vRow;
+                if ($cCode) $vendCacheByCode[$cCode] = $vRow;
+                if ($cName) {
+                    $vendCacheByName[$subId . '_' . $cName] = $vRow;
+                    if (!isset($vendCacheByName['any_' . $cName])) {
+                        $vendCacheByName['any_' . $cName] = $vRow;
+                    }
+                }
+                $numCode = intval(preg_replace('/[^0-9]/', '', $vRow['code']));
+                if (!isset($maxVendCodePerSub[$subId]) || $numCode > $maxVendCodePerSub[$subId]) {
+                    $maxVendCodePerSub[$subId] = $numCode;
+                }
+            }
+
+            // Identify all vendor accounts that have transactions/invoices
+            $usedVendorIds = [];
+            $tables_to_check = [
+                ['table' => 'purchase_invoices', 'col' => 'vendor_coa_id'],
+                ['table' => 'purchase_orders', 'col' => 'vendor_coa_id'],
+                ['table' => 'purchase_returns', 'col' => 'vendor_coa_id'],
+                ['table' => 'inward_gate_passes', 'col' => 'supplier_coa_id'],
+                ['table' => 'general_journal_voucher_items', 'col' => 'coa_id'],
+                ['table' => 'cash_payments', 'col' => 'paid_to_coa_id'],
+                ['table' => 'bank_payments', 'col' => 'paid_to_coa_id'],
+                ['table' => 'cash_receipts', 'col' => 'received_from_coa_id'],
+                ['table' => 'bank_receipts', 'col' => 'received_from_coa_id']
+            ];
+            foreach ($tables_to_check as $tc) {
+                try {
+                    $tStmt = $pdo->query("SELECT DISTINCT {$tc['col']} FROM {$tc['table']} WHERE {$tc['col']} IS NOT NULL");
+                    while ($val = $tStmt->fetchColumn()) {
+                        if ($val) $usedVendorIds[intval($val)] = true;
+                    }
+                } catch (Exception $e) {}
+            }
+
+            $typesCreatedCount = 0;
+            $vendorsCreatedCount = 0;
+            $vendorsUpdatedCount = 0;
+            $vendorsDeletedCount = 0;
+            $preservedCount = 0;
+            $processedCoaIds = [];
+
+            // Prepared statements for fast execution
+            $insertTypeStmt = $pdo->prepare("INSERT INTO coa_sub (company_id, main_id, code, name) VALUES (?, ?, ?, ?)");
+            $insertVendCoaStmt = $pdo->prepare("INSERT INTO coa_list (company_id, sub_id, code, name) VALUES (?, ?, ?, ?)");
+            $updateVendCoaStmt = $pdo->prepare("UPDATE coa_list SET name = ?, sub_id = ? WHERE id = ?");
+
+            $checkVendDetailsStmt = $pdo->prepare("SELECT id FROM vendors WHERE coa_list_id = ? LIMIT 1");
+
+            $updateVendDetailsStmt = $pdo->prepare("
+                UPDATE vendors SET 
+                    contact_person = ?, address = ?, telephone = ?, mobile = ?, fax = ?,
+                    email = ?, website = ?, st_reg_no = ?, ntn_cnic = ?, credit_terms = ?, remarks = ?
+                WHERE coa_list_id = ?
+            ");
+
+            $insertVendDetailsStmt = $pdo->prepare("
+                INSERT INTO vendors (
+                    company_id, coa_list_id, contact_person, address, telephone, mobile, 
+                    fax, email, website, st_reg_no, ntn_cnic, credit_terms, remarks
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+
+            foreach ($rows as $row) {
+                $typeCode = $getVal($row, 'Vendor Type Code', 'Supplier Type Code', 'Sub Type Code', 'Type Code');
+                $typeName = $getVal($row, 'Vendor Type', 'Supplier Type', 'Type Name');
+                $vendCode = $getVal($row, 'Account Code', 'Vendor Code', 'Supplier Code', 'Code');
+                $vendName = $getVal($row, 'Account Name', 'Vendor Name', 'Supplier Name', 'Name');
+
+                if (empty($typeCode) && empty($typeName) && empty($vendCode) && empty($vendName)) {
+                    continue;
+                }
+
+                // Resolve Vendor Type (coa_sub)
+                $targetSubId = null;
+                $cleanTypeCode = $normClean($typeCode);
+                $cleanTypeName = $normClean($typeName);
+
+                if ($cleanTypeCode && isset($typeCacheByCode[$cleanTypeCode])) {
+                    $targetSubId = intval($typeCacheByCode[$cleanTypeCode]['id']);
+                } elseif ($cleanTypeName && isset($typeCacheByName[$cleanTypeName])) {
+                    $targetSubId = intval($typeCacheByName[$cleanTypeName]['id']);
+                }
+
+                if (!$targetSubId) {
+                    $newSubName = $typeName ?: ($typeCode ?: 'General Vendors');
+                    if ($typeCode && is_numeric(preg_replace('/[^0-9]/', '', $typeCode))) {
+                        $newSubCode = preg_replace('/[^0-9]/', '', $typeCode);
+                    } else {
+                        $maxSubCode++;
+                        $newSubCode = strval($maxSubCode);
+                    }
+
+                    $insertTypeStmt->execute([$company_id, $mainId, $newSubCode, $newSubName]);
+                    $targetSubId = intval($pdo->lastInsertId());
+                    $newTypeObj = ['id' => $targetSubId, 'code' => $newSubCode, 'name' => $newSubName];
+                    $typeCacheByCode[$normClean($newSubCode)] = $newTypeObj;
+                    $typeCacheByName[$normClean($newSubName)] = $newTypeObj;
+                    $allSubIds[] = $targetSubId;
+                    $typesCreatedCount++;
+                }
+
+                // If row only defined a Vendor Type, skip vendor creation
+                if (empty($vendCode) && empty($vendName)) {
+                    continue;
+                }
+
+                $contactPerson = $getVal($row, 'Contact Person', 'contact_person');
+                $address = $getVal($row, 'Address', 'address');
+                $telephone = $getVal($row, 'Telephone', 'Phone', 'telephone');
+                $mobile = $getVal($row, 'Mobile', 'Cell', 'mobile');
+                $fax = $getVal($row, 'Fax', 'fax');
+                $email = $getVal($row, 'E-Mail', 'Email', 'email');
+                $website = $getVal($row, 'Website', 'Web', 'website');
+                $stRegNo = $getVal($row, 'S. T. Reg. No.', 'ST Reg No', 'st_reg_no', 'Sales Tax No');
+                $ntn = $getVal($row, 'N.T.N / C.N.I.C.', 'NTN / CNIC', 'NTN', 'ntn_cnic');
+                $creditTerms = $getVal($row, 'Credit Terms', 'Terms', 'credit_terms') ?: 'CASH';
+                $remarks = $getVal($row, 'Remarks', 'remarks');
+
+                // Match existing vendor
+                $matchedVend = null;
+                $cleanVendCode = $normClean($vendCode);
+                $cleanVendName = $normClean($vendName);
+
+                if ($cleanVendCode && isset($vendCacheByCode[$cleanVendCode])) {
+                    $matchedVend = $vendCacheByCode[$cleanVendCode];
+                } elseif ($cleanVendName && isset($vendCacheByName[$targetSubId . '_' . $cleanVendName])) {
+                    $matchedVend = $vendCacheByName[$targetSubId . '_' . $cleanVendName];
+                } elseif ($cleanVendName && isset($vendCacheByName['any_' . $cleanVendName])) {
+                    $matchedVend = $vendCacheByName['any_' . $cleanVendName];
+                }
+
+                if ($matchedVend) {
+                    $coaId = intval($matchedVend['id']);
+                    $finalName = $vendName ?: $matchedVend['name'];
+                    $updateVendCoaStmt->execute([$finalName, $targetSubId, $coaId]);
+
+                    $checkVendDetailsStmt->execute([$coaId]);
+                    if ($checkVendDetailsStmt->fetch()) {
+                        $updateVendDetailsStmt->execute([
+                            $contactPerson, $address, $telephone, $mobile, $fax,
+                            $email, $website, $stRegNo, $ntn, $creditTerms, $remarks,
+                            $coaId
+                        ]);
+                    } else {
+                        $insertVendDetailsStmt->execute([
+                            $company_id, $coaId, $contactPerson, $address, $telephone, $mobile,
+                            $fax, $email, $website, $stRegNo, $ntn, $creditTerms, $remarks
+                        ]);
+                    }
+
+                    $processedCoaIds[$coaId] = true;
+                    $vendorsUpdatedCount++;
+                } else {
+                    $finalCode = $vendCode;
+                    if (empty($finalCode)) {
+                        if (!isset($maxVendCodePerSub[$targetSubId])) {
+                            $subCodeStr = $typeCacheByCode[$normClean($typeCode)]['code'] ?? '21001';
+                            $maxVendCodePerSub[$targetSubId] = intval($subCodeStr . '000');
+                        }
+                        $maxVendCodePerSub[$targetSubId]++;
+                        $finalCode = strval($maxVendCodePerSub[$targetSubId]);
+                    }
+
+                    $insertVendCoaStmt->execute([$company_id, $targetSubId, $finalCode, $vendName]);
+                    $coaId = intval($pdo->lastInsertId());
+
+                    $insertVendDetailsStmt->execute([
+                        $company_id, $coaId, $contactPerson, $address, $telephone, $mobile,
+                        $fax, $email, $website, $stRegNo, $ntn, $creditTerms, $remarks
+                    ]);
+
+                    $newVendObj = ['id' => $coaId, 'sub_id' => $targetSubId, 'code' => $finalCode, 'name' => $vendName];
+                    $vendCacheByCode[$normClean($finalCode)] = $newVendObj;
+                    $vendCacheByName[$targetSubId . '_' . $cleanVendName] = $newVendObj;
+                    $processedCoaIds[$coaId] = true;
+                    $vendorsCreatedCount++;
+                }
+            }
+
+            // In Replace All mode, delete unreferenced vendors that were not in the import file
+            if ($mode === 'replace') {
+                $protected_vend_codes = ['21001001'];
+                foreach ($existingVendorIds as $eId => $eVal) {
+                    if (!isset($processedCoaIds[$eId])) {
+                        $eCode = trim($eVal['code']);
+                        if (isset($usedVendorIds[$eId]) || in_array($eCode, $protected_vend_codes)) {
+                            $preservedCount++;
+                            continue;
+                        }
+
+                        $pdo->prepare("DELETE FROM vendors WHERE coa_list_id = ?")->execute([$eId]);
+                        $pdo->prepare("DELETE FROM coa_list WHERE id = ?")->execute([$eId]);
+                        $vendorsDeletedCount++;
+                    }
+                }
+            }
+
+            $pdo->commit();
+            sendResponse([
+                'status' => 'success',
+                'summary' => [
+                    'total_processed' => count($rows),
+                    'vendors_created' => $vendorsCreatedCount,
+                    'vendors_updated' => $vendorsUpdatedCount,
+                    'vendors_deleted' => $vendorsDeletedCount,
+                    'preserved_invoice_vendors' => $preservedCount,
+                    'types_created' => $typesCreatedCount,
+                    'mode' => $mode
+                ]
+            ]);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            sendResponse(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -1231,6 +2123,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' || $_SERVER['REQUEST_METHOD'] === 'P
         if ($is_used) {
             sendResponse(['status' => 'error', 'message' => 'Cannot delete this account/customer/vendor because it is already used in invoices or vouchers.'], 403);
         }
+
+        try {
+            $pdo->prepare("DELETE FROM vendors WHERE coa_list_id = ?")->execute([$id]);
+            $pdo->prepare("DELETE FROM customers WHERE coa_list_id = ?")->execute([$id]);
+            $pdo->prepare("DELETE FROM bank_accounts WHERE coa_list_id = ?")->execute([$id]);
+        } catch(Exception $e) {}
 
         $pdo->prepare("DELETE FROM coa_list WHERE id = ?")->execute([$id]);
         logActivity($module, 'DELETE', $id, $record_title, $before_data, null);
